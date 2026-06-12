@@ -54,7 +54,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     staleTime: 5 * 60_000,
     queryFn: async () => {
       const { data } = await supabase
-        .from("empresa")
+        .from("empresa_dados")
         .select("nome")
         .eq("id", me!.id_empresa!)
         .maybeSingle();
