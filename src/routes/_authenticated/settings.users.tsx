@@ -6,6 +6,8 @@ import { toast } from "sonner";
 import { Copy, KeyRound, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { createCrmUser, resetCrmUserPassword, setCrmUserActive } from "@/lib/admin.functions";
+import { useCrmUser } from "@/hooks/use-crm-user";
+import { useAllowedEmpresas } from "@/hooks/use-allowed-empresas";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,9 +25,26 @@ type Row = { id: string; nome: string; email: string; role: string; active: bool
 
 function UsersPage() {
   const qc = useQueryClient();
+  const { data: me } = useCrmUser();
+  const { data: allowed } = useAllowedEmpresas();
   const createFn = useServerFn(createCrmUser);
   const resetFn = useServerFn(resetCrmUserPassword);
   const toggleFn = useServerFn(setCrmUserActive);
+  const isSuperAdmin = me?.role === "super_admin";
+
+  const { data: empresas = [] } = useQuery({
+    enabled: isSuperAdmin && !!allowed,
+    queryKey: ["empresas-katsuki", allowed],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("empresa_dados")
+        .select("id,nome")
+        .in("id", allowed ?? [])
+        .order("nome");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
 
   const { data: users = [], isLoading } = useQuery({
     queryKey: ["crm_users_list"],
@@ -40,15 +59,30 @@ function UsersPage() {
   });
 
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ nome: "", email: "", role: "agent" as "agent" | "manager", password: "" });
+  const [form, setForm] = useState({
+    nome: "",
+    email: "",
+    role: "agent" as "agent" | "manager" | "super_admin",
+    password: "",
+    id_empresa: "",
+  });
   const [tempPwd, setTempPwd] = useState<string | null>(null);
 
   const create = useMutation({
-    mutationFn: () => createFn({ data: { ...form, password: form.password || undefined } }),
+    mutationFn: () =>
+      createFn({
+        data: {
+          nome: form.nome,
+          email: form.email,
+          role: form.role,
+          password: form.password || undefined,
+          id_empresa: form.id_empresa ? Number(form.id_empresa) : undefined,
+        },
+      }),
     onSuccess: (r) => {
       toast.success("Usuário criado");
       setTempPwd(r.password);
-      setForm({ nome: "", email: "", role: "agent", password: "" });
+      setForm({ nome: "", email: "", role: "agent", password: "", id_empresa: "" });
       qc.invalidateQueries({ queryKey: ["crm_users_list"] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -98,14 +132,28 @@ function UsersPage() {
                 <div className="space-y-2"><Label>Email</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
                 <div className="space-y-2">
                   <Label>Função</Label>
-                  <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v as "agent" | "manager" })}>
+                  <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v as "agent" | "manager" | "super_admin" })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="agent">Corretor</SelectItem>
                       <SelectItem value="manager">Gestor</SelectItem>
+                      {isSuperAdmin && <SelectItem value="super_admin">Super Admin</SelectItem>}
                     </SelectContent>
                   </Select>
                 </div>
+                {isSuperAdmin && form.role !== "super_admin" && (
+                  <div className="space-y-2">
+                    <Label>Empresa</Label>
+                    <Select value={form.id_empresa} onValueChange={(v) => setForm({ ...form, id_empresa: v })}>
+                      <SelectTrigger><SelectValue placeholder="Selecionar empresa" /></SelectTrigger>
+                      <SelectContent>
+                        {empresas.map((e) => (
+                          <SelectItem key={e.id} value={String(e.id)}>{e.nome ?? `Empresa ${e.id}`}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
                 <div className="space-y-2">
                   <Label>Senha temporária (opcional)</Label>
                   <Input value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="Deixe em branco para gerar" />
@@ -118,7 +166,17 @@ function UsersPage() {
               ) : (
                 <>
                   <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
-                  <Button onClick={() => create.mutate()} disabled={!form.nome || !form.email || create.isPending}>Criar</Button>
+                  <Button
+                    onClick={() => create.mutate()}
+                    disabled={
+                      !form.nome ||
+                      !form.email ||
+                      (isSuperAdmin && form.role !== "super_admin" && !form.id_empresa) ||
+                      create.isPending
+                    }
+                  >
+                    Criar
+                  </Button>
                 </>
               )}
             </DialogFooter>
