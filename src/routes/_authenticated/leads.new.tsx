@@ -64,7 +64,7 @@ function NewLead() {
         id_empresa: me.id_empresa,
         id_crm: (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`),
         nome: form.nome,
-        numero: form.numero,
+        numero: form.numero ? `55 ${form.numero}` : "",
         email: form.email || null,
         id_empreendimento: form.id_empreendimento ? Number(form.id_empreendimento) : null,
         crm_assigned_to: form.crm_assigned_to || defaultAssignee,
