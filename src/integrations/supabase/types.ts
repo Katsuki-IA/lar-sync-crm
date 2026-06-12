@@ -1824,6 +1824,10 @@ export type Database = {
       crm_get_my_empresa: { Args: never; Returns: number }
       crm_get_my_id: { Args: never; Returns: string }
       crm_get_my_role: { Args: never; Returns: string }
+      crm_seed_default_stages: {
+        Args: { p_id_empresa: number }
+        Returns: undefined
+      }
       get_analises_para_relatorio: {
         Args: { p_id_empresa?: number }
         Returns: {
