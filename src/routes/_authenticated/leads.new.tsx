@@ -99,7 +99,13 @@ function NewLead() {
                 <Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} required />
               </Field>
               <Field label="Telefone">
-                <Input value={form.numero} onChange={(e) => setForm({ ...form, numero: e.target.value })} required />
+                <Input
+                  type="tel"
+                  inputMode="numeric"
+                  value={form.numero}
+                  onChange={(e) => setForm({ ...form, numero: maskPhone(e.target.value) })}
+                  required
+                />
               </Field>
               <Field label="Email">
                 <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
