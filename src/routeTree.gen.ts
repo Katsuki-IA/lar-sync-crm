@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedKanbanRouteImport } from './routes/_authenticated/kanban'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedLeadsIndexRouteImport } from './routes/_authenticated/leads.index'
@@ -31,6 +32,11 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedKanbanRoute = AuthenticatedKanbanRouteImport.update({
   id: '/kanban',
@@ -63,6 +69,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/kanban': typeof AuthenticatedKanbanRoute
+  '/settings': typeof AuthenticatedSettingsRoute
   '/leads/$id': typeof AuthenticatedLeadsIdRoute
   '/leads/new': typeof AuthenticatedLeadsNewRoute
   '/leads/': typeof AuthenticatedLeadsIndexRoute
@@ -72,6 +79,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/kanban': typeof AuthenticatedKanbanRoute
+  '/settings': typeof AuthenticatedSettingsRoute
   '/leads/$id': typeof AuthenticatedLeadsIdRoute
   '/leads/new': typeof AuthenticatedLeadsNewRoute
   '/leads': typeof AuthenticatedLeadsIndexRoute
@@ -83,6 +91,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/kanban': typeof AuthenticatedKanbanRoute
+  '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/leads/$id': typeof AuthenticatedLeadsIdRoute
   '/_authenticated/leads/new': typeof AuthenticatedLeadsNewRoute
   '/_authenticated/leads/': typeof AuthenticatedLeadsIndexRoute
@@ -94,6 +103,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/dashboard'
     | '/kanban'
+    | '/settings'
     | '/leads/$id'
     | '/leads/new'
     | '/leads/'
@@ -103,6 +113,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/dashboard'
     | '/kanban'
+    | '/settings'
     | '/leads/$id'
     | '/leads/new'
     | '/leads'
@@ -113,6 +124,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_authenticated/dashboard'
     | '/_authenticated/kanban'
+    | '/_authenticated/settings'
     | '/_authenticated/leads/$id'
     | '/_authenticated/leads/new'
     | '/_authenticated/leads/'
@@ -146,6 +158,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/settings': {
+      id: '/_authenticated/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AuthenticatedSettingsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/kanban': {
       id: '/_authenticated/kanban'
@@ -188,6 +207,7 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedKanbanRoute: typeof AuthenticatedKanbanRoute
+  AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedLeadsIdRoute: typeof AuthenticatedLeadsIdRoute
   AuthenticatedLeadsNewRoute: typeof AuthenticatedLeadsNewRoute
   AuthenticatedLeadsIndexRoute: typeof AuthenticatedLeadsIndexRoute
@@ -196,6 +216,7 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedKanbanRoute: AuthenticatedKanbanRoute,
+  AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedLeadsIdRoute: AuthenticatedLeadsIdRoute,
   AuthenticatedLeadsNewRoute: AuthenticatedLeadsNewRoute,
   AuthenticatedLeadsIndexRoute: AuthenticatedLeadsIndexRoute,
@@ -212,3 +233,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
