@@ -5,6 +5,7 @@ import { Search, Plus } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useCrmUser } from "@/hooks/use-crm-user";
+import { useAllowedEmpresas } from "@/hooks/use-allowed-empresas";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -20,6 +21,7 @@ const PAGE_SIZE = 25;
 
 function LeadsList() {
   const { data: me } = useCrmUser();
+  const { data: allowed } = useAllowedEmpresas();
   const [search, setSearch] = useState("");
   const [stage, setStage] = useState<string>("all");
   const [tagId, setTagId] = useState<string>("all");
@@ -35,22 +37,22 @@ function LeadsList() {
   );
 
   const { data: meta } = useQuery({
-    enabled: !!me,
-    queryKey: ["leads-meta", me?.id_empresa],
+    enabled: !!me && !!allowed,
+    queryKey: ["leads-meta", me?.id_empresa, allowed],
     queryFn: async () => {
       const [{ data: stages }, { data: tags }, { data: emps }, { data: users }] = await Promise.all([
         supabase.from("crm_stages").select("id, nome, cor").eq("ativo", true).order("ordem"),
         supabase.from("crm_tags").select("id, nome, cor"),
-        supabase.from("empreendimento").select("id, nome"),
-        supabase.from("crm_users").select("id, nome"),
+        supabase.from("empreendimento").select("id, nome").in("id_empresa", allowed ?? []),
+        supabase.from("crm_users").select("id, nome").in("id_empresa", allowed ?? []),
       ]);
       return { stages: stages ?? [], tags: tags ?? [], emps: emps ?? [], users: users ?? [] };
     },
   });
 
   const { data, isLoading } = useQuery({
-    enabled: !!me,
-    queryKey: ["leads-list", me?.id, me?.role, filters],
+    enabled: !!me && !!allowed,
+    queryKey: ["leads-list", me?.id, me?.role, filters, allowed],
     queryFn: async () => {
       let leadIdsByTag: number[] | null = null;
       if (tagId !== "all") {
@@ -64,7 +66,8 @@ function LeadsList() {
 
       let q = supabase
         .from("lead")
-        .select("id, nome, numero, email, crm_stage_id, crm_assigned_to, id_empreendimento, created_at", { count: "exact" });
+        .select("id, nome, numero, email, crm_stage_id, crm_assigned_to, id_empreendimento, created_at", { count: "exact" })
+        .in("id_empresa", allowed ?? []);
 
       if (me?.role === "agent") q = q.eq("crm_assigned_to", me.id);
       if (stage !== "all") q = q.eq("crm_stage_id", Number(stage));

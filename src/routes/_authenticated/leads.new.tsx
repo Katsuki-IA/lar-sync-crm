@@ -5,6 +5,7 @@ import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useCrmUser } from "@/hooks/use-crm-user";
+import { useAllowedEmpresas } from "@/hooks/use-allowed-empresas";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,6 +19,7 @@ export const Route = createFileRoute("/_authenticated/leads/new")({
 
 function NewLead() {
   const { data: me } = useCrmUser();
+  const { data: allowed } = useAllowedEmpresas();
   const navigate = useNavigate();
   const [form, setForm] = useState({
     nome: "",
@@ -30,14 +32,14 @@ function NewLead() {
   const [tagIds, setTagIds] = useState<Set<number>>(new Set());
 
   const { data: meta } = useQuery({
-    enabled: !!me,
-    queryKey: ["new-lead-meta", me?.id_empresa],
+    enabled: !!me && !!allowed,
+    queryKey: ["new-lead-meta", me?.id_empresa, allowed],
     queryFn: async () => {
       const [{ data: stages }, { data: tags }, { data: emps }, { data: users }] = await Promise.all([
         supabase.from("crm_stages").select("id, nome").eq("ativo", true).order("ordem"),
         supabase.from("crm_tags").select("id, nome, cor"),
-        supabase.from("empreendimento").select("id, nome"),
-        supabase.from("crm_users").select("id, nome").eq("active", true),
+        supabase.from("empreendimento").select("id, nome").in("id_empresa", allowed ?? []),
+        supabase.from("crm_users").select("id, nome").eq("active", true).in("id_empresa", allowed ?? []),
       ]);
       return { stages: stages ?? [], tags: tags ?? [], emps: emps ?? [], users: users ?? [] };
     },

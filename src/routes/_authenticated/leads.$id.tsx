@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useCrmUser } from "@/hooks/use-crm-user";
+import { useAllowedEmpresas } from "@/hooks/use-allowed-empresas";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +22,7 @@ function LeadDetail() {
   const { id } = Route.useParams();
   const leadId = Number(id);
   const { data: me } = useCrmUser();
+  const { data: allowed } = useAllowedEmpresas();
   const qc = useQueryClient();
   const [note, setNote] = useState("");
 
@@ -39,14 +41,14 @@ function LeadDetail() {
   });
 
   const { data: meta } = useQuery({
-    enabled: !!me,
-    queryKey: ["lead-meta", me?.id_empresa],
+    enabled: !!me && !!allowed,
+    queryKey: ["lead-meta", me?.id_empresa, allowed],
     queryFn: async () => {
       const [{ data: stages }, { data: tags }, { data: emps }, { data: users }] = await Promise.all([
         supabase.from("crm_stages").select("id, nome, cor").eq("ativo", true).order("ordem"),
         supabase.from("crm_tags").select("id, nome, cor"),
-        supabase.from("empreendimento").select("id, nome"),
-        supabase.from("crm_users").select("id, nome").eq("active", true),
+        supabase.from("empreendimento").select("id, nome").in("id_empresa", allowed ?? []),
+        supabase.from("crm_users").select("id, nome").eq("active", true).in("id_empresa", allowed ?? []),
       ]);
       return { stages: stages ?? [], tags: tags ?? [], emps: emps ?? [], users: users ?? [] };
     },
