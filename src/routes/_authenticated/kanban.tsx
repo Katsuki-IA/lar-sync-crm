@@ -131,7 +131,10 @@ function KanbanPage() {
       <DndContext sensors={sensors} onDragEnd={onDragEnd}>
         <div className="flex gap-4 overflow-x-auto pb-4">
           {(stages ?? []).map((stage) => {
-            const stageLeads = (leads ?? []).filter((l) => l.crm_stage_id === stage.id);
+            const firstStageId = stages?.[0]?.id;
+            const stageLeads = (leads ?? []).filter((l) =>
+              l.crm_stage_id === stage.id || (l.crm_stage_id == null && stage.id === firstStageId),
+            );
             return <KanbanColumn key={stage.id} stage={stage} leads={stageLeads} />;
           })}
         </div>
