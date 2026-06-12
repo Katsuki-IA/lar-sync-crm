@@ -209,16 +209,8 @@ function DraggableCard({ lead, color }: { lead: LeadCard; color: string }) {
         <div className="text-xs text-muted-foreground mt-1 truncate">📍 {lead.empreendimento_nome}</div>
       )}
       {lead.responsavel_nome && (
-        <div className="flex items-center gap-1.5 mt-2">
-          <Avatar className="h-5 w-5">
-            <AvatarFallback
-              className="text-[8px] font-semibold text-white"
-              style={{ backgroundColor: colorFromString(lead.responsavel_nome) }}
-            >
-              {getInitials(lead.responsavel_nome)}
-            </AvatarFallback>
-          </Avatar>
-          <span className="text-xs text-muted-foreground truncate">{lead.responsavel_nome}</span>
+        <div className="text-xs text-muted-foreground mt-2 truncate">
+          {lead.responsavel_nome}
         </div>
       )}
       {!!lead.tags?.length && (
