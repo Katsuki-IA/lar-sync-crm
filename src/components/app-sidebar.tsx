@@ -2,34 +2,105 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { LayoutDashboard, KanbanSquare, Users, Flame, Settings, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCrmUser } from "@/hooks/use-crm-user";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { getInitials, colorFromString } from "@/lib/lead-visuals";
 
-const baseItems = [
+type Item = { title: string; url: string; match: string; icon: typeof LayoutDashboard };
+
+const mainItems: Item[] = [
   { title: "Dashboard", url: "/dashboard", match: "/dashboard", icon: LayoutDashboard },
   { title: "Kanban", url: "/kanban", match: "/kanban", icon: KanbanSquare },
   { title: "Leads", url: "/leads", match: "/leads", icon: Users },
 ];
 
+function roleLabel(role?: string | null) {
+  if (role === "super_admin") return "Super Admin";
+  if (role === "manager") return "Gestor";
+  if (role === "agent") return "Corretor";
+  return "Usuário";
+}
+
 export function AppSidebar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { data: me } = useCrmUser();
-  const items = [
-    ...baseItems,
-    ...(me?.role === "manager" || me?.role === "super_admin"
-      ? [{ title: "Configurações", url: "/settings/stages", match: "/settings", icon: Settings }]
-      : []),
-    ...(me?.role === "super_admin"
-      ? [{ title: "Super Admin", url: "/admin/empresas", match: "/admin", icon: Shield }]
-      : []),
-  ];
+
+  const adminItems: Item[] = [];
+  if (me?.role === "manager" || me?.role === "super_admin") {
+    adminItems.push({ title: "Configurações", url: "/settings/stages", match: "/settings", icon: Settings });
+  }
+  if (me?.role === "super_admin") {
+    adminItems.push({ title: "Super Admin", url: "/admin/empresas", match: "/admin", icon: Shield });
+  }
+
+  const initials = getInitials(me?.nome ?? me?.email, "U");
+  const avatarColor = colorFromString(me?.nome ?? me?.email);
+
   return (
-    <aside className="hidden md:flex w-60 flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border">
-      <div className="h-14 flex items-center gap-2 px-5 border-b border-sidebar-border">
-        <div className="h-8 w-8 rounded-xl bg-primary flex items-center justify-center text-primary-foreground">
-          <Flame className="h-4 w-4" />
+    <aside
+      className="hidden md:flex flex-col text-sidebar-foreground border-r"
+      style={{ width: 240, backgroundColor: "#13151F", borderColor: "#2A2D3A" }}
+    >
+      {/* Logo */}
+      <div
+        className="h-16 flex items-center gap-3 px-5 border-b"
+        style={{ borderColor: "#2A2D3A" }}
+      >
+        <div className="h-9 w-9 rounded-xl bg-primary flex items-center justify-center text-primary-foreground shadow-lg shadow-primary/30">
+          <Flame className="h-5 w-5" />
         </div>
-        <span className="font-semibold text-sidebar-primary-foreground">Ember CRM</span>
+        <div className="flex flex-col leading-tight">
+          <span className="font-bold text-[15px] text-foreground tracking-tight">Ember CRM</span>
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Real Estate</span>
+        </div>
       </div>
-      <nav className="flex-1 p-3 space-y-1">
+
+      {/* Nav */}
+      <nav className="flex-1 overflow-y-auto px-3 py-4">
+        <SidebarGroup label="Principal" items={mainItems} pathname={pathname} />
+        {!!adminItems.length && (
+          <>
+            <div className="my-4 h-px" style={{ backgroundColor: "#2A2D3A" }} />
+            <SidebarGroup label="Administração" items={adminItems} pathname={pathname} />
+          </>
+        )}
+      </nav>
+
+      {/* User */}
+      <div className="p-3 border-t" style={{ borderColor: "#2A2D3A" }}>
+        <div className="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-white/[0.04] transition-colors">
+          <Avatar className="h-9 w-9">
+            <AvatarFallback
+              className="text-xs font-semibold text-white"
+              style={{ backgroundColor: avatarColor }}
+            >
+              {initials}
+            </AvatarFallback>
+          </Avatar>
+          <div className="min-w-0 flex-1 leading-tight">
+            <div className="text-sm font-medium text-foreground truncate">{me?.nome ?? "Usuário"}</div>
+            <div className="text-[11px] text-muted-foreground truncate">{roleLabel(me?.role)}</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+  );
+}
+
+function SidebarGroup({
+  label,
+  items,
+  pathname,
+}: {
+  label: string;
+  items: Item[];
+  pathname: string;
+}) {
+  return (
+    <div>
+      <div className="px-3 mb-2 text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">
+        {label}
+      </div>
+      <div className="space-y-1">
         {items.map((item) => {
           const active = pathname.startsWith(item.match);
           return (
@@ -37,18 +108,29 @@ export function AppSidebar() {
               key={item.url}
               to={item.url}
               className={cn(
-                "flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition-colors",
+                "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all",
                 active
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                  : "hover:bg-sidebar-accent/60 text-sidebar-foreground",
+                  ? "text-primary font-medium"
+                  : "text-sidebar-foreground hover:bg-white/[0.04] hover:text-foreground",
               )}
+              style={
+                active
+                  ? { backgroundColor: "rgba(249,115,22,0.12)" }
+                  : undefined
+              }
             >
-              <item.icon className="h-4 w-4" />
+              {active && (
+                <span
+                  className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-[3px] rounded-r"
+                  style={{ backgroundColor: "#F97316" }}
+                />
+              )}
+              <item.icon className={cn("h-4 w-4", active ? "text-primary" : "")} />
               <span>{item.title}</span>
             </Link>
           );
         })}
-      </nav>
-    </aside>
+      </div>
+    </div>
   );
 }

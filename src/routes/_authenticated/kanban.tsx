@@ -8,6 +8,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCrmUser } from "@/hooks/use-crm-user";
 import { useAllowedEmpresas } from "@/hooks/use-allowed-empresas";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { getInitials, colorFromString, stageColor } from "@/lib/lead-visuals";
 
 export const Route = createFileRoute("/_authenticated/kanban")({
   component: KanbanPage,
@@ -125,8 +127,8 @@ function KanbanPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Kanban</h1>
-        <p className="text-sm text-muted-foreground">Arraste os leads entre os estágios</p>
+        <h1 className="text-[24px] font-bold tracking-tight text-foreground">Kanban</h1>
+        <p className="text-sm text-muted-foreground mt-1">Arraste os leads entre os estágios</p>
       </div>
       <DndContext sensors={sensors} onDragEnd={onDragEnd}>
         <div className="flex gap-4 overflow-x-auto pb-4">
@@ -145,14 +147,29 @@ function KanbanPage() {
 
 function KanbanColumn({ stage, leads }: { stage: { id: number; nome: string; cor: string | null }; leads: LeadCard[] }) {
   const { setNodeRef, isOver } = useDroppable({ id: stage.id });
-  const color = stage.cor ?? "#f97316";
+  const color = stageColor(stage.nome, stage.cor);
   return (
-    <div ref={setNodeRef} className="w-72 shrink-0 rounded-2xl bg-card border border-border flex flex-col">
-      <div className="px-4 py-3 rounded-t-2xl flex items-center justify-between" style={{ backgroundColor: `${color}26` }}>
-        <span className="font-semibold text-sm" style={{ color }}>{stage.nome}</span>
-        <span className="text-xs font-medium" style={{ color }}>{leads.length}</span>
+    <div
+      ref={setNodeRef}
+      className="w-72 shrink-0 rounded-xl border flex flex-col"
+      style={{ backgroundColor: "#1A1D27", borderColor: "#2A2D3A" }}
+    >
+      <div
+        className="px-4 py-3 rounded-t-xl flex items-center justify-between border-b"
+        style={{ backgroundColor: `${color}1A`, borderColor: `${color}33` }}
+      >
+        <div className="flex items-center gap-2">
+          <span className="h-2 w-2 rounded-full" style={{ backgroundColor: color }} />
+          <span className="font-semibold text-sm" style={{ color }}>{stage.nome}</span>
+        </div>
+        <span
+          className="text-xs font-semibold px-2 py-0.5 rounded-full"
+          style={{ backgroundColor: `${color}26`, color }}
+        >
+          {leads.length}
+        </span>
       </div>
-      <div className={`p-2 space-y-2 min-h-32 flex-1 transition-colors ${isOver ? "bg-primary/5" : ""}`}>
+      <div className={`p-2 space-y-2 min-h-32 flex-1 transition-colors rounded-b-xl ${isOver ? "bg-primary/5 ring-2 ring-primary/30 ring-inset" : ""}`}>
         {leads.map((l) => (
           <DraggableCard key={l.id} lead={l} color={color} />
         ))}
@@ -168,6 +185,8 @@ function DraggableCard({ lead, color }: { lead: LeadCard; color: string }) {
     transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
     opacity: isDragging ? 0.6 : 1,
     borderLeft: `3px solid ${color}`,
+    boxShadow: "0 2px 8px rgba(0,0,0,0.4)",
+    backgroundColor: "#1A1D27",
   };
   return (
     <div
@@ -175,13 +194,13 @@ function DraggableCard({ lead, color }: { lead: LeadCard; color: string }) {
       style={style}
       {...listeners}
       {...attributes}
-      className="bg-card rounded-xl border border-border p-3 shadow-sm cursor-grab active:cursor-grabbing"
+      className="rounded-[10px] border p-3 cursor-grab active:cursor-grabbing transition-transform hover:-translate-y-0.5"
     >
       <div className="flex items-start justify-between gap-2">
         <Link
           to="/leads/$id"
           params={{ id: String(lead.id) }}
-          className="text-sm font-medium hover:text-primary truncate"
+          className="text-sm font-semibold text-foreground hover:text-primary truncate"
           onPointerDown={(e) => e.stopPropagation()}
         >
           {lead.nome ?? "Sem nome"}
@@ -193,7 +212,17 @@ function DraggableCard({ lead, color }: { lead: LeadCard; color: string }) {
         <div className="text-xs text-muted-foreground mt-1 truncate">📍 {lead.empreendimento_nome}</div>
       )}
       {lead.responsavel_nome && (
-        <div className="text-xs text-muted-foreground mt-1 truncate">👤 {lead.responsavel_nome}</div>
+        <div className="flex items-center gap-1.5 mt-2">
+          <Avatar className="h-5 w-5">
+            <AvatarFallback
+              className="text-[8px] font-semibold text-white"
+              style={{ backgroundColor: colorFromString(lead.responsavel_nome) }}
+            >
+              {getInitials(lead.responsavel_nome)}
+            </AvatarFallback>
+          </Avatar>
+          <span className="text-xs text-muted-foreground truncate">{lead.responsavel_nome}</span>
+        </div>
       )}
       {!!lead.tags?.length && (
         <div className="flex flex-wrap gap-1 mt-2">
