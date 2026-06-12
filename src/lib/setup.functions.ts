@@ -1,6 +1,13 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
+export const hasAnyCrmUser = createServerFn({ method: "GET" }).handler(async () => {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin.from("crm_users").select("id").limit(1);
+  if (error) throw new Error(error.message);
+  return { hasUsers: (data?.length ?? 0) > 0 };
+});
+
 function randomPassword(len = 12) {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
   let out = "";

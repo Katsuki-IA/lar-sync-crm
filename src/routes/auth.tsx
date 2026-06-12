@@ -1,9 +1,10 @@
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Flame } from "lucide-react";
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
+import { hasAnyCrmUser } from "@/lib/setup.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,6 +24,11 @@ function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [hasUsers, setHasUsers] = useState(true);
+
+  useEffect(() => {
+    hasAnyCrmUser().then((res) => setHasUsers(res.hasUsers)).catch(() => setHasUsers(true));
+  }, []);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -61,6 +67,17 @@ function AuthPage() {
               {loading ? "Entrando..." : "Entrar"}
             </Button>
           </form>
+          {!hasUsers && (
+            <div className="mt-4 text-center">
+              <button
+                type="button"
+                className="text-sm text-primary hover:underline"
+                onClick={() => navigate({ to: "/setup" })}
+              >
+                Primeiro acesso? Criar conta administrador
+              </button>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
