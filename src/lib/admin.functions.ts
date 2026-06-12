@@ -126,14 +126,24 @@ export const listEmpresas = createServerFn({ method: "GET" })
     const me = await getMe(context.supabase, context.userId);
     if (me.role !== "super_admin") throw new Error("Sem permissão");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: creds } = await supabaseAdmin
+      .from("credentials")
+      .select("id_empresa")
+      .eq("default_crm", "katsuki");
+    const allowed = (creds ?? [])
+      .map((c: any) => c.id_empresa as number | null)
+      .filter((v: number | null): v is number => v != null);
+    if (!allowed.length) return [];
     const { data, error } = await supabaseAdmin
       .from("empresa_dados")
       .select("id,nome,created_at")
+      .in("id", allowed)
       .order("id", { ascending: true });
     if (error) throw new Error(error.message);
     const { data: counts } = await supabaseAdmin
       .from("crm_users")
-      .select("id_empresa");
+      .select("id_empresa")
+      .in("id_empresa", allowed);
     const tally = new Map<number, number>();
     (counts ?? []).forEach((u: any) => {
       if (u.id_empresa != null) tally.set(u.id_empresa, (tally.get(u.id_empresa) ?? 0) + 1);
@@ -148,9 +158,18 @@ export const listAllCrmUsers = createServerFn({ method: "GET" })
     const me = await getMe(context.supabase, context.userId);
     if (me.role !== "super_admin") throw new Error("Sem permissão");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: creds } = await supabaseAdmin
+      .from("credentials")
+      .select("id_empresa")
+      .eq("default_crm", "katsuki");
+    const allowed = (creds ?? [])
+      .map((c: any) => c.id_empresa as number | null)
+      .filter((v: number | null): v is number => v != null);
+    if (!allowed.length) return [];
     const { data, error } = await supabaseAdmin
       .from("crm_users")
       .select("id,nome,email,role,active,id_empresa,created_at")
+      .in("id_empresa", allowed)
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
     return data ?? [];
