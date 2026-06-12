@@ -19,6 +19,7 @@ export const Route = createFileRoute("/_authenticated/admin")({
 const tabs = [
   { to: "/admin/empresas", label: "Empresas" },
   { to: "/admin/users", label: "Usuários" },
+  { to: "/admin/notifications", label: "Notificações" },
 ] as const;
 
 function AdminLayout() {
