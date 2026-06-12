@@ -1100,6 +1100,7 @@ export type Database = {
           empreendimento_em_foco_id: number | null
           empreendimento_em_foco_nome: string | null
           etapa_conversa: number | null
+          feedback: string | null
           id: number
           id_crm: string | null
           id_empreendimento: number | null
@@ -1130,6 +1131,7 @@ export type Database = {
           empreendimento_em_foco_id?: number | null
           empreendimento_em_foco_nome?: string | null
           etapa_conversa?: number | null
+          feedback?: string | null
           id?: number
           id_crm?: string | null
           id_empreendimento?: number | null
@@ -1160,6 +1162,7 @@ export type Database = {
           empreendimento_em_foco_id?: number | null
           empreendimento_em_foco_nome?: string | null
           etapa_conversa?: number | null
+          feedback?: string | null
           id?: number
           id_crm?: string | null
           id_empreendimento?: number | null
