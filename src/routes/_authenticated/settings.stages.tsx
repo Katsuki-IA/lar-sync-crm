@@ -50,12 +50,13 @@ function StagesPage() {
           .select("id_empresa")
           .eq("auth_user_id", u.user!.id)
           .maybeSingle();
+        if (!me?.id_empresa) throw new Error("Empresa não encontrada");
         const { error } = await supabase.from("crm_stages").insert({
           nome: form.nome,
           cor: form.cor,
           ordem: maxOrdem + 1,
           ativo: true,
-          id_empresa: me?.id_empresa,
+          id_empresa: me.id_empresa,
         });
         if (error) throw error;
       }
