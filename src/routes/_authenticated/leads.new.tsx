@@ -108,7 +108,7 @@ function NewLead() {
                   <Input
                     type="tel"
                     inputMode="numeric"
-                    placeholder="(41) 99615-9085"
+                    placeholder="(ddd) 99999-9999"
                     className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 rounded-none placeholder:text-muted-foreground/40"
                     value={form.numero}
                     onChange={(e) => setForm({ ...form, numero: maskPhone(e.target.value) })}
