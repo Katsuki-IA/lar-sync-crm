@@ -114,14 +114,14 @@ function SidebarGroup({
               )}
               style={
                 active
-                  ? { backgroundColor: "rgba(249,115,22,0.12)" }
+                  ? { backgroundColor: "rgba(236,44,92,0.12)" }
                   : undefined
               }
             >
               {active && (
                 <span
                   className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-[3px] rounded-r"
-                  style={{ backgroundColor: "#F97316" }}
+                  style={{ backgroundColor: "#EC2C5C" }}
                 />
               )}
               <item.icon className={cn("h-4 w-4", active ? "text-primary" : "")} />

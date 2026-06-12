@@ -195,7 +195,7 @@ function LeadsList() {
                 "h-8 w-8 flex items-center justify-center rounded-md transition-colors",
                 view === "list" ? "text-primary" : "text-muted-foreground hover:text-foreground"
               )}
-              style={view === "list" ? { backgroundColor: "rgba(249,115,22,0.12)" } : undefined}
+              style={view === "list" ? { backgroundColor: "rgba(236,44,92,0.12)" } : undefined}
               aria-label="Visualização em lista"
               title="Visualização em lista"
             >
@@ -207,7 +207,7 @@ function LeadsList() {
                 "h-8 w-8 flex items-center justify-center rounded-md transition-colors",
                 view === "kanban" ? "text-primary" : "text-muted-foreground hover:text-foreground"
               )}
-              style={view === "kanban" ? { backgroundColor: "rgba(249,115,22,0.12)" } : undefined}
+              style={view === "kanban" ? { backgroundColor: "rgba(236,44,92,0.12)" } : undefined}
               aria-label="Visualização em kanban"
               title="Visualização em kanban"
             >
@@ -280,7 +280,7 @@ function LeadsList() {
                     <tr>
                       <td colSpan={7} className="px-4 py-16">
                         <div className="flex flex-col items-center text-center gap-4">
-                          <div className="h-16 w-16 rounded-full flex items-center justify-center" style={{ backgroundColor: "rgba(249,115,22,0.1)" }}>
+                          <div className="h-16 w-16 rounded-full flex items-center justify-center" style={{ backgroundColor: "rgba(236,44,92,0.1)" }}>
                             <UsersIcon className="h-7 w-7 text-primary" />
                           </div>
                           <div>
@@ -354,7 +354,7 @@ function LeadsList() {
                             {l.tagIds.map((tid) => {
                               const t = tagMap.get(tid);
                               if (!t) return null;
-                              const c = t.cor ?? "#f97316";
+                              const c = t.cor ?? "#ec2c5c";
                               return (
                                 <span
                                   key={tid}
@@ -417,7 +417,7 @@ function Chip({ label, onClear }: { label: string; onClear: () => void }) {
   return (
     <span
       className="inline-flex items-center gap-1.5 pl-2.5 pr-1 py-1 rounded-full text-xs font-medium border"
-      style={{ backgroundColor: "rgba(249,115,22,0.1)", borderColor: "rgba(249,115,22,0.3)", color: "#fb923c" }}
+      style={{ backgroundColor: "rgba(236,44,92,0.1)", borderColor: "rgba(236,44,92,0.3)", color: "#fb923c" }}
     >
       {label}
       <button
