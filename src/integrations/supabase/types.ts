@@ -298,6 +298,39 @@ export type Database = {
           },
         ]
       }
+      crm_funnels: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          id: number
+          id_empresa: number
+          is_default: boolean
+          nome: string
+          ordem: number
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          id?: number
+          id_empresa: number
+          is_default?: boolean
+          nome: string
+          ordem?: number
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          id?: number
+          id_empresa?: number
+          is_default?: boolean
+          nome?: string
+          ordem?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       crm_lead_activities: {
         Row: {
           created_at: string | null
@@ -600,6 +633,7 @@ export type Database = {
           created_at: string | null
           id: number
           id_empresa: number
+          id_funnel: number | null
           nome: string
           ordem: number
         }
@@ -609,6 +643,7 @@ export type Database = {
           created_at?: string | null
           id?: number
           id_empresa: number
+          id_funnel?: number | null
           nome: string
           ordem?: number
         }
@@ -618,6 +653,7 @@ export type Database = {
           created_at?: string | null
           id?: number
           id_empresa?: number
+          id_funnel?: number | null
           nome?: string
           ordem?: number
         }
@@ -627,6 +663,13 @@ export type Database = {
             columns: ["id_empresa"]
             isOneToOne: false
             referencedRelation: "empresa_dados"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_stages_id_funnel_fkey"
+            columns: ["id_funnel"]
+            isOneToOne: false
+            referencedRelation: "crm_funnels"
             referencedColumns: ["id"]
           },
         ]
