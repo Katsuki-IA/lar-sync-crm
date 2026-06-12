@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useCrmUser } from "@/hooks/use-crm-user";
+import { useAllowedEmpresas } from "@/hooks/use-allowed-empresas";
 import { Badge } from "@/components/ui/badge";
 
 export const Route = createFileRoute("/_authenticated/kanban")({
@@ -27,6 +28,7 @@ type LeadCard = {
 
 function KanbanPage() {
   const { data: me } = useCrmUser();
+  const { data: allowed } = useAllowedEmpresas();
   const qc = useQueryClient();
 
   const { data: stages } = useQuery({
@@ -44,12 +46,13 @@ function KanbanPage() {
   });
 
   const { data: leads } = useQuery({
-    enabled: !!me,
-    queryKey: ["kanban-leads", me?.id, me?.role],
+    enabled: !!me && !!allowed,
+    queryKey: ["kanban-leads", me?.id, me?.role, allowed],
     queryFn: async (): Promise<LeadCard[]> => {
       let q = supabase
         .from("lead")
-        .select("id, nome, numero, crm_stage_id, crm_assigned_to, id_empreendimento, lead_quente");
+        .select("id, nome, numero, crm_stage_id, crm_assigned_to, id_empreendimento, lead_quente")
+        .in("id_empresa", allowed ?? []);
       if (me?.role === "agent") q = q.eq("crm_assigned_to", me.id);
       const { data: rows, error } = await q.limit(500);
       if (error) throw error;
