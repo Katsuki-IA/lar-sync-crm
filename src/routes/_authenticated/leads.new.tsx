@@ -146,12 +146,16 @@ function NewLead() {
             onSubmit={(e) => { e.preventDefault(); createMut.mutate(); }}
           >
             <div className="grid gap-4 md:grid-cols-2">
-              <Field label="Nome">
-                <Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} required />
+              <Field label="Nome *" error={errors.nome}>
+                <Input
+                  value={form.nome}
+                  onChange={(e) => { setForm({ ...form, nome: e.target.value }); if (errors.nome) setErrors((p) => ({ ...p, nome: "" })); }}
+                  required
+                />
               </Field>
-              <Field label="Telefone">
-                <div className="flex items-stretch rounded-md border border-input bg-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-0 overflow-hidden">
-                  <Select value={countryCode} onValueChange={(v) => { setCountryCode(v); setForm((f) => ({ ...f, numero: "" })); }}>
+              <Field label="Telefone *" error={errors.numero}>
+                <div className={`flex items-stretch rounded-md border bg-background overflow-hidden focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-0 ${errors.numero ? "border-destructive" : "border-input"}`}>
+                  <Select value={countryCode} onValueChange={(v) => { setCountryCode(v); setForm((f) => ({ ...f, numero: "" })); if (errors.numero) setErrors((p) => ({ ...p, numero: "" })); }}>
                     <SelectTrigger className="h-auto w-auto gap-1.5 rounded-none border-0 border-r border-input bg-muted/50 px-2.5 text-sm text-muted-foreground focus:ring-0 focus:ring-offset-0">
                       <span className="flex items-center gap-1.5">
                         <span aria-hidden className="text-base leading-none">{country.flag}</span>
@@ -176,17 +180,21 @@ function NewLead() {
                     placeholder={countryCode === "BR" ? "(ddd) 99999-9999" : "número"}
                     className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 rounded-none placeholder:text-muted-foreground/40"
                     value={form.numero}
-                    onChange={(e) => setForm({ ...form, numero: countryCode === "BR" ? maskPhoneBR(e.target.value) : maskPhoneGeneric(e.target.value) })}
+                    onChange={(e) => { setForm({ ...form, numero: countryCode === "BR" ? maskPhoneBR(e.target.value) : maskPhoneGeneric(e.target.value) }); if (errors.numero) setErrors((p) => ({ ...p, numero: "" })); }}
                     required
                   />
                 </div>
               </Field>
-              <Field label="Email">
-                <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+              <Field label="Email" error={errors.email}>
+                <Input
+                  type="email"
+                  value={form.email}
+                  onChange={(e) => { setForm({ ...form, email: e.target.value }); if (errors.email) setErrors((p) => ({ ...p, email: "" })); }}
+                />
               </Field>
-              <Field label="Interesse">
-                <Select value={form.id_empreendimento} onValueChange={(v) => setForm({ ...form, id_empreendimento: v })}>
-                  <SelectTrigger><SelectValue placeholder="Selecionar empreendimento" /></SelectTrigger>
+              <Field label="Interesse *" error={errors.id_empreendimento}>
+                <Select value={form.id_empreendimento} onValueChange={(v) => { setForm({ ...form, id_empreendimento: v }); if (errors.id_empreendimento) setErrors((p) => ({ ...p, id_empreendimento: "" })); }}>
+                  <SelectTrigger className={errors.id_empreendimento ? "border-destructive" : ""}><SelectValue placeholder="Selecionar empreendimento" /></SelectTrigger>
                   <SelectContent>
                     {meta?.emps.map((e) => <SelectItem key={e.id} value={String(e.id)}>{e.nome}</SelectItem>)}
                   </SelectContent>
