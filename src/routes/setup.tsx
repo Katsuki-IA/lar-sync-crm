@@ -1,6 +1,6 @@
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { Flame } from "lucide-react";
+import katsukiLogo from "@/assets/katsuki-logo.jpg.asset.json";
 import { toast } from "sonner";
 
 import { firstSetup } from "@/lib/setup.functions";
@@ -57,12 +57,12 @@ function SetupPage() {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <Card className="w-full max-w-md rounded-2xl shadow-sm">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
-            <Flame className="h-6 w-6" />
+          <div className="mx-auto mb-3 h-14 w-14 overflow-hidden rounded-2xl ring-1 ring-white/10 shadow-lg shadow-primary/30">
+            <img src={katsukiLogo.url} alt="Katsuki" className="h-full w-full object-cover" />
           </div>
           <CardTitle className="text-2xl">Primeiro Acesso</CardTitle>
           <CardDescription>
-            Crie a conta do super administrador para começar a usar o Ember CRM
+            Crie a conta do super administrador para começar a usar o Katsuki CRM
           </CardDescription>
         </CardHeader>
         <CardContent>
