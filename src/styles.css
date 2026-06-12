@@ -155,4 +155,12 @@
     scrollbar-width: thin;
     scrollbar-color: #2a2d3a transparent;
   }
+  input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(1) brightness(1.4);
+    opacity: 0.7;
+    cursor: pointer;
+  }
+  input[type="date"]::-webkit-calendar-picker-indicator:hover {
+    opacity: 1;
+  }
 }

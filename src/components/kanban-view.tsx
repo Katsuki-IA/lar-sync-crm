@@ -202,7 +202,7 @@ function DraggableCard({ lead, color }: { lead: LeadCard; color: string }) {
         >
           {lead.nome ?? "Sem nome"}
         </Link>
-        {lead.lead_quente && <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />}
+        {lead.lead_quente && <Building2 className="h-4 w-4 text-white shrink-0" />}
       </div>
       {lead.numero && <div className="text-xs text-muted-foreground mt-0.5">{lead.numero}</div>}
       {lead.empreendimento_nome && (
