@@ -204,7 +204,7 @@ function AdminNotificationsPage() {
                   ) : n.empresa_ids.length === 0 ? (
                     <Badge variant="outline">Sem destinatários</Badge>
                   ) : (
-                    n.empresa_ids.map((id) => (
+                    n.empresa_ids.map((id: number) => (
                       <Badge key={id} variant="secondary" className="text-[10px]">
                         {empresaNameById.get(id) ?? `#${id}`}
                       </Badge>
