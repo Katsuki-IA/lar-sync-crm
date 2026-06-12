@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, KanbanSquare, Users, Flame, Settings, Shield } from "lucide-react";
+import { LayoutDashboard, Users, Flame, Settings, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCrmUser } from "@/hooks/use-crm-user";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -9,7 +9,6 @@ type Item = { title: string; url: string; match: string; icon: typeof LayoutDash
 
 const mainItems: Item[] = [
   { title: "Dashboard", url: "/dashboard", match: "/dashboard", icon: LayoutDashboard },
-  { title: "Kanban", url: "/kanban", match: "/kanban", icon: KanbanSquare },
   { title: "Leads", url: "/leads", match: "/leads", icon: Users },
 ];
 
