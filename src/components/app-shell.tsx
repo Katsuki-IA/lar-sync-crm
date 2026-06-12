@@ -114,7 +114,6 @@ export function AppShell({ children }: { children: ReactNode }) {
                 3
               </span>
             </Button>
-            <ThemeToggle />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="flex items-center gap-2 pl-2 ml-1 border-l h-9 outline-none focus-visible:ring-1 focus-visible:ring-ring rounded-md cursor-pointer" style={{ borderColor: "#2A2D3A" }}>
