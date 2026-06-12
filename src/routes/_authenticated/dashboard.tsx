@@ -83,7 +83,7 @@ function DashboardPage() {
 
       const quentes = (leads ?? []).filter((l) => l.lead_quente).length;
 
-      return { total: count ?? 0, quentes, byStage, byUser, byEmp };
+      return { total: count ?? 0, quentes, byStage, byUser, byEmp, totalEmps: (emps ?? []).length };
     },
   });
 
@@ -98,7 +98,7 @@ function DashboardPage() {
         <MetricCard label="Total de leads" value={isLoading ? "…" : data?.total ?? 0} icon={Users} />
         <MetricCard label="Leads quentes" value={isLoading ? "…" : data?.quentes ?? 0} icon={Flame} />
         <MetricCard label="Estágios ativos" value={isLoading ? "…" : data?.byStage.length ?? 0} icon={KanbanSquare} />
-        <MetricCard label="Empreendimentos" value={isLoading ? "…" : data?.byEmp.length ?? 0} icon={Building2} />
+        <MetricCard label="Empreendimentos" value={isLoading ? "…" : data?.totalEmps ?? 0} icon={Building2} />
       </div>
 
       <Card className="rounded-2xl">
