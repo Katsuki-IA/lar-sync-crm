@@ -499,6 +499,100 @@ export type Database = {
         }
         Relationships: []
       }
+      crm_notification_reads: {
+        Row: {
+          crm_user_id: string
+          notification_id: string
+          read_at: string
+        }
+        Insert: {
+          crm_user_id: string
+          notification_id: string
+          read_at?: string
+        }
+        Update: {
+          crm_user_id?: string
+          notification_id?: string
+          read_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_notification_reads_crm_user_id_fkey"
+            columns: ["crm_user_id"]
+            isOneToOne: false
+            referencedRelation: "crm_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_notification_reads_notification_id_fkey"
+            columns: ["notification_id"]
+            isOneToOne: false
+            referencedRelation: "crm_notifications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_notification_targets: {
+        Row: {
+          id_empresa: number
+          notification_id: string
+        }
+        Insert: {
+          id_empresa: number
+          notification_id: string
+        }
+        Update: {
+          id_empresa?: number
+          notification_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_notification_targets_notification_id_fkey"
+            columns: ["notification_id"]
+            isOneToOne: false
+            referencedRelation: "crm_notifications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_notifications: {
+        Row: {
+          all_empresas: boolean
+          created_at: string
+          created_by: string | null
+          id: string
+          link: string | null
+          mensagem: string
+          titulo: string
+        }
+        Insert: {
+          all_empresas?: boolean
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          link?: string | null
+          mensagem: string
+          titulo: string
+        }
+        Update: {
+          all_empresas?: boolean
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          link?: string | null
+          mensagem?: string
+          titulo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_notifications_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "crm_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       crm_stages: {
         Row: {
           ativo: boolean | null
