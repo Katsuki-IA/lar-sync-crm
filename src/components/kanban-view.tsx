@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { DndContext, PointerSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
-import { Flame } from "lucide-react";
+import { Building2 } from "lucide-react";
 import { toast } from "sonner";
 import { Link } from "@tanstack/react-router";
 
@@ -8,8 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCrmUser } from "@/hooks/use-crm-user";
 import { useAllowedEmpresas } from "@/hooks/use-allowed-empresas";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { getInitials, colorFromString, stageColor } from "@/lib/lead-visuals";
+import { stageColor } from "@/lib/lead-visuals";
 
 type LeadCard = {
   id: number;
@@ -203,23 +202,15 @@ function DraggableCard({ lead, color }: { lead: LeadCard; color: string }) {
         >
           {lead.nome ?? "Sem nome"}
         </Link>
-        {lead.lead_quente && <Flame className="h-4 w-4 text-primary shrink-0" />}
+        {lead.lead_quente && <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />}
       </div>
       {lead.numero && <div className="text-xs text-muted-foreground mt-0.5">{lead.numero}</div>}
       {lead.empreendimento_nome && (
         <div className="text-xs text-muted-foreground mt-1 truncate">📍 {lead.empreendimento_nome}</div>
       )}
       {lead.responsavel_nome && (
-        <div className="flex items-center gap-1.5 mt-2">
-          <Avatar className="h-5 w-5">
-            <AvatarFallback
-              className="text-[8px] font-semibold text-white"
-              style={{ backgroundColor: colorFromString(lead.responsavel_nome) }}
-            >
-              {getInitials(lead.responsavel_nome)}
-            </AvatarFallback>
-          </Avatar>
-          <span className="text-xs text-muted-foreground truncate">{lead.responsavel_nome}</span>
+        <div className="text-xs text-muted-foreground mt-2 truncate">
+          {lead.responsavel_nome}
         </div>
       )}
       {!!lead.tags?.length && (
