@@ -4,9 +4,9 @@ import { cn } from "@/lib/utils";
 import { useCrmUser } from "@/hooks/use-crm-user";
 
 const baseItems = [
-  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
-  { title: "Kanban", url: "/kanban", icon: KanbanSquare },
-  { title: "Leads", url: "/leads", icon: Users },
+  { title: "Dashboard", url: "/dashboard", match: "/dashboard", icon: LayoutDashboard },
+  { title: "Kanban", url: "/kanban", match: "/kanban", icon: KanbanSquare },
+  { title: "Leads", url: "/leads", match: "/leads", icon: Users },
 ];
 
 export function AppSidebar() {
@@ -15,10 +15,10 @@ export function AppSidebar() {
   const items = [
     ...baseItems,
     ...(me?.role === "manager" || me?.role === "super_admin"
-      ? [{ title: "Configurações", url: "/settings/stages", icon: Settings }]
+      ? [{ title: "Configurações", url: "/settings/stages", match: "/settings", icon: Settings }]
       : []),
     ...(me?.role === "super_admin"
-      ? [{ title: "Super Admin", url: "/admin/empresas", icon: Shield }]
+      ? [{ title: "Super Admin", url: "/admin/empresas", match: "/admin", icon: Shield }]
       : []),
   ];
   return (
@@ -31,7 +31,7 @@ export function AppSidebar() {
       </div>
       <nav className="flex-1 p-3 space-y-1">
         {items.map((item) => {
-          const active = pathname.startsWith(item.url);
+          const active = pathname.startsWith(item.match);
           return (
             <Link
               key={item.url}
