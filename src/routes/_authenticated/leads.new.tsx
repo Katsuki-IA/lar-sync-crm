@@ -68,6 +68,25 @@ function NewLead() {
     crm_assigned_to: "",
     crm_stage_id: "",
   });
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  function validate() {
+    const next: Record<string, string> = {};
+    if (!form.nome.trim()) next.nome = "Nome é obrigatório";
+    if (!form.numero.trim()) {
+      next.numero = "Telefone é obrigatório";
+    } else if (countryCode === "BR") {
+      const digits = form.numero.replace(/\D/g, "");
+      if (digits.length < 10) next.numero = "Telefone incompleto";
+    }
+    if (form.email.trim()) {
+      const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRe.test(form.email.trim())) next.email = "Email inválido";
+    }
+    if (!form.id_empreendimento) next.id_empreendimento = "Interesse é obrigatório";
+    setErrors(next);
+    return Object.keys(next).length === 0;
+  }
 
   const { data: meta } = useQuery({
     enabled: !!me && !!allowed,
@@ -84,6 +103,7 @@ function NewLead() {
 
   const createMut = useMutation({
     mutationFn: async () => {
+      if (!validate()) throw new Error("Corrija os campos indicados");
       if (!me?.id_empresa) throw new Error("Empresa não definida");
       // Default stage = first (lowest ordem)
       const defaultStageId = meta?.stages?.[0]?.id ?? null;
@@ -126,12 +146,16 @@ function NewLead() {
             onSubmit={(e) => { e.preventDefault(); createMut.mutate(); }}
           >
             <div className="grid gap-4 md:grid-cols-2">
-              <Field label="Nome">
-                <Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} required />
+              <Field label="Nome *" error={errors.nome}>
+                <Input
+                  value={form.nome}
+                  onChange={(e) => { setForm({ ...form, nome: e.target.value }); if (errors.nome) setErrors((p) => ({ ...p, nome: "" })); }}
+                  required
+                />
               </Field>
-              <Field label="Telefone">
-                <div className="flex items-stretch rounded-md border border-input bg-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-0 overflow-hidden">
-                  <Select value={countryCode} onValueChange={(v) => { setCountryCode(v); setForm((f) => ({ ...f, numero: "" })); }}>
+              <Field label="Telefone *" error={errors.numero}>
+                <div className={`flex items-stretch rounded-md border bg-background overflow-hidden focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-0 ${errors.numero ? "border-destructive" : "border-input"}`}>
+                  <Select value={countryCode} onValueChange={(v) => { setCountryCode(v); setForm((f) => ({ ...f, numero: "" })); if (errors.numero) setErrors((p) => ({ ...p, numero: "" })); }}>
                     <SelectTrigger className="h-auto w-auto gap-1.5 rounded-none border-0 border-r border-input bg-muted/50 px-2.5 text-sm text-muted-foreground focus:ring-0 focus:ring-offset-0">
                       <span className="flex items-center gap-1.5">
                         <span aria-hidden className="text-base leading-none">{country.flag}</span>
@@ -156,17 +180,21 @@ function NewLead() {
                     placeholder={countryCode === "BR" ? "(ddd) 99999-9999" : "número"}
                     className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 rounded-none placeholder:text-muted-foreground/40"
                     value={form.numero}
-                    onChange={(e) => setForm({ ...form, numero: countryCode === "BR" ? maskPhoneBR(e.target.value) : maskPhoneGeneric(e.target.value) })}
+                    onChange={(e) => { setForm({ ...form, numero: countryCode === "BR" ? maskPhoneBR(e.target.value) : maskPhoneGeneric(e.target.value) }); if (errors.numero) setErrors((p) => ({ ...p, numero: "" })); }}
                     required
                   />
                 </div>
               </Field>
-              <Field label="Email">
-                <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+              <Field label="Email" error={errors.email}>
+                <Input
+                  type="email"
+                  value={form.email}
+                  onChange={(e) => { setForm({ ...form, email: e.target.value }); if (errors.email) setErrors((p) => ({ ...p, email: "" })); }}
+                />
               </Field>
-              <Field label="Interesse">
-                <Select value={form.id_empreendimento} onValueChange={(v) => setForm({ ...form, id_empreendimento: v })}>
-                  <SelectTrigger><SelectValue placeholder="Selecionar empreendimento" /></SelectTrigger>
+              <Field label="Interesse *" error={errors.id_empreendimento}>
+                <Select value={form.id_empreendimento} onValueChange={(v) => { setForm({ ...form, id_empreendimento: v }); if (errors.id_empreendimento) setErrors((p) => ({ ...p, id_empreendimento: "" })); }}>
+                  <SelectTrigger className={errors.id_empreendimento ? "border-destructive" : ""}><SelectValue placeholder="Selecionar empreendimento" /></SelectTrigger>
                   <SelectContent>
                     {meta?.emps.map((e) => <SelectItem key={e.id} value={String(e.id)}>{e.nome}</SelectItem>)}
                   </SelectContent>
@@ -203,11 +231,12 @@ function NewLead() {
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1.5">
       <Label>{label}</Label>
       {children}
+      {error ? <p className="text-xs text-destructive">{error}</p> : null}
     </div>
   );
 }
