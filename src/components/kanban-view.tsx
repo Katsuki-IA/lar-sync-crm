@@ -31,19 +31,20 @@ type LeadCard = {
   tags?: { id: number; nome: string; cor: string | null }[];
 };
 
-export function KanbanView({ searchFilter }: { searchFilter?: string }) {
+export function KanbanView({ searchFilter, funnelId }: { searchFilter?: string; funnelId?: number | null }) {
   const { data: me } = useCrmUser();
   const { data: allowed } = useAllowedEmpresas();
   const qc = useQueryClient();
 
   const { data: stages } = useQuery({
-    enabled: !!me,
-    queryKey: ["kanban-stages", me?.id_empresa],
+    enabled: !!me && funnelId != null,
+    queryKey: ["kanban-stages", me?.id_empresa, funnelId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("crm_stages")
-        .select("id, nome, cor, ordem")
+        .select("id, nome, cor, ordem, id_funnel")
         .eq("ativo", true)
+        .eq("id_funnel", funnelId!)
         .order("ordem");
       if (error) throw error;
       return data;
@@ -51,14 +52,23 @@ export function KanbanView({ searchFilter }: { searchFilter?: string }) {
   });
 
   const { data: leads } = useQuery({
-    enabled: !!me && !!allowed,
-    queryKey: ["kanban-leads", me?.id, me?.role, allowed],
+    enabled: !!me && !!allowed && !!stages,
+    queryKey: ["kanban-leads", me?.id, me?.role, allowed, funnelId, (stages ?? []).map((s) => s.id).join(",")],
     queryFn: async (): Promise<LeadCard[]> => {
+      const stageIds = (stages ?? []).map((s) => s.id);
+      if (!stageIds.length) return [];
       let q = supabase
         .from("lead")
         .select("id, nome, numero, crm_stage_id, crm_assigned_to, id_empreendimento, lead_quente")
         .in("id_empresa", allowed ?? []);
       if (me?.role === "agent") q = q.eq("crm_assigned_to", me.id);
+      // Filtra leads pelo funil: estágios desse funil. Leads sem estágio só aparecem no funil padrão.
+      const isDefault = await isFunnelDefault(funnelId!);
+      if (isDefault) {
+        q = q.or(`crm_stage_id.in.(${stageIds.join(",")}),crm_stage_id.is.null`);
+      } else {
+        q = q.in("crm_stage_id", stageIds);
+      }
       const { data: rows, error } = await q.limit(500);
       if (error) throw error;
 
