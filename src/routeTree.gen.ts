@@ -24,6 +24,8 @@ import { Route as AuthenticatedSettingsTagsRouteImport } from './routes/_authent
 import { Route as AuthenticatedSettingsStagesRouteImport } from './routes/_authenticated/settings.stages'
 import { Route as AuthenticatedLeadsNewRouteImport } from './routes/_authenticated/leads.new'
 import { Route as AuthenticatedLeadsIdRouteImport } from './routes/_authenticated/leads.$id'
+import { Route as AuthenticatedAdminUsersRouteImport } from './routes/_authenticated/admin.users'
+import { Route as AuthenticatedAdminEmpresasRouteImport } from './routes/_authenticated/admin.empresas'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -103,6 +105,17 @@ const AuthenticatedLeadsIdRoute = AuthenticatedLeadsIdRouteImport.update({
   path: '/leads/$id',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAdminUsersRoute = AuthenticatedAdminUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => AuthenticatedAdminRoute,
+} as any)
+const AuthenticatedAdminEmpresasRoute =
+  AuthenticatedAdminEmpresasRouteImport.update({
+    id: '/empresas',
+    path: '/empresas',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -111,6 +124,8 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/kanban': typeof AuthenticatedKanbanRoute
   '/settings': typeof AuthenticatedSettingsRouteWithChildren
+  '/admin/empresas': typeof AuthenticatedAdminEmpresasRoute
+  '/admin/users': typeof AuthenticatedAdminUsersRoute
   '/leads/$id': typeof AuthenticatedLeadsIdRoute
   '/leads/new': typeof AuthenticatedLeadsNewRoute
   '/settings/stages': typeof AuthenticatedSettingsStagesRoute
@@ -125,6 +140,8 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/kanban': typeof AuthenticatedKanbanRoute
+  '/admin/empresas': typeof AuthenticatedAdminEmpresasRoute
+  '/admin/users': typeof AuthenticatedAdminUsersRoute
   '/leads/$id': typeof AuthenticatedLeadsIdRoute
   '/leads/new': typeof AuthenticatedLeadsNewRoute
   '/settings/stages': typeof AuthenticatedSettingsStagesRoute
@@ -143,6 +160,8 @@ export interface FileRoutesById {
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/kanban': typeof AuthenticatedKanbanRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRouteWithChildren
+  '/_authenticated/admin/empresas': typeof AuthenticatedAdminEmpresasRoute
+  '/_authenticated/admin/users': typeof AuthenticatedAdminUsersRoute
   '/_authenticated/leads/$id': typeof AuthenticatedLeadsIdRoute
   '/_authenticated/leads/new': typeof AuthenticatedLeadsNewRoute
   '/_authenticated/settings/stages': typeof AuthenticatedSettingsStagesRoute
@@ -161,6 +180,8 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/kanban'
     | '/settings'
+    | '/admin/empresas'
+    | '/admin/users'
     | '/leads/$id'
     | '/leads/new'
     | '/settings/stages'
@@ -175,6 +196,8 @@ export interface FileRouteTypes {
     | '/auth'
     | '/dashboard'
     | '/kanban'
+    | '/admin/empresas'
+    | '/admin/users'
     | '/leads/$id'
     | '/leads/new'
     | '/settings/stages'
@@ -192,6 +215,8 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard'
     | '/_authenticated/kanban'
     | '/_authenticated/settings'
+    | '/_authenticated/admin/empresas'
+    | '/_authenticated/admin/users'
     | '/_authenticated/leads/$id'
     | '/_authenticated/leads/new'
     | '/_authenticated/settings/stages'
@@ -315,14 +340,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedLeadsIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/admin/users': {
+      id: '/_authenticated/admin/users'
+      path: '/users'
+      fullPath: '/admin/users'
+      preLoaderRoute: typeof AuthenticatedAdminUsersRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/empresas': {
+      id: '/_authenticated/admin/empresas'
+      path: '/empresas'
+      fullPath: '/admin/empresas'
+      preLoaderRoute: typeof AuthenticatedAdminEmpresasRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
   }
 }
 
 interface AuthenticatedAdminRouteChildren {
+  AuthenticatedAdminEmpresasRoute: typeof AuthenticatedAdminEmpresasRoute
+  AuthenticatedAdminUsersRoute: typeof AuthenticatedAdminUsersRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
 }
 
 const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
+  AuthenticatedAdminEmpresasRoute: AuthenticatedAdminEmpresasRoute,
+  AuthenticatedAdminUsersRoute: AuthenticatedAdminUsersRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
 }
 
