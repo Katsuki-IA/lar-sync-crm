@@ -17,12 +17,13 @@ export const Route = createFileRoute("/_authenticated/leads/new")({
 });
 
 function maskPhone(value: string) {
-  const digits = value.replace(/\D/g, "").slice(0, 13);
+  // Mask for DDD + number only (BR), e.g. "(41) 99615-9085"
+  const digits = value.replace(/\D/g, "").slice(0, 11);
   if (digits.length === 0) return "";
-  if (digits.length <= 2) return digits;
-  if (digits.length <= 4) return `${digits.slice(0, 2)} (${digits.slice(2)}`;
-  if (digits.length <= 9) return `${digits.slice(0, 2)} (${digits.slice(2, 4)}) ${digits.slice(4)}`;
-  return `${digits.slice(0, 2)} (${digits.slice(2, 4)}) ${digits.slice(4, 9)}-${digits.slice(9)}`;
+  if (digits.length <= 2) return `(${digits}`;
+  if (digits.length <= 6) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+  if (digits.length <= 10) return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
 }
 
 function NewLead() {
@@ -63,7 +64,7 @@ function NewLead() {
         id_empresa: me.id_empresa,
         id_crm: (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`),
         nome: form.nome,
-        numero: form.numero,
+        numero: form.numero ? `55 ${form.numero}` : "",
         email: form.email || null,
         id_empreendimento: form.id_empreendimento ? Number(form.id_empreendimento) : null,
         crm_assigned_to: form.crm_assigned_to || defaultAssignee,
@@ -99,13 +100,21 @@ function NewLead() {
                 <Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} required />
               </Field>
               <Field label="Telefone">
-                <Input
-                  type="tel"
-                  inputMode="numeric"
-                  value={form.numero}
-                  onChange={(e) => setForm({ ...form, numero: maskPhone(e.target.value) })}
-                  required
-                />
+                <div className="flex items-stretch rounded-md border border-input bg-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-0 overflow-hidden">
+                  <div className="flex items-center gap-1.5 px-2.5 bg-muted/50 border-r border-input text-sm text-muted-foreground select-none">
+                    <span aria-hidden className="text-base leading-none">🇧🇷</span>
+                    <span className="font-medium">+55</span>
+                  </div>
+                  <Input
+                    type="tel"
+                    inputMode="numeric"
+                    placeholder="(41) 99615-9085"
+                    className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 rounded-none placeholder:text-muted-foreground/40"
+                    value={form.numero}
+                    onChange={(e) => setForm({ ...form, numero: maskPhone(e.target.value) })}
+                    required
+                  />
+                </div>
               </Field>
               <Field label="Email">
                 <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
