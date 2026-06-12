@@ -1,8 +1,9 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, KanbanSquare, Users, Flame } from "lucide-react";
+import { LayoutDashboard, KanbanSquare, Users, Flame, Settings, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useCrmUser } from "@/hooks/use-crm-user";
 
-const items = [
+const baseItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Kanban", url: "/kanban", icon: KanbanSquare },
   { title: "Leads", url: "/leads", icon: Users },
@@ -10,6 +11,16 @@ const items = [
 
 export function AppSidebar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const { data: me } = useCrmUser();
+  const items = [
+    ...baseItems,
+    ...(me?.role === "manager" || me?.role === "super_admin"
+      ? [{ title: "Configurações", url: "/settings/stages", icon: Settings }]
+      : []),
+    ...(me?.role === "super_admin"
+      ? [{ title: "Super Admin", url: "/admin/empresas", icon: Shield }]
+      : []),
+  ];
   return (
     <aside className="hidden md:flex w-60 flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border">
       <div className="h-14 flex items-center gap-2 px-5 border-b border-sidebar-border">
