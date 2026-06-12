@@ -92,8 +92,17 @@ function NewLead() {
     enabled: !!me && !!allowed,
     queryKey: ["new-lead-meta", me?.id_empresa, allowed],
     queryFn: async () => {
+      // Estágios do funil padrão da empresa
+      const { data: defaultFunnel } = await supabase
+        .from("crm_funnels")
+        .select("id")
+        .eq("id_empresa", me!.id_empresa!)
+        .eq("is_default", true)
+        .maybeSingle();
+      const stagesQ = supabase.from("crm_stages").select("id, nome, ordem").eq("ativo", true).order("ordem");
+      if (defaultFunnel?.id) stagesQ.eq("id_funnel", defaultFunnel.id);
       const [{ data: stages }, { data: emps }, { data: users }] = await Promise.all([
-        supabase.from("crm_stages").select("id, nome, ordem").eq("ativo", true).order("ordem"),
+        stagesQ,
         supabase.from("empreendimento").select("id, nome").in("id_empresa", allowed ?? []),
         supabase.from("crm_users").select("id, nome, role, created_at").eq("active", true).in("id_empresa", allowed ?? []).order("created_at", { ascending: true }),
       ]);
