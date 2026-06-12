@@ -11,7 +11,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
 
 export const Route = createFileRoute("/_authenticated/leads/new")({
   component: NewLead,
@@ -29,42 +28,40 @@ function NewLead() {
     crm_assigned_to: "",
     crm_stage_id: "",
   });
-  const [tagIds, setTagIds] = useState<Set<number>>(new Set());
 
   const { data: meta } = useQuery({
     enabled: !!me && !!allowed,
     queryKey: ["new-lead-meta", me?.id_empresa, allowed],
     queryFn: async () => {
-      const [{ data: stages }, { data: tags }, { data: emps }, { data: users }] = await Promise.all([
-        supabase.from("crm_stages").select("id, nome").eq("ativo", true).order("ordem"),
-        supabase.from("crm_tags").select("id, nome, cor"),
+      const [{ data: stages }, { data: emps }, { data: users }] = await Promise.all([
+        supabase.from("crm_stages").select("id, nome, ordem").eq("ativo", true).order("ordem"),
         supabase.from("empreendimento").select("id, nome").in("id_empresa", allowed ?? []),
-        supabase.from("crm_users").select("id, nome").eq("active", true).in("id_empresa", allowed ?? []),
+        supabase.from("crm_users").select("id, nome, role, created_at").eq("active", true).in("id_empresa", allowed ?? []).order("created_at", { ascending: true }),
       ]);
-      return { stages: stages ?? [], tags: tags ?? [], emps: emps ?? [], users: users ?? [] };
+      return { stages: stages ?? [], emps: emps ?? [], users: users ?? [] };
     },
   });
 
   const createMut = useMutation({
     mutationFn: async () => {
       if (!me?.id_empresa) throw new Error("Empresa não definida");
+      // Default stage = first (lowest ordem)
+      const defaultStageId = meta?.stages?.[0]?.id ?? null;
+      // Default assignee = oldest manager
+      const oldestManager = (meta?.users ?? []).find((u: any) => u.role === "manager");
+      const defaultAssignee = oldestManager?.id ?? me.id;
       const insert = {
         id_empresa: me.id_empresa,
         nome: form.nome,
         numero: form.numero,
         email: form.email || null,
         id_empreendimento: form.id_empreendimento ? Number(form.id_empreendimento) : null,
-        crm_assigned_to: form.crm_assigned_to || me.id,
-        crm_stage_id: form.crm_stage_id ? Number(form.crm_stage_id) : null,
+        crm_assigned_to: form.crm_assigned_to || defaultAssignee,
+        crm_stage_id: form.crm_stage_id ? Number(form.crm_stage_id) : defaultStageId,
       };
       const { data: lead, error } = await supabase.from("lead").insert(insert).select("id").single();
       if (error) throw error;
 
-      if (tagIds.size) {
-        await supabase.from("crm_lead_tags").insert(
-          [...tagIds].map((tid) => ({ lead_id: lead.id, tag_id: tid })),
-        );
-      }
       await supabase.from("crm_lead_activities").insert({
         lead_id: lead.id, crm_user_id: me.id, tipo: "system", descricao: "Lead criado via CRM",
       });
@@ -97,9 +94,9 @@ function NewLead() {
               <Field label="Email">
                 <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
               </Field>
-              <Field label="Empreendimento">
+              <Field label="Interesse">
                 <Select value={form.id_empreendimento} onValueChange={(v) => setForm({ ...form, id_empreendimento: v })}>
-                  <SelectTrigger><SelectValue placeholder="Selecionar" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Selecionar empreendimento" /></SelectTrigger>
                   <SelectContent>
                     {meta?.emps.map((e) => <SelectItem key={e.id} value={String(e.id)}>{e.nome}</SelectItem>)}
                   </SelectContent>
@@ -107,7 +104,7 @@ function NewLead() {
               </Field>
               <Field label="Responsável">
                 <Select value={form.crm_assigned_to} onValueChange={(v) => setForm({ ...form, crm_assigned_to: v })}>
-                  <SelectTrigger><SelectValue placeholder="Selecionar" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Gestor mais antigo (padrão)" /></SelectTrigger>
                   <SelectContent>
                     {meta?.users.map((u) => <SelectItem key={u.id} value={u.id}>{u.nome}</SelectItem>)}
                   </SelectContent>
@@ -115,35 +112,12 @@ function NewLead() {
               </Field>
               <Field label="Estágio inicial">
                 <Select value={form.crm_stage_id} onValueChange={(v) => setForm({ ...form, crm_stage_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="Selecionar" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Base (padrão)" /></SelectTrigger>
                   <SelectContent>
                     {meta?.stages.map((s) => <SelectItem key={s.id} value={String(s.id)}>{s.nome}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </Field>
-            </div>
-
-            <div>
-              <Label className="mb-2 block">Tags</Label>
-              <div className="flex flex-wrap gap-2">
-                {meta?.tags.map((t) => {
-                  const checked = tagIds.has(t.id);
-                  return (
-                    <label key={t.id} className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border cursor-pointer text-sm ${checked ? "border-primary bg-primary/10" : "border-border"}`}>
-                      <Checkbox
-                        checked={checked}
-                        onCheckedChange={(c) => {
-                          const next = new Set(tagIds);
-                          if (c) next.add(t.id); else next.delete(t.id);
-                          setTagIds(next);
-                        }}
-                      />
-                      <span style={{ color: t.cor ?? undefined }}>{t.nome}</span>
-                    </label>
-                  );
-                })}
-                {!meta?.tags.length && <span className="text-sm text-muted-foreground">Nenhuma tag cadastrada</span>}
-              </div>
             </div>
 
             <div className="flex justify-end gap-2 pt-2">
