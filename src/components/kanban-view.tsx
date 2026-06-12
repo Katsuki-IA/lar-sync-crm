@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { DndContext, PointerSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
-import { Building2, MessageCircle } from "lucide-react";
+import { Building2 } from "lucide-react";
 import { toast } from "sonner";
 import { Link } from "@tanstack/react-router";
 
@@ -205,7 +205,7 @@ function DraggableCard({ lead, color }: { lead: LeadCard; color: string }) {
       </div>
       {lead.numero && (
         <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1.5">
-          <MessageCircle className="h-3.5 w-3.5 text-white shrink-0" />
+          <WhatsAppIcon className="h-3.5 w-3.5 text-white shrink-0" />
           <span className="truncate">{lead.numero}</span>
         </div>
       )}
