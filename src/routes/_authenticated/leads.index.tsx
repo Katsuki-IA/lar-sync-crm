@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
-import { Search, Plus, X, Users as UsersIcon } from "lucide-react";
+import { Search, Plus, X, Users as UsersIcon, List, LayoutGrid } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useCrmUser } from "@/hooks/use-crm-user";
@@ -13,6 +13,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { getInitials, colorFromString, stageColor, relativeTime } from "@/lib/lead-visuals";
+import { KanbanView } from "@/components/kanban-view";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/leads/")({
   component: LeadsList,
@@ -24,6 +26,7 @@ function LeadsList() {
   const { data: me } = useCrmUser();
   const { data: allowed } = useAllowedEmpresas();
   const [search, setSearch] = useState("");
+  const [view, setView] = useState<"list" | "kanban">("list");
   const [stage, setStage] = useState<string>("all");
   const [tagId, setTagId] = useState<string>("all");
   const [empId, setEmpId] = useState<string>("all");
@@ -146,7 +149,7 @@ function LeadsList() {
 
   return (
     <TooltipProvider delayDuration={200}>
-      <div className="space-y-6">
+      <div className="space-y-5">
         {/* Header */}
         <div className="flex items-end justify-between gap-4 flex-wrap">
           <div>
@@ -171,21 +174,54 @@ function LeadsList() {
           </Button>
         </div>
 
+        {/* Search + View toggle */}
+        <div className="flex items-center gap-3">
+          <div className="relative flex-1 min-w-[220px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+            <Input
+              className="pl-9 h-10 bg-background/40 border-border/80"
+              placeholder="Buscar por nome ou telefone..."
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setPage(0); }}
+            />
+          </div>
+          <div
+            className="flex items-center rounded-lg border p-1 gap-1"
+            style={{ backgroundColor: "#1A1D27", borderColor: "#2A2D3A" }}
+          >
+            <button
+              onClick={() => setView("list")}
+              className={cn(
+                "h-8 w-8 flex items-center justify-center rounded-md transition-colors",
+                view === "list" ? "text-primary" : "text-muted-foreground hover:text-foreground"
+              )}
+              style={view === "list" ? { backgroundColor: "rgba(249,115,22,0.12)" } : undefined}
+              aria-label="Visualização em lista"
+              title="Visualização em lista"
+            >
+              <List className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => setView("kanban")}
+              className={cn(
+                "h-8 w-8 flex items-center justify-center rounded-md transition-colors",
+                view === "kanban" ? "text-primary" : "text-muted-foreground hover:text-foreground"
+              )}
+              style={view === "kanban" ? { backgroundColor: "rgba(249,115,22,0.12)" } : undefined}
+              aria-label="Visualização em kanban"
+              title="Visualização em kanban"
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+
         {/* Filter bar */}
         <div
           className="rounded-xl border p-3 space-y-3"
           style={{ backgroundColor: "#1A1D27", borderColor: "#2A2D3A" }}
         >
           <div className="flex flex-wrap items-center gap-2">
-            <div className="relative flex-1 min-w-[220px]">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-              <Input
-                className="pl-9 h-9 bg-background/40 border-border/80"
-                placeholder="Buscar por nome ou telefone..."
-                value={search}
-                onChange={(e) => { setSearch(e.target.value); setPage(0); }}
-              />
-            </div>
             <FilterSelect value={stage} onChange={(v) => { setStage(v); setPage(0); }} placeholder="Estágio" options={[{ value: "all", label: "Todos os estágios" }, ...(meta?.stages ?? []).map((s) => ({ value: String(s.id), label: s.nome }))]} />
             <FilterSelect value={empId} onChange={(v) => { setEmpId(v); setPage(0); }} placeholder="Empreendimento" options={[{ value: "all", label: "Todos" }, ...(meta?.emps ?? []).map((e) => ({ value: String(e.id), label: e.nome }))]} />
             {me?.role !== "agent" && (
@@ -211,153 +247,159 @@ function LeadsList() {
           )}
         </div>
 
-        {/* Table */}
-        <div
-          className="rounded-xl border overflow-hidden"
-          style={{ backgroundColor: "#1A1D27", borderColor: "#2A2D3A" }}
-        >
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b" style={{ borderColor: "#2A2D3A" }}>
-                <Th>Nome</Th>
-                <Th>Telefone</Th>
-                <Th className="hidden md:table-cell">Empreendimento</Th>
-                <Th>Responsável</Th>
-                <Th>Estágio</Th>
-                <Th className="hidden lg:table-cell">Tags</Th>
-                <Th className="hidden lg:table-cell">Criado</Th>
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading && Array.from({ length: 6 }).map((_, i) => (
-                <tr key={i} className="border-b" style={{ borderColor: "#2A2D3A" }}>
-                  {Array.from({ length: 7 }).map((_, j) => (
-                    <td key={j} className="px-4 py-4"><Skeleton className="h-5 w-full max-w-[160px]" /></td>
-                  ))}
-                </tr>
-              ))}
-              {!isLoading && !data?.rows.length && (
-                <tr>
-                  <td colSpan={7} className="px-4 py-16">
-                    <div className="flex flex-col items-center text-center gap-4">
-                      <div className="h-16 w-16 rounded-full flex items-center justify-center" style={{ backgroundColor: "rgba(249,115,22,0.1)" }}>
-                        <UsersIcon className="h-7 w-7 text-primary" />
-                      </div>
-                      <div>
-                        <div className="font-semibold text-foreground">Nenhum lead encontrado</div>
-                        <div className="text-sm text-muted-foreground mt-1">Ajuste os filtros ou crie um novo lead para começar.</div>
-                      </div>
-                      <div className="flex gap-2">
-                        {(activeChips.length > 0 || search) && (
-                          <Button variant="outline" size="sm" onClick={clearAll}>Limpar filtros</Button>
-                        )}
-                        <Button asChild size="sm">
-                          <Link to="/leads/new"><Plus className="h-4 w-4 mr-1" /> Novo lead</Link>
-                        </Button>
-                      </div>
-                    </div>
-                  </td>
-                </tr>
-              )}
-              {!isLoading && data?.rows.map((l) => {
-                const s = l.crm_stage_id ? stageMap.get(l.crm_stage_id) : undefined;
-                const sColor = stageColor(s?.nome, s?.cor);
-                const responsavel = l.crm_assigned_to ? userMap.get(l.crm_assigned_to) : null;
-                return (
-                  <tr
-                    key={l.id}
-                    className="border-b transition-colors hover:bg-white/[0.03]"
-                    style={{ borderColor: "#2A2D3A" }}
-                  >
-                    <td className="px-4 py-4">
-                      <Link to="/leads/$id" params={{ id: String(l.id) }} className="flex items-center gap-3 group">
-                        <Avatar className="h-9 w-9 shrink-0">
-                          <AvatarFallback className="text-[11px] font-semibold text-white" style={{ backgroundColor: colorFromString(l.nome) }}>
-                            {getInitials(l.nome)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="min-w-0">
-                          <div className="font-semibold text-foreground group-hover:text-primary transition-colors truncate">{l.nome ?? "—"}</div>
-                          {l.email && <div className="text-xs text-muted-foreground truncate">{l.email}</div>}
-                        </div>
-                      </Link>
-                    </td>
-                    <td className="px-4 py-4 text-muted-foreground">{l.numero ?? "—"}</td>
-                    <td className="px-4 py-4 hidden md:table-cell text-muted-foreground">
-                      {l.id_empreendimento ? empMap.get(l.id_empreendimento) ?? "—" : "—"}
-                    </td>
-                    <td className="px-4 py-4">
-                      {responsavel ? (
-                        <div className="flex items-center gap-2">
-                          <Avatar className="h-6 w-6 shrink-0">
-                            <AvatarFallback className="text-[9px] font-semibold text-white" style={{ backgroundColor: colorFromString(responsavel) }}>
-                              {getInitials(responsavel)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="text-sm text-foreground truncate">{responsavel}</span>
-                        </div>
-                      ) : <span className="text-muted-foreground">—</span>}
-                    </td>
-                    <td className="px-4 py-4">
-                      {s ? (
-                        <span
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border"
-                          style={{ backgroundColor: `${sColor}1F`, color: sColor, borderColor: `${sColor}40` }}
-                        >
-                          <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: sColor }} />
-                          {s.nome}
-                        </span>
-                      ) : "—"}
-                    </td>
-                    <td className="px-4 py-4 hidden lg:table-cell">
-                      <div className="flex flex-wrap gap-1">
-                        {l.tagIds.map((tid) => {
-                          const t = tagMap.get(tid);
-                          if (!t) return null;
-                          const c = t.cor ?? "#f97316";
-                          return (
-                            <span
-                              key={tid}
-                              className="text-[10px] px-1.5 py-0.5 rounded font-medium"
-                              style={{ backgroundColor: `${c}26`, color: c }}
-                            >
-                              {t.nome}
-                            </span>
-                          );
-                        })}
-                      </div>
-                    </td>
-                    <td className="px-4 py-4 hidden lg:table-cell">
-                      {l.created_at ? (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span className="text-xs text-muted-foreground cursor-default">{relativeTime(l.created_at)}</span>
-                          </TooltipTrigger>
-                          <TooltipContent>{new Date(l.created_at).toLocaleString("pt-BR")}</TooltipContent>
-                        </Tooltip>
-                      ) : "—"}
-                    </td>
+        {view === "kanban" ? (
+          <KanbanView searchFilter={search} />
+        ) : (
+          <>
+            {/* Table */}
+            <div
+              className="rounded-xl border overflow-hidden"
+              style={{ backgroundColor: "#1A1D27", borderColor: "#2A2D3A" }}
+            >
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b" style={{ borderColor: "#2A2D3A" }}>
+                    <Th>Nome</Th>
+                    <Th>Telefone</Th>
+                    <Th className="hidden md:table-cell">Empreendimento</Th>
+                    <Th>Responsável</Th>
+                    <Th>Estágio</Th>
+                    <Th className="hidden lg:table-cell">Tags</Th>
+                    <Th className="hidden lg:table-cell">Criado</Th>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                </thead>
+                <tbody>
+                  {isLoading && Array.from({ length: 6 }).map((_, i) => (
+                    <tr key={i} className="border-b" style={{ borderColor: "#2A2D3A" }}>
+                      {Array.from({ length: 7 }).map((_, j) => (
+                        <td key={j} className="px-4 py-4"><Skeleton className="h-5 w-full max-w-[160px]" /></td>
+                      ))}
+                    </tr>
+                  ))}
+                  {!isLoading && !data?.rows.length && (
+                    <tr>
+                      <td colSpan={7} className="px-4 py-16">
+                        <div className="flex flex-col items-center text-center gap-4">
+                          <div className="h-16 w-16 rounded-full flex items-center justify-center" style={{ backgroundColor: "rgba(249,115,22,0.1)" }}>
+                            <UsersIcon className="h-7 w-7 text-primary" />
+                          </div>
+                          <div>
+                            <div className="font-semibold text-foreground">Nenhum lead encontrado</div>
+                            <div className="text-sm text-muted-foreground mt-1">Ajuste os filtros ou crie um novo lead para começar.</div>
+                          </div>
+                          <div className="flex gap-2">
+                            {(activeChips.length > 0 || search) && (
+                              <Button variant="outline" size="sm" onClick={clearAll}>Limpar filtros</Button>
+                            )}
+                            <Button asChild size="sm">
+                              <Link to="/leads/new"><Plus className="h-4 w-4 mr-1" /> Novo lead</Link>
+                            </Button>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                  {!isLoading && data?.rows.map((l) => {
+                    const s = l.crm_stage_id ? stageMap.get(l.crm_stage_id) : undefined;
+                    const sColor = stageColor(s?.nome, s?.cor);
+                    const responsavel = l.crm_assigned_to ? userMap.get(l.crm_assigned_to) : null;
+                    return (
+                      <tr
+                        key={l.id}
+                        className="border-b transition-colors hover:bg-white/[0.03]"
+                        style={{ borderColor: "#2A2D3A" }}
+                      >
+                        <td className="px-4 py-4">
+                          <Link to="/leads/$id" params={{ id: String(l.id) }} className="flex items-center gap-3 group">
+                            <Avatar className="h-9 w-9 shrink-0">
+                              <AvatarFallback className="text-[11px] font-semibold text-white" style={{ backgroundColor: colorFromString(l.nome) }}>
+                                {getInitials(l.nome)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="min-w-0">
+                              <div className="font-semibold text-foreground group-hover:text-primary transition-colors truncate">{l.nome ?? "—"}</div>
+                              {l.email && <div className="text-xs text-muted-foreground truncate">{l.email}</div>}
+                            </div>
+                          </Link>
+                        </td>
+                        <td className="px-4 py-4 text-muted-foreground">{l.numero ?? "—"}</td>
+                        <td className="px-4 py-4 hidden md:table-cell text-muted-foreground">
+                          {l.id_empreendimento ? empMap.get(l.id_empreendimento) ?? "—" : "—"}
+                        </td>
+                        <td className="px-4 py-4">
+                          {responsavel ? (
+                            <div className="flex items-center gap-2">
+                              <Avatar className="h-6 w-6 shrink-0">
+                                <AvatarFallback className="text-[9px] font-semibold text-white" style={{ backgroundColor: colorFromString(responsavel) }}>
+                                  {getInitials(responsavel)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <span className="text-sm text-foreground truncate">{responsavel}</span>
+                            </div>
+                          ) : <span className="text-muted-foreground">—</span>}
+                        </td>
+                        <td className="px-4 py-4">
+                          {s ? (
+                            <span
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border"
+                              style={{ backgroundColor: `${sColor}1F`, color: sColor, borderColor: `${sColor}40` }}
+                            >
+                              <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: sColor }} />
+                              {s.nome}
+                            </span>
+                          ) : "—"}
+                        </td>
+                        <td className="px-4 py-4 hidden lg:table-cell">
+                          <div className="flex flex-wrap gap-1">
+                            {l.tagIds.map((tid) => {
+                              const t = tagMap.get(tid);
+                              if (!t) return null;
+                              const c = t.cor ?? "#f97316";
+                              return (
+                                <span
+                                  key={tid}
+                                  className="text-[10px] px-1.5 py-0.5 rounded font-medium"
+                                  style={{ backgroundColor: `${c}26`, color: c }}
+                                >
+                                  {t.nome}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        </td>
+                        <td className="px-4 py-4 hidden lg:table-cell">
+                          {l.created_at ? (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="text-xs text-muted-foreground cursor-default">{relativeTime(l.created_at)}</span>
+                              </TooltipTrigger>
+                              <TooltipContent>{new Date(l.created_at).toLocaleString("pt-BR")}</TooltipContent>
+                            </Tooltip>
+                          ) : "—"}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
 
-        {/* Pagination */}
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-muted-foreground">
-            Página <span className="font-medium text-foreground">{page + 1}</span> de <span className="font-medium text-foreground">{pages}</span>
-          </span>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage((p) => p - 1)}>
-              Anterior
-            </Button>
-            <Button variant="outline" size="sm" disabled={page + 1 >= pages} onClick={() => setPage((p) => p + 1)}>
-              Próxima
-            </Button>
-          </div>
-        </div>
+            {/* Pagination */}
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">
+                Página <span className="font-medium text-foreground">{page + 1}</span> de <span className="font-medium text-foreground">{pages}</span>
+              </span>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage((p) => p - 1)}>
+                  Anterior
+                </Button>
+                <Button variant="outline" size="sm" disabled={page + 1 >= pages} onClick={() => setPage((p) => p + 1)}>
+                  Próxima
+                </Button>
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </TooltipProvider>
   );
