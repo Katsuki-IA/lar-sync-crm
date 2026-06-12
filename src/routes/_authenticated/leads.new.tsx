@@ -52,6 +52,7 @@ function NewLead() {
       const defaultAssignee = oldestManager?.id ?? me.id;
       const insert = {
         id_empresa: me.id_empresa,
+        id_crm: (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`),
         nome: form.nome,
         numero: form.numero,
         email: form.email || null,
