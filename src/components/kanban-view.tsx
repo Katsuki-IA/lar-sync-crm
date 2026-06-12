@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { DndContext, PointerSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
-import { Building2 } from "lucide-react";
+import { Building2, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
 import { Link } from "@tanstack/react-router";
 
@@ -202,11 +202,18 @@ function DraggableCard({ lead, color }: { lead: LeadCard; color: string }) {
         >
           {lead.nome ?? "Sem nome"}
         </Link>
-        {lead.lead_quente && <Building2 className="h-4 w-4 text-white shrink-0" />}
       </div>
-      {lead.numero && <div className="text-xs text-muted-foreground mt-0.5">{lead.numero}</div>}
+      {lead.numero && (
+        <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1.5">
+          <MessageCircle className="h-3.5 w-3.5 text-white shrink-0" />
+          <span className="truncate">{lead.numero}</span>
+        </div>
+      )}
       {lead.empreendimento_nome && (
-        <div className="text-xs text-muted-foreground mt-1 truncate">{lead.empreendimento_nome}</div>
+        <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1.5">
+          <Building2 className="h-3.5 w-3.5 text-white shrink-0" />
+          <span className="truncate">{lead.empreendimento_nome}</span>
+        </div>
       )}
       {lead.responsavel_nome && (
         <div className="text-xs text-muted-foreground mt-2 truncate">
