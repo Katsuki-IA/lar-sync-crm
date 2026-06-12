@@ -31,6 +31,11 @@ type LeadCard = {
   tags?: { id: number; nome: string; cor: string | null }[];
 };
 
+async function isFunnelDefault(funnelId: number): Promise<boolean> {
+  const { data } = await supabase.from("crm_funnels").select("is_default").eq("id", funnelId).maybeSingle();
+  return !!data?.is_default;
+}
+
 export function KanbanView({ searchFilter, funnelId }: { searchFilter?: string; funnelId?: number | null }) {
   const { data: me } = useCrmUser();
   const { data: allowed } = useAllowedEmpresas();
