@@ -10,6 +10,11 @@ export const getRouter = () => {
     context: { queryClient },
     scrollRestoration: true,
     defaultPreloadStaleTime: 0,
+    defaultPreload: "intent",
+    // Keep showing the previous route until the next one is ready,
+    // avoiding the black flash between navigations.
+    defaultPendingMs: 1000,
+    defaultPendingMinMs: 0,
   });
 
   return router;
