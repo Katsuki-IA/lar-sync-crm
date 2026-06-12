@@ -1,6 +1,5 @@
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Flame } from "lucide-react";
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -9,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import katsukiLogo from "@/assets/katsuki-logo.jpg.asset.json";
 
 export const Route = createFileRoute("/auth")({
   ssr: false,
@@ -47,10 +47,10 @@ function AuthPage() {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <Card className="w-full max-w-md rounded-2xl shadow-sm">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
-            <Flame className="h-6 w-6" />
+          <div className="mx-auto mb-3 h-14 w-14 overflow-hidden rounded-2xl ring-1 ring-white/10 shadow-lg shadow-primary/30">
+            <img src={katsukiLogo.url} alt="Katsuki" className="h-full w-full object-cover" />
           </div>
-          <CardTitle className="text-2xl">Ember CRM</CardTitle>
+          <CardTitle className="text-2xl tracking-[0.2em]">KATSUKI</CardTitle>
           <CardDescription>Entre na sua conta para continuar</CardDescription>
         </CardHeader>
         <CardContent>

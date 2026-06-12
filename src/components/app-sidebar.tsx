@@ -1,9 +1,10 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, Users, Flame, Settings, Shield } from "lucide-react";
+import { LayoutDashboard, Users, Settings, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCrmUser } from "@/hooks/use-crm-user";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { getInitials, colorFromString } from "@/lib/lead-visuals";
+import katsukiLogo from "@/assets/katsuki-logo.jpg.asset.json";
 
 type Item = { title: string; url: string; match: string; icon: typeof LayoutDashboard };
 
@@ -44,12 +45,12 @@ export function AppSidebar() {
         className="h-16 flex items-center gap-3 px-5 border-b"
         style={{ borderColor: "#2A2D3A" }}
       >
-        <div className="h-9 w-9 rounded-xl bg-primary flex items-center justify-center text-primary-foreground shadow-lg shadow-primary/30">
-          <Flame className="h-5 w-5" />
+        <div className="h-9 w-9 rounded-xl overflow-hidden shadow-lg shadow-primary/30 ring-1 ring-white/10">
+          <img src={katsukiLogo.url} alt="Katsuki" className="h-full w-full object-cover" />
         </div>
         <div className="flex flex-col leading-tight">
-          <span className="font-bold text-[15px] text-foreground tracking-tight">Ember CRM</span>
-          <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Real Estate</span>
+          <span className="font-bold text-[15px] text-foreground tracking-[0.18em]">KATSUKI</span>
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Real Estate CRM</span>
         </div>
       </div>
 
@@ -114,14 +115,14 @@ function SidebarGroup({
               )}
               style={
                 active
-                  ? { backgroundColor: "rgba(249,115,22,0.12)" }
+                  ? { backgroundColor: "rgba(236,44,92,0.12)" }
                   : undefined
               }
             >
               {active && (
                 <span
                   className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-[3px] rounded-r"
-                  style={{ backgroundColor: "#F97316" }}
+                  style={{ backgroundColor: "#EC2C5C" }}
                 />
               )}
               <item.icon className={cn("h-4 w-4", active ? "text-primary" : "")} />

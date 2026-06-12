@@ -102,7 +102,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             {empresa && (
               <div
                 className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs font-medium text-muted-foreground"
-                style={{ backgroundColor: "rgba(249,115,22,0.08)", borderColor: "rgba(249,115,22,0.25)", color: "#fb923c" }}
+                style={{ backgroundColor: "rgba(236,44,92,0.08)", borderColor: "rgba(236,44,92,0.25)", color: "#fb923c" }}
               >
                 <Building2 className="h-3 w-3" />
                 <span className="truncate max-w-[160px]">{empresa}</span>
