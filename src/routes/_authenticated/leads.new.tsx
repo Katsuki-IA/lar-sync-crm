@@ -103,6 +103,7 @@ function NewLead() {
 
   const createMut = useMutation({
     mutationFn: async () => {
+      if (!validate()) throw new Error("Corrija os campos indicados");
       if (!me?.id_empresa) throw new Error("Empresa não definida");
       // Default stage = first (lowest ordem)
       const defaultStageId = meta?.stages?.[0]?.id ?? null;
