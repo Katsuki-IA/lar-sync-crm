@@ -68,6 +68,25 @@ function NewLead() {
     crm_assigned_to: "",
     crm_stage_id: "",
   });
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  function validate() {
+    const next: Record<string, string> = {};
+    if (!form.nome.trim()) next.nome = "Nome é obrigatório";
+    if (!form.numero.trim()) {
+      next.numero = "Telefone é obrigatório";
+    } else if (countryCode === "BR") {
+      const digits = form.numero.replace(/\D/g, "");
+      if (digits.length < 10) next.numero = "Telefone incompleto";
+    }
+    if (form.email.trim()) {
+      const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRe.test(form.email.trim())) next.email = "Email inválido";
+    }
+    if (!form.id_empreendimento) next.id_empreendimento = "Interesse é obrigatório";
+    setErrors(next);
+    return Object.keys(next).length === 0;
+  }
 
   const { data: meta } = useQuery({
     enabled: !!me && !!allowed,
