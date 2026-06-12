@@ -206,7 +206,7 @@ function DraggableCard({ lead, color }: { lead: LeadCard; color: string }) {
       </div>
       {lead.numero && <div className="text-xs text-muted-foreground mt-0.5">{lead.numero}</div>}
       {lead.empreendimento_nome && (
-        <div className="text-xs text-muted-foreground mt-1 truncate">📍 {lead.empreendimento_nome}</div>
+        <div className="text-xs text-muted-foreground mt-1 truncate">{lead.empreendimento_nome}</div>
       )}
       {lead.responsavel_nome && (
         <div className="text-xs text-muted-foreground mt-2 truncate">
