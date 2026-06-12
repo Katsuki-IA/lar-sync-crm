@@ -18,6 +18,7 @@ import { Route as AuthenticatedDashboardRouteImport } from './routes/_authentica
 import { Route as AuthenticatedSettingsIndexRouteImport } from './routes/_authenticated/settings.index'
 import { Route as AuthenticatedLeadsIndexRouteImport } from './routes/_authenticated/leads.index'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
+import { Route as AuthenticatedSettingsTagsRouteImport } from './routes/_authenticated/settings.tags'
 import { Route as AuthenticatedSettingsStagesRouteImport } from './routes/_authenticated/settings.stages'
 import { Route as AuthenticatedLeadsNewRouteImport } from './routes/_authenticated/leads.new'
 import { Route as AuthenticatedLeadsIdRouteImport } from './routes/_authenticated/leads.$id'
@@ -67,6 +68,12 @@ const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
   path: '/admin/',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedSettingsTagsRoute =
+  AuthenticatedSettingsTagsRouteImport.update({
+    id: '/tags',
+    path: '/tags',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
 const AuthenticatedSettingsStagesRoute =
   AuthenticatedSettingsStagesRouteImport.update({
     id: '/stages',
@@ -93,6 +100,7 @@ export interface FileRoutesByFullPath {
   '/leads/$id': typeof AuthenticatedLeadsIdRoute
   '/leads/new': typeof AuthenticatedLeadsNewRoute
   '/settings/stages': typeof AuthenticatedSettingsStagesRoute
+  '/settings/tags': typeof AuthenticatedSettingsTagsRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/leads/': typeof AuthenticatedLeadsIndexRoute
   '/settings/': typeof AuthenticatedSettingsIndexRoute
@@ -105,6 +113,7 @@ export interface FileRoutesByTo {
   '/leads/$id': typeof AuthenticatedLeadsIdRoute
   '/leads/new': typeof AuthenticatedLeadsNewRoute
   '/settings/stages': typeof AuthenticatedSettingsStagesRoute
+  '/settings/tags': typeof AuthenticatedSettingsTagsRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/leads': typeof AuthenticatedLeadsIndexRoute
   '/settings': typeof AuthenticatedSettingsIndexRoute
@@ -120,6 +129,7 @@ export interface FileRoutesById {
   '/_authenticated/leads/$id': typeof AuthenticatedLeadsIdRoute
   '/_authenticated/leads/new': typeof AuthenticatedLeadsNewRoute
   '/_authenticated/settings/stages': typeof AuthenticatedSettingsStagesRoute
+  '/_authenticated/settings/tags': typeof AuthenticatedSettingsTagsRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/leads/': typeof AuthenticatedLeadsIndexRoute
   '/_authenticated/settings/': typeof AuthenticatedSettingsIndexRoute
@@ -135,6 +145,7 @@ export interface FileRouteTypes {
     | '/leads/$id'
     | '/leads/new'
     | '/settings/stages'
+    | '/settings/tags'
     | '/admin/'
     | '/leads/'
     | '/settings/'
@@ -147,6 +158,7 @@ export interface FileRouteTypes {
     | '/leads/$id'
     | '/leads/new'
     | '/settings/stages'
+    | '/settings/tags'
     | '/admin'
     | '/leads'
     | '/settings'
@@ -161,6 +173,7 @@ export interface FileRouteTypes {
     | '/_authenticated/leads/$id'
     | '/_authenticated/leads/new'
     | '/_authenticated/settings/stages'
+    | '/_authenticated/settings/tags'
     | '/_authenticated/admin/'
     | '/_authenticated/leads/'
     | '/_authenticated/settings/'
@@ -237,6 +250,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/settings/tags': {
+      id: '/_authenticated/settings/tags'
+      path: '/tags'
+      fullPath: '/settings/tags'
+      preLoaderRoute: typeof AuthenticatedSettingsTagsRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
     '/_authenticated/settings/stages': {
       id: '/_authenticated/settings/stages'
       path: '/stages'
@@ -263,11 +283,13 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedSettingsRouteChildren {
   AuthenticatedSettingsStagesRoute: typeof AuthenticatedSettingsStagesRoute
+  AuthenticatedSettingsTagsRoute: typeof AuthenticatedSettingsTagsRoute
   AuthenticatedSettingsIndexRoute: typeof AuthenticatedSettingsIndexRoute
 }
 
 const AuthenticatedSettingsRouteChildren: AuthenticatedSettingsRouteChildren = {
   AuthenticatedSettingsStagesRoute: AuthenticatedSettingsStagesRoute,
+  AuthenticatedSettingsTagsRoute: AuthenticatedSettingsTagsRoute,
   AuthenticatedSettingsIndexRoute: AuthenticatedSettingsIndexRoute,
 }
 
@@ -307,3 +329,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
