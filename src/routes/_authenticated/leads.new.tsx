@@ -48,8 +48,8 @@ function NewLead() {
       if (!me?.id_empresa) throw new Error("Empresa não definida");
       const insert = {
         id_empresa: me.id_empresa,
-        nome: form.nome || null,
-        numero: form.numero || null,
+        nome: form.nome,
+        numero: form.numero,
         email: form.email || null,
         id_empreendimento: form.id_empreendimento ? Number(form.id_empreendimento) : null,
         crm_assigned_to: form.crm_assigned_to || me.id,
