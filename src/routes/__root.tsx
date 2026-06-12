@@ -80,9 +80,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Ember CRM" },
+      { title: "Katsuki CRM" },
       { name: "description", content: "CRM imobiliário multi-tenant" },
-      { property: "og:title", content: "Ember CRM" },
+      { property: "og:title", content: "Katsuki CRM" },
       { property: "og:description", content: "CRM imobiliário multi-tenant" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
