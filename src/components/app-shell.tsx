@@ -1,5 +1,5 @@
 import { useNavigate, useRouterState, Link } from "@tanstack/react-router";
-import { Bell, LogOut, ChevronRight, Building2 } from "lucide-react";
+import { Bell, LogOut, ChevronRight, Building2, User } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -133,6 +133,11 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <div className="text-sm font-medium truncate">{me?.nome}</div>
                   <div className="text-xs text-muted-foreground truncate">{me?.email}</div>
                 </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => navigate({ to: "/profile" })}>
+                  <User className="h-4 w-4 mr-2" />
+                  Meu Perfil
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleSignOut} className="text-destructive focus:text-destructive">
                   <LogOut className="h-4 w-4 mr-2" />
