@@ -5,6 +5,7 @@ import { Users, Flame, KanbanSquare, Building2 } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useCrmUser } from "@/hooks/use-crm-user";
+import { useAllowedEmpresas } from "@/hooks/use-allowed-empresas";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
@@ -31,15 +32,20 @@ function MetricCard({ label, value, icon: Icon }: { label: string; value: number
 
 function DashboardPage() {
   const { data: me } = useCrmUser();
+  const { data: allowed } = useAllowedEmpresas();
 
   const { data, isLoading } = useQuery({
-    enabled: !!me,
-    queryKey: ["dashboard", me?.id, me?.role],
+    enabled: !!me && !!allowed,
+    queryKey: ["dashboard", me?.id, me?.role, allowed],
     queryFn: async () => {
       const isAgent = me?.role === "agent";
+      const empresaIds = allowed ?? [];
 
       const baseLeads = () => {
-        let q = supabase.from("lead").select("id, crm_stage_id, crm_assigned_to, id_empreendimento, lead_quente", { count: "exact" });
+        let q = supabase
+          .from("lead")
+          .select("id, crm_stage_id, crm_assigned_to, id_empreendimento, lead_quente", { count: "exact" })
+          .in("id_empresa", empresaIds);
         if (isAgent && me) q = q.eq("crm_assigned_to", me.id);
         return q;
       };
@@ -47,8 +53,8 @@ function DashboardPage() {
       const [{ data: leads, count }, { data: stages }, { data: users }, { data: emps }] = await Promise.all([
         baseLeads(),
         supabase.from("crm_stages").select("id, nome, cor, ordem").eq("ativo", true).order("ordem"),
-        supabase.from("crm_users").select("id, nome"),
-        supabase.from("empreendimento").select("id, nome"),
+        supabase.from("crm_users").select("id, nome").in("id_empresa", empresaIds),
+        supabase.from("empreendimento").select("id, nome").in("id_empresa", empresaIds),
       ]);
 
       const byStage = (stages ?? []).map((s) => ({
