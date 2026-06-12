@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { DndContext, PointerSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
-import { Building2 } from "lucide-react";
+import { Building2, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
 import { Link } from "@tanstack/react-router";
 
