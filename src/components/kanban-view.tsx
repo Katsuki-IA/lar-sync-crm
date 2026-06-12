@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { DndContext, PointerSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
-import { Flame } from "lucide-react";
+import { Building2 } from "lucide-react";
 import { toast } from "sonner";
 import { Link } from "@tanstack/react-router";
 
@@ -8,8 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCrmUser } from "@/hooks/use-crm-user";
 import { useAllowedEmpresas } from "@/hooks/use-allowed-empresas";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { getInitials, colorFromString, stageColor } from "@/lib/lead-visuals";
+import { stageColor } from "@/lib/lead-visuals";
 
 type LeadCard = {
   id: number;
