@@ -125,6 +125,7 @@ function StagesPage() {
             <div key={s.id} className="flex items-center gap-3 p-3 rounded-lg border border-border bg-card">
               <GripVertical className="h-4 w-4 text-muted-foreground" />
               <div className="h-3 w-3 rounded-full" style={{ background: s.cor }} />
+              <span className="text-xs text-muted-foreground font-mono w-6">{s.id}</span>
               <div className="flex-1 font-medium text-sm">{s.nome}</div>
               <span className="text-xs text-muted-foreground">Ordem {s.ordem}</span>
               <Button size="icon" variant="ghost" onClick={() => { setEditing(s); setForm({ nome: s.nome, cor: s.cor ?? "#F97316" }); setOpen(true); }}>
