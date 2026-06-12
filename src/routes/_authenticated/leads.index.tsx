@@ -1,11 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Search, Plus, X, Users as UsersIcon, List, LayoutGrid } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useCrmUser } from "@/hooks/use-crm-user";
 import { useAllowedEmpresas } from "@/hooks/use-allowed-empresas";
+import { useFunnels } from "@/hooks/use-funnels";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -25,6 +26,15 @@ const PAGE_SIZE = 25;
 function LeadsList() {
   const { data: me } = useCrmUser();
   const { data: allowed } = useAllowedEmpresas();
+  const { data: funnels = [] } = useFunnels(me?.id_empresa);
+  const [funnelId, setFunnelId] = useState<number | null>(null);
+  useEffect(() => {
+    if (funnelId == null && funnels.length) {
+      const def = funnels.find((f) => f.is_default) ?? funnels[0];
+      setFunnelId(def.id);
+    }
+  }, [funnels, funnelId]);
+  const currentFunnel = funnels.find((f) => f.id === funnelId) ?? null;
   const [search, setSearch] = useState("");
   const [view, setView] = useState<"list" | "kanban">("list");
   const [stage, setStage] = useState<string>("all");
@@ -41,11 +51,11 @@ function LeadsList() {
   );
 
   const { data: meta } = useQuery({
-    enabled: !!me && !!allowed,
-    queryKey: ["leads-meta", me?.id_empresa, allowed],
+    enabled: !!me && !!allowed && funnelId != null,
+    queryKey: ["leads-meta", me?.id_empresa, allowed, funnelId],
     queryFn: async () => {
       const [{ data: stages }, { data: tags }, { data: emps }, { data: users }] = await Promise.all([
-        supabase.from("crm_stages").select("id, nome, cor").eq("ativo", true).order("ordem"),
+        supabase.from("crm_stages").select("id, nome, cor").eq("ativo", true).eq("id_funnel", funnelId!).order("ordem"),
         supabase.from("crm_tags").select("id, nome, cor"),
         supabase.from("empreendimento").select("id, nome").in("id_empresa", allowed ?? []),
         supabase.from("crm_users").select("id, nome").in("id_empresa", allowed ?? []),
@@ -55,8 +65,8 @@ function LeadsList() {
   });
 
   const { data, isLoading } = useQuery({
-    enabled: !!me && !!allowed,
-    queryKey: ["leads-list", me?.id, me?.role, filters, allowed],
+    enabled: !!me && !!allowed && !!meta,
+    queryKey: ["leads-list", me?.id, me?.role, filters, allowed, funnelId, (meta?.stages ?? []).map((s) => s.id).join(",")],
     queryFn: async () => {
       let leadIdsByTag: number[] | null = null;
       if (tagId !== "all") {
@@ -74,6 +84,14 @@ function LeadsList() {
         .in("id_empresa", allowed ?? []);
 
       if (me?.role === "agent") q = q.eq("crm_assigned_to", me.id);
+      // Restringe ao funil selecionado (estágios desse funil). Funil padrão também inclui leads sem estágio.
+      const stageIds = (meta?.stages ?? []).map((s) => s.id);
+      if (!stageIds.length && !currentFunnel?.is_default) return { rows: [], count: 0 };
+      if (currentFunnel?.is_default) {
+        if (stageIds.length) q = q.or(`crm_stage_id.in.(${stageIds.join(",")}),crm_stage_id.is.null`);
+      } else {
+        q = q.in("crm_stage_id", stageIds);
+      }
       if (stage !== "all") q = q.eq("crm_stage_id", Number(stage));
       if (empId !== "all") q = q.eq("id_empreendimento", Number(empId));
       if (userId !== "all") q = q.eq("crm_assigned_to", userId);
@@ -164,7 +182,22 @@ function LeadsList() {
               )}
             </p>
           </div>
-          <Button
+          <div className="flex items-center gap-2">
+            {funnels.length > 0 && (
+              <Select value={funnelId ? String(funnelId) : ""} onValueChange={(v) => { setFunnelId(Number(v)); setPage(0); setStage("all"); }}>
+                <SelectTrigger className="h-9 w-[200px] bg-background/40">
+                  <SelectValue placeholder="Funil" />
+                </SelectTrigger>
+                <SelectContent>
+                  {funnels.map((f) => (
+                    <SelectItem key={f.id} value={String(f.id)}>
+                      {f.nome}{f.is_default ? " (padrão)" : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            <Button
             asChild
             className="rounded-lg shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] hover:shadow-primary/40"
           >
@@ -172,6 +205,7 @@ function LeadsList() {
               <Plus className="h-4 w-4 mr-1" /> Novo Lead
             </Link>
           </Button>
+          </div>
         </div>
 
         {/* Search + View toggle */}
@@ -248,7 +282,7 @@ function LeadsList() {
         </div>
 
         {view === "kanban" ? (
-          <KanbanView searchFilter={search} />
+          <KanbanView searchFilter={search} funnelId={funnelId} />
         ) : (
           <>
             {/* Table */}

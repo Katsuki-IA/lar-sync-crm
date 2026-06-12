@@ -1,29 +1,45 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Pencil, Plus, Trash2, GripVertical } from "lucide-react";
+import { Pencil, Plus, Trash2, GripVertical, FolderKanban } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useCrmUser } from "@/hooks/use-crm-user";
+import { useFunnels } from "@/hooks/use-funnels";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Card } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export const Route = createFileRoute("/_authenticated/settings/stages")({
   component: StagesPage,
 });
 
-type Stage = { id: number; nome: string; cor: string; ordem: number; ativo: boolean };
+type Stage = { id: number; nome: string; cor: string; ordem: number; ativo: boolean; id_funnel: number | null };
 
 function StagesPage() {
   const qc = useQueryClient();
+  const { data: me } = useCrmUser();
+  const { data: funnels = [] } = useFunnels(me?.id_empresa);
+  const [selectedFunnel, setSelectedFunnel] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (selectedFunnel == null && funnels.length) {
+      const def = funnels.find((f) => f.is_default) ?? funnels[0];
+      setSelectedFunnel(def.id);
+    }
+  }, [funnels, selectedFunnel]);
+
   const { data: stages = [], isLoading } = useQuery({
-    queryKey: ["crm_stages"],
+    enabled: selectedFunnel != null,
+    queryKey: ["crm_stages", selectedFunnel],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("crm_stages")
-        .select("id,nome,cor,ordem,ativo")
+        .select("id,nome,cor,ordem,ativo,id_funnel")
+        .eq("id_funnel", selectedFunnel!)
         .order("ordem", { ascending: true });
       if (error) throw error;
       return data as Stage[];
@@ -34,6 +50,66 @@ function StagesPage() {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ nome: "", cor: "#F97316" });
 
+  // New-funnel dialog
+  const [funnelOpen, setFunnelOpen] = useState(false);
+  const [funnelName, setFunnelName] = useState("");
+
+  const createFunnel = useMutation({
+    mutationFn: async () => {
+      if (!me?.id_empresa) throw new Error("Empresa não encontrada");
+      if (!funnelName.trim()) throw new Error("Informe um nome");
+      const maxOrdem = Math.max(0, ...funnels.map((f) => f.ordem));
+      const { data, error } = await supabase
+        .from("crm_funnels")
+        .insert({ id_empresa: me.id_empresa, nome: funnelName.trim(), ordem: maxOrdem + 1 })
+        .select("id")
+        .single();
+      if (error) throw error;
+      return data.id as number;
+    },
+    onSuccess: (id) => {
+      toast.success("Funil criado");
+      qc.invalidateQueries({ queryKey: ["crm-funnels"] });
+      setFunnelOpen(false);
+      setFunnelName("");
+      setSelectedFunnel(id);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const renameFunnel = useMutation({
+    mutationFn: async (nome: string) => {
+      if (!selectedFunnel) return;
+      const { error } = await supabase.from("crm_funnels").update({ nome }).eq("id", selectedFunnel);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Funil renomeado");
+      qc.invalidateQueries({ queryKey: ["crm-funnels"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const deleteFunnel = useMutation({
+    mutationFn: async () => {
+      if (!selectedFunnel) return;
+      const f = funnels.find((x) => x.id === selectedFunnel);
+      if (f?.is_default) throw new Error("Não é possível excluir o funil padrão");
+      const { error } = await supabase.from("crm_funnels").delete().eq("id", selectedFunnel);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Funil removido");
+      const def = funnels.find((f) => f.is_default);
+      setSelectedFunnel(def?.id ?? null);
+      qc.invalidateQueries({ queryKey: ["crm-funnels"] });
+      qc.invalidateQueries({ queryKey: ["crm_stages"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const currentFunnel = useMemo(() => funnels.find((f) => f.id === selectedFunnel) ?? null, [funnels, selectedFunnel]);
+
   const save = useMutation({
     mutationFn: async () => {
       if (editing) {
@@ -43,13 +119,8 @@ function StagesPage() {
           .eq("id", editing.id);
         if (error) throw error;
       } else {
+        if (!selectedFunnel) throw new Error("Selecione um funil");
         const maxOrdem = Math.max(0, ...stages.map((s) => s.ordem));
-        const { data: u } = await supabase.auth.getUser();
-        const { data: me } = await supabase
-          .from("crm_users")
-          .select("id_empresa")
-          .eq("auth_user_id", u.user!.id)
-          .maybeSingle();
         if (!me?.id_empresa) throw new Error("Empresa não encontrada");
         const { error } = await supabase.from("crm_stages").insert({
           nome: form.nome,
@@ -57,6 +128,7 @@ function StagesPage() {
           ordem: maxOrdem + 1,
           ativo: true,
           id_empresa: me.id_empresa,
+          id_funnel: selectedFunnel,
         });
         if (error) throw error;
       }
@@ -85,11 +157,61 @@ function StagesPage() {
 
   return (
     <Card className="p-4">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-medium">Etapas do funil</h2>
-        <Dialog open={open} onOpenChange={setOpen}>
+      <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
+        <div className="flex items-center gap-3 flex-wrap">
+          <h2 className="text-lg font-medium flex items-center gap-2">
+            <FolderKanban className="h-4 w-4" /> Funis e etapas
+          </h2>
+          <Select value={selectedFunnel ? String(selectedFunnel) : ""} onValueChange={(v) => setSelectedFunnel(Number(v))}>
+            <SelectTrigger className="w-[220px]"><SelectValue placeholder="Selecione um funil" /></SelectTrigger>
+            <SelectContent>
+              {funnels.map((f) => (
+                <SelectItem key={f.id} value={String(f.id)}>
+                  {f.nome}{f.is_default ? " (padrão)" : ""}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {currentFunnel && (
+            <>
+              <Button size="sm" variant="ghost" onClick={() => {
+                const novo = prompt("Renomear funil", currentFunnel.nome);
+                if (novo && novo.trim() && novo !== currentFunnel.nome) renameFunnel.mutate(novo.trim());
+              }}>
+                <Pencil className="h-3.5 w-3.5" />
+              </Button>
+              {!currentFunnel.is_default && (
+                <Button size="sm" variant="ghost" onClick={() => {
+                  if (confirm(`Remover o funil "${currentFunnel.nome}" e todos os seus estágios?`)) deleteFunnel.mutate();
+                }}>
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              )}
+            </>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <Dialog open={funnelOpen} onOpenChange={setFunnelOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Plus className="h-4 w-4 mr-1" />Novo funil
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader><DialogTitle>Novo funil</DialogTitle></DialogHeader>
+              <div className="space-y-2">
+                <Label>Nome</Label>
+                <Input value={funnelName} onChange={(e) => setFunnelName(e.target.value)} placeholder="Ex.: Pós-venda" />
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setFunnelOpen(false)}>Cancelar</Button>
+                <Button onClick={() => createFunnel.mutate()} disabled={!funnelName.trim() || createFunnel.isPending}>Criar</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+          <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button onClick={() => { setEditing(null); setForm({ nome: "", cor: "#F97316" }); }}>
+            <Button onClick={() => { setEditing(null); setForm({ nome: "", cor: "#F97316" }); }} disabled={!selectedFunnel}>
               <Plus className="h-4 w-4 mr-2" />Nova etapa
             </Button>
           </DialogTrigger>
@@ -114,6 +236,7 @@ function StagesPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
       {isLoading ? (
         <div className="text-sm text-muted-foreground">Carregando…</div>
