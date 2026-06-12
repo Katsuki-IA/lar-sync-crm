@@ -1,5 +1,5 @@
 import { useNavigate, useRouterState, Link } from "@tanstack/react-router";
-import { Bell, LogOut, ChevronRight, Building2, User } from "lucide-react";
+import { LogOut, ChevronRight, Building2, User } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getInitials, colorFromString } from "@/lib/lead-visuals";
+import { NotificationsBell } from "@/components/notifications-bell";
 
 const ROUTE_LABELS: Record<string, string> = {
   dashboard: "Dashboard",
@@ -108,12 +109,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <span className="truncate max-w-[160px]">{empresa}</span>
               </div>
             )}
-            <Button variant="ghost" size="icon" className="h-9 w-9 relative" aria-label="Notificações">
-              <Bell className="h-4 w-4" />
-              <span className="absolute top-1.5 right-1.5 h-4 min-w-4 rounded-full bg-primary text-[9px] font-bold text-primary-foreground flex items-center justify-center px-1">
-                3
-              </span>
-            </Button>
+            <NotificationsBell />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="flex items-center gap-2 pl-2 ml-1 border-l h-9 outline-none focus-visible:ring-1 focus-visible:ring-ring rounded-md cursor-pointer" style={{ borderColor: "#2A2D3A" }}>
