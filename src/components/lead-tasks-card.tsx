@@ -169,7 +169,31 @@ export function LeadTasksCard({
                 </div>
                 <div>
                   <Label>Prazo *</Label>
-                  <Input type="datetime-local" value={form.prazo} onChange={(e) => setForm({ ...form, prazo: e.target.value })} />
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn("w-full justify-start text-left font-normal", !form.prazo && "text-muted-foreground")}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {form.prazo ? format(new Date(form.prazo + "T12:00:00"), "dd/MM/yyyy") : <span>Selecionar data</span>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={form.prazo ? new Date(form.prazo + "T12:00:00") : undefined}
+                        onSelect={(d) => {
+                          if (d) {
+                            const iso = format(d, "yyyy-MM-dd");
+                            setForm({ ...form, prazo: iso });
+                          }
+                        }}
+                        initialFocus
+                        className={cn("p-3 pointer-events-auto")}
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
               </div>
               <div>
