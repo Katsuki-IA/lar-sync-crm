@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { DndContext, PointerSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
-import { Building2 } from "lucide-react";
+import { Building2, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { Link } from "@tanstack/react-router";
 
@@ -9,6 +9,7 @@ import { useCrmUser } from "@/hooks/use-crm-user";
 import { useAllowedEmpresas } from "@/hooks/use-allowed-empresas";
 import { Badge } from "@/components/ui/badge";
 import { stageColor } from "@/lib/lead-visuals";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 function WhatsAppIcon({ className }: { className?: string }) {
   return (
@@ -29,6 +30,7 @@ type LeadCard = {
   empreendimento_nome?: string | null;
   responsavel_nome?: string | null;
   tags?: { id: number; nome: string; cor: string | null }[];
+  stage_entered_at?: string | null;
 };
 
 async function isFunnelDefault(funnelId: number): Promise<boolean> {
@@ -88,6 +90,24 @@ export function KanbanView({ searchFilter, funnelId }: { searchFilter?: string; 
         supabase.from("crm_tags").select("id, nome, cor"),
       ]);
 
+      // Tempo no estágio: usa a última atividade tipo 'stage_change' por lead; fallback para created_at do lead.
+      const { data: stageActs } = leadIds.length
+        ? await supabase
+            .from("crm_lead_activities")
+            .select("lead_id, created_at")
+            .eq("tipo", "stage_change")
+            .in("lead_id", leadIds)
+            .order("created_at", { ascending: false })
+        : { data: [] as { lead_id: number; created_at: string }[] };
+      const stageEnteredMap = new Map<number, string>();
+      for (const a of stageActs ?? []) {
+        if (!stageEnteredMap.has(a.lead_id)) stageEnteredMap.set(a.lead_id, a.created_at);
+      }
+      const { data: leadCreated } = leadIds.length
+        ? await supabase.from("lead").select("id, created_at").in("id", leadIds)
+        : { data: [] as { id: number; created_at: string | null }[] };
+      const createdMap = new Map((leadCreated ?? []).map((l) => [l.id, l.created_at]));
+
       const empMap = new Map((emps ?? []).map((e) => [e.id, e.nome]));
       const userMap = new Map((users ?? []).map((u) => [u.id, u.nome]));
       const tagMap = new Map((tags ?? []).map((t) => [t.id, t]));
@@ -105,6 +125,7 @@ export function KanbanView({ searchFilter, funnelId }: { searchFilter?: string; 
         empreendimento_nome: l.id_empreendimento ? empMap.get(l.id_empreendimento) ?? null : null,
         responsavel_nome: l.crm_assigned_to ? userMap.get(l.crm_assigned_to) ?? null : null,
         tags: tagByLead.get(l.id) ?? [],
+        stage_entered_at: stageEnteredMap.get(l.id) ?? createdMap.get(l.id) ?? null,
       }));
     },
   });
@@ -151,6 +172,7 @@ export function KanbanView({ searchFilter, funnelId }: { searchFilter?: string; 
     : (leads ?? []);
 
   return (
+    <TooltipProvider delayDuration={200}>
     <DndContext sensors={sensors} onDragEnd={onDragEnd}>
       <div className="flex gap-4 overflow-x-auto pb-4">
         {(stages ?? []).map((stage) => {
@@ -162,6 +184,7 @@ export function KanbanView({ searchFilter, funnelId }: { searchFilter?: string; 
         })}
       </div>
     </DndContext>
+    </TooltipProvider>
   );
 }
 
@@ -257,6 +280,35 @@ function DraggableCard({ lead, color }: { lead: LeadCard; color: string }) {
           ))}
         </div>
       )}
+      {lead.stage_entered_at && <StageTime iso={lead.stage_entered_at} />}
+    </div>
+  );
+}
+
+function StageTime({ iso }: { iso: string }) {
+  const date = new Date(iso);
+  const diffMs = Date.now() - date.getTime();
+  const hours = Math.floor(diffMs / 3_600_000);
+  const days = Math.floor(hours / 24);
+  const label = days >= 1 ? `${days}d` : `${Math.max(1, hours)}h`;
+  let colorClass = "text-muted-foreground";
+  if (days >= 3) colorClass = "text-red-400";
+  else if (days >= 1) colorClass = "text-yellow-400";
+  const exact = date.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
+  return (
+    <div className="flex justify-end mt-2">
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span
+            className={`inline-flex items-center gap-1 text-[11px] leading-none cursor-default ${colorClass}`}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            <Clock className="h-3 w-3" />
+            {label}
+          </span>
+        </TooltipTrigger>
+        <TooltipContent>Entrou neste estágio em {exact}</TooltipContent>
+      </Tooltip>
     </div>
   );
 }
