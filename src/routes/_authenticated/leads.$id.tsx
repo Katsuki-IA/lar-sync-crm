@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { LeadTasksCard } from "@/components/lead-tasks-card";
 
 export const Route = createFileRoute("/_authenticated/leads/$id")({
   component: LeadDetail,
@@ -174,6 +175,7 @@ function LeadDetail() {
 
       <div className="grid gap-6 md:grid-cols-3">
         <div className="md:col-span-2 space-y-4">
+          <LeadTasksCard leadId={leadId} users={meta?.users ?? []} />
           <Card className="rounded-2xl">
             <CardHeader><CardTitle className="text-base">Atividade</CardTitle></CardHeader>
             <CardContent className="space-y-4">
