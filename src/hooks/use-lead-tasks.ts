@@ -127,7 +127,15 @@ export function useUpdateLeadTask(leadId: number) {
       prazo?: string;
       assigned_to?: string;
     }) => {
-      const patch: Record<string, unknown> = {};
+      const patch: {
+        status?: TaskStatus;
+        completed_at?: string | null;
+        titulo?: string;
+        descricao?: string | null;
+        prioridade?: TaskPriority;
+        prazo?: string;
+        assigned_to?: string;
+      } = {};
       if (input.status !== undefined) {
         patch.status = input.status;
         patch.completed_at = input.status === "concluida" ? new Date().toISOString() : null;
