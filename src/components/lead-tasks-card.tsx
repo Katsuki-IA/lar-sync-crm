@@ -95,7 +95,7 @@ export function LeadTasksCard({
     titulo: "",
     descricao: "",
     prioridade: "normal" as TaskPriority,
-    prazo: toLocalInput(),
+    prazo: defaultDateString(),
     assigned_to: me?.id ?? "",
   });
 
@@ -104,7 +104,7 @@ export function LeadTasksCard({
       titulo: "",
       descricao: "",
       prioridade: "normal",
-      prazo: toLocalInput(),
+      prazo: defaultDateString(),
       assigned_to: me?.id ?? "",
     });
   }
