@@ -98,10 +98,10 @@ export function KanbanView({ searchFilter, funnelId }: { searchFilter?: string; 
             .eq("tipo", "stage_change")
             .in("lead_id", leadIds)
             .order("created_at", { ascending: false })
-        : { data: [] as { lead_id: number; created_at: string }[] };
+        : { data: [] as { lead_id: number; created_at: string | null }[] };
       const stageEnteredMap = new Map<number, string>();
       for (const a of stageActs ?? []) {
-        if (!stageEnteredMap.has(a.lead_id)) stageEnteredMap.set(a.lead_id, a.created_at);
+        if (a.created_at && !stageEnteredMap.has(a.lead_id)) stageEnteredMap.set(a.lead_id, a.created_at);
       }
       const { data: leadCreated } = leadIds.length
         ? await supabase.from("lead").select("id, created_at").in("id", leadIds)
