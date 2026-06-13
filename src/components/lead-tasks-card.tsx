@@ -123,7 +123,7 @@ export function LeadTasksCard({
         titulo: form.titulo.trim(),
         descricao: form.descricao.trim() || undefined,
         prioridade: form.prioridade,
-        prazo: new Date(form.prazo).toISOString(),
+        prazo: toEndOfDay(form.prazo),
         assigned_to: form.assigned_to,
       });
       toast.success("Tarefa criada");
