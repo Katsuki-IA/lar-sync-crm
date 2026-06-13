@@ -1,7 +1,10 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState, useMemo, useEffect } from "react";
-import { Search, Plus, X, Users as UsersIcon, List, LayoutGrid, MoreHorizontal, Pencil, Eye, ArrowRightLeft, UserCog, Trash2, Download } from "lucide-react";
+import { format } from "date-fns";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Search, Plus, X, Users as UsersIcon, List, LayoutGrid, MoreHorizontal, Pencil, Eye, ArrowRightLeft, UserCog, Trash2, Download, CalendarIcon } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useCrmUser } from "@/hooks/use-crm-user";
@@ -387,15 +390,53 @@ function LeadsList() {
             </LabeledFilter>
             <LabeledFilter label="Período">
               <div className="flex items-center gap-1.5">
-                <div className="flex items-center h-9 rounded-md border bg-background/40 pl-2 pr-1" style={{ borderColor: "#2A2D3A" }}>
-                  <span className="text-[11px] text-muted-foreground mr-1">De:</span>
-                  <Input type="date" className="h-7 w-[125px] border-0 bg-transparent px-0 focus-visible:ring-0" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setPage(0); }} />
-                </div>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "h-9 w-[125px] justify-start text-left font-normal text-xs bg-background/40 border-[#2A2D3A] hover:bg-background/60",
+                        !dateFrom && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
+                      {dateFrom ? format(new Date(dateFrom + "T12:00:00"), "dd/MM/yyyy") : <span>De:</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={dateFrom ? new Date(dateFrom + "T12:00:00") : undefined}
+                      onSelect={(d) => { if (d) { setDateFrom(format(d, "yyyy-MM-dd")); setPage(0); } }}
+                      initialFocus
+                      className={cn("p-3 pointer-events-auto")}
+                    />
+                  </PopoverContent>
+                </Popover>
                 <span className="text-muted-foreground">→</span>
-                <div className="flex items-center h-9 rounded-md border bg-background/40 pl-2 pr-1" style={{ borderColor: "#2A2D3A" }}>
-                  <span className="text-[11px] text-muted-foreground mr-1">Até:</span>
-                  <Input type="date" className="h-7 w-[125px] border-0 bg-transparent px-0 focus-visible:ring-0" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setPage(0); }} />
-                </div>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "h-9 w-[125px] justify-start text-left font-normal text-xs bg-background/40 border-[#2A2D3A] hover:bg-background/60",
+                        !dateTo && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
+                      {dateTo ? format(new Date(dateTo + "T12:00:00"), "dd/MM/yyyy") : <span>Até:</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={dateTo ? new Date(dateTo + "T12:00:00") : undefined}
+                      onSelect={(d) => { if (d) { setDateTo(format(d, "yyyy-MM-dd")); setPage(0); } }}
+                      initialFocus
+                      className={cn("p-3 pointer-events-auto")}
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
             </LabeledFilter>
           </div>
