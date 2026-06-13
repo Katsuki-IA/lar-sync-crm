@@ -65,10 +65,14 @@ function statusClass(s: TaskStatus) {
   }
 }
 
-function toLocalInput(iso?: string) {
-  const d = iso ? new Date(iso) : new Date(Date.now() + 24 * 3600 * 1000);
+function defaultDateString() {
+  const d = new Date(Date.now() + 24 * 3600 * 1000);
   const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+function toEndOfDay(isoDate: string) {
+  return new Date(`${isoDate}T23:59:59`).toISOString();
 }
 
 export function LeadTasksCard({
