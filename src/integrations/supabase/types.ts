@@ -409,6 +409,76 @@ export type Database = {
           },
         ]
       }
+      crm_lead_tasks: {
+        Row: {
+          assigned_to: string
+          completed_at: string | null
+          created_at: string
+          created_by: string
+          descricao: string | null
+          id: string
+          id_empresa: number
+          lead_id: number
+          prazo: string
+          prioridade: Database["public"]["Enums"]["crm_task_priority"]
+          status: Database["public"]["Enums"]["crm_task_status"]
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_to: string
+          completed_at?: string | null
+          created_at?: string
+          created_by: string
+          descricao?: string | null
+          id?: string
+          id_empresa: number
+          lead_id: number
+          prazo: string
+          prioridade?: Database["public"]["Enums"]["crm_task_priority"]
+          status?: Database["public"]["Enums"]["crm_task_status"]
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string
+          descricao?: string | null
+          id?: string
+          id_empresa?: number
+          lead_id?: number
+          prazo?: string
+          prioridade?: Database["public"]["Enums"]["crm_task_priority"]
+          status?: Database["public"]["Enums"]["crm_task_status"]
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_lead_tasks_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "crm_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_lead_tasks_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "crm_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_lead_tasks_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "lead"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       crm_leads_consolidated: {
         Row: {
           created_at: string | null
@@ -2089,7 +2159,13 @@ export type Database = {
       upsert_leads_batch: { Args: { leads_data: Json }; Returns: undefined }
     }
     Enums: {
-      [_ in never]: never
+      crm_task_priority: "baixa" | "normal" | "alta"
+      crm_task_status:
+        | "pendente"
+        | "em_andamento"
+        | "concluida"
+        | "vencida"
+        | "cancelada"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2216,6 +2292,15 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      crm_task_priority: ["baixa", "normal", "alta"],
+      crm_task_status: [
+        "pendente",
+        "em_andamento",
+        "concluida",
+        "vencida",
+        "cancelada",
+      ],
+    },
   },
 } as const
