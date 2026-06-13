@@ -241,7 +241,7 @@ function DraggableCard({ lead, color }: { lead: LeadCard; color: string }) {
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
-          <div className="text-[10px] text-muted-foreground/50 mb-0.5">#{lead.id}</div>
+          <div className="text-[10px] text-muted-foreground/80 mb-0.5">#{lead.id}</div>
           <Link
             to="/leads/$id"
             params={{ id: String(lead.id) }}
