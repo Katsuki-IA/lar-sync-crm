@@ -1,4 +1,5 @@
-import { Bell, ExternalLink } from "lucide-react";
+import { Bell, ExternalLink, AlertCircle } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -6,6 +7,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useNotifications, useMarkNotificationRead } from "@/hooks/use-notifications";
+import { useMyOverdueTasks } from "@/hooks/use-lead-tasks";
 import { cn } from "@/lib/utils";
 
 function timeAgo(iso: string) {
@@ -18,8 +20,9 @@ function timeAgo(iso: string) {
 
 export function NotificationsBell() {
   const { data: items = [] } = useNotifications();
+  const { data: overdue = [] } = useMyOverdueTasks();
   const markRead = useMarkNotificationRead();
-  const unread = items.filter((n) => !n.read).length;
+  const unread = items.filter((n) => !n.read).length + overdue.length;
 
   function handleOpen(id: string, read: boolean, link: string | null) {
     if (!read) markRead.mutate(id);
@@ -44,7 +47,28 @@ export function NotificationsBell() {
           <span className="text-xs text-muted-foreground">{unread} não lida{unread === 1 ? "" : "s"}</span>
         </div>
         <div className="max-h-[420px] overflow-y-auto">
-          {items.length === 0 ? (
+          {overdue.length > 0 && (
+            <div>
+              {overdue.map((t: any) => (
+                <Link
+                  key={`t-${t.id}`}
+                  to="/leads/$id"
+                  params={{ id: String(t.lead_id) }}
+                  className="w-full text-left px-3 py-2.5 border-b border-border/60 hover:bg-muted/50 transition-colors flex gap-2 bg-destructive/5"
+                >
+                  <AlertCircle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm truncate font-semibold">Tarefa vencida</span>
+                      <span className="text-[10px] text-muted-foreground shrink-0">{timeAgo(t.prazo)}</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{t.titulo}</p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
+          {items.length === 0 && overdue.length === 0 ? (
             <div className="px-3 py-8 text-center text-sm text-muted-foreground">
               Nenhuma notificação ainda.
             </div>
