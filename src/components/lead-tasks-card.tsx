@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { CheckCircle2, Clock, Plus, Trash2, AlertCircle, Play, X as XIcon } from "lucide-react";
+import { CheckCircle2, Clock, Plus, Trash2, AlertCircle, Play, X as XIcon, CalendarIcon } from "lucide-react";
 import { toast } from "sonner";
+import { format } from "date-fns";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,6 +10,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Dialog,
   DialogContent,
@@ -62,10 +65,14 @@ function statusClass(s: TaskStatus) {
   }
 }
 
-function toLocalInput(iso?: string) {
-  const d = iso ? new Date(iso) : new Date(Date.now() + 24 * 3600 * 1000);
+function defaultDateString() {
+  const d = new Date(Date.now() + 24 * 3600 * 1000);
   const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+function toEndOfDay(isoDate: string) {
+  return new Date(`${isoDate}T23:59:59`).toISOString();
 }
 
 export function LeadTasksCard({
@@ -88,7 +95,7 @@ export function LeadTasksCard({
     titulo: "",
     descricao: "",
     prioridade: "normal" as TaskPriority,
-    prazo: toLocalInput(),
+    prazo: defaultDateString(),
     assigned_to: me?.id ?? "",
   });
 
@@ -97,7 +104,7 @@ export function LeadTasksCard({
       titulo: "",
       descricao: "",
       prioridade: "normal",
-      prazo: toLocalInput(),
+      prazo: defaultDateString(),
       assigned_to: me?.id ?? "",
     });
   }
@@ -116,7 +123,7 @@ export function LeadTasksCard({
         titulo: form.titulo.trim(),
         descricao: form.descricao.trim() || undefined,
         prioridade: form.prioridade,
-        prazo: new Date(form.prazo).toISOString(),
+        prazo: toEndOfDay(form.prazo),
         assigned_to: form.assigned_to,
       });
       toast.success("Tarefa criada");
@@ -162,7 +169,31 @@ export function LeadTasksCard({
                 </div>
                 <div>
                   <Label>Prazo *</Label>
-                  <Input type="datetime-local" value={form.prazo} onChange={(e) => setForm({ ...form, prazo: e.target.value })} />
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn("w-full justify-start text-left font-normal", !form.prazo && "text-muted-foreground")}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {form.prazo ? format(new Date(form.prazo + "T12:00:00"), "dd/MM/yyyy") : <span>Selecionar data</span>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={form.prazo ? new Date(form.prazo + "T12:00:00") : undefined}
+                        onSelect={(d) => {
+                          if (d) {
+                            const iso = format(d, "yyyy-MM-dd");
+                            setForm({ ...form, prazo: iso });
+                          }
+                        }}
+                        initialFocus
+                        className={cn("p-3 pointer-events-auto")}
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
               </div>
               <div>
@@ -222,7 +253,7 @@ export function LeadTasksCard({
                   <Badge className={statusClass(status)}>{STATUS_LABEL[status]}</Badge>
                   <Badge className={priorityClass(t.prioridade)}>{PRIORITY_LABEL[t.prioridade]}</Badge>
                   <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                    <Clock className="h-3 w-3" /> {due.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
+                    <Clock className="h-3 w-3" /> {due.toLocaleDateString("pt-BR")}
                   </span>
                   <span className="text-xs text-muted-foreground">· {userMap.get(t.assigned_to) ?? "—"}</span>
                 </div>
