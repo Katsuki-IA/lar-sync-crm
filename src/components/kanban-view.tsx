@@ -106,7 +106,7 @@ export function KanbanView({ searchFilter, funnelId }: { searchFilter?: string; 
       const { data: leadCreated } = leadIds.length
         ? await supabase.from("lead").select("id, created_at").in("id", leadIds)
         : { data: [] as { id: number; created_at: string | null }[] };
-      const createdMap = new Map((leadCreated ?? []).map((l) => [l.id, l.created_at]));
+      const createdMap = new Map<number, string | null>((leadCreated ?? []).map((l) => [l.id, l.created_at]));
 
       const empMap = new Map((emps ?? []).map((e) => [e.id, e.nome]));
       const userMap = new Map((users ?? []).map((u) => [u.id, u.nome]));
