@@ -253,7 +253,7 @@ export function LeadTasksCard({
                   <Badge className={statusClass(status)}>{STATUS_LABEL[status]}</Badge>
                   <Badge className={priorityClass(t.prioridade)}>{PRIORITY_LABEL[t.prioridade]}</Badge>
                   <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                    <Clock className="h-3 w-3" /> {due.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
+                    <Clock className="h-3 w-3" /> {due.toLocaleDateString("pt-BR")}
                   </span>
                   <span className="text-xs text-muted-foreground">· {userMap.get(t.assigned_to) ?? "—"}</span>
                 </div>
