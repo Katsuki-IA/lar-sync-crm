@@ -570,6 +570,7 @@ function LeadsList() {
                             <div className="min-w-0">
                               <div className="font-semibold text-foreground group-hover:text-primary transition-colors truncate">{l.nome ?? "—"}</div>
                               {l.email && <div className="text-xs text-muted-foreground truncate">{l.email}</div>}
+                              <div className="text-[10px] text-muted-foreground/50 mt-0.5">#{l.id}</div>
                             </div>
                           </Link>
                         </td>

@@ -240,14 +240,17 @@ function DraggableCard({ lead, color }: { lead: LeadCard; color: string }) {
       className="rounded-[10px] border p-3 cursor-grab active:cursor-grabbing transition-transform hover:-translate-y-0.5"
     >
       <div className="flex items-start justify-between gap-2">
-        <Link
-          to="/leads/$id"
-          params={{ id: String(lead.id) }}
-          className="text-sm font-semibold text-foreground hover:text-primary truncate"
-          onPointerDown={(e) => e.stopPropagation()}
-        >
-          {lead.nome ?? "Sem nome"}
-        </Link>
+        <div className="min-w-0 flex-1">
+          <div className="text-[10px] text-muted-foreground/50 mb-0.5">#{lead.id}</div>
+          <Link
+            to="/leads/$id"
+            params={{ id: String(lead.id) }}
+            className="text-sm font-semibold text-foreground hover:text-primary truncate block"
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            {lead.nome ?? "Sem nome"}
+          </Link>
+        </div>
       </div>
       {lead.numero && (
         <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1.5">
