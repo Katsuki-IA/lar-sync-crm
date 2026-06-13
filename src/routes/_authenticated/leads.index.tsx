@@ -1,7 +1,10 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState, useMemo, useEffect } from "react";
-import { Search, Plus, X, Users as UsersIcon, List, LayoutGrid, MoreHorizontal, Pencil, Eye, ArrowRightLeft, UserCog, Trash2, Download } from "lucide-react";
+import { format } from "date-fns";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Search, Plus, X, Users as UsersIcon, List, LayoutGrid, MoreHorizontal, Pencil, Eye, ArrowRightLeft, UserCog, Trash2, Download, CalendarIcon } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useCrmUser } from "@/hooks/use-crm-user";
