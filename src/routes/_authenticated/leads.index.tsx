@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from "react";
 import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Search, Plus, X, Users as UsersIcon, List, LayoutGrid, MoreHorizontal, Pencil, Eye, ArrowRightLeft, UserCog, Trash2, Download, CalendarIcon } from "lucide-react";
+import { Search, Plus, X, Users as UsersIcon, List, LayoutGrid, MoreHorizontal, Pencil, Eye, ArrowRightLeft, UserCog, Trash2, Download, CalendarIcon, Upload } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useCrmUser } from "@/hooks/use-crm-user";
@@ -315,6 +315,15 @@ function LeadsList() {
                 </SelectContent>
               </Select>
             )}
+            <Button
+              asChild
+              variant="outline"
+              className="rounded-lg"
+            >
+              <Link to="/leads/importar">
+                <Upload className="h-4 w-4 mr-1" /> Importar leads
+              </Link>
+            </Button>
             <Button
             asChild
             className="rounded-lg shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] hover:shadow-primary/40"
