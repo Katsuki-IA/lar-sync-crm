@@ -43,7 +43,7 @@ function DashboardPage() {
 
       const baseLeads = () => {
         let q = supabase
-          .from("lead")
+          .from("crm_leads")
           .select("id, crm_stage_id, crm_assigned_to, id_empreendimento, lead_quente", { count: "exact" })
           .in("id_empresa", empresaIds);
         if (isAgent && me) q = q.eq("crm_assigned_to", me.id);

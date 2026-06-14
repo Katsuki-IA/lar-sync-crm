@@ -22,7 +22,7 @@ function WhatsAppIcon({ className }: { className?: string }) {
 type LeadCard = {
   id: number;
   nome: string | null;
-  numero: string | null;
+  telefone: string | null;
   crm_stage_id: number | null;
   crm_assigned_to: string | null;
   id_empreendimento: number | null;
@@ -65,8 +65,8 @@ export function KanbanView({ searchFilter, funnelId }: { searchFilter?: string; 
       const stageIds = (stages ?? []).map((s) => s.id);
       if (!stageIds.length) return [];
       let q = supabase
-        .from("lead")
-        .select("id, nome, numero, crm_stage_id, crm_assigned_to, id_empreendimento, lead_quente")
+        .from("crm_leads")
+        .select("id, nome, telefone, crm_stage_id, crm_assigned_to, id_empreendimento, lead_quente")
         .in("id_empresa", allowed ?? []);
       if (me?.role === "agent") q = q.eq("crm_assigned_to", me.id);
       // Filtra leads pelo funil: estágios desse funil. Leads sem estágio só aparecem no funil padrão.
@@ -104,7 +104,7 @@ export function KanbanView({ searchFilter, funnelId }: { searchFilter?: string; 
         if (a.created_at && !stageEnteredMap.has(a.lead_id)) stageEnteredMap.set(a.lead_id, a.created_at);
       }
       const { data: leadCreated } = leadIds.length
-        ? await supabase.from("lead").select("id, created_at").in("id", leadIds)
+        ? await supabase.from("crm_leads").select("id, created_at").in("id", leadIds)
         : { data: [] as { id: number; created_at: string | null }[] };
       const createdMap = new Map<number, string | null>((leadCreated ?? []).map((l) => [l.id, l.created_at]));
 
@@ -134,7 +134,7 @@ export function KanbanView({ searchFilter, funnelId }: { searchFilter?: string; 
     mutationFn: async ({ leadId, fromStageId, toStageId }: { leadId: number; fromStageId: number | null; toStageId: number }) => {
       const fromName = stages?.find((s) => s.id === fromStageId)?.nome ?? "—";
       const toName = stages?.find((s) => s.id === toStageId)?.nome ?? "—";
-      const { error } = await supabase.from("lead").update({ crm_stage_id: toStageId }).eq("id", leadId);
+      const { error } = await supabase.from("crm_leads").update({ crm_stage_id: toStageId }).eq("id", leadId);
       if (error) throw error;
       if (me) {
         await supabase.from("crm_lead_activities").insert({
@@ -167,7 +167,7 @@ export function KanbanView({ searchFilter, funnelId }: { searchFilter?: string; 
     ? (leads ?? []).filter(
         (l) =>
           (l.nome?.toLowerCase().includes(searchFilter.toLowerCase()) ?? false) ||
-          (l.numero?.toLowerCase().includes(searchFilter.toLowerCase()) ?? false)
+          (l.telefone?.toLowerCase().includes(searchFilter.toLowerCase()) ?? false)
       )
     : (leads ?? []);
 
@@ -252,10 +252,10 @@ function DraggableCard({ lead, color }: { lead: LeadCard; color: string }) {
           </Link>
         </div>
       </div>
-      {lead.numero && (
+      {lead.telefone && (
         <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1.5">
           <WhatsAppIcon className="h-3.5 w-3.5 text-white shrink-0" />
-          <span className="truncate">{lead.numero}</span>
+          <span className="truncate">{lead.telefone}</span>
         </div>
       )}
       {lead.empreendimento_nome && (

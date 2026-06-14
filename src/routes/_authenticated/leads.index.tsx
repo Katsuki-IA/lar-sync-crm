@@ -130,8 +130,8 @@ function LeadsList() {
       }
 
       let q = supabase
-        .from("lead")
-        .select("id, nome, numero, email, crm_stage_id, crm_assigned_to, id_empreendimento, created_at", { count: "exact" })
+        .from("crm_leads")
+        .select("id, nome, telefone, email, crm_stage_id, crm_assigned_to, id_empreendimento, created_at", { count: "exact" })
         .in("id_empresa", allowed ?? []);
 
       if (me?.role === "agent") q = q.eq("crm_assigned_to", me.id);
@@ -148,7 +148,7 @@ function LeadsList() {
       if (userId !== "all") q = q.eq("crm_assigned_to", userId);
       if (dateFrom) q = q.gte("created_at", dateFrom);
       if (dateTo) q = q.lte("created_at", `${dateTo}T23:59:59`);
-      if (search) q = q.or(`nome.ilike.%${search}%,numero.ilike.%${search}%`);
+      if (search) q = q.or(`nome.ilike.%${search}%,telefone.ilike.%${search}%`);
       if (leadIdsByTag) q = q.in("id", leadIdsByTag);
 
       q = q.order("created_at", { ascending: false }).range(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE - 1);
@@ -238,7 +238,7 @@ function LeadsList() {
   // Mutations
   const bulkStageMut = useMutation({
     mutationFn: async ({ ids, stageId }: { ids: number[]; stageId: number }) => {
-      const { error } = await supabase.from("lead").update({ crm_stage_id: stageId }).in("id", ids);
+      const { error } = await supabase.from("crm_leads").update({ crm_stage_id: stageId }).in("id", ids);
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["leads-list"] }); toast.success("Estágio atualizado"); setBulkStageOpen(false); setRowStageLead(null); setSelected(new Set()); },
@@ -246,7 +246,7 @@ function LeadsList() {
   });
   const bulkUserMut = useMutation({
     mutationFn: async ({ ids, uid }: { ids: number[]; uid: string }) => {
-      const { error } = await supabase.from("lead").update({ crm_assigned_to: uid }).in("id", ids);
+      const { error } = await supabase.from("crm_leads").update({ crm_assigned_to: uid }).in("id", ids);
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["leads-list"] }); toast.success("Responsável atualizado"); setBulkUserOpen(false); setRowUserLead(null); setSelected(new Set()); },
@@ -254,7 +254,7 @@ function LeadsList() {
   });
   const bulkDeleteMut = useMutation({
     mutationFn: async (ids: number[]) => {
-      const { error } = await supabase.from("lead").delete().in("id", ids);
+      const { error } = await supabase.from("crm_leads").delete().in("id", ids);
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["leads-list"] }); toast.success("Leads excluídos"); setBulkDeleteOpen(false); setRowDeleteLead(null); setSelected(new Set()); },
@@ -269,7 +269,7 @@ function LeadsList() {
       const s = l.crm_stage_id ? stageMap.get(l.crm_stage_id)?.nome ?? "" : "";
       const r = l.crm_assigned_to ? userMap.get(l.crm_assigned_to) ?? "" : "";
       const e = l.id_empreendimento ? empMap.get(l.id_empreendimento) ?? "" : "";
-      const row = [l.id, l.nome ?? "", l.numero ?? "", l.email ?? "", r, s, e, l.created_at ?? ""]
+      const row = [l.id, l.nome ?? "", l.telefone ?? "", l.email ?? "", r, s, e, l.created_at ?? ""]
         .map((v) => `"${String(v).replace(/"/g, '""')}"`)
         .join(";");
       lines.push(row);
@@ -559,7 +559,7 @@ function LeadsList() {
                     const sColor = stageColor(s?.nome, s?.cor);
                     const responsavel = l.crm_assigned_to ? userMap.get(l.crm_assigned_to) : null;
                     const isChecked = selected.has(l.id);
-                    const waNumber = onlyDigits(l.numero);
+                    const waNumber = onlyDigits(l.telefone);
                     return (
                       <tr
                         key={l.id}
@@ -583,7 +583,7 @@ function LeadsList() {
                             </div>
                           </Link>
                         </td>
-                        <td className="px-4 py-4 text-muted-foreground">{l.numero ?? "—"}</td>
+                        <td className="px-4 py-4 text-muted-foreground">{l.telefone ?? "—"}</td>
                         <td className="px-4 py-4 hidden md:table-cell text-muted-foreground">
                           {l.id_empreendimento ? empMap.get(l.id_empreendimento) ?? "—" : "—"}
                         </td>

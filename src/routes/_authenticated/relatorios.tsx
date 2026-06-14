@@ -102,7 +102,7 @@ function ReportsPage() {
       const toIso = new Date(range.to.setHours(23, 59, 59, 999)).toISOString();
 
       let lq = supabase
-        .from("lead")
+        .from("crm_leads")
         .select("id, nome, crm_stage_id, crm_assigned_to, id_empreendimento, status, created_at, updated_at")
         .in("id_empresa", empresaIds)
         .gte("created_at", fromIso)

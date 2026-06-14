@@ -41,7 +41,7 @@ function LeadDetail() {
 
   const deleteMut = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("lead").delete().eq("id", leadId);
+      const { error } = await supabase.from("crm_leads").delete().eq("id", leadId);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -60,8 +60,8 @@ function LeadDetail() {
     queryKey: ["lead", leadId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("lead")
-        .select("id, nome, numero, email, id_empreendimento, crm_stage_id, crm_assigned_to, lead_quente, qualificado, created_at")
+        .from("crm_leads")
+        .select("id, nome, telefone, email, id_empreendimento, crm_stage_id, crm_assigned_to, lead_quente, qualificado, created_at")
         .eq("id", leadId)
         .single();
       if (error) throw error;
@@ -110,7 +110,7 @@ function LeadDetail() {
     mutationFn: async (newStageId: number) => {
       const fromName = meta?.stages.find((s) => s.id === lead?.crm_stage_id)?.nome ?? "—";
       const toName = meta?.stages.find((s) => s.id === newStageId)?.nome ?? "—";
-      const { error } = await supabase.from("lead").update({ crm_stage_id: newStageId }).eq("id", leadId);
+      const { error } = await supabase.from("crm_leads").update({ crm_stage_id: newStageId }).eq("id", leadId);
       if (error) throw error;
       await supabase.from("crm_lead_activities").insert({
         lead_id: leadId, crm_user_id: me!.id, tipo: "stage_change", descricao: `De ${fromName} para ${toName}`,
@@ -126,7 +126,7 @@ function LeadDetail() {
   const assignMut = useMutation({
     mutationFn: async (uid: string) => {
       const toName = meta?.users.find((u) => u.id === uid)?.nome ?? "—";
-      const { error } = await supabase.from("lead").update({ crm_assigned_to: uid }).eq("id", leadId);
+      const { error } = await supabase.from("crm_leads").update({ crm_assigned_to: uid }).eq("id", leadId);
       if (error) throw error;
       await supabase.from("crm_lead_activities").insert({
         lead_id: leadId, crm_user_id: me!.id, tipo: "assignment", descricao: `Atribuído a ${toName}`,
@@ -197,7 +197,7 @@ function LeadDetail() {
               <Badge variant="secondary">Qualificado</Badge>
             ) : null}
           </div>
-          <p className="text-sm text-muted-foreground">{lead.numero} · {lead.email ?? "sem email"}</p>
+          <p className="text-sm text-muted-foreground">{lead.telefone} · {lead.email ?? "sem email"}</p>
         </div>
         <Button
           variant="ghost"
