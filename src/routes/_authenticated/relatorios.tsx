@@ -513,7 +513,16 @@ function BrokerPanel({ data }: { data: ReportData }) {
   const stageById = new Map(data.stages.map((s) => [s.id, s]));
   const [expanded, setExpanded] = useState<string | null>(null);
 
-  const byBroker = new Map<string, { atribuidos: number; convertidos: number; ativos: number; closeTimes: number[]; weekly: number[]; convertedLeads: Array<{ id: number; nome: string }>; stageDist: Map<number, number> }>();
+  type BrokerAgg = {
+    atribuidos: number;
+    convertidos: number;
+    ativos: number;
+    closeTimes: number[];
+    weekly: number[];
+    convertedLeads: Array<{ id: number; nome: string }>;
+    stageDist: Map<number, number>;
+  };
+  const byBroker = new Map<string, BrokerAgg>();
   // 8-week sparkline buckets ending today
   const now = new Date();
   const weekStart = (d: Date) => startOfWeek(d, { weekStartsOn: 1 });
@@ -525,7 +534,15 @@ function BrokerPanel({ data }: { data: ReportData }) {
     const st = l.crm_stage_id ? stageById.get(l.crm_stage_id) : null;
     const converted = isConvertedStage(st?.nome);
     const lost = isLostStage(st?.nome);
-    const cur = byBroker.get(k) ?? { atribuidos: 0, convertidos: 0, ativos: 0, closeTimes: [], weekly: new Array(8).fill(0), convertedLeads: [], stageDist: new Map() };
+    const cur: BrokerAgg = byBroker.get(k) ?? {
+      atribuidos: 0,
+      convertidos: 0,
+      ativos: 0,
+      closeTimes: [],
+      weekly: new Array(8).fill(0) as number[],
+      convertedLeads: [],
+      stageDist: new Map<number, number>(),
+    };
     cur.atribuidos += 1;
     if (converted) {
       cur.convertidos += 1;
@@ -800,8 +817,8 @@ function EmpreendimentoPanel({ data }: { data: ReportData }) {
                     align="right"
                     verticalAlign="middle"
                     wrapperStyle={{ fontSize: 11 }}
-                    formatter={(value, entry: { payload?: { value: number } }) => {
-                      const v = entry?.payload?.value ?? 0;
+                    formatter={(value, entry) => {
+                      const v = (entry?.payload as { value?: number } | undefined)?.value ?? 0;
                       const pct = grandTotal ? ((v / grandTotal) * 100).toFixed(0) : "0";
                       return `${value} — ${v} (${pct}%)`;
                     }}
