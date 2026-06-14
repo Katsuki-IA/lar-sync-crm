@@ -31,10 +31,29 @@ export const Route = createFileRoute("/_authenticated/leads/$id")({
 function LeadDetail() {
   const { id } = Route.useParams();
   const leadId = Number(id);
+  const navigate = useNavigate();
   const { data: me } = useCrmUser();
   const { data: allowed } = useAllowedEmpresas();
   const qc = useQueryClient();
   const [note, setNote] = useState("");
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmText, setConfirmText] = useState("");
+
+  const deleteMut = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from("lead").delete().eq("id", leadId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["leads"] });
+      toast.success("Lead excluído");
+      setConfirmOpen(false);
+      navigate({ to: "/leads" });
+    },
+    onError: (err: any) => {
+      toast.error(err.message || "Erro ao excluir lead");
+    },
+  });
 
   const { data: lead, isLoading } = useQuery({
     enabled: !!me,
