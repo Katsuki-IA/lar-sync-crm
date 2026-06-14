@@ -199,6 +199,15 @@ function LeadDetail() {
           </div>
           <p className="text-sm text-muted-foreground">{lead.numero} · {lead.email ?? "sem email"}</p>
         </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+          onClick={() => setConfirmOpen(true)}
+          title="Excluir lead"
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
       </div>
 
       <div className="grid gap-6 md:grid-cols-3">
