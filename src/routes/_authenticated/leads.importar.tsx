@@ -268,7 +268,7 @@ function ImportLeadsPage() {
 
         if (skipDup) {
           const { data: existing } = await supabase
-            .from("lead").select("id").eq("id_empresa", me.id_empresa).eq("numero", numero).limit(1).maybeSingle();
+            .from("crm_leads").select("id").eq("id_empresa", me.id_empresa).eq("telefone", numero).limit(1).maybeSingle();
           if (existing) { dup += 1; setProgress({ done: i + 1, total }); continue; }
         }
 
@@ -288,15 +288,14 @@ function ImportLeadsPage() {
 
         const insert = {
           id_empresa: me.id_empresa,
-          id_crm: globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${i}-${Math.random().toString(36).slice(2)}`,
           nome,
-          numero,
+          telefone: numero,
           email,
           id_empreendimento,
           crm_assigned_to: assignedTo,
           crm_stage_id: finalStage,
         };
-        const { data: created, error } = await supabase.from("lead").insert(insert).select("id").single();
+        const { data: created, error } = await supabase.from("crm_leads").insert(insert).select("id").single();
         if (error) throw error;
 
         // Tags
