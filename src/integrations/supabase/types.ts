@@ -371,7 +371,7 @@ export type Database = {
             foreignKeyName: "crm_lead_activities_lead_id_fkey"
             columns: ["lead_id"]
             isOneToOne: false
-            referencedRelation: "lead"
+            referencedRelation: "crm_leads"
             referencedColumns: ["id"]
           },
         ]
@@ -397,7 +397,7 @@ export type Database = {
             foreignKeyName: "crm_lead_tags_lead_id_fkey"
             columns: ["lead_id"]
             isOneToOne: false
-            referencedRelation: "lead"
+            referencedRelation: "crm_leads"
             referencedColumns: ["id"]
           },
           {
@@ -472,6 +472,114 @@ export type Database = {
           },
           {
             foreignKeyName: "crm_lead_tasks_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "crm_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_leads: {
+        Row: {
+          created_at: string | null
+          crm_assigned_to: string | null
+          crm_stage_id: number | null
+          email: string | null
+          feedback: string | null
+          id: number
+          id_empreendimento: number | null
+          id_empresa: number
+          lead_id: number | null
+          lead_quente: boolean | null
+          loft_id_negociacao: string | null
+          nome: string
+          observacoes: string | null
+          origem: string | null
+          qualificado: number | null
+          rd_client_id: string | null
+          rd_deal_id: string | null
+          status: string | null
+          tags: string[] | null
+          telefone: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          crm_assigned_to?: string | null
+          crm_stage_id?: number | null
+          email?: string | null
+          feedback?: string | null
+          id?: number
+          id_empreendimento?: number | null
+          id_empresa: number
+          lead_id?: number | null
+          lead_quente?: boolean | null
+          loft_id_negociacao?: string | null
+          nome: string
+          observacoes?: string | null
+          origem?: string | null
+          qualificado?: number | null
+          rd_client_id?: string | null
+          rd_deal_id?: string | null
+          status?: string | null
+          tags?: string[] | null
+          telefone: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          crm_assigned_to?: string | null
+          crm_stage_id?: number | null
+          email?: string | null
+          feedback?: string | null
+          id?: number
+          id_empreendimento?: number | null
+          id_empresa?: number
+          lead_id?: number | null
+          lead_quente?: boolean | null
+          loft_id_negociacao?: string | null
+          nome?: string
+          observacoes?: string | null
+          origem?: string | null
+          qualificado?: number | null
+          rd_client_id?: string | null
+          rd_deal_id?: string | null
+          status?: string | null
+          tags?: string[] | null
+          telefone?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_leads_crm_assigned_to_fkey"
+            columns: ["crm_assigned_to"]
+            isOneToOne: false
+            referencedRelation: "crm_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_leads_crm_stage_id_fkey"
+            columns: ["crm_stage_id"]
+            isOneToOne: false
+            referencedRelation: "crm_stages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_leads_id_empreendimento_fkey"
+            columns: ["id_empreendimento"]
+            isOneToOne: false
+            referencedRelation: "empreendimento"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_leads_id_empresa_fkey"
+            columns: ["id_empresa"]
+            isOneToOne: false
+            referencedRelation: "empresa_dados"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_leads_lead_id_fkey"
             columns: ["lead_id"]
             isOneToOne: false
             referencedRelation: "lead"
