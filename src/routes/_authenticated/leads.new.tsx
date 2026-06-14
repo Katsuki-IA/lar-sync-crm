@@ -117,19 +117,19 @@ function NewLead() {
       const fullNumero = form.numero ? `${country.ddi} ${form.numero}` : "";
       // Duplicate check (per empresa)
       const orFilters: string[] = [];
-      if (fullNumero) orFilters.push(`numero.eq.${fullNumero}`);
+      if (fullNumero) orFilters.push(`telefone.eq.${fullNumero}`);
       if (form.email.trim()) orFilters.push(`email.eq.${form.email.trim()}`);
       if (orFilters.length) {
         const { data: dup, error: dupErr } = await supabase
-          .from("lead")
-          .select("id, nome, numero, email")
+          .from("crm_leads")
+          .select("id, nome, telefone, email")
           .eq("id_empresa", me.id_empresa)
           .or(orFilters.join(","))
           .limit(1)
           .maybeSingle();
         if (dupErr) throw dupErr;
         if (dup) {
-          const sameNumero = fullNumero && dup.numero === fullNumero;
+          const sameNumero = fullNumero && dup.telefone === fullNumero;
           const sameEmail = form.email.trim() && dup.email === form.email.trim();
           const field = sameNumero ? "numero" : "email";
           const msg = sameNumero
@@ -146,15 +146,14 @@ function NewLead() {
       const defaultAssignee = oldestManager?.id ?? me.id;
       const insert = {
         id_empresa: me.id_empresa,
-        id_crm: (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`),
         nome: form.nome,
-        numero: fullNumero,
+        telefone: fullNumero,
         email: form.email || null,
         id_empreendimento: form.id_empreendimento ? Number(form.id_empreendimento) : null,
         crm_assigned_to: form.crm_assigned_to || defaultAssignee,
         crm_stage_id: form.crm_stage_id ? Number(form.crm_stage_id) : defaultStageId,
       };
-      const { data: lead, error } = await supabase.from("lead").insert(insert).select("id").single();
+      const { data: lead, error } = await supabase.from("crm_leads").insert(insert).select("id").single();
       if (error) throw error;
 
       await supabase.from("crm_lead_activities").insert({
