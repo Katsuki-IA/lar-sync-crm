@@ -1,5 +1,5 @@
 import { useNavigate, useRouterState, Link } from "@tanstack/react-router";
-import { LogOut, ChevronRight, Building2, User } from "lucide-react";
+import { LogOut, ChevronRight, User } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -101,13 +101,9 @@ export function AppShell({ children }: { children: ReactNode }) {
 
           <div className="flex items-center gap-2">
             {empresa && (
-              <div
-                className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs font-medium text-muted-foreground"
-                style={{ backgroundColor: "rgba(236,44,92,0.08)", borderColor: "rgba(236,44,92,0.25)", color: "#fb923c" }}
-              >
-                <Building2 className="h-3 w-3" />
-                <span className="truncate max-w-[160px]">{empresa}</span>
-              </div>
+              <span className="hidden sm:inline text-xs text-muted-foreground truncate max-w-[160px]">
+                {empresa}
+              </span>
             )}
             <NotificationsBell />
             <DropdownMenu>
