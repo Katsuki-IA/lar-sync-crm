@@ -332,6 +332,34 @@ function LeadDetail() {
           </Card>
         </div>
       </div>
+
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Excluir lead?</DialogTitle>
+            <DialogDescription>
+              Esta ação não pode ser desfeita. Digite <strong>deletar{leadId}</strong> para confirmar.
+            </DialogDescription>
+          </DialogHeader>
+          <Input
+            value={confirmText}
+            onChange={(e) => setConfirmText(e.target.value)}
+            placeholder={`deletar${leadId}`}
+          />
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => { setConfirmOpen(false); setConfirmText(""); }}>
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={confirmText !== `deletar${leadId}` || deleteMut.isPending}
+              onClick={() => deleteMut.mutate()}
+            >
+              {deleteMut.isPending ? "Excluindo…" : "Excluir"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
