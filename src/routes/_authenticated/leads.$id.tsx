@@ -1,7 +1,7 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Flame, ArrowLeft, Send, Plus, X } from "lucide-react";
+import { Flame, ArrowLeft, Send, Plus, X, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -13,6 +13,15 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { LeadTasksCard } from "@/components/lead-tasks-card";
 
 export const Route = createFileRoute("/_authenticated/leads/$id")({
@@ -22,10 +31,29 @@ export const Route = createFileRoute("/_authenticated/leads/$id")({
 function LeadDetail() {
   const { id } = Route.useParams();
   const leadId = Number(id);
+  const navigate = useNavigate();
   const { data: me } = useCrmUser();
   const { data: allowed } = useAllowedEmpresas();
   const qc = useQueryClient();
   const [note, setNote] = useState("");
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmText, setConfirmText] = useState("");
+
+  const deleteMut = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from("lead").delete().eq("id", leadId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["leads"] });
+      toast.success("Lead excluído");
+      setConfirmOpen(false);
+      navigate({ to: "/leads" });
+    },
+    onError: (err: any) => {
+      toast.error(err.message || "Erro ao excluir lead");
+    },
+  });
 
   const { data: lead, isLoading } = useQuery({
     enabled: !!me,
@@ -171,6 +199,15 @@ function LeadDetail() {
           </div>
           <p className="text-sm text-muted-foreground">{lead.numero} · {lead.email ?? "sem email"}</p>
         </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+          onClick={() => setConfirmOpen(true)}
+          title="Excluir lead"
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
       </div>
 
       <div className="grid gap-6 md:grid-cols-3">
@@ -295,6 +332,34 @@ function LeadDetail() {
           </Card>
         </div>
       </div>
+
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Excluir lead?</DialogTitle>
+            <DialogDescription>
+              Esta ação não pode ser desfeita. Digite <strong>deletar{leadId}</strong> para confirmar.
+            </DialogDescription>
+          </DialogHeader>
+          <Input
+            value={confirmText}
+            onChange={(e) => setConfirmText(e.target.value)}
+            placeholder={`deletar${leadId}`}
+          />
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => { setConfirmOpen(false); setConfirmText(""); }}>
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={confirmText !== `deletar${leadId}` || deleteMut.isPending}
+              onClick={() => deleteMut.mutate()}
+            >
+              {deleteMut.isPending ? "Excluindo…" : "Excluir"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
