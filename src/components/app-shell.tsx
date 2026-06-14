@@ -1,5 +1,5 @@
 import { useNavigate, useRouterState, Link } from "@tanstack/react-router";
-import { LogOut, ChevronRight, Building2, User } from "lucide-react";
+import { LogOut, ChevronRight, User } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { supabase } from "@/integrations/supabase/client";
