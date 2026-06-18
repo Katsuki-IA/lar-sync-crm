@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { useServerFn } from "@tanstack/react-start";
 import { exchangeMetaCode } from "@/lib/meta-oauth.functions";
 
 export const Route = createFileRoute("/integracoes")({
@@ -8,7 +7,6 @@ export const Route = createFileRoute("/integracoes")({
 });
 
 function MetaOAuthCallback() {
-  const exchange = useServerFn(exchangeMetaCode);
   const [status, setStatus] = useState<"loading" | "ok" | "error">("loading");
   const [message, setMessage] = useState<string>("Conectando com o Facebook...");
 
@@ -46,7 +44,7 @@ function MetaOAuthCallback() {
 
     (async () => {
       try {
-        const result = await exchange({ data: { code, state } });
+        const result = await exchangeMetaCode({ code, state });
         setStatus("ok");
         setMessage(`Conta conectada. ${result.sync.formsCount} formulário(s) sincronizado(s).`);
         send({ ok: true, connection: result.connection });
@@ -58,7 +56,7 @@ function MetaOAuthCallback() {
         send({ ok: false, error: msg });
       }
     })();
-  }, [exchange]);
+  }, []);
 
   return (
     <div

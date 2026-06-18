@@ -1,7 +1,6 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Facebook, Plug, RefreshCw, Unplug } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -69,10 +68,6 @@ type MetaForm = {
 
 function IntegracoesPage() {
   const qc = useQueryClient();
-  const createOAuthUrl = useServerFn(createMetaOAuthUrl);
-  const getStatus = useServerFn(getMetaIntegrationStatus);
-  const syncForms = useServerFn(syncMetaForms);
-  const disconnectConnection = useServerFn(disconnectMetaConnection);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -97,7 +92,7 @@ function IntegracoesPage() {
   const startMetaOAuth = async () => {
     try {
       setConnecting(true);
-      const { url } = await createOAuthUrl();
+      const { url } = await createMetaOAuthUrl();
       const w = 600;
       const h = 720;
       const left = window.screenX + (window.outerWidth - w) / 2;
@@ -120,7 +115,7 @@ function IntegracoesPage() {
   const { data: status, isLoading } = useQuery({
     queryKey: ["meta-integration-status"],
     queryFn: async () => {
-      return getStatus();
+      return getMetaIntegrationStatus();
     },
   });
 
@@ -132,7 +127,7 @@ function IntegracoesPage() {
   const handleSyncForms = async () => {
     try {
       setSyncing(true);
-      const result = await syncForms();
+      const result = await syncMetaForms();
       toast.success(`${result.formsCount} formulário(s) sincronizado(s)`);
       await qc.invalidateQueries({ queryKey: ["meta-integration-status"] });
     } catch (error) {
@@ -299,7 +294,7 @@ function IntegracoesPage() {
                   <AlertDialogAction
                     onClick={async () => {
                       try {
-                        await disconnectConnection();
+                        await disconnectMetaConnection();
                         toast.success("Conta Meta desconectada");
                         setDrawerOpen(false);
                         qc.invalidateQueries({ queryKey: ["meta-integration-status"] });
