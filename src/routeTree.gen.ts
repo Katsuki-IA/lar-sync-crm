@@ -32,7 +32,6 @@ import { Route as AuthenticatedConfiguracoesIntegracoesRouteImport } from './rou
 import { Route as AuthenticatedAdminUsersRouteImport } from './routes/_authenticated/admin.users'
 import { Route as AuthenticatedAdminNotificationsRouteImport } from './routes/_authenticated/admin.notifications'
 import { Route as AuthenticatedAdminEmpresasRouteImport } from './routes/_authenticated/admin.empresas'
-import { Route as AuthenticatedConfiguracoesIntegracoesRouteImport } from './routes/_authenticated/configuracoes.integracoes'
 
 const SetupRoute = SetupRouteImport.update({
   id: '/setup',
@@ -155,6 +154,12 @@ const AuthenticatedAdminEmpresasRoute =
     id: '/empresas',
     path: '/empresas',
     getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedConfiguracoesIntegracoesRoute =
+  AuthenticatedConfiguracoesIntegracoesRouteImport.update({
+    id: '/configuracoes/integracoes',
+    path: '/configuracoes/integracoes',
+    getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
