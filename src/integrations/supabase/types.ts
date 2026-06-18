@@ -727,6 +727,7 @@ export type Database = {
           id: string
           id_empresa: number
           leads_count: number | null
+          page_access_token: string | null
           page_id: string
           page_name: string | null
         }
@@ -739,6 +740,7 @@ export type Database = {
           id?: string
           id_empresa: number
           leads_count?: number | null
+          page_access_token?: string | null
           page_id: string
           page_name?: string | null
         }
@@ -751,6 +753,7 @@ export type Database = {
           id?: string
           id_empresa?: number
           leads_count?: number | null
+          page_access_token?: string | null
           page_id?: string
           page_name?: string | null
         }

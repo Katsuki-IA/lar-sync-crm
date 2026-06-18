@@ -15,12 +15,15 @@ function MetaOAuthCallback() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const code = params.get("code");
+    const state = params.get("state");
     const error = params.get("error_description") ?? params.get("error");
 
     const send = (payload: Record<string, unknown>) => {
       try {
         window.opener?.postMessage({ source: "meta-oauth", ...payload }, window.location.origin);
-      } catch {}
+      } catch {
+        // Popup may be detached or blocked by the browser.
+      }
     };
 
     if (error) {
@@ -35,12 +38,17 @@ function MetaOAuthCallback() {
       setMessage("Código de autorização não recebido");
       return;
     }
+    if (!state) {
+      setStatus("error");
+      setMessage("State OAuth não recebido");
+      return;
+    }
 
     (async () => {
       try {
-        const result = await exchange({ data: { code } });
+        const result = await exchange({ data: { code, state } });
         setStatus("ok");
-        setMessage("Conta conectada! Você pode fechar esta janela.");
+        setMessage(`Conta conectada. ${result.sync.formsCount} formulário(s) sincronizado(s).`);
         send({ ok: true, connection: result.connection });
         setTimeout(() => window.close(), 800);
       } catch (e) {
@@ -53,8 +61,14 @@ function MetaOAuthCallback() {
   }, [exchange]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6" style={{ backgroundColor: "#0B0D14" }}>
-      <div className="max-w-sm w-full rounded-xl border p-6 text-center" style={{ backgroundColor: "#13151F", borderColor: "#2A2D3A" }}>
+    <div
+      className="min-h-screen flex items-center justify-center p-6"
+      style={{ backgroundColor: "#0B0D14" }}
+    >
+      <div
+        className="max-w-sm w-full rounded-xl border p-6 text-center"
+        style={{ backgroundColor: "#13151F", borderColor: "#2A2D3A" }}
+      >
         <div className="text-sm font-medium text-foreground mb-2">
           {status === "loading" ? "Processando..." : status === "ok" ? "Sucesso" : "Falha"}
         </div>

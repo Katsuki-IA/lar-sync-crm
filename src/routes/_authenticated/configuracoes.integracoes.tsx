@@ -1,14 +1,15 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Facebook, Plug, RefreshCw, Unplug } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useCrmUser } from "@/hooks/use-crm-user";
 import {
-  META_APP_ID,
-  META_REDIRECT_URI,
-  META_SCOPES,
+  createMetaOAuthUrl,
+  disconnectMetaConnection,
+  getMetaIntegrationStatus,
+  syncMetaForms,
 } from "@/lib/meta-oauth.functions";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -62,13 +63,19 @@ type MetaForm = {
   form_name: string | null;
   page_id: string;
   page_name: string | null;
+  leads_count: number | null;
+  active: boolean | null;
 };
 
 function IntegracoesPage() {
-  const { data: me } = useCrmUser();
   const qc = useQueryClient();
+  const createOAuthUrl = useServerFn(createMetaOAuthUrl);
+  const getStatus = useServerFn(getMetaIntegrationStatus);
+  const syncForms = useServerFn(syncMetaForms);
+  const disconnectConnection = useServerFn(disconnectMetaConnection);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [connecting, setConnecting] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
     const handler = (ev: MessageEvent) => {
@@ -78,7 +85,7 @@ function IntegracoesPage() {
       setConnecting(false);
       if (msg.ok) {
         toast.success("Conta Meta conectada com sucesso");
-        qc.invalidateQueries({ queryKey: ["meta-connection"] });
+        qc.invalidateQueries({ queryKey: ["meta-integration-status"] });
       } else {
         toast.error(msg.error ?? "Falha ao conectar com o Meta");
       }
@@ -87,75 +94,63 @@ function IntegracoesPage() {
     return () => window.removeEventListener("message", handler);
   }, [qc]);
 
-  const startMetaOAuth = () => {
-    const state = crypto.randomUUID();
-    const url = new URL("https://www.facebook.com/v21.0/dialog/oauth");
-    url.searchParams.set("client_id", META_APP_ID);
-    url.searchParams.set("redirect_uri", META_REDIRECT_URI);
-    url.searchParams.set("scope", META_SCOPES);
-    url.searchParams.set("response_type", "code");
-    url.searchParams.set("state", state);
-    const w = 600;
-    const h = 720;
-    const left = window.screenX + (window.outerWidth - w) / 2;
-    const top = window.screenY + (window.outerHeight - h) / 2;
-    const popup = window.open(
-      url.toString(),
-      "meta-oauth",
-      `width=${w},height=${h},left=${left},top=${top}`,
-    );
-    if (!popup) {
-      toast.error("Permita popups para conectar com o Facebook");
-      return;
+  const startMetaOAuth = async () => {
+    try {
+      setConnecting(true);
+      const { url } = await createOAuthUrl();
+      const w = 600;
+      const h = 720;
+      const left = window.screenX + (window.outerWidth - w) / 2;
+      const top = window.screenY + (window.outerHeight - h) / 2;
+      const popup = window.open(
+        url,
+        "meta-oauth",
+        `width=${w},height=${h},left=${left},top=${top}`,
+      );
+      if (!popup) {
+        toast.error("Permita popups para conectar com o Facebook");
+        setConnecting(false);
+      }
+    } catch (error) {
+      setConnecting(false);
+      toast.error(error instanceof Error ? error.message : "Falha ao iniciar conexão Meta");
     }
-    setConnecting(true);
   };
 
-  const { data: connection, isLoading } = useQuery({
-    enabled: !!me?.id_empresa,
-    queryKey: ["meta-connection", me?.id_empresa],
+  const { data: status, isLoading } = useQuery({
+    queryKey: ["meta-integration-status"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("crm_meta_connections")
-        .select("id,user_name,user_id_meta,connected_at,active")
-        .eq("id_empresa", me!.id_empresa as number)
-        .eq("active", true)
-        .maybeSingle();
-      if (error) throw error;
-      return (data as MetaConnection | null) ?? null;
+      return getStatus();
     },
   });
 
-  const { data: forms = [] } = useQuery({
-    enabled: !!connection?.id,
-    queryKey: ["meta-forms", connection?.id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("crm_meta_forms")
-        .select("id,form_id,form_name,page_id,page_name")
-        .eq("connection_id", connection!.id)
-        .order("page_name", { ascending: true });
-      if (error) throw error;
-      return (data ?? []) as MetaForm[];
-    },
-  });
+  const connection = (status?.connection as MetaConnection | null | undefined) ?? null;
+  const forms = (status?.forms as MetaForm[] | undefined) ?? [];
 
   const connected = !!connection;
+
+  const handleSyncForms = async () => {
+    try {
+      setSyncing(true);
+      const result = await syncForms();
+      toast.success(`${result.formsCount} formulário(s) sincronizado(s)`);
+      await qc.invalidateQueries({ queryKey: ["meta-integration-status"] });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Falha ao sincronizar formulários");
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Integrações</h1>
-        <p className="text-sm text-muted-foreground">
-          Conecte fontes externas de leads ao seu CRM
-        </p>
+        <p className="text-sm text-muted-foreground">Conecte fontes externas de leads ao seu CRM</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card
-          className="p-5"
-          style={{ backgroundColor: "#13151F", borderColor: "#2A2D3A" }}
-        >
+        <Card className="p-5" style={{ backgroundColor: "#13151F", borderColor: "#2A2D3A" }}>
           <div className="flex items-start gap-4">
             <div
               className="h-12 w-12 rounded-xl flex items-center justify-center shrink-0"
@@ -165,11 +160,11 @@ function IntegracoesPage() {
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <h3 className="text-base font-semibold text-foreground">
-                  Meta Ads — Lead Ads
-                </h3>
+                <h3 className="text-base font-semibold text-foreground">Meta Ads — Lead Ads</h3>
                 {isLoading ? (
-                  <Badge variant="secondary" className="text-[10px]">…</Badge>
+                  <Badge variant="secondary" className="text-[10px]">
+                    …
+                  </Badge>
                 ) : connected ? (
                   <Badge
                     className="text-[10px] border-0"
@@ -192,11 +187,7 @@ function IntegracoesPage() {
 
               <div className="mt-4 flex flex-wrap gap-2">
                 {connected ? (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setDrawerOpen(true)}
-                  >
+                  <Button variant="outline" size="sm" onClick={() => setDrawerOpen(true)}>
                     Gerenciar
                   </Button>
                 ) : (
@@ -251,10 +242,11 @@ function IntegracoesPage() {
                   variant="ghost"
                   size="sm"
                   className="h-7 gap-1.5 text-xs"
-                  onClick={() => toast("Sincronização será ativada em breve")}
+                  disabled={syncing}
+                  onClick={handleSyncForms}
                 >
-                  <RefreshCw className="h-3.5 w-3.5" />
-                  Sincronizar
+                  <RefreshCw className={syncing ? "h-3.5 w-3.5 animate-spin" : "h-3.5 w-3.5"} />
+                  {syncing ? "Sincronizando" : "Sincronizar"}
                 </Button>
               </div>
               {forms.length === 0 ? (
@@ -277,6 +269,7 @@ function IntegracoesPage() {
                       </div>
                       <div className="text-xs text-muted-foreground truncate">
                         {f.page_name ?? f.page_id}
+                        {typeof f.leads_count === "number" ? ` · ${f.leads_count} leads` : ""}
                       </div>
                     </div>
                   ))}
@@ -297,26 +290,24 @@ function IntegracoesPage() {
                 <AlertDialogHeader>
                   <AlertDialogTitle>Desconectar Meta Ads?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    Você deixará de receber leads dos formulários do Facebook e Instagram.
-                    Esta ação pode ser revertida reconectando a conta.
+                    Você deixará de receber leads dos formulários do Facebook e Instagram. Esta ação
+                    pode ser revertida reconectando a conta.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancelar</AlertDialogCancel>
                   <AlertDialogAction
                     onClick={async () => {
-                      if (!connection?.id) return;
-                      const { error } = await supabase
-                        .from("crm_meta_connections")
-                        .update({ active: false })
-                        .eq("id", connection.id);
-                      if (error) {
-                        toast.error(error.message);
-                        return;
+                      try {
+                        await disconnectConnection();
+                        toast.success("Conta Meta desconectada");
+                        setDrawerOpen(false);
+                        qc.invalidateQueries({ queryKey: ["meta-integration-status"] });
+                      } catch (error) {
+                        toast.error(
+                          error instanceof Error ? error.message : "Falha ao desconectar",
+                        );
                       }
-                      toast.success("Conta Meta desconectada");
-                      setDrawerOpen(false);
-                      qc.invalidateQueries({ queryKey: ["meta-connection"] });
                     }}
                   >
                     Desconectar
