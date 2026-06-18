@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   createMetaOAuthUrl,
   disconnectMetaConnection,
+  exchangeMetaCode,
   getMetaIntegrationStatus,
   syncMetaForms,
 } from "@/lib/meta-oauth.functions";
@@ -66,6 +67,25 @@ type MetaForm = {
   active: boolean | null;
 };
 
+type MetaOAuthCallbackMessage = {
+  source?: string;
+  ok?: boolean;
+  code?: string | null;
+  state?: string | null;
+  error?: string | null;
+  errorDescription?: string | null;
+};
+
+function getSupabaseOrigin() {
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+  if (!supabaseUrl) return null;
+  try {
+    return new URL(supabaseUrl).origin;
+  } catch {
+    return null;
+  }
+}
+
 function IntegracoesPage() {
   const qc = useQueryClient();
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -73,16 +93,46 @@ function IntegracoesPage() {
   const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
-    const handler = (ev: MessageEvent) => {
-      if (ev.origin !== window.location.origin) return;
-      const msg = ev.data as { source?: string; ok?: boolean; error?: string } | undefined;
-      if (!msg || msg.source !== "meta-oauth") return;
-      setConnecting(false);
-      if (msg.ok) {
+    const supabaseOrigin = getSupabaseOrigin();
+    const handler = async (ev: MessageEvent) => {
+      const msg = ev.data as MetaOAuthCallbackMessage | undefined;
+      if (!msg) return;
+
+      if (msg.source === "meta-oauth") {
+        if (ev.origin !== window.location.origin) return;
+        setConnecting(false);
+        if (msg.ok) {
+          toast.success("Conta Meta conectada com sucesso");
+          qc.invalidateQueries({ queryKey: ["meta-integration-status"] });
+        } else {
+          toast.error(msg.error ?? "Falha ao conectar com o Meta");
+        }
+        return;
+      }
+
+      if (msg.source !== "meta-oauth-callback") return;
+      if (supabaseOrigin && ev.origin !== supabaseOrigin) return;
+
+      if (msg.error) {
+        setConnecting(false);
+        toast.error(msg.errorDescription ?? msg.error);
+        return;
+      }
+
+      if (!msg.code || !msg.state) {
+        setConnecting(false);
+        toast.error("Retorno do Meta incompleto");
+        return;
+      }
+
+      try {
+        await exchangeMetaCode({ code: msg.code, state: msg.state });
         toast.success("Conta Meta conectada com sucesso");
-        qc.invalidateQueries({ queryKey: ["meta-integration-status"] });
-      } else {
-        toast.error(msg.error ?? "Falha ao conectar com o Meta");
+        await qc.invalidateQueries({ queryKey: ["meta-integration-status"] });
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Falha ao conectar com o Meta");
+      } finally {
+        setConnecting(false);
       }
     };
     window.addEventListener("message", handler);
