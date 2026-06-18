@@ -87,6 +87,12 @@ type MetaPageSummary = {
   source: string | null;
 };
 
+type DisconnectMetaButtonProps = {
+  className?: string;
+  onDisconnected: () => void;
+  variant?: "outline" | "destructive";
+};
+
 function getSupabaseOrigin() {
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
   if (!supabaseUrl) return null;
@@ -270,6 +276,14 @@ function IntegracoesPage() {
     setDrawerView("forms");
   };
 
+  const handleDisconnected = () => {
+    setDrawerOpen(false);
+    setDrawerView("account");
+    setSelectedPageId(null);
+    setLastSync(null);
+    void qc.invalidateQueries({ queryKey: ["meta-integration-status"] });
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -396,6 +410,11 @@ function IntegracoesPage() {
                     Acessar
                     <ArrowRight className="h-4 w-4" />
                   </Button>
+                  <DisconnectMetaButton
+                    className="gap-2"
+                    onDisconnected={handleDisconnected}
+                    variant="outline"
+                  />
                 </div>
               </div>
             )}
@@ -421,6 +440,7 @@ function IntegracoesPage() {
                     >
                       {connecting ? "Aguardando..." : "Conectar página"}
                     </Button>
+                    <DisconnectMetaButton onDisconnected={handleDisconnected} variant="outline" />
                     <Button
                       variant="outline"
                       size="sm"
@@ -603,42 +623,11 @@ function IntegracoesPage() {
           </div>
 
           <div className="pt-4 border-t" style={{ borderColor: "#2A2D3A" }}>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="destructive" className="w-full gap-2">
-                  <Unplug className="h-4 w-4" />
-                  Desconectar
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Desconectar Meta Ads?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Você deixará de receber leads dos formulários do Facebook e Instagram. Esta ação
-                    pode ser revertida reconectando a conta.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={async () => {
-                      try {
-                        await disconnectMetaConnection();
-                        toast.success("Conta Meta desconectada");
-                        setDrawerOpen(false);
-                        qc.invalidateQueries({ queryKey: ["meta-integration-status"] });
-                      } catch (error) {
-                        toast.error(
-                          error instanceof Error ? error.message : "Falha ao desconectar",
-                        );
-                      }
-                    }}
-                  >
-                    Desconectar
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+            <DisconnectMetaButton
+              className="w-full gap-2"
+              onDisconnected={handleDisconnected}
+              variant="destructive"
+            />
           </div>
         </SheetContent>
       </Sheet>
@@ -646,5 +635,47 @@ function IntegracoesPage() {
       {/* Hidden icon to keep import used in design phase */}
       <Plug className="hidden" />
     </div>
+  );
+}
+
+function DisconnectMetaButton({
+  className,
+  onDisconnected,
+  variant = "destructive",
+}: DisconnectMetaButtonProps) {
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button variant={variant} size="sm" className={className}>
+          <Unplug className="h-4 w-4" />
+          Desconectar
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Desconectar Meta Ads?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Você deixará de receber leads dos formulários do Facebook e Instagram. Esta ação pode ser
+            revertida reconectando a conta.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={async () => {
+              try {
+                await disconnectMetaConnection();
+                toast.success("Conta Meta desconectada");
+                onDisconnected();
+              } catch (error) {
+                toast.error(error instanceof Error ? error.message : "Falha ao desconectar");
+              }
+            }}
+          >
+            Desconectar
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
