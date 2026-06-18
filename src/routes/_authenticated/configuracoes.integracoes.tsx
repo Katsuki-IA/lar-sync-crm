@@ -1,10 +1,15 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Facebook, Plug, RefreshCw, Unplug } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCrmUser } from "@/hooks/use-crm-user";
+import {
+  META_APP_ID,
+  META_REDIRECT_URI,
+  META_SCOPES,
+} from "@/lib/meta-oauth.functions";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -63,6 +68,48 @@ function IntegracoesPage() {
   const { data: me } = useCrmUser();
   const qc = useQueryClient();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [connecting, setConnecting] = useState(false);
+
+  useEffect(() => {
+    const handler = (ev: MessageEvent) => {
+      if (ev.origin !== window.location.origin) return;
+      const msg = ev.data as { source?: string; ok?: boolean; error?: string } | undefined;
+      if (!msg || msg.source !== "meta-oauth") return;
+      setConnecting(false);
+      if (msg.ok) {
+        toast.success("Conta Meta conectada com sucesso");
+        qc.invalidateQueries({ queryKey: ["meta-connection"] });
+      } else {
+        toast.error(msg.error ?? "Falha ao conectar com o Meta");
+      }
+    };
+    window.addEventListener("message", handler);
+    return () => window.removeEventListener("message", handler);
+  }, [qc]);
+
+  const startMetaOAuth = () => {
+    const state = crypto.randomUUID();
+    const url = new URL("https://www.facebook.com/v21.0/dialog/oauth");
+    url.searchParams.set("client_id", META_APP_ID);
+    url.searchParams.set("redirect_uri", META_REDIRECT_URI);
+    url.searchParams.set("scope", META_SCOPES);
+    url.searchParams.set("response_type", "code");
+    url.searchParams.set("state", state);
+    const w = 600;
+    const h = 720;
+    const left = window.screenX + (window.outerWidth - w) / 2;
+    const top = window.screenY + (window.outerHeight - h) / 2;
+    const popup = window.open(
+      url.toString(),
+      "meta-oauth",
+      `width=${w},height=${h},left=${left},top=${top}`,
+    );
+    if (!popup) {
+      toast.error("Permita popups para conectar com o Facebook");
+      return;
+    }
+    setConnecting(true);
+  };
 
   const { data: connection, isLoading } = useQuery({
     enabled: !!me?.id_empresa,
@@ -156,13 +203,12 @@ function IntegracoesPage() {
                   <Button
                     size="sm"
                     className="gap-2"
+                    disabled={connecting}
                     style={{ backgroundColor: "#1877F2", color: "#fff" }}
-                    onClick={() =>
-                      toast("Em breve: autenticação com o Meta será configurada")
-                    }
+                    onClick={startMetaOAuth}
                   >
                     <Facebook className="h-4 w-4" />
-                    Conectar com Facebook
+                    {connecting ? "Aguardando..." : "Conectar com Facebook"}
                   </Button>
                 )}
               </div>
