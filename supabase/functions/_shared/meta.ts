@@ -6,8 +6,7 @@ export const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-const DEFAULT_META_REDIRECT_URI =
-  "https://tswdxgefmhjvjwafaxjl.supabase.co/functions/v1/meta-oauth-callback";
+const DEFAULT_META_REDIRECT_URI = "https://lar-sync-crm.lovable.app/";
 const DEFAULT_META_GRAPH_VERSION = "v21.0";
 const META_SCOPES = [
   "leads_retrieval",
