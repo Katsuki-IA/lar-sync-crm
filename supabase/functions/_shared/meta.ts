@@ -32,6 +32,19 @@ type MetaLeadForm = {
   leads_count?: number;
 };
 
+type MetaSyncPageResult = {
+  pageId: string;
+  pageName: string | null;
+  formsCount: number;
+  hasAccessToken: boolean;
+};
+
+type MetaSyncPageError = {
+  pageId: string;
+  pageName: string | null;
+  message: string;
+};
+
 type GraphCollection<T> = {
   data?: T[];
   paging?: {
@@ -258,6 +271,8 @@ export async function syncMetaFormsForConnection(args: {
   pagesUrl.searchParams.set("access_token", args.userAccessToken);
 
   const pages = await fetchGraphCollection<MetaPage>(pagesUrl);
+  const pageResults: MetaSyncPageResult[] = [];
+  const pageErrors: MetaSyncPageError[] = [];
   const rows: Array<{
     id_empresa: number;
     connection_id: string;
@@ -271,7 +286,20 @@ export async function syncMetaFormsForConnection(args: {
   }> = [];
 
   for (const page of pages) {
-    if (!page.access_token) continue;
+    if (!page.access_token) {
+      pageResults.push({
+        pageId: page.id,
+        pageName: page.name ?? null,
+        formsCount: 0,
+        hasAccessToken: false,
+      });
+      pageErrors.push({
+        pageId: page.id,
+        pageName: page.name ?? null,
+        message: "Página retornada sem token de acesso",
+      });
+      continue;
+    }
 
     const formsUrl = new URL(
       `https://graph.facebook.com/${args.graphVersion}/${page.id}/leadgen_forms`,
@@ -282,6 +310,12 @@ export async function syncMetaFormsForConnection(args: {
 
     try {
       const forms = await fetchGraphCollection<MetaLeadForm>(formsUrl);
+      pageResults.push({
+        pageId: page.id,
+        pageName: page.name ?? null,
+        formsCount: forms.length,
+        hasAccessToken: true,
+      });
       rows.push(
         ...forms.map((form) => ({
           id_empresa: args.idEmpresa,
@@ -296,6 +330,17 @@ export async function syncMetaFormsForConnection(args: {
         })),
       );
     } catch (error) {
+      pageResults.push({
+        pageId: page.id,
+        pageName: page.name ?? null,
+        formsCount: 0,
+        hasAccessToken: true,
+      });
+      pageErrors.push({
+        pageId: page.id,
+        pageName: page.name ?? null,
+        message: error instanceof Error ? error.message : "Falha ao sincronizar formulários",
+      });
       console.warn(`Falha ao sincronizar formulários da página Meta ${page.id}`, error);
     }
   }
@@ -314,5 +359,10 @@ export async function syncMetaFormsForConnection(args: {
     if (error) throw new Error(error.message);
   }
 
-  return { pagesCount: pages.length, formsCount: rows.length };
+  return {
+    pagesCount: pages.length,
+    formsCount: rows.length,
+    pages: pageResults,
+    errors: pageErrors,
+  };
 }

@@ -73,7 +73,7 @@ Deno.serve(async (req) => {
 
     if (connectionError) throw new Error(connectionError.message);
 
-    const sync = { pagesCount: 0, formsCount: 0 };
+    const sync = { pagesCount: 0, formsCount: 0, pages: [], errors: [] };
     return jsonResponse({ ok: true, connection, sync });
   });
 });

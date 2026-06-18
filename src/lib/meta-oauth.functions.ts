@@ -23,13 +23,26 @@ export type MetaIntegrationStatus = {
   forms: MetaFormStatus[];
 };
 
+export type MetaFormsSyncResult = {
+  pagesCount: number;
+  formsCount: number;
+  pages: Array<{
+    pageId: string;
+    pageName: string | null;
+    formsCount: number;
+    hasAccessToken: boolean;
+  }>;
+  errors: Array<{
+    pageId: string;
+    pageName: string | null;
+    message: string;
+  }>;
+};
+
 export type MetaOAuthExchangeResult = {
   ok: true;
   connection: MetaConnectionStatus;
-  sync: {
-    pagesCount: number;
-    formsCount: number;
-  };
+  sync: MetaFormsSyncResult;
 };
 
 async function invokeMetaFunction<T>(name: string, body?: Record<string, unknown>): Promise<T> {
@@ -61,7 +74,7 @@ export async function getMetaIntegrationStatus() {
 }
 
 export async function syncMetaForms() {
-  return invokeMetaFunction<{ pagesCount: number; formsCount: number }>("meta-forms-sync");
+  return invokeMetaFunction<MetaFormsSyncResult>("meta-forms-sync");
 }
 
 export async function disconnectMetaConnection() {

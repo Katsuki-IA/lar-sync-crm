@@ -8,6 +8,7 @@ import {
   createMetaOAuthUrl,
   disconnectMetaConnection,
   exchangeMetaCode,
+  type MetaFormsSyncResult,
   getMetaIntegrationStatus,
   syncMetaForms,
 } from "@/lib/meta-oauth.functions";
@@ -91,6 +92,7 @@ function IntegracoesPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [lastSync, setLastSync] = useState<MetaFormsSyncResult | null>(null);
 
   useEffect(() => {
     const supabaseOrigin = getSupabaseOrigin();
@@ -178,7 +180,14 @@ function IntegracoesPage() {
     try {
       setSyncing(true);
       const result = await syncMetaForms();
-      toast.success(`${result.formsCount} formulário(s) sincronizado(s)`);
+      setLastSync(result);
+      if (result.formsCount > 0) {
+        toast.success(`${result.formsCount} formulário(s) sincronizado(s)`);
+      } else if (result.pagesCount > 0) {
+        toast.info(`${result.pagesCount} página(s) encontrada(s), mas nenhum formulário retornado`);
+      } else {
+        toast.warning("A Meta não retornou páginas para esta conexão");
+      }
       await qc.invalidateQueries({ queryKey: ["meta-integration-status"] });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Falha ao sincronizar formulários");
@@ -276,6 +285,15 @@ function IntegracoesPage() {
               <div className="text-xs text-muted-foreground mt-0.5">
                 ID: {connection?.user_id_meta}
               </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-3"
+                disabled={connecting}
+                onClick={startMetaOAuth}
+              >
+                {connecting ? "Aguardando..." : "Reconfigurar acesso"}
+              </Button>
             </div>
 
             <div>
@@ -321,6 +339,65 @@ function IntegracoesPage() {
                 </div>
               )}
             </div>
+
+            {lastSync && (
+              <div className="rounded-lg border p-4" style={{ borderColor: "#2A2D3A" }}>
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                  Última sincronização
+                </div>
+                <div className="mt-2 text-sm text-foreground">
+                  {lastSync.pagesCount} página(s) retornada(s) · {lastSync.formsCount} formulário(s)
+                </div>
+
+                {lastSync.pagesCount === 0 && (
+                  <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                    A Meta não retornou páginas para esta conta. Use Reconfigurar acesso e, na tela
+                    do Facebook, clique em Editar configurações para selecionar a BM/páginas certas.
+                  </p>
+                )}
+
+                {lastSync.pages.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    {lastSync.pages.map((page) => (
+                      <div
+                        key={page.pageId}
+                        className="rounded-md border px-3 py-2"
+                        style={{ borderColor: "#2A2D3A" }}
+                      >
+                        <div className="text-xs font-medium text-foreground truncate">
+                          {page.pageName ?? page.pageId}
+                        </div>
+                        <div className="text-[11px] text-muted-foreground">
+                          {page.formsCount} formulário(s)
+                          {!page.hasAccessToken ? " · sem token da página" : ""}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {lastSync.errors.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                      Erros por página
+                    </div>
+                    {lastSync.errors.map((error) => (
+                      <div
+                        key={`${error.pageId}-${error.message}`}
+                        className="rounded-md border px-3 py-2 text-[11px] leading-relaxed"
+                        style={{
+                          borderColor: "rgba(239,43,99,0.35)",
+                          color: "#fda4af",
+                        }}
+                      >
+                        <span className="font-medium">{error.pageName ?? error.pageId}:</span>{" "}
+                        {error.message}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="pt-4 border-t" style={{ borderColor: "#2A2D3A" }}>
