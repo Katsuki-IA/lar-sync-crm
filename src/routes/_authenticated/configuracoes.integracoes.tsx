@@ -84,6 +84,7 @@ type MetaPageSummary = {
   pageId: string;
   pageName: string | null;
   formsCount: number;
+  source: string | null;
 };
 
 function getSupabaseOrigin() {
@@ -196,20 +197,23 @@ function IntegracoesPage() {
   const pages = useMemo<MetaPageSummary[]>(() => {
     const byId = new Map<string, MetaPageSummary>();
 
-    for (const page of lastSync?.pages ?? []) {
-      byId.set(page.pageId, {
-        pageId: page.pageId,
-        pageName: page.pageName,
-        formsCount: page.formsCount,
-      });
-    }
-
     for (const form of forms) {
       const current = byId.get(form.page_id);
       byId.set(form.page_id, {
         pageId: form.page_id,
         pageName: form.page_name ?? current?.pageName ?? null,
         formsCount: (current?.formsCount ?? 0) + 1,
+        source: current?.source ?? null,
+      });
+    }
+
+    for (const page of lastSync?.pages ?? []) {
+      const current = byId.get(page.pageId);
+      byId.set(page.pageId, {
+        pageId: page.pageId,
+        pageName: page.pageName ?? current?.pageName ?? null,
+        formsCount: Math.max(page.formsCount, current?.formsCount ?? 0),
+        source: page.source ?? current?.source ?? null,
       });
     }
 
@@ -460,6 +464,11 @@ function IntegracoesPage() {
                             {page.pageName ?? page.pageId}
                           </div>
                           <div className="truncate text-xs text-muted-foreground">{page.pageId}</div>
+                          {page.source && (
+                            <div className="truncate text-[11px] text-muted-foreground">
+                              Origem: {page.source}
+                            </div>
+                          )}
                         </div>
                         <div className="text-sm text-muted-foreground">{page.formsCount}</div>
                         <ArrowRight className="h-4 w-4 text-muted-foreground" />
@@ -563,6 +572,29 @@ function IntegracoesPage() {
                     >
                       <span className="font-medium">{error.pageName ?? error.pageId}:</span>{" "}
                       {error.message}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {drawerView === "pages" && lastSync && lastSync.sources.length > 0 && (
+              <div className="rounded-lg border p-4" style={{ borderColor: "#2A2D3A" }}>
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                  Diagnóstico da Meta
+                </div>
+                <div className="mt-3 space-y-2">
+                  {lastSync.sources.map((source) => (
+                    <div
+                      key={source.source}
+                      className="rounded-md border px-3 py-2 text-[11px] leading-relaxed"
+                      style={{
+                        borderColor: source.error ? "rgba(239,43,99,0.35)" : "#2A2D3A",
+                        color: source.error ? "#fda4af" : undefined,
+                      }}
+                    >
+                      <span className="font-medium">{source.source}</span>: {source.count} item(ns)
+                      {source.error ? ` · ${source.error}` : ""}
                     </div>
                   ))}
                 </div>

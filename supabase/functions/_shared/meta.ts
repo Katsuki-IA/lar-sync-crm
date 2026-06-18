@@ -13,6 +13,7 @@ const META_SCOPES = [
   "pages_show_list",
   "pages_read_engagement",
   "pages_manage_ads",
+  "business_management",
 ].join(",");
 
 type CrmUserAccess = {
@@ -24,6 +25,7 @@ type MetaPage = {
   id: string;
   name?: string;
   access_token?: string;
+  source?: string;
 };
 
 type MetaLeadForm = {
@@ -37,12 +39,24 @@ type MetaSyncPageResult = {
   pageName: string | null;
   formsCount: number;
   hasAccessToken: boolean;
+  source: string | null;
 };
 
 type MetaSyncPageError = {
   pageId: string;
   pageName: string | null;
   message: string;
+};
+
+type MetaSyncSource = {
+  source: string;
+  count: number;
+  error: string | null;
+};
+
+type MetaBusiness = {
+  id: string;
+  name?: string;
 };
 
 type GraphCollection<T> = {
@@ -258,6 +272,78 @@ export async function fetchGraphCollection<T>(initialUrl: URL | string): Promise
   return items;
 }
 
+async function fetchGraphCollectionResult<T>(
+  source: string,
+  initialUrl: URL | string,
+): Promise<{ source: string; items: T[]; error: string | null }> {
+  try {
+    return { source, items: await fetchGraphCollection<T>(initialUrl), error: null };
+  } catch (error) {
+    return {
+      source,
+      items: [],
+      error: error instanceof Error ? error.message : "Falha ao consultar a Graph API",
+    };
+  }
+}
+
+async function fetchMetaPages(args: {
+  userAccessToken: string;
+  graphVersion: string;
+}): Promise<{ pages: MetaPage[]; sources: MetaSyncSource[] }> {
+  const pagesById = new Map<string, MetaPage>();
+  const sources: MetaSyncSource[] = [];
+
+  const addPages = (items: MetaPage[], source: string) => {
+    for (const page of items) {
+      const current = pagesById.get(page.id);
+      pagesById.set(page.id, {
+        id: page.id,
+        name: page.name ?? current?.name,
+        access_token: page.access_token ?? current?.access_token,
+        source: current?.source ? `${current.source}, ${source}` : source,
+      });
+    }
+  };
+
+  const accountsUrl = new URL(`https://graph.facebook.com/${args.graphVersion}/me/accounts`);
+  accountsUrl.searchParams.set("fields", "id,name,access_token");
+  accountsUrl.searchParams.set("limit", "100");
+  accountsUrl.searchParams.set("access_token", args.userAccessToken);
+  const accounts = await fetchGraphCollectionResult<MetaPage>("/me/accounts", accountsUrl);
+  sources.push({ source: accounts.source, count: accounts.items.length, error: accounts.error });
+  addPages(accounts.items, accounts.source);
+
+  const businessesUrl = new URL(`https://graph.facebook.com/${args.graphVersion}/me/businesses`);
+  businessesUrl.searchParams.set("fields", "id,name");
+  businessesUrl.searchParams.set("limit", "100");
+  businessesUrl.searchParams.set("access_token", args.userAccessToken);
+  const businesses = await fetchGraphCollectionResult<MetaBusiness>("/me/businesses", businessesUrl);
+  sources.push({
+    source: businesses.source,
+    count: businesses.items.length,
+    error: businesses.error,
+  });
+
+  for (const business of businesses.items) {
+    for (const edge of ["owned_pages", "client_pages"] as const) {
+      const businessPagesUrl = new URL(
+        `https://graph.facebook.com/${args.graphVersion}/${business.id}/${edge}`,
+      );
+      businessPagesUrl.searchParams.set("fields", "id,name,access_token");
+      businessPagesUrl.searchParams.set("limit", "100");
+      businessPagesUrl.searchParams.set("access_token", args.userAccessToken);
+
+      const source = `/businesses/${business.name ?? business.id}/${edge}`;
+      const result = await fetchGraphCollectionResult<MetaPage>(source, businessPagesUrl);
+      sources.push({ source: result.source, count: result.items.length, error: result.error });
+      addPages(result.items, result.source);
+    }
+  }
+
+  return { pages: Array.from(pagesById.values()), sources };
+}
+
 export async function syncMetaFormsForConnection(args: {
   idEmpresa: number;
   connectionId: string;
@@ -265,12 +351,10 @@ export async function syncMetaFormsForConnection(args: {
   graphVersion: string;
 }) {
   const supabaseAdmin = createSupabaseAdmin();
-  const pagesUrl = new URL(`https://graph.facebook.com/${args.graphVersion}/me/accounts`);
-  pagesUrl.searchParams.set("fields", "id,name,access_token");
-  pagesUrl.searchParams.set("limit", "100");
-  pagesUrl.searchParams.set("access_token", args.userAccessToken);
-
-  const pages = await fetchGraphCollection<MetaPage>(pagesUrl);
+  const { pages, sources } = await fetchMetaPages({
+    graphVersion: args.graphVersion,
+    userAccessToken: args.userAccessToken,
+  });
   const pageResults: MetaSyncPageResult[] = [];
   const pageErrors: MetaSyncPageError[] = [];
   const rows: Array<{
@@ -292,6 +376,7 @@ export async function syncMetaFormsForConnection(args: {
         pageName: page.name ?? null,
         formsCount: 0,
         hasAccessToken: false,
+        source: page.source ?? null,
       });
       pageErrors.push({
         pageId: page.id,
@@ -315,6 +400,7 @@ export async function syncMetaFormsForConnection(args: {
         pageName: page.name ?? null,
         formsCount: forms.length,
         hasAccessToken: true,
+        source: page.source ?? null,
       });
       rows.push(
         ...forms.map((form) => ({
@@ -335,6 +421,7 @@ export async function syncMetaFormsForConnection(args: {
         pageName: page.name ?? null,
         formsCount: 0,
         hasAccessToken: true,
+        source: page.source ?? null,
       });
       pageErrors.push({
         pageId: page.id,
@@ -364,5 +451,6 @@ export async function syncMetaFormsForConnection(args: {
     formsCount: rows.length,
     pages: pageResults,
     errors: pageErrors,
+    sources,
   };
 }

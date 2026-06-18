@@ -31,11 +31,17 @@ export type MetaFormsSyncResult = {
     pageName: string | null;
     formsCount: number;
     hasAccessToken: boolean;
+    source: string | null;
   }>;
   errors: Array<{
     pageId: string;
     pageName: string | null;
     message: string;
+  }>;
+  sources: Array<{
+    source: string;
+    count: number;
+    error: string | null;
   }>;
 };
 
