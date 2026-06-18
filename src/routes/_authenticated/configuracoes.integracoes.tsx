@@ -329,16 +329,23 @@ function IntegracoesPage() {
 
               <div className="mt-4 flex flex-wrap gap-2">
                 {connected ? (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setDrawerOpen(true);
-                      openMetaManager();
-                    }}
-                  >
-                    Acessar
-                  </Button>
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setDrawerOpen(true);
+                        openMetaManager();
+                      }}
+                    >
+                      Acessar
+                    </Button>
+                    <DisconnectMetaButton
+                      className="gap-2"
+                      onDisconnected={handleDisconnected}
+                      variant="outline"
+                    />
+                  </>
                 ) : (
                   <Button
                     size="sm"
