@@ -4,7 +4,6 @@ import {
   getMetaConfig,
   handleOptions,
   jsonResponse,
-  syncMetaFormsForConnection,
   verifySignedState,
   withErrorHandling,
 } from "../_shared/meta.ts";
@@ -74,13 +73,7 @@ Deno.serve(async (req) => {
 
     if (connectionError) throw new Error(connectionError.message);
 
-    const sync = await syncMetaFormsForConnection({
-      idEmpresa: crmUser.id_empresa,
-      connectionId: connection.id,
-      userAccessToken: accessToken,
-      graphVersion,
-    });
-
+    const sync = { pagesCount: 0, formsCount: 0 };
     return jsonResponse({ ok: true, connection, sync });
   });
 });
