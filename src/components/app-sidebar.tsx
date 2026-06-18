@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, Users, Settings, Shield, BarChart2 } from "lucide-react";
+import { LayoutDashboard, Users, Settings, Shield, BarChart2, Plug } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCrmUser } from "@/hooks/use-crm-user";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -28,6 +28,7 @@ export function AppSidebar() {
   const adminItems: Item[] = [];
   if (me?.role === "manager" || me?.role === "super_admin") {
     adminItems.push({ title: "Configurações", url: "/settings/stages", match: "/settings", icon: Settings });
+    adminItems.push({ title: "Integrações", url: "/configuracoes/integracoes", match: "/configuracoes", icon: Plug });
   }
   if (me?.role === "super_admin") {
     adminItems.push({ title: "Super Admin", url: "/admin/empresas", match: "/admin", icon: Shield });

@@ -644,6 +644,177 @@ export type Database = {
           },
         ]
       }
+      crm_meta_connections: {
+        Row: {
+          active: boolean | null
+          connected_at: string | null
+          id: string
+          id_empresa: number
+          user_access_token: string
+          user_id_meta: string
+          user_name: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          connected_at?: string | null
+          id?: string
+          id_empresa: number
+          user_access_token: string
+          user_id_meta: string
+          user_name?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          connected_at?: string | null
+          id?: string
+          id_empresa?: number
+          user_access_token?: string
+          user_id_meta?: string
+          user_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_meta_connections_id_empresa_fkey"
+            columns: ["id_empresa"]
+            isOneToOne: true
+            referencedRelation: "empresa_dados"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_meta_field_mapping: {
+        Row: {
+          created_at: string | null
+          crm_field: string
+          form_id: string
+          id: string
+          id_empresa: number
+          meta_field_key: string
+        }
+        Insert: {
+          created_at?: string | null
+          crm_field: string
+          form_id: string
+          id?: string
+          id_empresa: number
+          meta_field_key: string
+        }
+        Update: {
+          created_at?: string | null
+          crm_field?: string
+          form_id?: string
+          id?: string
+          id_empresa?: number
+          meta_field_key?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_meta_field_mapping_id_empresa_fkey"
+            columns: ["id_empresa"]
+            isOneToOne: false
+            referencedRelation: "empresa_dados"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_meta_forms: {
+        Row: {
+          active: boolean | null
+          connection_id: string | null
+          created_at: string | null
+          form_id: string
+          form_name: string | null
+          id: string
+          id_empresa: number
+          leads_count: number | null
+          page_id: string
+          page_name: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          connection_id?: string | null
+          created_at?: string | null
+          form_id: string
+          form_name?: string | null
+          id?: string
+          id_empresa: number
+          leads_count?: number | null
+          page_id: string
+          page_name?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          connection_id?: string | null
+          created_at?: string | null
+          form_id?: string
+          form_name?: string | null
+          id?: string
+          id_empresa?: number
+          leads_count?: number | null
+          page_id?: string
+          page_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_meta_forms_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "crm_meta_connections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_meta_forms_id_empresa_fkey"
+            columns: ["id_empresa"]
+            isOneToOne: false
+            referencedRelation: "empresa_dados"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_meta_leads: {
+        Row: {
+          created_at: string | null
+          email: string | null
+          form_id: string
+          id: string
+          id_empresa: number
+          lead_id_meta: string
+          nome: string | null
+          raw_data: Json | null
+          telefone: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email?: string | null
+          form_id: string
+          id?: string
+          id_empresa: number
+          lead_id_meta: string
+          nome?: string | null
+          raw_data?: Json | null
+          telefone?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string | null
+          form_id?: string
+          id?: string
+          id_empresa?: number
+          lead_id_meta?: string
+          nome?: string | null
+          raw_data?: Json | null
+          telefone?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_meta_leads_id_empresa_fkey"
+            columns: ["id_empresa"]
+            isOneToOne: false
+            referencedRelation: "empresa_dados"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       crm_metricas_sync_control: {
         Row: {
           atendimento_ia: number
@@ -1063,6 +1234,7 @@ export type Database = {
           site: string | null
           template_msg_inicial: string | null
           updated_at: string | null
+          webhook_status: boolean | null
         }
         Insert: {
           booking_rules?: Json | null
@@ -1085,6 +1257,7 @@ export type Database = {
           site?: string | null
           template_msg_inicial?: string | null
           updated_at?: string | null
+          webhook_status?: boolean | null
         }
         Update: {
           booking_rules?: Json | null
@@ -1107,6 +1280,7 @@ export type Database = {
           site?: string | null
           template_msg_inicial?: string | null
           updated_at?: string | null
+          webhook_status?: boolean | null
         }
         Relationships: []
       }
@@ -1894,6 +2068,7 @@ export type Database = {
       }
       steps_cv_crm: {
         Row: {
+          atendimento_corretor: string | null
           base: number | null
           contacted: number | null
           ia_lost: number | null
@@ -1906,6 +2081,7 @@ export type Database = {
           send_to_human: number | null
         }
         Insert: {
+          atendimento_corretor?: string | null
           base?: number | null
           contacted?: number | null
           ia_lost?: number | null
@@ -1918,6 +2094,7 @@ export type Database = {
           send_to_human?: number | null
         }
         Update: {
+          atendimento_corretor?: string | null
           base?: number | null
           contacted?: number | null
           ia_lost?: number | null
