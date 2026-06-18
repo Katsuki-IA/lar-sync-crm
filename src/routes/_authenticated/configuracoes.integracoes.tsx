@@ -484,11 +484,6 @@ function IntegracoesPage() {
                             {page.pageName ?? page.pageId}
                           </div>
                           <div className="truncate text-xs text-muted-foreground">{page.pageId}</div>
-                          {page.source && (
-                            <div className="truncate text-[11px] text-muted-foreground">
-                              Origem: {page.source}
-                            </div>
-                          )}
                         </div>
                         <div className="text-sm text-muted-foreground">{page.formsCount}</div>
                         <ArrowRight className="h-4 w-4 text-muted-foreground" />
@@ -575,51 +570,58 @@ function IntegracoesPage() {
               </>
             )}
 
-            {drawerView !== "forms" && lastSync && lastSync.errors.length > 0 && (
-              <div className="rounded-lg border p-4" style={{ borderColor: "#2A2D3A" }}>
-                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                  Alertas da última sincronização
-                </div>
-                <div className="mt-3 space-y-2">
-                  {lastSync.errors.map((error) => (
-                    <div
-                      key={`${error.pageId}-${error.message}`}
-                      className="rounded-md border px-3 py-2 text-[11px] leading-relaxed"
-                      style={{
-                        borderColor: "rgba(239,43,99,0.35)",
-                        color: "#fda4af",
-                      }}
-                    >
-                      <span className="font-medium">{error.pageName ?? error.pageId}:</span>{" "}
-                      {error.message}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            {drawerView === "pages" &&
+              lastSync &&
+              (lastSync.errors.length > 0 || lastSync.sources.length > 0) && (
+                <details className="rounded-lg border p-4" style={{ borderColor: "#2A2D3A" }}>
+                  <summary className="cursor-pointer text-xs font-medium text-muted-foreground">
+                    Detalhes técnicos da última sincronização
+                  </summary>
 
-            {drawerView === "pages" && lastSync && lastSync.sources.length > 0 && (
-              <div className="rounded-lg border p-4" style={{ borderColor: "#2A2D3A" }}>
-                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                  Diagnóstico da Meta
-                </div>
-                <div className="mt-3 space-y-2">
-                  {lastSync.sources.map((source) => (
-                    <div
-                      key={source.source}
-                      className="rounded-md border px-3 py-2 text-[11px] leading-relaxed"
-                      style={{
-                        borderColor: source.error ? "rgba(239,43,99,0.35)" : "#2A2D3A",
-                        color: source.error ? "#fda4af" : undefined,
-                      }}
-                    >
-                      <span className="font-medium">{source.source}</span>: {source.count} item(ns)
-                      {source.error ? ` · ${source.error}` : ""}
+                  {lastSync.sources.length > 0 && (
+                    <div className="mt-4 space-y-2">
+                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                        Consultas na Meta
+                      </div>
+                      {lastSync.sources.map((source) => (
+                        <div
+                          key={source.source}
+                          className="rounded-md border px-3 py-2 text-[11px] leading-relaxed"
+                          style={{
+                            borderColor: source.error ? "rgba(239,43,99,0.35)" : "#2A2D3A",
+                            color: source.error ? "#fda4af" : undefined,
+                          }}
+                        >
+                          <span className="font-medium">{source.source}</span>: {source.count}{" "}
+                          item(ns)
+                          {source.error ? ` · ${source.error}` : ""}
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              </div>
-            )}
+                  )}
+
+                  {lastSync.errors.length > 0 && (
+                    <div className="mt-4 space-y-2">
+                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                        Avisos por página
+                      </div>
+                      {lastSync.errors.map((error) => (
+                        <div
+                          key={`${error.pageId}-${error.message}`}
+                          className="rounded-md border px-3 py-2 text-[11px] leading-relaxed"
+                          style={{
+                            borderColor: "rgba(239,43,99,0.35)",
+                            color: "#fda4af",
+                          }}
+                        >
+                          <span className="font-medium">{error.pageName ?? error.pageId}:</span>{" "}
+                          {error.message}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </details>
+              )}
           </div>
 
           <div className="pt-4 border-t" style={{ borderColor: "#2A2D3A" }}>
