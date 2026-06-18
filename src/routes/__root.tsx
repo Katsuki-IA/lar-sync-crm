@@ -87,6 +87,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:title", content: "Katsuki CRM" },
+      { name: "twitter:description", content: "CRM imobiliário multi-tenant" },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/c4f2669f-d161-4612-b7af-25b79cac2f9f/id-preview-471c2807--49e843b7-5b71-4684-91bf-93d45886e53a.lovable.app-1781748634456.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/c4f2669f-d161-4612-b7af-25b79cac2f9f/id-preview-471c2807--49e843b7-5b71-4684-91bf-93d45886e53a.lovable.app-1781748634456.png" },
     ],
     links: [
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
