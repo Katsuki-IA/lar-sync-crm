@@ -89,8 +89,15 @@ function AuthPage() {
               {loading ? "Entrando..." : "Entrar"}
             </Button>
           </form>
-          {!hasUsers && (
-            <div className="mt-4 text-center">
+          <div className="mt-4 flex flex-col items-center gap-2">
+            <button
+              type="button"
+              className="text-sm text-primary hover:underline"
+              onClick={() => setForgotOpen(true)}
+            >
+              Esqueci minha senha
+            </button>
+            {!hasUsers && (
               <button
                 type="button"
                 className="text-sm text-primary hover:underline"
@@ -98,10 +105,42 @@ function AuthPage() {
               >
                 Primeiro acesso? Criar conta administrador
               </button>
-            </div>
-          )}
+            )}
+          </div>
         </CardContent>
       </Card>
+
+      <Dialog open={forgotOpen} onOpenChange={setForgotOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Recuperar senha</DialogTitle>
+            <DialogDescription>
+              Digite seu email para receber um link de redefinição de senha.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleForgot} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="forgot-email">Email</Label>
+              <Input
+                id="forgot-email"
+                type="email"
+                required
+                value={forgotEmail}
+                onChange={(e) => setForgotEmail(e.target.value)}
+                placeholder="voce@empresa.com"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="ghost" onClick={() => setForgotOpen(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={forgotLoading}>
+                {forgotLoading ? "Enviando..." : "Enviar link"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
