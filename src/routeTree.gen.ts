@@ -155,12 +155,6 @@ const AuthenticatedAdminEmpresasRoute =
     path: '/empresas',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
-const AuthenticatedConfiguracoesIntegracoesRoute =
-  AuthenticatedConfiguracoesIntegracoesRouteImport.update({
-    id: '/configuracoes/integracoes',
-    path: '/configuracoes/integracoes',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
