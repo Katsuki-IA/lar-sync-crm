@@ -8,7 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import katsukiLogo from "@/assets/katsuki-logo.jpg.asset.json";
+
 
 export const Route = createFileRoute("/auth")({
   ssr: false,
@@ -25,6 +27,9 @@ function AuthPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [hasUsers, setHasUsers] = useState(true);
+  const [forgotOpen, setForgotOpen] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotLoading, setForgotLoading] = useState(false);
 
   useEffect(() => {
     hasAnyCrmUser().then((res) => setHasUsers(res.hasUsers)).catch(() => setHasUsers(true));
@@ -41,6 +46,23 @@ function AuthPage() {
     }
     toast.success("Bem-vindo de volta!");
     navigate({ to: "/dashboard" });
+  }
+
+  async function handleForgot(e: React.FormEvent) {
+    e.preventDefault();
+    if (!forgotEmail.trim()) return;
+    setForgotLoading(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail.trim(), {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    setForgotLoading(false);
+    setForgotOpen(false);
+    if (error) {
+      toast.error("Erro ao enviar email", { description: error.message });
+      return;
+    }
+    toast.success("Email enviado! Verifique sua caixa de entrada.");
+    setForgotEmail("");
   }
 
   return (
@@ -67,8 +89,15 @@ function AuthPage() {
               {loading ? "Entrando..." : "Entrar"}
             </Button>
           </form>
-          {!hasUsers && (
-            <div className="mt-4 text-center">
+          <div className="mt-4 flex flex-col items-center gap-2">
+            <button
+              type="button"
+              className="text-sm text-primary hover:underline"
+              onClick={() => setForgotOpen(true)}
+            >
+              Esqueci minha senha
+            </button>
+            {!hasUsers && (
               <button
                 type="button"
                 className="text-sm text-primary hover:underline"
@@ -76,10 +105,42 @@ function AuthPage() {
               >
                 Primeiro acesso? Criar conta administrador
               </button>
-            </div>
-          )}
+            )}
+          </div>
         </CardContent>
       </Card>
+
+      <Dialog open={forgotOpen} onOpenChange={setForgotOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Recuperar senha</DialogTitle>
+            <DialogDescription>
+              Digite seu email para receber um link de redefinição de senha.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleForgot} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="forgot-email">Email</Label>
+              <Input
+                id="forgot-email"
+                type="email"
+                required
+                value={forgotEmail}
+                onChange={(e) => setForgotEmail(e.target.value)}
+                placeholder="voce@empresa.com"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="ghost" onClick={() => setForgotOpen(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={forgotLoading}>
+                {forgotLoading ? "Enviando..." : "Enviar link"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
