@@ -27,6 +27,9 @@ function AuthPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [hasUsers, setHasUsers] = useState(true);
+  const [forgotOpen, setForgotOpen] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotLoading, setForgotLoading] = useState(false);
 
   useEffect(() => {
     hasAnyCrmUser().then((res) => setHasUsers(res.hasUsers)).catch(() => setHasUsers(true));
@@ -43,6 +46,23 @@ function AuthPage() {
     }
     toast.success("Bem-vindo de volta!");
     navigate({ to: "/dashboard" });
+  }
+
+  async function handleForgot(e: React.FormEvent) {
+    e.preventDefault();
+    if (!forgotEmail.trim()) return;
+    setForgotLoading(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail.trim(), {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    setForgotLoading(false);
+    setForgotOpen(false);
+    if (error) {
+      toast.error("Erro ao enviar email", { description: error.message });
+      return;
+    }
+    toast.success("Email enviado! Verifique sua caixa de entrada.");
+    setForgotEmail("");
   }
 
   return (
