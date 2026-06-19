@@ -253,9 +253,11 @@ function IntegracoesPage() {
       });
     }
 
-    return Array.from(byId.values()).sort((a, b) =>
-      (a.pageName ?? a.pageId).localeCompare(b.pageName ?? b.pageId),
-    );
+    return Array.from(byId.values())
+      .filter((page) => page.formsCount > 0)
+      .sort((a, b) =>
+        (a.pageName ?? a.pageId).localeCompare(b.pageName ?? b.pageId),
+      );
   }, [forms, lastSync]);
 
   const filteredPages = pages.filter((page) => {
