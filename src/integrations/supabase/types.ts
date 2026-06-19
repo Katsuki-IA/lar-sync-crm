@@ -725,8 +725,8 @@ export type Database = {
           form_id: string
           form_name: string | null
           id: string
-          id_empresa: number
           id_empreendimento: number | null
+          id_empresa: number
           leads_count: number | null
           page_access_token: string | null
           page_id: string
@@ -739,8 +739,8 @@ export type Database = {
           form_id: string
           form_name?: string | null
           id?: string
-          id_empresa: number
           id_empreendimento?: number | null
+          id_empresa: number
           leads_count?: number | null
           page_access_token?: string | null
           page_id: string
@@ -753,8 +753,8 @@ export type Database = {
           form_id?: string
           form_name?: string | null
           id?: string
-          id_empresa?: number
           id_empreendimento?: number | null
+          id_empresa?: number
           leads_count?: number | null
           page_access_token?: string | null
           page_id?: string
@@ -786,8 +786,8 @@ export type Database = {
       }
       crm_meta_leads: {
         Row: {
-          crm_lead_id: number | null
           created_at: string | null
+          crm_lead_id: number | null
           email: string | null
           form_id: string
           id: string
@@ -798,8 +798,8 @@ export type Database = {
           telefone: string | null
         }
         Insert: {
-          crm_lead_id?: number | null
           created_at?: string | null
+          crm_lead_id?: number | null
           email?: string | null
           form_id: string
           id?: string
@@ -810,8 +810,8 @@ export type Database = {
           telefone?: string | null
         }
         Update: {
-          crm_lead_id?: number | null
           created_at?: string | null
+          crm_lead_id?: number | null
           email?: string | null
           form_id?: string
           id?: string
@@ -2342,6 +2342,26 @@ export type Database = {
       crm_get_my_empresa: { Args: never; Returns: number }
       crm_get_my_id: { Args: never; Returns: string }
       crm_get_my_role: { Args: never; Returns: string }
+      crm_ingest_meta_lead: {
+        Args: {
+          p_crm_assigned_to: string
+          p_crm_stage_id: number
+          p_email: string
+          p_form_id: string
+          p_id_empreendimento: number
+          p_id_empresa: number
+          p_lead_id_meta: string
+          p_nome: string
+          p_observacoes: string
+          p_origem: string
+          p_raw_data: Json
+          p_telefone: string
+        }
+        Returns: {
+          created_lead_id: number
+          was_inserted: boolean
+        }[]
+      }
       crm_seed_default_stages: {
         Args: { p_id_empresa: number }
         Returns: undefined
