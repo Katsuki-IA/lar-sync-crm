@@ -382,11 +382,6 @@ export async function syncMetaFormsForConnection(args: {
         webhookSubscribed: false,
         source: page.source ?? null,
       });
-      pageErrors.push({
-        pageId: page.id,
-        pageName: page.name ?? null,
-        message: "Página retornada sem token de acesso",
-      });
       continue;
     }
 
