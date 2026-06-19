@@ -13,6 +13,7 @@ const META_SCOPES = [
   "pages_show_list",
   "pages_read_engagement",
   "pages_manage_ads",
+  "pages_manage_metadata",
   "business_management",
 ].join(",");
 
@@ -39,6 +40,7 @@ type MetaSyncPageResult = {
   pageName: string | null;
   formsCount: number;
   hasAccessToken: boolean;
+  webhookSubscribed: boolean;
   source: string | null;
 };
 
@@ -376,6 +378,7 @@ export async function syncMetaFormsForConnection(args: {
         pageName: page.name ?? null,
         formsCount: 0,
         hasAccessToken: false,
+        webhookSubscribed: false,
         source: page.source ?? null,
       });
       pageErrors.push({
@@ -384,6 +387,34 @@ export async function syncMetaFormsForConnection(args: {
         message: "Página retornada sem token de acesso",
       });
       continue;
+    }
+
+    let webhookSubscribed = false;
+    const subscriptionUrl = new URL(
+      `https://graph.facebook.com/${args.graphVersion}/${page.id}/subscribed_apps`,
+    );
+    subscriptionUrl.searchParams.set("subscribed_fields", "leadgen");
+    subscriptionUrl.searchParams.set("access_token", page.access_token);
+    try {
+      const subscriptionResponse = await fetch(subscriptionUrl.toString(), { method: "POST" });
+      const subscriptionJson = await subscriptionResponse.json();
+      const subscriptionSucceeded =
+        subscriptionJson?.success === true || subscriptionJson?.success === "true";
+      if (!subscriptionResponse.ok || subscriptionJson?.error || !subscriptionSucceeded) {
+        throw new Error(
+          subscriptionJson?.error?.message ?? "A Meta não confirmou a assinatura do webhook",
+        );
+      }
+      webhookSubscribed = true;
+    } catch (error) {
+      pageErrors.push({
+        pageId: page.id,
+        pageName: page.name ?? null,
+        message: `Webhook leadgen: ${
+          error instanceof Error ? error.message : "falha ao inscrever a página"
+        }`,
+      });
+      console.warn(`Falha ao inscrever webhook leadgen na página Meta ${page.id}`, error);
     }
 
     const formsUrl = new URL(
@@ -400,6 +431,7 @@ export async function syncMetaFormsForConnection(args: {
         pageName: page.name ?? null,
         formsCount: forms.length,
         hasAccessToken: true,
+        webhookSubscribed,
         source: page.source ?? null,
       });
       rows.push(
@@ -421,6 +453,7 @@ export async function syncMetaFormsForConnection(args: {
         pageName: page.name ?? null,
         formsCount: 0,
         hasAccessToken: true,
+        webhookSubscribed,
         source: page.source ?? null,
       });
       pageErrors.push({

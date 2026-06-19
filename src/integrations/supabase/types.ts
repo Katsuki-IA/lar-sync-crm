@@ -786,6 +786,7 @@ export type Database = {
       }
       crm_meta_leads: {
         Row: {
+          crm_lead_id: number | null
           created_at: string | null
           email: string | null
           form_id: string
@@ -797,6 +798,7 @@ export type Database = {
           telefone: string | null
         }
         Insert: {
+          crm_lead_id?: number | null
           created_at?: string | null
           email?: string | null
           form_id: string
@@ -808,6 +810,7 @@ export type Database = {
           telefone?: string | null
         }
         Update: {
+          crm_lead_id?: number | null
           created_at?: string | null
           email?: string | null
           form_id?: string
@@ -819,6 +822,13 @@ export type Database = {
           telefone?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "crm_meta_leads_crm_lead_id_fkey"
+            columns: ["crm_lead_id"]
+            isOneToOne: false
+            referencedRelation: "crm_leads"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "crm_meta_leads_id_empresa_fkey"
             columns: ["id_empresa"]

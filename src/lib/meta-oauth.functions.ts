@@ -33,6 +33,7 @@ export type MetaFormsSyncResult = {
     pageName: string | null;
     formsCount: number;
     hasAccessToken: boolean;
+    webhookSubscribed: boolean;
     source: string | null;
   }>;
   errors: Array<{

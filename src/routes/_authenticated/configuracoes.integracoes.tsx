@@ -320,7 +320,11 @@ function IntegracoesPage() {
       setSyncing(true);
       const result = await syncMetaForms();
       setLastSync(result);
-      if (result.formsCount > 0) {
+      if (result.formsCount > 0 && result.errors.length > 0) {
+        toast.warning(
+          `${result.formsCount} formulário(s) sincronizado(s), com ${result.errors.length} alerta(s)`,
+        );
+      } else if (result.formsCount > 0) {
         toast.success(`${result.formsCount} formulário(s) sincronizado(s)`);
       } else if (result.pagesCount > 0) {
         toast.info(`${result.pagesCount} página(s) encontrada(s), mas nenhum formulário retornado`);
