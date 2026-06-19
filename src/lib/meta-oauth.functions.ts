@@ -51,13 +51,38 @@ export type MetaOAuthExchangeResult = {
   sync: MetaFormsSyncResult;
 };
 
+async function getFunctionErrorMessage(error: unknown, fallback: string) {
+  const context = (error as { context?: unknown } | null)?.context;
+
+  if (context instanceof Response) {
+    try {
+      const payload = await context.clone().json();
+      if (typeof payload?.error === "string" && payload.error.trim()) {
+        return payload.error;
+      }
+      if (typeof payload?.message === "string" && payload.message.trim()) {
+        return payload.message;
+      }
+    } catch {
+      try {
+        const text = await context.clone().text();
+        if (text.trim()) return text;
+      } catch {
+        // Keep the original SDK message below.
+      }
+    }
+  }
+
+  return error instanceof Error && error.message ? error.message : fallback;
+}
+
 async function invokeMetaFunction<T>(name: string, body?: Record<string, unknown>): Promise<T> {
   const { data, error } = await supabase.functions.invoke<T>(name, {
     body: body ?? {},
   });
 
   if (error) {
-    throw new Error(error.message || `Falha ao executar ${name}`);
+    throw new Error(await getFunctionErrorMessage(error, `Falha ao executar ${name}`));
   }
 
   if (!data) {
