@@ -577,58 +577,6 @@ function IntegracoesPage() {
               </>
             )}
 
-            {drawerView === "pages" &&
-              lastSync &&
-              (lastSync.errors.length > 0 || lastSync.sources.length > 0) && (
-                <details className="rounded-lg border p-4" style={{ borderColor: "#2A2D3A" }}>
-                  <summary className="cursor-pointer text-xs font-medium text-muted-foreground">
-                    Detalhes técnicos da última sincronização
-                  </summary>
-
-                  {lastSync.sources.length > 0 && (
-                    <div className="mt-4 space-y-2">
-                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                        Consultas na Meta
-                      </div>
-                      {lastSync.sources.map((source) => (
-                        <div
-                          key={source.source}
-                          className="rounded-md border px-3 py-2 text-[11px] leading-relaxed"
-                          style={{
-                            borderColor: source.error ? "rgba(239,43,99,0.35)" : "#2A2D3A",
-                            color: source.error ? "#fda4af" : undefined,
-                          }}
-                        >
-                          <span className="font-medium">{source.source}</span>: {source.count}{" "}
-                          item(ns)
-                          {source.error ? ` · ${source.error}` : ""}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {lastSync.errors.length > 0 && (
-                    <div className="mt-4 space-y-2">
-                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                        Avisos por página
-                      </div>
-                      {lastSync.errors.map((error) => (
-                        <div
-                          key={`${error.pageId}-${error.message}`}
-                          className="rounded-md border px-3 py-2 text-[11px] leading-relaxed"
-                          style={{
-                            borderColor: "rgba(239,43,99,0.35)",
-                            color: "#fda4af",
-                          }}
-                        >
-                          <span className="font-medium">{error.pageName ?? error.pageId}:</span>{" "}
-                          {error.message}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </details>
-              )}
           </div>
 
           <div className="pt-4 border-t" style={{ borderColor: "#2A2D3A" }}>
