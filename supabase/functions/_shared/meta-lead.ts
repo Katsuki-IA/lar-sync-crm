@@ -55,6 +55,12 @@ const CRM_FIELD_ALIASES: Record<string, string[]> = {
   email: ["email", "email_address"],
 };
 
+const CRM_FIELD_PATTERNS: Record<string, RegExp> = {
+  nome: /(^|_)(full_name|name|nome|nome_completo)(_|$)/,
+  telefone: /(^|_)(phone|phone_number|telefone|fone|celular|mobile|whatsapp)(_|$)/,
+  email: /(^|_)(email|email_address)(_|$)/,
+};
+
 export function createMetaFieldValueMap(fieldData: MetaLeadFieldData[]) {
   const values = new Map<string, string>();
 
@@ -87,6 +93,13 @@ export function getMappedMetaValue(args: {
   for (const alias of CRM_FIELD_ALIASES[args.crmField] ?? []) {
     const value = args.values.get(alias) ?? args.values.get(normalizeFieldKey(alias));
     if (value) return value;
+  }
+
+  const pattern = CRM_FIELD_PATTERNS[args.crmField];
+  if (pattern) {
+    for (const [key, value] of args.values) {
+      if (value && pattern.test(normalizeFieldKey(key))) return value;
+    }
   }
 
   return "";

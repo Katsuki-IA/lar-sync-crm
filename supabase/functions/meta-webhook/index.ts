@@ -43,6 +43,15 @@ type MetaLeadResponse = {
   };
 };
 
+function describeMetaFields(fieldData: MetaLeadFieldData[] | undefined) {
+  return (fieldData ?? []).map((field) => ({
+    name: field.name?.trim() || "(sem nome)",
+    hasValue: (field.values ?? []).some(
+      (value) => value !== null && value !== undefined && String(value).trim() !== "",
+    ),
+  }));
+}
+
 function textResponse(body: string, status = 200) {
   return new Response(body, {
     status,
@@ -198,7 +207,18 @@ async function processLeadgenEvent(args: {
   const telefoneNormalizado = normalizeBrazilPhone(telefoneOriginal);
   if (!nome) throw new Error(`Lead ${leadId} sem Nome conforme o mapeamento`);
   if (!telefoneNormalizado.normalized) {
-    throw new Error(`Lead ${leadId} sem Telefone conforme o mapeamento`);
+    const receivedFields = describeMetaFields(lead.field_data);
+    console.warn("Lead Meta sem telefone mapeável", {
+      leadId,
+      formId,
+      receivedFields,
+    });
+    const fieldSummary = receivedFields
+      .map((field) => `${field.name}:${field.hasValue ? "com valor" : "vazio"}`)
+      .join(", ");
+    throw new Error(
+      `Lead ${leadId} sem Telefone conforme o mapeamento. Campos recebidos: ${fieldSummary || "nenhum"}`,
+    );
   }
 
   const email = getMappedMetaValue({ values, mapping, crmField: "email" }).trim() || null;
