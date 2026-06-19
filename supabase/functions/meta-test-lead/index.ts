@@ -10,10 +10,25 @@ function digitsOnly(value: string) {
   return value.replace(/\D/g, "");
 }
 
-function formatPhone(value: string) {
+function normalizeBrazilPhone(value: string) {
   const digits = digitsOnly(value);
-  if (!digits) return "";
-  return digits.startsWith("55") ? digits : `55 ${digits}`;
+  if (!digits) {
+    return { original: value, digits, normalized: "" };
+  }
+
+  let nationalNumber = digits;
+  if (nationalNumber.startsWith("55") && nationalNumber.length > 11) {
+    nationalNumber = nationalNumber.slice(2);
+  }
+  if (nationalNumber.startsWith("0") && nationalNumber.length > 10) {
+    nationalNumber = nationalNumber.slice(1);
+  }
+
+  return {
+    original: value,
+    digits,
+    normalized: `55 ${nationalNumber}`,
+  };
 }
 
 function getMappedValue(args: {
@@ -68,8 +83,10 @@ Deno.serve(async (req) => {
     );
 
     const nome = getMappedValue({ fieldValues, mapping, crmField: "nome" }) || "Lead Teste Meta";
+    const telefoneOriginal = getMappedValue({ fieldValues, mapping, crmField: "telefone" });
+    const telefoneNormalizado = normalizeBrazilPhone(telefoneOriginal);
     const telefone =
-      formatPhone(getMappedValue({ fieldValues, mapping, crmField: "telefone" })) ||
+      telefoneNormalizado.normalized ||
       `55 1199${String(Math.floor(Math.random() * 1000000)).padStart(6, "0")}`;
     const email = getMappedValue({ fieldValues, mapping, crmField: "email" }) || null;
     const observacoes = getMappedValue({ fieldValues, mapping, crmField: "observacoes" }) || null;
@@ -114,6 +131,14 @@ Deno.serve(async (req) => {
         name,
         values: [value],
       })),
+      normalized_fields: {
+        telefone: {
+          original: telefoneNormalizado.original || null,
+          digits: telefoneNormalizado.digits || null,
+          normalized: telefoneNormalizado.normalized || telefone,
+          default_country_code: "55",
+        },
+      },
     };
 
     const { error: metaLeadError } = await supabaseAdmin.from("crm_meta_leads").insert({
