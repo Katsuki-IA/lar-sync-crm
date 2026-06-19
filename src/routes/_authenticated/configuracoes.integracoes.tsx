@@ -591,7 +591,7 @@ function IntegracoesPage() {
                       <button
                         key={page.pageId}
                         type="button"
-                        className="grid w-full grid-cols-[1fr_130px_38px] items-center gap-3 border-b px-4 py-3 text-left transition-colors hover:bg-white/[0.03]"
+                        className="group grid w-full cursor-pointer grid-cols-[1fr_130px_38px] items-center gap-3 border-b px-4 py-3 text-left transition-colors hover:bg-white/[0.03]"
                         style={{ borderColor: "#2A2D3A" }}
                         onClick={() => handleSelectPage(page.pageId)}
                       >
@@ -602,7 +602,7 @@ function IntegracoesPage() {
                           <div className="truncate text-xs text-muted-foreground">{page.pageId}</div>
                         </div>
                         <div className="text-sm text-muted-foreground">{page.formsCount}</div>
-                        <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                        <ArrowRight className="h-4 w-4 text-muted-foreground transition-colors group-hover:text-foreground" />
                       </button>
                     ))
                   )}
