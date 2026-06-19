@@ -687,7 +687,7 @@ function IntegracoesPage() {
                           size="sm"
                           onClick={() => handleEditFormMapping(form)}
                         >
-                          Alterar campos
+                          Combinar campos
                         </Button>
                       </div>
                     ))
