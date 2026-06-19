@@ -72,6 +72,7 @@ type MetaForm = {
   page_name: string | null;
   leads_count: number | null;
   active: boolean | null;
+  id_empreendimento: number | null;
   mapped_fields_count?: number;
 };
 
@@ -138,6 +139,7 @@ function IntegracoesPage() {
   const [pageSearch, setPageSearch] = useState("");
   const [formSearch, setFormSearch] = useState("");
   const [fieldMapping, setFieldMapping] = useState<Record<string, string>>({});
+  const [selectedEmpreendimentoId, setSelectedEmpreendimentoId] = useState("");
   const [testValues, setTestValues] = useState<Record<string, string>>({});
   const [savingMapping, setSavingMapping] = useState(false);
   const [creatingTestLead, setCreatingTestLead] = useState(false);
@@ -296,6 +298,14 @@ function IntegracoesPage() {
 
     setFieldMapping(nextMapping);
     setTestValues(nextValues);
+    const savedEmpreendimentoId = formFields.form.id_empreendimento;
+    setSelectedEmpreendimentoId(
+      savedEmpreendimentoId
+        ? String(savedEmpreendimentoId)
+        : formFields.empreendimentos.length === 1
+          ? String(formFields.empreendimentos[0].id)
+          : "",
+    );
   }, [formFields]);
 
   const openMetaManager = () => {
@@ -335,17 +345,24 @@ function IntegracoesPage() {
   const handleEditFormMapping = (form: MetaForm) => {
     setSelectedFormId(form.form_id);
     setFieldMapping({});
+    setSelectedEmpreendimentoId("");
     setTestValues({});
     setDrawerView("mapping");
   };
 
   const handleSaveMapping = async () => {
     if (!selectedFormId || !formFields) return;
+    const empreendimentoId = Number(selectedEmpreendimentoId);
+    if (!Number.isSafeInteger(empreendimentoId) || empreendimentoId <= 0) {
+      toast.error("Selecione o empreendimento que receberá os leads");
+      return;
+    }
 
     try {
       setSavingMapping(true);
       await saveMetaFieldMapping({
         formId: selectedFormId,
+        empreendimentoId,
         mapping: formFields.fields.map((field) => ({
           metaFieldKey: field.key,
           crmField: fieldMapping[field.key] ?? "__ignore__",
@@ -365,6 +382,10 @@ function IntegracoesPage() {
 
   const handleCreateTestLead = async () => {
     if (!selectedFormId || !formFields) return;
+    if (!formFields.form.id_empreendimento) {
+      toast.error("Salve o mapeamento e o empreendimento antes de criar o lead teste");
+      return;
+    }
 
     try {
       setCreatingTestLead(true);
@@ -660,7 +681,7 @@ function IntegracoesPage() {
                           </div>
                         </div>
                         <div>
-                          {Number(form.mapped_fields_count ?? 0) > 0 ? (
+                          {Number(form.mapped_fields_count ?? 0) >= 2 && form.id_empreendimento ? (
                             <Badge
                               className="border-0 text-[10px]"
                               style={{
@@ -708,8 +729,37 @@ function IntegracoesPage() {
                   </div>
                 ) : (
                   <>
+                    <div className="rounded-lg border p-4" style={{ borderColor: "#2A2D3A" }}>
+                      <div className="max-w-md space-y-2">
+                        <Label htmlFor="meta-empreendimento">Empreendimento *</Label>
+                        <Select
+                          value={selectedEmpreendimentoId}
+                          onValueChange={setSelectedEmpreendimentoId}
+                        >
+                          <SelectTrigger id="meta-empreendimento">
+                            <SelectValue placeholder="Selecionar empreendimento" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {formFields.empreendimentos.map((empreendimento) => (
+                              <SelectItem key={empreendimento.id} value={String(empreendimento.id)}>
+                                {empreendimento.nome}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground">
+                          Todos os leads recebidos por este formulário serão vinculados a este empreendimento.
+                        </p>
+                        {formFields.empreendimentos.length === 0 ? (
+                          <p className="text-xs text-destructive">
+                            Nenhum empreendimento disponível para esta empresa.
+                          </p>
+                        ) : null}
+                      </div>
+                    </div>
+
                     <div
-                      className="rounded-lg border overflow-hidden"
+                      className="rounded-lg border overflow-hidden mt-4"
                       style={{ borderColor: "#2A2D3A" }}
                     >
                       <div
@@ -785,12 +835,12 @@ function IntegracoesPage() {
                       <div className="grid gap-4 sm:grid-cols-2">
                         <div className="space-y-1.5">
                           <Label className="text-xs text-muted-foreground">Obrigatórios</Label>
-                          <div className="text-sm text-foreground">Nome e Telefone</div>
+                          <div className="text-sm text-foreground">Nome, Telefone e Empreendimento</div>
                         </div>
                         <div className="flex flex-wrap items-end justify-start gap-2 sm:justify-end">
                           <Button
                             variant="outline"
-                            disabled={savingMapping}
+                            disabled={savingMapping || !selectedEmpreendimentoId}
                             onClick={handleSaveMapping}
                           >
                             {savingMapping ? "Salvando..." : "Salvar mapeamento"}

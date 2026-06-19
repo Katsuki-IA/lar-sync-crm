@@ -39,7 +39,7 @@ Deno.serve(async (req) => {
 
     const { data: form, error: formError } = await supabaseAdmin
       .from("crm_meta_forms")
-      .select("form_id,form_name,page_id,page_name,page_access_token,connection_id")
+      .select("form_id,form_name,page_id,page_name,page_access_token,connection_id,id_empreendimento")
       .eq("id_empresa", crmUser.id_empresa)
       .eq("form_id", formId)
       .eq("active", true)
@@ -91,13 +91,22 @@ Deno.serve(async (req) => {
       (mappings ?? []).map((item) => [item.meta_field_key, item.crm_field]),
     );
 
+    const { data: empreendimentos, error: empreendimentosError } = await supabaseAdmin
+      .from("empreendimento")
+      .select("id,nome")
+      .eq("id_empresa", crmUser.id_empresa)
+      .order("nome", { ascending: true });
+    if (empreendimentosError) throw new Error(empreendimentosError.message);
+
     return jsonResponse({
       form: {
         form_id: form.form_id,
         form_name: form.form_name ?? null,
         page_id: form.page_id,
         page_name: form.page_name ?? null,
+        id_empreendimento: form.id_empreendimento ?? null,
       },
+      empreendimentos: empreendimentos ?? [],
       fields,
       mapping,
     });

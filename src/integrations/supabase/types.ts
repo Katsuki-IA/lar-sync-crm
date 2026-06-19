@@ -726,6 +726,7 @@ export type Database = {
           form_name: string | null
           id: string
           id_empresa: number
+          id_empreendimento: number | null
           leads_count: number | null
           page_access_token: string | null
           page_id: string
@@ -739,6 +740,7 @@ export type Database = {
           form_name?: string | null
           id?: string
           id_empresa: number
+          id_empreendimento?: number | null
           leads_count?: number | null
           page_access_token?: string | null
           page_id: string
@@ -752,6 +754,7 @@ export type Database = {
           form_name?: string | null
           id?: string
           id_empresa?: number
+          id_empreendimento?: number | null
           leads_count?: number | null
           page_access_token?: string | null
           page_id?: string
@@ -763,6 +766,13 @@ export type Database = {
             columns: ["connection_id"]
             isOneToOne: false
             referencedRelation: "crm_meta_connections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_meta_forms_id_empreendimento_fkey"
+            columns: ["id_empreendimento"]
+            isOneToOne: false
+            referencedRelation: "empreendimento"
             referencedColumns: ["id"]
           },
           {

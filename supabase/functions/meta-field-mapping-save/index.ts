@@ -24,8 +24,9 @@ Deno.serve(async (req) => {
   if (options) return options;
 
   return withErrorHandling(async () => {
-    const { formId, mapping } = (await req.json()) as {
+    const { formId, empreendimentoId, mapping } = (await req.json()) as {
       formId?: string;
+      empreendimentoId?: number;
       mapping?: MappingInput[];
     };
 
@@ -34,6 +35,9 @@ Deno.serve(async (req) => {
     }
     if (!Array.isArray(mapping)) {
       throw new Error("Mapeamento inválido");
+    }
+    if (!Number.isSafeInteger(empreendimentoId) || Number(empreendimentoId) <= 0) {
+      throw new Error("Empreendimento inválido");
     }
 
     const { crmUser } = await getAuthorizedCrmUser(req);
@@ -49,6 +53,15 @@ Deno.serve(async (req) => {
 
     if (formError) throw new Error(formError.message);
     if (!form) throw new Error("Formulário não encontrado para esta empresa");
+
+    const { data: empreendimento, error: empreendimentoError } = await supabaseAdmin
+      .from("empreendimento")
+      .select("id")
+      .eq("id_empresa", crmUser.id_empresa)
+      .eq("id", empreendimentoId)
+      .maybeSingle();
+    if (empreendimentoError) throw new Error(empreendimentoError.message);
+    if (!empreendimento) throw new Error("Empreendimento não encontrado para esta empresa");
 
     const rows = mapping
       .map((item) => ({
@@ -89,6 +102,13 @@ Deno.serve(async (req) => {
       );
       if (insertError) throw new Error(insertError.message);
     }
+
+    const { error: formUpdateError } = await supabaseAdmin
+      .from("crm_meta_forms")
+      .update({ id_empreendimento: empreendimento.id })
+      .eq("id_empresa", crmUser.id_empresa)
+      .eq("form_id", form.form_id);
+    if (formUpdateError) throw new Error(formUpdateError.message);
 
     return jsonResponse({ ok: true });
   });

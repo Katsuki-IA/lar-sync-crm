@@ -24,7 +24,7 @@ Deno.serve(async (req) => {
 
     const { data: forms, error: formsError } = await supabaseAdmin
       .from("crm_meta_forms")
-      .select("id,form_id,form_name,page_id,page_name,leads_count,active")
+      .select("id,form_id,form_name,page_id,page_name,leads_count,active,id_empreendimento")
       .eq("id_empresa", crmUser.id_empresa)
       .eq("active", true)
       .order("page_name", { ascending: true });

@@ -63,13 +63,25 @@ Deno.serve(async (req) => {
 
     const { data: form, error: formError } = await supabaseAdmin
       .from("crm_meta_forms")
-      .select("form_id,form_name,page_id,page_name")
+      .select("form_id,form_name,page_id,page_name,id_empreendimento")
       .eq("id_empresa", crmUser.id_empresa)
       .eq("form_id", formId)
       .eq("active", true)
       .maybeSingle();
     if (formError) throw new Error(formError.message);
     if (!form) throw new Error("Formulário não encontrado para esta empresa");
+    if (!form.id_empreendimento) {
+      throw new Error("Selecione e salve o empreendimento deste formulário");
+    }
+
+    const { data: empreendimento, error: empreendimentoError } = await supabaseAdmin
+      .from("empreendimento")
+      .select("id,nome")
+      .eq("id_empresa", crmUser.id_empresa)
+      .eq("id", form.id_empreendimento)
+      .maybeSingle();
+    if (empreendimentoError) throw new Error(empreendimentoError.message);
+    if (!empreendimento) throw new Error("Empreendimento não encontrado para esta empresa");
 
     const { data: mappings, error: mappingError } = await supabaseAdmin
       .from("crm_meta_field_mapping")
@@ -127,6 +139,10 @@ Deno.serve(async (req) => {
       form_name: form.form_name,
       page_id: form.page_id,
       page_name: form.page_name,
+      empreendimento: {
+        id: empreendimento.id,
+        nome: empreendimento.nome,
+      },
       field_data: Object.entries(fieldValues).map(([name, value]) => ({
         name,
         values: [value],
@@ -161,6 +177,7 @@ Deno.serve(async (req) => {
         email,
         origem,
         observacoes,
+        id_empreendimento: empreendimento.id,
         crm_stage_id: defaultStageId,
         crm_assigned_to: crmUserRow?.id ?? null,
       })
