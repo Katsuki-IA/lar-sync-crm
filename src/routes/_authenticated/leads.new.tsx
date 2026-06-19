@@ -114,7 +114,9 @@ function NewLead() {
     mutationFn: async () => {
       if (!validate()) throw new Error("Corrija os campos indicados");
       if (!me?.id_empresa) throw new Error("Empresa não definida");
-      const fullNumero = form.numero ? `${country.ddi} ${form.numero}` : "";
+      const fullNumero = form.numero
+        ? `${country.ddi}${form.numero.replace(/\D/g, "")}`
+        : "";
       // Duplicate check (per empresa)
       const orFilters: string[] = [];
       if (fullNumero) orFilters.push(`telefone.eq.${fullNumero}`);

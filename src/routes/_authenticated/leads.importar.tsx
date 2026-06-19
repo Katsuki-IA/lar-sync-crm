@@ -264,7 +264,7 @@ function ImportLeadsPage() {
         if (!nome) throw new Error("Nome vazio");
         if (!telefone) throw new Error("Telefone vazio");
 
-        const numero = telefone.startsWith("55") ? telefone : `55 ${telefone}`;
+        const numero = telefone.startsWith("55") ? telefone : `55${telefone}`;
 
         if (skipDup) {
           const { data: existing } = await supabase

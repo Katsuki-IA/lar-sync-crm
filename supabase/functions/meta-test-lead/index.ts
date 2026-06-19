@@ -27,7 +27,7 @@ function normalizeBrazilPhone(value: string) {
   return {
     original: value,
     digits,
-    normalized: `55 ${nationalNumber}`,
+    normalized: `55${nationalNumber}`,
   };
 }
 
@@ -87,7 +87,7 @@ Deno.serve(async (req) => {
     const telefoneNormalizado = normalizeBrazilPhone(telefoneOriginal);
     const telefone =
       telefoneNormalizado.normalized ||
-      `55 1199${String(Math.floor(Math.random() * 1000000)).padStart(6, "0")}`;
+      `551199${String(Math.floor(Math.random() * 1000000)).padStart(6, "0")}`;
     const email = getMappedValue({ fieldValues, mapping, crmField: "email" }) || null;
     const observacoes = getMappedValue({ fieldValues, mapping, crmField: "observacoes" }) || null;
     const origem = getMappedValue({ fieldValues, mapping, crmField: "origem" }) || "Meta Lead Ads";
