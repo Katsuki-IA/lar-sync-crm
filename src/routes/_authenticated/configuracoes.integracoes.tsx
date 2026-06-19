@@ -2,7 +2,16 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowRight, ChevronLeft, Facebook, Plug, RefreshCw, Search, Unplug } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowRight,
+  ChevronLeft,
+  Facebook,
+  Plug,
+  RefreshCw,
+  Search,
+  Unplug,
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   createMetaTestLead,
@@ -592,6 +601,26 @@ function IntegracoesPage() {
                     </Button>
                   </div>
                 </div>
+
+                {lastSync && lastSync.errors.length > 0 ? (
+                  <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-100">
+                    <div className="flex items-center gap-2 font-medium">
+                      <AlertTriangle className="h-4 w-4 shrink-0" />
+                      Algumas páginas ainda não estão habilitadas para receber leads
+                    </div>
+                    <div className="mt-2 space-y-1 text-amber-100/80">
+                      {lastSync.errors.slice(0, 3).map((error) => (
+                        <p key={`${error.pageId}-${error.message}`}>
+                          <span className="font-medium">{error.pageName ?? error.pageId}:</span>{" "}
+                          {error.message}
+                        </p>
+                      ))}
+                      {lastSync.errors.length > 3 ? (
+                        <p>Mais {lastSync.errors.length - 3} alerta(s).</p>
+                      ) : null}
+                    </div>
+                  </div>
+                ) : null}
 
                 <div className="rounded-lg border overflow-hidden" style={{ borderColor: "#2A2D3A" }}>
                   <div

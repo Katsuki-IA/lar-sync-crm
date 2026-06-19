@@ -249,6 +249,7 @@ export function buildMetaOAuthUrl(args: {
   url.searchParams.set("redirect_uri", args.redirectUri);
   url.searchParams.set("scope", META_SCOPES);
   url.searchParams.set("response_type", "code");
+  url.searchParams.set("auth_type", "rerequest");
   url.searchParams.set("state", args.state);
   return url.toString();
 }
