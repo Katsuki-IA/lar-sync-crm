@@ -30,9 +30,28 @@ Deno.serve(async (req) => {
       .order("page_name", { ascending: true });
     if (formsError) throw new Error(formsError.message);
 
+    const formIds = (forms ?? []).map((form) => form.form_id);
+    const { data: mappings, error: mappingsError } =
+      formIds.length > 0
+        ? await supabaseAdmin
+            .from("crm_meta_field_mapping")
+            .select("form_id,crm_field")
+            .eq("id_empresa", crmUser.id_empresa)
+            .in("form_id", formIds)
+        : { data: [], error: null };
+    if (mappingsError) throw new Error(mappingsError.message);
+
+    const mappedCountByForm = new Map<string, number>();
+    for (const mapping of mappings ?? []) {
+      mappedCountByForm.set(mapping.form_id, (mappedCountByForm.get(mapping.form_id) ?? 0) + 1);
+    }
+
     return jsonResponse({
       connection: connection ?? null,
-      forms: forms ?? [],
+      forms: (forms ?? []).map((form) => ({
+        ...form,
+        mapped_fields_count: mappedCountByForm.get(form.form_id) ?? 0,
+      })),
     });
   });
 });

@@ -5,17 +5,22 @@ import { toast } from "sonner";
 import { ArrowRight, ChevronLeft, Facebook, Plug, RefreshCw, Search, Unplug } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
+  createMetaTestLead,
   createMetaOAuthUrl,
   disconnectMetaConnection,
   exchangeMetaCode,
   type MetaFormsSyncResult,
+  getMetaFormFields,
   getMetaIntegrationStatus,
+  saveMetaFieldMapping,
   syncMetaForms,
 } from "@/lib/meta-oauth.functions";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Sheet,
   SheetContent,
@@ -67,6 +72,7 @@ type MetaForm = {
   page_name: string | null;
   leads_count: number | null;
   active: boolean | null;
+  mapped_fields_count?: number;
 };
 
 type MetaOAuthCallbackMessage = {
@@ -78,7 +84,7 @@ type MetaOAuthCallbackMessage = {
   errorDescription?: string | null;
 };
 
-type MetaDrawerView = "account" | "pages" | "forms";
+type MetaDrawerView = "account" | "pages" | "forms" | "mapping";
 
 type MetaPageSummary = {
   pageId: string;
@@ -91,6 +97,23 @@ type DisconnectMetaButtonProps = {
   className?: string;
   onDisconnected: () => void;
   variant?: "outline" | "destructive";
+};
+
+const CRM_FIELD_OPTIONS = [
+  { value: "__ignore__", label: "Ignorar" },
+  { value: "nome", label: "Nome" },
+  { value: "telefone", label: "Telefone" },
+  { value: "email", label: "Email" },
+  { value: "origem", label: "Origem" },
+  { value: "observacoes", label: "Observações" },
+];
+
+const TEST_VALUE_PLACEHOLDERS: Record<string, string> = {
+  nome: "Maria Teste",
+  telefone: "11999998888",
+  email: "maria.teste@email.com",
+  origem: "Facebook Lead Ads",
+  observacoes: "Lead criado pelo simulador",
 };
 
 function getSupabaseOrigin() {
@@ -111,8 +134,13 @@ function IntegracoesPage() {
   const [lastSync, setLastSync] = useState<MetaFormsSyncResult | null>(null);
   const [drawerView, setDrawerView] = useState<MetaDrawerView>("account");
   const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
+  const [selectedFormId, setSelectedFormId] = useState<string | null>(null);
   const [pageSearch, setPageSearch] = useState("");
   const [formSearch, setFormSearch] = useState("");
+  const [fieldMapping, setFieldMapping] = useState<Record<string, string>>({});
+  const [testValues, setTestValues] = useState<Record<string, string>>({});
+  const [savingMapping, setSavingMapping] = useState(false);
+  const [creatingTestLead, setCreatingTestLead] = useState(false);
 
   useEffect(() => {
     const supabaseOrigin = getSupabaseOrigin();
@@ -235,6 +263,7 @@ function IntegracoesPage() {
   });
 
   const selectedPage = pages.find((page) => page.pageId === selectedPageId) ?? null;
+  const selectedForm = forms.find((form) => form.form_id === selectedFormId) ?? null;
   const selectedPageForms = forms
     .filter((form) => form.page_id === selectedPageId)
     .filter((form) => {
@@ -242,6 +271,32 @@ function IntegracoesPage() {
       if (!term) return true;
       return `${form.form_name ?? ""} ${form.form_id}`.toLowerCase().includes(term);
     });
+
+  const {
+    data: formFields,
+    isLoading: loadingFormFields,
+    refetch: refetchFormFields,
+  } = useQuery({
+    queryKey: ["meta-form-fields", selectedFormId],
+    enabled: drawerOpen && drawerView === "mapping" && !!selectedFormId,
+    queryFn: async () => getMetaFormFields({ formId: selectedFormId! }),
+  });
+
+  useEffect(() => {
+    if (!formFields) return;
+
+    const nextMapping: Record<string, string> = {};
+    const nextValues: Record<string, string> = {};
+
+    for (const field of formFields.fields) {
+      const crmField = formFields.mapping[field.key] ?? "__ignore__";
+      nextMapping[field.key] = crmField;
+      nextValues[field.key] = testValues[field.key] ?? TEST_VALUE_PLACEHOLDERS[crmField] ?? "";
+    }
+
+    setFieldMapping(nextMapping);
+    setTestValues(nextValues);
+  }, [formFields]);
 
   const openMetaManager = () => {
     setDrawerView("pages");
@@ -272,14 +327,64 @@ function IntegracoesPage() {
 
   const handleSelectPage = (pageId: string) => {
     setSelectedPageId(pageId);
+    setSelectedFormId(null);
     setFormSearch("");
     setDrawerView("forms");
+  };
+
+  const handleEditFormMapping = (form: MetaForm) => {
+    setSelectedFormId(form.form_id);
+    setFieldMapping({});
+    setTestValues({});
+    setDrawerView("mapping");
+  };
+
+  const handleSaveMapping = async () => {
+    if (!selectedFormId || !formFields) return;
+
+    try {
+      setSavingMapping(true);
+      await saveMetaFieldMapping({
+        formId: selectedFormId,
+        mapping: formFields.fields.map((field) => ({
+          metaFieldKey: field.key,
+          crmField: fieldMapping[field.key] ?? "__ignore__",
+        })),
+      });
+      toast.success("Mapeamento salvo");
+      await Promise.all([
+        refetchFormFields(),
+        qc.invalidateQueries({ queryKey: ["meta-integration-status"] }),
+      ]);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Falha ao salvar mapeamento");
+    } finally {
+      setSavingMapping(false);
+    }
+  };
+
+  const handleCreateTestLead = async () => {
+    if (!selectedFormId || !formFields) return;
+
+    try {
+      setCreatingTestLead(true);
+      const result = await createMetaTestLead({
+        formId: selectedFormId,
+        fieldValues: testValues,
+      });
+      toast.success(`Lead teste criado: #${result.leadId}`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Falha ao criar lead teste");
+    } finally {
+      setCreatingTestLead(false);
+    }
   };
 
   const handleDisconnected = () => {
     setDrawerOpen(false);
     setDrawerView("account");
     setSelectedPageId(null);
+    setSelectedFormId(null);
     setLastSync(null);
     void qc.invalidateQueries({ queryKey: ["meta-integration-status"] });
   };
@@ -370,26 +475,30 @@ function IntegracoesPage() {
           style={{ backgroundColor: "#13151F", borderColor: "#2A2D3A" }}
         >
           <SheetHeader>
-            {drawerView === "forms" ? (
+            {drawerView === "forms" || drawerView === "mapping" ? (
               <Button
                 variant="ghost"
                 size="sm"
                 className="mb-2 h-8 w-fit gap-1.5 px-2"
-                onClick={() => setDrawerView("pages")}
+                onClick={() => setDrawerView(drawerView === "mapping" ? "forms" : "pages")}
               >
                 <ChevronLeft className="h-4 w-4" />
-                Páginas
+                {drawerView === "mapping" ? "Formulários" : "Páginas"}
               </Button>
             ) : null}
             <SheetTitle>
-              {drawerView === "forms"
+              {drawerView === "mapping"
+                ? selectedForm?.form_name ?? "Combinar campos"
+                : drawerView === "forms"
                 ? selectedPage?.pageName ?? "Formulários"
                 : drawerView === "pages"
                   ? "Páginas do Meta Lead Ads"
                   : "Conexão Meta Ads"}
             </SheetTitle>
             <SheetDescription>
-              {drawerView === "forms"
+              {drawerView === "mapping"
+                ? "Combine os campos do formulário Meta com os campos do CRM."
+                : drawerView === "forms"
                 ? "Selecione os formulários e ajuste a combinação de campos."
                 : drawerView === "pages"
                   ? "Selecione uma página para visualizar os formulários disponíveis."
@@ -551,6 +660,17 @@ function IntegracoesPage() {
                           </div>
                         </div>
                         <div>
+                          {Number(form.mapped_fields_count ?? 0) > 0 ? (
+                            <Badge
+                              className="border-0 text-[10px]"
+                              style={{
+                                backgroundColor: "rgba(34,197,94,0.15)",
+                                color: "#22c55e",
+                              }}
+                            >
+                              Concluído
+                            </Badge>
+                          ) : (
                           <Badge
                             className="border-0 text-[10px]"
                             style={{
@@ -560,13 +680,12 @@ function IntegracoesPage() {
                           >
                             Pendente
                           </Badge>
+                          )}
                         </div>
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() =>
-                            toast.info("Mapeamento de campos será a próxima etapa desta integração")
-                          }
+                          onClick={() => handleEditFormMapping(form)}
                         >
                           Alterar campos
                         </Button>
@@ -574,6 +693,119 @@ function IntegracoesPage() {
                     ))
                   )}
                 </div>
+              </>
+            )}
+
+            {drawerView === "mapping" && (
+              <>
+                {loadingFormFields ? (
+                  <div className="rounded-lg border px-4 py-8 text-center text-sm text-muted-foreground">
+                    Carregando campos do formulário...
+                  </div>
+                ) : !formFields || formFields.fields.length === 0 ? (
+                  <div className="rounded-lg border px-4 py-8 text-center text-sm text-muted-foreground">
+                    Nenhum campo retornado pela Meta para este formulário.
+                  </div>
+                ) : (
+                  <>
+                    <div
+                      className="rounded-lg border overflow-hidden"
+                      style={{ borderColor: "#2A2D3A" }}
+                    >
+                      <div
+                        className="grid grid-cols-[1fr_180px_1fr] gap-3 border-b px-4 py-3 text-[10px] uppercase tracking-wider text-muted-foreground"
+                        style={{ borderColor: "#2A2D3A" }}
+                      >
+                        <div>Campo Meta</div>
+                        <div>Campo no CRM</div>
+                        <div>Valor para teste</div>
+                      </div>
+
+                      {formFields.fields.map((field) => {
+                        const selectedCrmField = fieldMapping[field.key] ?? "__ignore__";
+
+                        return (
+                          <div
+                            key={field.key}
+                            className="grid grid-cols-[1fr_180px_1fr] items-center gap-3 border-b px-4 py-3"
+                            style={{ borderColor: "#2A2D3A" }}
+                          >
+                            <div className="min-w-0">
+                              <div className="truncate text-sm font-medium text-foreground">
+                                {field.label}
+                              </div>
+                              <div className="truncate text-xs text-muted-foreground">
+                                {field.key}
+                                {field.type ? ` · ${field.type}` : ""}
+                              </div>
+                            </div>
+
+                            <Select
+                              value={selectedCrmField}
+                              onValueChange={(value) => {
+                                setFieldMapping((current) => ({
+                                  ...current,
+                                  [field.key]: value,
+                                }));
+                                setTestValues((current) => ({
+                                  ...current,
+                                  [field.key]:
+                                    current[field.key] || TEST_VALUE_PLACEHOLDERS[value] || "",
+                                }));
+                              }}
+                            >
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {CRM_FIELD_OPTIONS.map((option) => (
+                                  <SelectItem key={option.value} value={option.value}>
+                                    {option.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+
+                            <Input
+                              value={testValues[field.key] ?? ""}
+                              onChange={(event) =>
+                                setTestValues((current) => ({
+                                  ...current,
+                                  [field.key]: event.target.value,
+                                }))
+                              }
+                              placeholder={TEST_VALUE_PLACEHOLDERS[selectedCrmField] ?? "Valor"}
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <div className="rounded-lg border p-4" style={{ borderColor: "#2A2D3A" }}>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="space-y-1.5">
+                          <Label className="text-xs text-muted-foreground">Obrigatórios</Label>
+                          <div className="text-sm text-foreground">Nome e Telefone</div>
+                        </div>
+                        <div className="flex flex-wrap items-end justify-start gap-2 sm:justify-end">
+                          <Button
+                            variant="outline"
+                            disabled={savingMapping}
+                            onClick={handleSaveMapping}
+                          >
+                            {savingMapping ? "Salvando..." : "Salvar mapeamento"}
+                          </Button>
+                          <Button
+                            disabled={creatingTestLead}
+                            onClick={handleCreateTestLead}
+                          >
+                            {creatingTestLead ? "Criando..." : "Criar lead teste"}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
               </>
             )}
 

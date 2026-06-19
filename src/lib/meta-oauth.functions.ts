@@ -16,6 +16,7 @@ export type MetaFormStatus = {
   page_name: string | null;
   leads_count: number | null;
   active: boolean | null;
+  mapped_fields_count?: number;
 };
 
 export type MetaIntegrationStatus = {
@@ -49,6 +50,42 @@ export type MetaOAuthExchangeResult = {
   ok: true;
   connection: MetaConnectionStatus;
   sync: MetaFormsSyncResult;
+};
+
+export type MetaFormField = {
+  key: string;
+  label: string;
+  type: string | null;
+};
+
+export type MetaFormFieldsResult = {
+  form: {
+    form_id: string;
+    form_name: string | null;
+    page_id: string;
+    page_name: string | null;
+  };
+  fields: MetaFormField[];
+  mapping: Record<string, string>;
+};
+
+export type MetaSaveFieldMappingInput = {
+  formId: string;
+  mapping: Array<{
+    metaFieldKey: string;
+    crmField: string;
+  }>;
+};
+
+export type MetaTestLeadInput = {
+  formId: string;
+  fieldValues: Record<string, string>;
+};
+
+export type MetaTestLeadResult = {
+  ok: true;
+  leadId: number;
+  metaLeadId: string;
 };
 
 async function getFunctionErrorMessage(error: unknown, fallback: string) {
@@ -110,4 +147,16 @@ export async function syncMetaForms() {
 
 export async function disconnectMetaConnection() {
   return invokeMetaFunction<{ ok: true }>("meta-disconnect");
+}
+
+export async function getMetaFormFields(data: { formId: string }) {
+  return invokeMetaFunction<MetaFormFieldsResult>("meta-form-fields", data);
+}
+
+export async function saveMetaFieldMapping(data: MetaSaveFieldMappingInput) {
+  return invokeMetaFunction<{ ok: true }>("meta-field-mapping-save", data);
+}
+
+export async function createMetaTestLead(data: MetaTestLeadInput) {
+  return invokeMetaFunction<MetaTestLeadResult>("meta-test-lead", data);
 }
