@@ -547,11 +547,6 @@ function IntegracoesPage() {
                     Acessar
                     <ArrowRight className="h-4 w-4" />
                   </Button>
-                  <DisconnectMetaButton
-                    className="gap-2"
-                    onDisconnected={handleDisconnected}
-                    variant="outline"
-                  />
                 </div>
               </div>
             )}
@@ -577,7 +572,6 @@ function IntegracoesPage() {
                     >
                       {connecting ? "Aguardando..." : "Conectar página"}
                     </Button>
-                    <DisconnectMetaButton onDisconnected={handleDisconnected} variant="outline" />
                     <Button
                       variant="outline"
                       size="sm"
@@ -859,14 +853,6 @@ function IntegracoesPage() {
               </>
             )}
 
-          </div>
-
-          <div className="pt-4 border-t" style={{ borderColor: "#2A2D3A" }}>
-            <DisconnectMetaButton
-              className="w-full gap-2"
-              onDisconnected={handleDisconnected}
-              variant="destructive"
-            />
           </div>
         </SheetContent>
       </Sheet>
