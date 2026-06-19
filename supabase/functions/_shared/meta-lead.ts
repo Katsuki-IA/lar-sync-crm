@@ -32,6 +32,29 @@ function fieldValueToString(values: unknown[] | undefined) {
     .join(", ");
 }
 
+function normalizeFieldKey(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+const CRM_FIELD_ALIASES: Record<string, string[]> = {
+  nome: ["full_name", "name", "nome", "nome_completo"],
+  telefone: [
+    "phone_number",
+    "phone",
+    "telefone",
+    "mobile_phone",
+    "cell_phone",
+    "whatsapp",
+  ],
+  email: ["email", "email_address"],
+};
+
 export function createMetaFieldValueMap(fieldData: MetaLeadFieldData[]) {
   const values = new Map<string, string>();
 
@@ -41,6 +64,7 @@ export function createMetaFieldValueMap(fieldData: MetaLeadFieldData[]) {
     const value = fieldValueToString(field.values);
     values.set(key, value);
     values.set(key.toLowerCase(), value);
+    values.set(normalizeFieldKey(key), value);
   }
 
   return values;
@@ -52,6 +76,18 @@ export function getMappedMetaValue(args: {
   crmField: string;
 }) {
   const metaField = Object.entries(args.mapping).find(([, crmField]) => crmField === args.crmField);
-  if (!metaField) return "";
-  return args.values.get(metaField[0]) ?? args.values.get(metaField[0].toLowerCase()) ?? "";
+  if (metaField) {
+    const mappedValue =
+      args.values.get(metaField[0]) ??
+      args.values.get(metaField[0].toLowerCase()) ??
+      args.values.get(normalizeFieldKey(metaField[0]));
+    if (mappedValue) return mappedValue;
+  }
+
+  for (const alias of CRM_FIELD_ALIASES[args.crmField] ?? []) {
+    const value = args.values.get(alias) ?? args.values.get(normalizeFieldKey(alias));
+    if (value) return value;
+  }
+
+  return "";
 }
