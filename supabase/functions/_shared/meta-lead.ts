@@ -24,12 +24,32 @@ export function normalizeBrazilPhone(value: string) {
   };
 }
 
+function valueToStrings(value: unknown): string[] {
+  if (value === null || value === undefined) return [];
+  if (typeof value === "string" || typeof value === "number" || typeof value === "bigint") {
+    const normalized = String(value).trim();
+    return normalized ? [normalized] : [];
+  }
+  if (Array.isArray(value)) return value.flatMap(valueToStrings);
+  if (typeof value !== "object") return [];
+
+  const record = value as Record<string, unknown>;
+  const countryCode = valueToStrings(record.country_code ?? record.countryCode).join("");
+  const nationalNumber = valueToStrings(
+    record.national_number ?? record.nationalNumber,
+  ).join("");
+  if (countryCode && nationalNumber) return [`${countryCode}${nationalNumber}`];
+
+  for (const key of ["value", "text", "phone_number", "phone", "number"]) {
+    const preferred = valueToStrings(record[key]);
+    if (preferred.length > 0) return preferred;
+  }
+
+  return Object.values(record).flatMap(valueToStrings);
+}
+
 function fieldValueToString(values: unknown[] | undefined) {
-  return (values ?? [])
-    .filter((value) => value !== null && value !== undefined)
-    .map((value) => String(value).trim())
-    .filter(Boolean)
-    .join(", ");
+  return valueToStrings(values).join(", ");
 }
 
 function normalizeFieldKey(value: string) {
