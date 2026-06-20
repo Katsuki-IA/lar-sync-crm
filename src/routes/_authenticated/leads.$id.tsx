@@ -380,6 +380,7 @@ function labelTipo(t: string) {
     case "assignment": return "Atribuição";
     case "tag_add": return "Tag";
     case "tag_remove": return "Tag";
+    case "meta_resubmission": return "Meta Ads";
     case "system": return "Sistema";
     default: return t;
   }
