@@ -9,6 +9,7 @@ import {
   normalizeBrazilPhone,
   type MetaLeadFieldData,
 } from "../_shared/meta-lead.ts";
+import { resolveLeadOrigin } from "../_shared/lead-origin.ts";
 
 type LeadgenValue = {
   leadgen_id?: string;
@@ -222,8 +223,10 @@ async function processLeadgenEvent(args: {
   }
 
   const email = getMappedMetaValue({ values, mapping, crmField: "email" }).trim() || null;
-  const origem =
-    getMappedMetaValue({ values, mapping, crmField: "origem" }).trim() || "Meta Lead Ads";
+  const origem = resolveLeadOrigin(
+    getMappedMetaValue({ values, mapping, crmField: "origem" }),
+    "FB",
+  );
   const observacoes =
     getMappedMetaValue({ values, mapping, crmField: "observacoes" }).trim() || null;
   const routing = await getDefaultRouting(supabaseAdmin, form.id_empresa);

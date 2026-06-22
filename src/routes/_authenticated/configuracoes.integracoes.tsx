@@ -122,7 +122,7 @@ const TEST_VALUE_PLACEHOLDERS: Record<string, string> = {
   nome: "Maria Teste",
   telefone: "11999998888",
   email: "maria.teste@email.com",
-  origem: "Facebook Lead Ads",
+  origem: "FB",
   observacoes: "Lead criado pelo simulador",
 };
 

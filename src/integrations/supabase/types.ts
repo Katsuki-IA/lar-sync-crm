@@ -586,7 +586,7 @@ export type Database = {
           loft_id_negociacao: string | null
           nome: string
           observacoes: string | null
-          origem: string | null
+          origem: string
           qualificado: number | null
           rd_client_id: string | null
           rd_deal_id: string | null
@@ -609,7 +609,7 @@ export type Database = {
           loft_id_negociacao?: string | null
           nome: string
           observacoes?: string | null
-          origem?: string | null
+          origem?: string
           qualificado?: number | null
           rd_client_id?: string | null
           rd_deal_id?: string | null
@@ -632,7 +632,7 @@ export type Database = {
           loft_id_negociacao?: string | null
           nome?: string
           observacoes?: string | null
-          origem?: string | null
+          origem?: string
           qualificado?: number | null
           rd_client_id?: string | null
           rd_deal_id?: string | null
@@ -2434,6 +2434,10 @@ export type Database = {
       crm_get_my_empresa: { Args: never; Returns: number }
       crm_get_my_id: { Args: never; Returns: string }
       crm_get_my_role: { Args: never; Returns: string }
+      crm_normalize_lead_origin: {
+        Args: { p_modulo?: string | null; p_origem: string | null }
+        Returns: string
+      }
       crm_ingest_meta_lead: {
         Args: {
           p_crm_assigned_to: string

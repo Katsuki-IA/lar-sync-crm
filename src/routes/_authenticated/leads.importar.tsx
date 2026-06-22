@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { formatLeadOrigin, resolveLeadOrigin } from "@/lib/lead-origin";
 
 export const Route = createFileRoute("/_authenticated/leads/importar")({
   component: ImportLeadsPage,
@@ -59,7 +60,7 @@ function guessField(header: string): SysField {
   if (["nome", "name", "nomecompleto", "cliente"].includes(n)) return "nome";
   if (["fone", "tel", "celular", "whatsapp", "telefone", "phone"].includes(n)) return "telefone";
   if (["email", "mail"].includes(n)) return "email";
-  if (["origem", "canal", "source", "midia"].includes(n)) return "origem";
+  if (["origem", "modulo", "canal", "source", "midia"].includes(n)) return "origem";
   if (["estagio", "stage", "etapa"].includes(n)) return "estagio";
   if (["empreendimento", "produto", "imovel"].includes(n)) return "empreendimento";
   if (["responsavel", "corretor", "assignee"].includes(n)) return "responsavel";
@@ -278,7 +279,7 @@ function ImportLeadsPage() {
         const respRaw = get("responsavel");
         const tagsRaw = get("tags");
         const obs = get("observacoes");
-        const origem = get("origem");
+        const origem = resolveLeadOrigin(get("origem"));
 
         const id_empreendimento = empRaw ? empByName.get(norm(empRaw)) ?? null : null;
         const stageId = stageRaw ? stageByName.get(norm(stageRaw)) ?? null : null;
@@ -291,6 +292,7 @@ function ImportLeadsPage() {
           nome,
           telefone: numero,
           email,
+          origem,
           id_empreendimento,
           crm_assigned_to: assignedTo,
           crm_stage_id: finalStage,
@@ -308,7 +310,7 @@ function ImportLeadsPage() {
         }
 
         // Activity with origem/obs
-        const desc = [origem && `Origem: ${origem}`, obs && `Obs: ${obs}`].filter(Boolean).join(" · ") || "Lead importado via CSV";
+        const desc = [`Origem: ${formatLeadOrigin(origem)}`, obs && `Obs: ${obs}`].filter(Boolean).join(" · ");
         await supabase.from("crm_lead_activities").insert({
           lead_id: created.id, crm_user_id: me.id, tipo: "system", descricao: desc,
         });

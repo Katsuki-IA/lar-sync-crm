@@ -31,6 +31,7 @@ import {
   type LeadCustomFieldValue,
   type LeadCustomFieldValues,
 } from "@/lib/lead-custom-fields";
+import { formatLeadOrigin } from "@/lib/lead-origin";
 
 export const Route = createFileRoute("/_authenticated/leads/$id")({
   component: LeadDetail,
@@ -72,7 +73,7 @@ function LeadDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("crm_leads")
-        .select("id, id_empresa, nome, telefone, email, id_empreendimento, crm_stage_id, crm_assigned_to, lead_quente, qualificado, created_at")
+        .select("id, id_empresa, nome, telefone, email, origem, id_empreendimento, crm_stage_id, crm_assigned_to, lead_quente, qualificado, created_at")
         .eq("id", leadId)
         .single();
       if (error) throw error;
@@ -349,6 +350,7 @@ function LeadDetail() {
             <CardHeader><CardTitle className="text-base">Detalhes</CardTitle></CardHeader>
             <CardContent className="space-y-4 text-sm">
               <Field label="Empreendimento" value={empNome ?? "—"} />
+              <Field label="Origem" value={formatLeadOrigin(lead.origem)} />
               <div>
                 <label className="text-xs text-muted-foreground">Estágio</label>
                 <Select value={lead.crm_stage_id ? String(lead.crm_stage_id) : ""} onValueChange={(v) => stageMut.mutate(Number(v))}>

@@ -19,6 +19,11 @@ import {
   type LeadCustomFieldValue,
   type LeadCustomFieldValues,
 } from "@/lib/lead-custom-fields";
+import {
+  DEFAULT_LEAD_ORIGIN,
+  LEAD_ORIGIN_OPTIONS,
+  resolveLeadOrigin,
+} from "@/lib/lead-origin";
 
 export const Route = createFileRoute("/_authenticated/leads/new")({
   component: NewLead,
@@ -74,6 +79,7 @@ function NewLead() {
     numero: "",
     email: "",
     id_empreendimento: "",
+    origem: DEFAULT_LEAD_ORIGIN,
     crm_assigned_to: "",
     crm_stage_id: "",
   });
@@ -176,6 +182,7 @@ function NewLead() {
         nome: form.nome,
         telefone: fullNumero,
         email: form.email || null,
+        origem: form.origem,
         id_empreendimento: form.id_empreendimento ? Number(form.id_empreendimento) : null,
         crm_assigned_to: form.crm_assigned_to || defaultAssignee,
         crm_stage_id: form.crm_stage_id ? Number(form.crm_stage_id) : defaultStageId,
@@ -268,6 +275,23 @@ function NewLead() {
                   <SelectTrigger className={errors.id_empreendimento ? "border-destructive" : ""}><SelectValue placeholder="Selecionar empreendimento" /></SelectTrigger>
                   <SelectContent>
                     {meta?.emps.map((e) => <SelectItem key={e.id} value={String(e.id)}>{e.nome}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field label="Origem">
+                <Select
+                  value={form.origem}
+                  onValueChange={(value) =>
+                    setForm({ ...form, origem: resolveLeadOrigin(value) })
+                  }
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {LEAD_ORIGIN_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.value} - {option.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </Field>

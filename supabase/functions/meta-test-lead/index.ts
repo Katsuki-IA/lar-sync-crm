@@ -5,6 +5,7 @@ import {
   jsonResponse,
   withErrorHandling,
 } from "../_shared/meta.ts";
+import { resolveLeadOrigin } from "../_shared/lead-origin.ts";
 
 function digitsOnly(value: string) {
   return value.replace(/\D/g, "");
@@ -102,7 +103,10 @@ Deno.serve(async (req) => {
       `551199${String(Math.floor(Math.random() * 1000000)).padStart(6, "0")}`;
     const email = getMappedValue({ fieldValues, mapping, crmField: "email" }) || null;
     const observacoes = getMappedValue({ fieldValues, mapping, crmField: "observacoes" }) || null;
-    const origem = getMappedValue({ fieldValues, mapping, crmField: "origem" }) || "Meta Lead Ads";
+    const origem = resolveLeadOrigin(
+      getMappedValue({ fieldValues, mapping, crmField: "origem" }),
+      "FB",
+    );
 
     const { data: crmUserRow, error: crmUserError } = await supabaseAdmin
       .from("crm_users")
