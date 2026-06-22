@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { useCrmUser } from "@/hooks/use-crm-user";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { getInitials, colorFromString } from "@/lib/lead-visuals";
-const katsukiLogo = { url: "/katsuki-logo.png" };
+const katsukiLogo = { url: "/katsuki-symbol.png" };
 
 type Item = { title: string; url: string; match: string; icon: typeof LayoutDashboard };
 
@@ -47,7 +47,7 @@ export function AppSidebar() {
         className="h-16 flex items-center px-5 border-b"
         style={{ borderColor: "var(--border)" }}
       >
-        <img src={katsukiLogo.url} alt="Katsuki IA" className="h-auto w-36 object-contain" />
+        <img src={katsukiLogo.url} alt="Katsuki IA" className="h-11 w-auto object-contain" />
       </div>
 
       {/* Nav */}
