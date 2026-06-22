@@ -433,7 +433,7 @@ function IntegracoesPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card className="p-5" style={{ backgroundColor: "#13151F", borderColor: "#2A2D3A" }}>
+        <Card className="p-5" style={{ backgroundColor: "var(--surface)", borderColor: "var(--border)" }}>
           <div className="flex items-start gap-4">
             <div
               className="h-12 w-12 rounded-xl flex items-center justify-center shrink-0"
@@ -508,7 +508,7 @@ function IntegracoesPage() {
       <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
         <SheetContent
           className="w-full sm:max-w-3xl flex flex-col"
-          style={{ backgroundColor: "#13151F", borderColor: "#2A2D3A" }}
+          style={{ backgroundColor: "var(--surface)", borderColor: "var(--border)" }}
         >
           <SheetHeader>
             {drawerView === "forms" || drawerView === "mapping" ? (
@@ -544,7 +544,7 @@ function IntegracoesPage() {
 
           <div className="flex-1 overflow-y-auto mt-4 space-y-5">
             {drawerView === "account" && (
-              <div className="rounded-lg border p-4" style={{ borderColor: "#2A2D3A" }}>
+              <div className="rounded-lg border p-4" style={{ borderColor: "var(--border)" }}>
                 <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
                   Conta Meta
                 </div>
@@ -622,10 +622,10 @@ function IntegracoesPage() {
                   </div>
                 ) : null}
 
-                <div className="rounded-lg border overflow-hidden" style={{ borderColor: "#2A2D3A" }}>
+                <div className="rounded-lg border overflow-hidden" style={{ borderColor: "var(--border)" }}>
                   <div
                     className="grid grid-cols-[1fr_130px_38px] gap-3 border-b px-4 py-3 text-[10px] uppercase tracking-wider text-muted-foreground"
-                    style={{ borderColor: "#2A2D3A" }}
+                    style={{ borderColor: "var(--border)" }}
                   >
                     <div>Página da Meta</div>
                     <div>Formulários</div>
@@ -641,8 +641,8 @@ function IntegracoesPage() {
                       <button
                         key={page.pageId}
                         type="button"
-                        className="group grid w-full cursor-pointer grid-cols-[1fr_130px_38px] items-center gap-3 border-b px-4 py-3 text-left transition-colors hover:bg-white/[0.03]"
-                        style={{ borderColor: "#2A2D3A" }}
+                        className="group grid w-full cursor-pointer grid-cols-[1fr_130px_38px] items-center gap-3 border-b px-4 py-3 text-left transition-colors hover:bg-[var(--primary-50)]"
+                        style={{ borderColor: "var(--border)" }}
                         onClick={() => handleSelectPage(page.pageId)}
                       >
                         <div className="min-w-0">
@@ -679,10 +679,10 @@ function IntegracoesPage() {
                   />
                 </div>
 
-                <div className="rounded-lg border overflow-hidden" style={{ borderColor: "#2A2D3A" }}>
+                <div className="rounded-lg border overflow-hidden" style={{ borderColor: "var(--border)" }}>
                   <div
                     className="grid grid-cols-[1fr_140px_132px] gap-3 border-b px-4 py-3 text-[10px] uppercase tracking-wider text-muted-foreground"
-                    style={{ borderColor: "#2A2D3A" }}
+                    style={{ borderColor: "var(--border)" }}
                   >
                     <div>Nome do formulário</div>
                     <div>Status da combinação</div>
@@ -697,7 +697,7 @@ function IntegracoesPage() {
                       <div
                         key={form.id}
                         className="grid grid-cols-[1fr_140px_132px] items-center gap-3 border-b px-4 py-3"
-                        style={{ borderColor: "#2A2D3A" }}
+                        style={{ borderColor: "var(--border)" }}
                       >
                         <div className="min-w-0">
                           <div className="truncate text-sm font-medium text-foreground">
@@ -758,7 +758,7 @@ function IntegracoesPage() {
                   </div>
                 ) : (
                   <>
-                    <div className="rounded-lg border p-4" style={{ borderColor: "#2A2D3A" }}>
+                    <div className="rounded-lg border p-4" style={{ borderColor: "var(--border)" }}>
                       <div className="max-w-md space-y-2">
                         <Label htmlFor="meta-empreendimento">Empreendimento *</Label>
                         <Select
@@ -789,11 +789,11 @@ function IntegracoesPage() {
 
                     <div
                       className="rounded-lg border overflow-hidden mt-4"
-                      style={{ borderColor: "#2A2D3A" }}
+                      style={{ borderColor: "var(--border)" }}
                     >
                       <div
                         className="grid grid-cols-[1fr_180px_1fr] gap-3 border-b px-4 py-3 text-[10px] uppercase tracking-wider text-muted-foreground"
-                        style={{ borderColor: "#2A2D3A" }}
+                        style={{ borderColor: "var(--border)" }}
                       >
                         <div>Campo Meta</div>
                         <div>Campo no CRM</div>
@@ -807,7 +807,7 @@ function IntegracoesPage() {
                           <div
                             key={field.key}
                             className="grid grid-cols-[1fr_180px_1fr] items-center gap-3 border-b px-4 py-3"
-                            style={{ borderColor: "#2A2D3A" }}
+                            style={{ borderColor: "var(--border)" }}
                           >
                             <div className="min-w-0">
                               <div className="truncate text-sm font-medium text-foreground">
@@ -860,7 +860,7 @@ function IntegracoesPage() {
                       })}
                     </div>
 
-                    <div className="rounded-lg border p-4" style={{ borderColor: "#2A2D3A" }}>
+                    <div className="rounded-lg border p-4" style={{ borderColor: "var(--border)" }}>
                       <div className="grid gap-4 sm:grid-cols-2">
                         <div className="space-y-1.5">
                           <Label className="text-xs text-muted-foreground">Obrigatórios</Label>
