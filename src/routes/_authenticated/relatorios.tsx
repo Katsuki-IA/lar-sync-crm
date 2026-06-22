@@ -64,8 +64,8 @@ function presetToRange(p: Preset, customFrom?: Date, customTo?: Date): Range {
   return { from: customFrom ?? subDays(today, 29), to: customTo ?? today };
 }
 
-const STAGE_COLORS = ["#3B82F6", "#6366F1", "#8B5CF6", "#EC4899", "#F59E0B", "#10B981"];
-const DONUT_COLORS = ["#EC2C5C", "#3B82F6", "#10B981", "#F59E0B", "#8B5CF6", "#06B6D4", "#F97316", "#84CC16", "#EF4444", "#6366F1"];
+const STAGE_COLORS = ["#C14F21", "#E68F6A", "#F2B9A3", "#7A3115", "#B07D1A", "#2D7D52"];
+const DONUT_COLORS = ["#C14F21", "#E68F6A", "#F2B9A3", "#A3421C", "#D96D3E", "#7A3115", "#B07D1A", "#2471A3", "#2D7D52", "#52200D"];
 
 function isConvertedStage(name?: string | null) {
   return /fech|ganh|venda|convert/i.test(name ?? "");
@@ -272,7 +272,7 @@ function FunnelPanel({ data }: { data: ReportData }) {
           const lost = advance != null ? 100 - advance : null;
           const color = STAGE_COLORS[Math.min(i, STAGE_COLORS.length - 1)];
           const isLast = i === counts.length - 1;
-          const fill = isLast ? "#10B981" : color;
+          const fill = isLast ? "#2D7D52" : color;
           return (
             <div key={c.stage.id} className="flex flex-col items-center">
               <div
@@ -392,10 +392,10 @@ function ChannelPanel({ data }: { data: ReportData }) {
                         className={cn(
                           "font-medium",
                           r.taxa >= 30
-                            ? "bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/20"
+                            ? "bg-[var(--success-bg)] text-[var(--success)] hover:bg-[var(--success-bg)] border border-[var(--success)]/30"
                             : r.taxa >= 10
-                              ? "bg-amber-500/20 text-amber-300 hover:bg-amber-500/20"
-                              : "bg-rose-500/20 text-rose-300 hover:bg-rose-500/20",
+                              ? "bg-[var(--warning-bg)] text-[var(--warning)] hover:bg-[var(--warning-bg)] border border-[var(--warning)]/30"
+                              : "bg-[var(--danger-bg)] text-[var(--danger)] hover:bg-[var(--danger-bg)] border border-[var(--danger)]/30",
                         )}
                       >
                         {r.taxa.toFixed(1)}%
@@ -418,8 +418,8 @@ function ChannelPanel({ data }: { data: ReportData }) {
                 <YAxis type="category" dataKey="nome" stroke="var(--color-muted-foreground)" fontSize={12} width={110} />
                 <RTooltip contentStyle={{ background: "var(--color-card)", border: "1px solid var(--color-border)", borderRadius: 12 }} />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
-                <Bar dataKey="gerados" name="Gerados" fill="#3B82F6" radius={[0, 6, 6, 0]} />
-                <Bar dataKey="convertidos" name="Convertidos" fill="#10B981" radius={[0, 6, 6, 0]} />
+                <Bar dataKey="gerados" name="Gerados" fill="var(--info)" radius={[0, 6, 6, 0]} />
+                <Bar dataKey="convertidos" name="Convertidos" fill="var(--success)" radius={[0, 6, 6, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -489,7 +489,7 @@ function ClosingTimePanel({ data, range }: { data: ReportData; range: Range }) {
                 formatter={(val: number, _name, p) => [`${val} dias — ${p.payload.conv} conversões`, "Média"]}
                 labelFormatter={(l) => `Semana de ${l}`}
               />
-              <Line type="monotone" dataKey="dias" stroke="#EC2C5C" strokeWidth={2} dot={{ r: 3 }} />
+              <Line type="monotone" dataKey="dias" stroke="var(--chart-primary)" strokeWidth={2} dot={{ r: 3 }} />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -691,7 +691,7 @@ function Sparkline({ values }: { values: number[] }) {
   const points = values.map((v, i) => `${i * step},${h - (v / max) * h}`).join(" ");
   return (
     <svg width={w} height={h} className="inline-block">
-      <polyline fill="none" stroke="#EC2C5C" strokeWidth={1.5} points={points} />
+      <polyline fill="none" stroke="var(--chart-primary)" strokeWidth={1.5} points={points} />
     </svg>
   );
 }
