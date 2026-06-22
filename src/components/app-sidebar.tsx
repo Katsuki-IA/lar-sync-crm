@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { useCrmUser } from "@/hooks/use-crm-user";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { getInitials, colorFromString } from "@/lib/lead-visuals";
-import katsukiLogo from "@/assets/katsuki-logo.png.asset.json";
+import katsukiLogo from "@/assets/katsuki-logo-v2.png.asset.json";
 
 type Item = { title: string; url: string; match: string; icon: typeof LayoutDashboard };
 

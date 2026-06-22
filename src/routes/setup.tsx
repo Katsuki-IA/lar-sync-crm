@@ -1,6 +1,6 @@
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import katsukiLogo from "@/assets/katsuki-logo.png.asset.json";
+import katsukiLogo from "@/assets/katsuki-logo-v2.png.asset.json";
 import { toast } from "sonner";
 
 import { firstSetup } from "@/lib/setup.functions";
