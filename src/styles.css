@@ -48,80 +48,80 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
-  --color-ember-500: #ec2c5c;
-  --color-ember-400: #fb923c;
-  --color-ember-600: #ea580c;
+  --color-ember-500: #c14f21;
+  --color-ember-400: #f59958;
+  --color-ember-600: #9a3e19;
 }
 
 :root {
   --radius: 0.75rem;
-  --background: #0f1117;
-  --foreground: #f3f4f6;
-  --card: #1a1d27;
-  --card-foreground: #f3f4f6;
-  --popover: #1a1d27;
-  --popover-foreground: #f3f4f6;
-  --primary: #ec2c5c;
-  --primary-foreground: #ffffff;
-  --secondary: #1f2230;
-  --secondary-foreground: #f3f4f6;
-  --muted: #1f2230;
-  --muted-foreground: #8b8fa8;
-  --accent: #1f2230;
-  --accent-foreground: #ec2c5c;
+  --background: #080705;
+  --foreground: #fffcf8;
+  --card: #14110d;
+  --card-foreground: #fffcf8;
+  --popover: #14110d;
+  --popover-foreground: #fffcf8;
+  --primary: #c14f21;
+  --primary-foreground: #fffcf8;
+  --secondary: #1c1814;
+  --secondary-foreground: #fffcf8;
+  --muted: #1c1814;
+  --muted-foreground: #a89684;
+  --accent: #1c1814;
+  --accent-foreground: #f59958;
   --destructive: #ef4444;
-  --destructive-foreground: #ffffff;
-  --border: #2a2d3a;
-  --input: #2a2d3a;
-  --ring: #ec2c5c;
-  --chart-1: #ec2c5c;
-  --chart-2: #fb923c;
-  --chart-3: #ea580c;
-  --chart-4: #fdba74;
-  --chart-5: #c2410c;
-  --sidebar: #13151f;
-  --sidebar-foreground: #8b8fa8;
-  --sidebar-primary: #ec2c5c;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: rgba(236,44,92,0.15);
-  --sidebar-accent-foreground: #ec2c5c;
-  --sidebar-border: #2a2d3a;
-  --sidebar-ring: #ec2c5c;
+  --destructive-foreground: #fffcf8;
+  --border: #2a2520;
+  --input: #2a2520;
+  --ring: #c14f21;
+  --chart-1: #c14f21;
+  --chart-2: #f59958;
+  --chart-3: #9a3e19;
+  --chart-4: #fbc8a0;
+  --chart-5: #6b2e14;
+  --sidebar: #0d0b09;
+  --sidebar-foreground: #a89684;
+  --sidebar-primary: #c14f21;
+  --sidebar-primary-foreground: #fffcf8;
+  --sidebar-accent: rgba(193,79,33,0.15);
+  --sidebar-accent-foreground: #f59958;
+  --sidebar-border: #2a2520;
+  --sidebar-ring: #c14f21;
 }
 
 .dark {
-  --background: #0f1117;
-  --foreground: #f3f4f6;
-  --card: #1a1d27;
-  --card-foreground: #f3f4f6;
-  --popover: #1a1d27;
-  --popover-foreground: #f3f4f6;
-  --primary: #ec2c5c;
-  --primary-foreground: #ffffff;
-  --secondary: #1f2230;
-  --secondary-foreground: #f3f4f6;
-  --muted: #1f2230;
-  --muted-foreground: #8b8fa8;
-  --accent: #1f2230;
-  --accent-foreground: #ec2c5c;
+  --background: #080705;
+  --foreground: #fffcf8;
+  --card: #14110d;
+  --card-foreground: #fffcf8;
+  --popover: #14110d;
+  --popover-foreground: #fffcf8;
+  --primary: #c14f21;
+  --primary-foreground: #fffcf8;
+  --secondary: #1c1814;
+  --secondary-foreground: #fffcf8;
+  --muted: #1c1814;
+  --muted-foreground: #a89684;
+  --accent: #1c1814;
+  --accent-foreground: #f59958;
   --destructive: #ef4444;
-  --destructive-foreground: #ffffff;
-  --border: #2a2d3a;
-  --input: #2a2d3a;
-  --ring: #ec2c5c;
-  --chart-1: #ec2c5c;
-  --chart-2: #fb923c;
-  --chart-3: #ea580c;
-  --chart-4: #fdba74;
-  --chart-5: #c2410c;
-  --sidebar: #13151f;
-  --sidebar-foreground: #8b8fa8;
-  --sidebar-primary: #ec2c5c;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: rgba(236,44,92,0.15);
-  --sidebar-accent-foreground: #ec2c5c;
-  --sidebar-border: #2a2d3a;
-  --sidebar-ring: #ec2c5c;
+  --destructive-foreground: #fffcf8;
+  --border: #2a2520;
+  --input: #2a2520;
+  --ring: #c14f21;
+  --chart-1: #c14f21;
+  --chart-2: #f59958;
+  --chart-3: #9a3e19;
+  --chart-4: #fbc8a0;
+  --chart-5: #6b2e14;
+  --sidebar: #0d0b09;
+  --sidebar-foreground: #a89684;
+  --sidebar-primary: #c14f21;
+  --sidebar-primary-foreground: #fffcf8;
+  --sidebar-accent: rgba(193,79,33,0.15);
+  --sidebar-accent-foreground: #f59958;
+  --sidebar-border: #2a2520;
+  --sidebar-ring: #c14f21;
 }
 
 @layer base {
@@ -145,15 +145,15 @@
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: #2a2d3a;
+    background: #2a2520;
     border-radius: 8px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #4a4d5a;
+    background: #4a4035;
   }
   * {
     scrollbar-width: thin;
-    scrollbar-color: #2a2d3a transparent;
+    scrollbar-color: #2a2520 transparent;
   }
   input[type="date"]::-webkit-calendar-picker-indicator {
     filter: invert(1) brightness(1.4);

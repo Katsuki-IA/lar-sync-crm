@@ -78,7 +78,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="flex-1 flex flex-col min-w-0">
         <header
           className="h-14 border-b flex items-center justify-between px-4 md:px-6"
-          style={{ backgroundColor: "#13151F", borderColor: "#2A2D3A" }}
+          style={{ backgroundColor: "#0D0B09", borderColor: "#2A2520" }}
         >
           {/* Breadcrumbs */}
           <nav className="flex items-center gap-1.5 text-sm min-w-0">
@@ -108,7 +108,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <NotificationsBell />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-2 pl-2 ml-1 border-l h-9 outline-none focus-visible:ring-1 focus-visible:ring-ring rounded-md cursor-pointer" style={{ borderColor: "#2A2D3A" }}>
+                <button className="flex items-center gap-2 pl-2 ml-1 border-l h-9 outline-none focus-visible:ring-1 focus-visible:ring-ring rounded-md cursor-pointer" style={{ borderColor: "#2A2520" }}>
                   <Avatar className="h-8 w-8">
                     <AvatarFallback className="text-xs font-semibold text-white" style={{ backgroundColor: avatarColor }}>
                       {initials}

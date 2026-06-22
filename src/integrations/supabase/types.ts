@@ -331,6 +331,51 @@ export type Database = {
         }
         Relationships: []
       }
+      crm_lead_activities: {
+        Row: {
+          created_at: string | null
+          crm_user_id: string | null
+          descricao: string | null
+          id: number
+          lead_id: number
+          metadata: Json | null
+          tipo: string
+        }
+        Insert: {
+          created_at?: string | null
+          crm_user_id?: string | null
+          descricao?: string | null
+          id?: number
+          lead_id: number
+          metadata?: Json | null
+          tipo: string
+        }
+        Update: {
+          created_at?: string | null
+          crm_user_id?: string | null
+          descricao?: string | null
+          id?: number
+          lead_id?: number
+          metadata?: Json | null
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_lead_activities_crm_user_id_fkey"
+            columns: ["crm_user_id"]
+            isOneToOne: false
+            referencedRelation: "crm_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_lead_activities_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "crm_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       crm_lead_custom_fields: {
         Row: {
           ativo: boolean
@@ -374,51 +419,6 @@ export type Database = {
             columns: ["id_empresa"]
             isOneToOne: false
             referencedRelation: "empresa_dados"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      crm_lead_activities: {
-        Row: {
-          created_at: string | null
-          crm_user_id: string | null
-          descricao: string | null
-          id: number
-          lead_id: number
-          metadata: Json | null
-          tipo: string
-        }
-        Insert: {
-          created_at?: string | null
-          crm_user_id?: string | null
-          descricao?: string | null
-          id?: number
-          lead_id: number
-          metadata?: Json | null
-          tipo: string
-        }
-        Update: {
-          created_at?: string | null
-          crm_user_id?: string | null
-          descricao?: string | null
-          id?: number
-          lead_id?: number
-          metadata?: Json | null
-          tipo?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "crm_lead_activities_crm_user_id_fkey"
-            columns: ["crm_user_id"]
-            isOneToOne: false
-            referencedRelation: "crm_users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "crm_lead_activities_lead_id_fkey"
-            columns: ["lead_id"]
-            isOneToOne: false
-            referencedRelation: "crm_leads"
             referencedColumns: ["id"]
           },
         ]

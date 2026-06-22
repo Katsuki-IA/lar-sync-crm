@@ -356,7 +356,7 @@ function LeadsList() {
                 "h-8 w-8 flex items-center justify-center rounded-md transition-colors",
                 view === "list" ? "text-primary" : "text-muted-foreground hover:text-foreground"
               )}
-              style={view === "list" ? { backgroundColor: "rgba(236,44,92,0.12)" } : undefined}
+              style={view === "list" ? { backgroundColor: "rgba(193,79,33,0.12)" } : undefined}
               aria-label="Visualização em lista"
               title="Visualização em lista"
             >
@@ -368,7 +368,7 @@ function LeadsList() {
                 "h-8 w-8 flex items-center justify-center rounded-md transition-colors",
                 view === "kanban" ? "text-primary" : "text-muted-foreground hover:text-foreground"
               )}
-              style={view === "kanban" ? { backgroundColor: "rgba(236,44,92,0.12)" } : undefined}
+              style={view === "kanban" ? { backgroundColor: "rgba(193,79,33,0.12)" } : undefined}
               aria-label="Visualização em kanban"
               title="Visualização em kanban"
             >
@@ -473,7 +473,7 @@ function LeadsList() {
             {selectionMode && (
               <div
                 className="flex flex-wrap items-center gap-2 rounded-xl border px-3 py-2"
-                style={{ backgroundColor: "rgba(236,44,92,0.08)", borderColor: "rgba(236,44,92,0.3)" }}
+                style={{ backgroundColor: "rgba(193,79,33,0.08)", borderColor: "rgba(193,79,33,0.3)" }}
               >
                 <span className="text-sm font-medium text-foreground mr-2">
                   {selected.size} {selected.size === 1 ? "lead selecionado" : "leads selecionados"}
@@ -535,7 +535,7 @@ function LeadsList() {
                     <tr>
                       <td colSpan={9} className="px-4 py-16">
                         <div className="flex flex-col items-center text-center gap-4">
-                          <div className="h-16 w-16 rounded-full flex items-center justify-center" style={{ backgroundColor: "rgba(236,44,92,0.1)" }}>
+                          <div className="h-16 w-16 rounded-full flex items-center justify-center" style={{ backgroundColor: "rgba(193,79,33,0.1)" }}>
                             <UsersIcon className="h-7 w-7 text-primary" />
                           </div>
                           <div>
