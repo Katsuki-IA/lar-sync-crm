@@ -1,12 +1,14 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Flame, ArrowLeft, Send, Plus, X, Trash2 } from "lucide-react";
+import { Flame, ArrowLeft, Send, Plus, X, Trash2, Pencil } from "lucide-react";
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useCrmUser } from "@/hooks/use-crm-user";
 import { useAllowedEmpresas } from "@/hooks/use-allowed-empresas";
+import { useLeadCustomFields } from "@/hooks/use-lead-custom-fields";
+import { LeadCustomFieldsForm } from "@/components/lead-custom-fields-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -23,6 +25,12 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { LeadTasksCard } from "@/components/lead-tasks-card";
+import {
+  buildCustomFieldValueRows,
+  isCustomFieldValueValid,
+  type LeadCustomFieldValue,
+  type LeadCustomFieldValues,
+} from "@/lib/lead-custom-fields";
 
 export const Route = createFileRoute("/_authenticated/leads/$id")({
   component: LeadDetail,
@@ -38,6 +46,9 @@ function LeadDetail() {
   const [note, setNote] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmText, setConfirmText] = useState("");
+  const [customFieldsOpen, setCustomFieldsOpen] = useState(false);
+  const [customDraft, setCustomDraft] = useState<LeadCustomFieldValues>({});
+  const [customErrors, setCustomErrors] = useState<Record<number, string>>({});
 
   const deleteMut = useMutation({
     mutationFn: async () => {
@@ -50,7 +61,7 @@ function LeadDetail() {
       setConfirmOpen(false);
       navigate({ to: "/leads" });
     },
-    onError: (err: any) => {
+    onError: (err: Error) => {
       toast.error(err.message || "Erro ao excluir lead");
     },
   });
@@ -61,12 +72,94 @@ function LeadDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("crm_leads")
-        .select("id, nome, telefone, email, id_empreendimento, crm_stage_id, crm_assigned_to, lead_quente, qualificado, created_at")
+        .select("id, id_empresa, nome, telefone, email, id_empreendimento, crm_stage_id, crm_assigned_to, lead_quente, qualificado, created_at")
         .eq("id", leadId)
         .single();
       if (error) throw error;
       return data;
     },
+  });
+
+  const { data: customFields = [] } = useLeadCustomFields(lead?.id_empresa ?? me?.id_empresa);
+
+  const { data: customValueRows = [] } = useQuery({
+    enabled: Boolean(leadId),
+    queryKey: ["lead-custom-values", leadId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("crm_lead_custom_values")
+        .select("field_id,valor_texto,valor_opcoes")
+        .eq("lead_id", leadId);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const customValues = customValueRows.reduce<LeadCustomFieldValues>((values, row) => {
+    const field = customFields.find((item) => item.id === row.field_id);
+    if (!field) return values;
+    values[field.id] = field.tipo === "checkbox" ? row.valor_opcoes : row.valor_texto ?? "";
+    return values;
+  }, {});
+
+  function openCustomFields() {
+    setCustomDraft({ ...customValues });
+    setCustomErrors({});
+    setCustomFieldsOpen(true);
+  }
+
+  function updateCustomDraft(fieldId: number, value: LeadCustomFieldValue) {
+    setCustomDraft((current) => ({ ...current, [fieldId]: value }));
+    if (customErrors[fieldId]) {
+      setCustomErrors((current) => ({ ...current, [fieldId]: "" }));
+    }
+  }
+
+  const saveCustomFields = useMutation({
+    mutationFn: async () => {
+      const nextErrors: Record<number, string> = {};
+      for (const field of customFields) {
+        if (field.obrigatorio && !isCustomFieldValueValid(field, customDraft[field.id])) {
+          nextErrors[field.id] = "Campo obrigatório";
+        }
+      }
+      setCustomErrors(nextErrors);
+      if (Object.keys(nextErrors).length > 0) throw new Error("Preencha os campos obrigatórios");
+
+      const rows = buildCustomFieldValueRows(leadId, customFields, customDraft);
+      if (rows.length > 0) {
+        const { error } = await supabase
+          .from("crm_lead_custom_values")
+          .upsert(rows, { onConflict: "lead_id,field_id" });
+        if (error) throw error;
+      }
+
+      const emptyFieldIds = customFields
+        .filter((field) => !rows.some((row) => row.field_id === field.id))
+        .map((field) => field.id);
+      if (emptyFieldIds.length > 0) {
+        const { error } = await supabase
+          .from("crm_lead_custom_values")
+          .delete()
+          .eq("lead_id", leadId)
+          .in("field_id", emptyFieldIds);
+        if (error) throw error;
+      }
+
+      await supabase.from("crm_lead_activities").insert({
+        lead_id: leadId,
+        crm_user_id: me!.id,
+        tipo: "custom_fields",
+        descricao: "Campos personalizados atualizados",
+      });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["lead-custom-values", leadId] });
+      qc.invalidateQueries({ queryKey: ["lead-activities", leadId] });
+      setCustomFieldsOpen(false);
+      toast.success("Campos atualizados");
+    },
+    onError: (error: Error) => toast.error(error.message),
   });
 
   const { data: meta } = useQuery({
@@ -330,8 +423,55 @@ function LeadDetail() {
               <Field label="Criado em" value={lead.created_at ? new Date(lead.created_at).toLocaleString("pt-BR") : "—"} />
             </CardContent>
           </Card>
+
+          {customFields.length > 0 && (
+            <Card className="rounded-2xl">
+              <CardHeader className="flex-row items-center justify-between space-y-0">
+                <CardTitle className="text-base">Campos personalizados</CardTitle>
+                <Button size="icon" variant="ghost" title="Editar campos" onClick={openCustomFields}>
+                  <Pencil className="h-4 w-4" />
+                </Button>
+              </CardHeader>
+              <CardContent className="space-y-4 text-sm">
+                {customFields.map((field) => {
+                  const value = customValues[field.id];
+                  return (
+                    <div key={field.id}>
+                      <div className="text-xs text-muted-foreground">{field.nome}</div>
+                      {Array.isArray(value) && value.length > 0 ? (
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {value.map((option) => <Badge key={option} variant="secondary">{option}</Badge>)}
+                        </div>
+                      ) : (
+                        <div className="mt-0.5">{typeof value === "string" && value ? value : "—"}</div>
+                      )}
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
+
+      <Dialog open={customFieldsOpen} onOpenChange={setCustomFieldsOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader><DialogTitle>Editar campos personalizados</DialogTitle></DialogHeader>
+          <LeadCustomFieldsForm
+            fields={customFields}
+            values={customDraft}
+            errors={customErrors}
+            onChange={updateCustomDraft}
+            disabled={saveCustomFields.isPending}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCustomFieldsOpen(false)}>Cancelar</Button>
+            <Button onClick={() => saveCustomFields.mutate()} disabled={saveCustomFields.isPending}>
+              {saveCustomFields.isPending ? "Salvando..." : "Salvar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent>
@@ -380,6 +520,7 @@ function labelTipo(t: string) {
     case "assignment": return "Atribuição";
     case "tag_add": return "Tag";
     case "tag_remove": return "Tag";
+    case "custom_fields": return "Campos";
     case "meta_resubmission": return "Meta Ads";
     case "system": return "Sistema";
     default: return t;

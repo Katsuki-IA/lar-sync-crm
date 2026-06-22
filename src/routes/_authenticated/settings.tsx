@@ -21,6 +21,7 @@ export const Route = createFileRoute("/_authenticated/settings")({
 const tabs = [
   { to: "/settings/stages", label: "Etapas" },
   { to: "/settings/tags", label: "Tags" },
+  { to: "/settings/custom-fields", label: "Campos do lead" },
   { to: "/settings/users", label: "Usuários" },
 ] as const;
 
@@ -30,7 +31,9 @@ function SettingsLayout() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Configurações</h1>
-        <p className="text-sm text-muted-foreground">Gerencie etapas, tags e usuários da sua empresa.</p>
+        <p className="text-sm text-muted-foreground">
+          Gerencie o cadastro e a operação da sua empresa.
+        </p>
       </div>
       <div className="flex gap-1 border-b border-border">
         {tabs.map((t) => {
@@ -41,7 +44,9 @@ function SettingsLayout() {
               to={t.to}
               className={cn(
                 "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors",
-                active ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground",
+                active
+                  ? "border-primary text-foreground"
+                  : "border-transparent text-muted-foreground hover:text-foreground",
               )}
             >
               {t.label}

@@ -331,6 +331,53 @@ export type Database = {
         }
         Relationships: []
       }
+      crm_lead_custom_fields: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          id: number
+          id_empresa: number
+          nome: string
+          obrigatorio: boolean
+          opcoes: string[]
+          ordem: number
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          id?: number
+          id_empresa: number
+          nome: string
+          obrigatorio?: boolean
+          opcoes?: string[]
+          ordem?: number
+          tipo: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          id?: number
+          id_empresa?: number
+          nome?: string
+          obrigatorio?: boolean
+          opcoes?: string[]
+          ordem?: number
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_lead_custom_fields_id_empresa_fkey"
+            columns: ["id_empresa"]
+            isOneToOne: false
+            referencedRelation: "empresa_dados"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       crm_lead_activities: {
         Row: {
           created_at: string | null
@@ -369,6 +416,51 @@ export type Database = {
           },
           {
             foreignKeyName: "crm_lead_activities_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "crm_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_lead_custom_values: {
+        Row: {
+          created_at: string
+          field_id: number
+          id: number
+          lead_id: number
+          updated_at: string
+          valor_opcoes: string[]
+          valor_texto: string | null
+        }
+        Insert: {
+          created_at?: string
+          field_id: number
+          id?: number
+          lead_id: number
+          updated_at?: string
+          valor_opcoes?: string[]
+          valor_texto?: string | null
+        }
+        Update: {
+          created_at?: string
+          field_id?: number
+          id?: number
+          lead_id?: number
+          updated_at?: string
+          valor_opcoes?: string[]
+          valor_texto?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_lead_custom_values_field_id_fkey"
+            columns: ["field_id"]
+            isOneToOne: false
+            referencedRelation: "crm_lead_custom_fields"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_lead_custom_values_lead_id_fkey"
             columns: ["lead_id"]
             isOneToOne: false
             referencedRelation: "crm_leads"

@@ -6,11 +6,19 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useCrmUser } from "@/hooks/use-crm-user";
 import { useAllowedEmpresas } from "@/hooks/use-allowed-empresas";
+import { useLeadCustomFields } from "@/hooks/use-lead-custom-fields";
+import { LeadCustomFieldsForm } from "@/components/lead-custom-fields-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  buildCustomFieldValueRows,
+  isCustomFieldValueValid,
+  type LeadCustomFieldValue,
+  type LeadCustomFieldValues,
+} from "@/lib/lead-custom-fields";
 
 export const Route = createFileRoute("/_authenticated/leads/new")({
   component: NewLead,
@@ -57,6 +65,7 @@ function maskPhoneGeneric(value: string) {
 function NewLead() {
   const { data: me } = useCrmUser();
   const { data: allowed } = useAllowedEmpresas();
+  const { data: customFields = [] } = useLeadCustomFields(me?.id_empresa);
   const navigate = useNavigate();
   const [countryCode, setCountryCode] = useState("BR");
   const country = COUNTRIES.find((c) => c.code === countryCode) ?? COUNTRIES[0];
@@ -69,6 +78,8 @@ function NewLead() {
     crm_stage_id: "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [customValues, setCustomValues] = useState<LeadCustomFieldValues>({});
+  const [customErrors, setCustomErrors] = useState<Record<number, string>>({});
 
   function validate() {
     const next: Record<string, string> = {};
@@ -84,8 +95,22 @@ function NewLead() {
       if (!emailRe.test(form.email.trim())) next.email = "Email inválido";
     }
     if (!form.id_empreendimento) next.id_empreendimento = "Interesse é obrigatório";
+    const nextCustomErrors: Record<number, string> = {};
+    for (const field of customFields) {
+      if (field.obrigatorio && !isCustomFieldValueValid(field, customValues[field.id])) {
+        nextCustomErrors[field.id] = "Campo obrigatório";
+      }
+    }
     setErrors(next);
-    return Object.keys(next).length === 0;
+    setCustomErrors(nextCustomErrors);
+    return Object.keys(next).length === 0 && Object.keys(nextCustomErrors).length === 0;
+  }
+
+  function updateCustomValue(fieldId: number, value: LeadCustomFieldValue) {
+    setCustomValues((current) => ({ ...current, [fieldId]: value }));
+    if (customErrors[fieldId]) {
+      setCustomErrors((current) => ({ ...current, [fieldId]: "" }));
+    }
   }
 
   const { data: meta } = useQuery({
@@ -144,7 +169,7 @@ function NewLead() {
       // Default stage = first (lowest ordem)
       const defaultStageId = meta?.stages?.[0]?.id ?? null;
       // Default assignee = oldest manager
-      const oldestManager = (meta?.users ?? []).find((u: any) => u.role === "manager");
+      const oldestManager = (meta?.users ?? []).find((user) => user.role === "manager");
       const defaultAssignee = oldestManager?.id ?? me.id;
       const insert = {
         id_empresa: me.id_empresa,
@@ -157,6 +182,17 @@ function NewLead() {
       };
       const { data: lead, error } = await supabase.from("crm_leads").insert(insert).select("id").single();
       if (error) throw error;
+
+      const customRows = buildCustomFieldValueRows(lead.id, customFields, customValues);
+      if (customRows.length > 0) {
+        const { error: customValuesError } = await supabase
+          .from("crm_lead_custom_values")
+          .insert(customRows);
+        if (customValuesError) {
+          await supabase.from("crm_leads").delete().eq("id", lead.id);
+          throw customValuesError;
+        }
+      }
 
       await supabase.from("crm_lead_activities").insert({
         lead_id: lead.id, crm_user_id: me.id, tipo: "system", descricao: "Lead criado via CRM",
@@ -252,6 +288,18 @@ function NewLead() {
                 </Select>
               </Field>
             </div>
+
+            {customFields.length > 0 && (
+              <div className="border-t border-border pt-4">
+                <LeadCustomFieldsForm
+                  fields={customFields}
+                  values={customValues}
+                  errors={customErrors}
+                  onChange={updateCustomValue}
+                  disabled={createMut.isPending}
+                />
+              </div>
+            )}
 
             <div className="flex justify-end gap-2 pt-2">
               <Button type="button" variant="outline" className="rounded-xl" onClick={() => navigate({ to: "/leads" })}>Cancelar</Button>
