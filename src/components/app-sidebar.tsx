@@ -117,7 +117,7 @@ function SidebarGroup({
               )}
               style={
                 active
-                  ? { backgroundColor: "rgba(236,44,92,0.12)" }
+                  ? { backgroundColor: "rgba(193,79,33,0.12)" }
                   : undefined
               }
             >
