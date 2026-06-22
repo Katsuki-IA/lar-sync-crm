@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import katsukiLogo from "@/assets/katsuki-logo.jpg.asset.json";
+import katsukiLogo from "@/assets/katsuki-logo.png.asset.json";
 
 export const Route = createFileRoute("/privacidade/exclusao-de-dados")({
   head: () => ({
