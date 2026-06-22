@@ -69,8 +69,8 @@ function AuthPage() {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <Card className="w-full max-w-md rounded-2xl shadow-sm">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-3 h-14 w-14 overflow-hidden rounded-2xl ring-1 ring-white/10 shadow-lg shadow-primary/30">
-            <img src={katsukiLogo.url} alt="Katsuki" className="h-full w-full object-cover" />
+          <div className="mx-auto mb-3 h-16 w-auto overflow-hidden">
+            <img src={katsukiLogo.url} alt="Katsuki" className="h-full w-auto object-contain" />
           </div>
           <CardTitle className="text-2xl tracking-[0.2em]">KATSUKI</CardTitle>
           <CardDescription>Entre na sua conta para continuar</CardDescription>

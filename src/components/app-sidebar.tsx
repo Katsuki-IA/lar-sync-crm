@@ -47,8 +47,8 @@ export function AppSidebar() {
         className="h-16 flex items-center gap-3 px-5 border-b"
         style={{ borderColor: "var(--border)" }}
       >
-        <div className="h-9 w-9 rounded-xl overflow-hidden shadow-lg shadow-primary/30 ring-1 ring-white/10">
-          <img src={katsukiLogo.url} alt="Katsuki" className="h-full w-full object-cover" />
+        <div className="h-10 w-auto overflow-hidden">
+          <img src={katsukiLogo.url} alt="Katsuki" className="h-full w-auto object-contain" />
         </div>
         <div className="flex flex-col leading-tight">
           <span className="font-bold text-[15px] text-foreground tracking-[0.18em]">KATSUKI</span>
