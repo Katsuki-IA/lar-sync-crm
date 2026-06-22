@@ -78,7 +78,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="flex-1 flex flex-col min-w-0">
         <header
           className="h-14 border-b flex items-center justify-between px-4 md:px-6"
-          style={{ backgroundColor: "var(--sidebar)", borderColor: "var(--border)" }}
+          style={{ backgroundColor: "#FFFFFF", borderColor: "var(--border)", boxShadow: "var(--shadow-sm)" }}
         >
           {/* Breadcrumbs */}
           <nav className="flex items-center gap-1.5 text-sm min-w-0">
