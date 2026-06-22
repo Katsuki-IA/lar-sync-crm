@@ -1,5 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-const katsukiLogo = { url: "/katsuki-symbol.png" };
 
 export const Route = createFileRoute("/privacidade/exclusao-de-dados")({
   head: () => ({
@@ -15,10 +14,6 @@ function ExclusaoDeDadosPage() {
   return (
     <div className="flex min-h-screen flex-col items-center bg-background px-4 py-12 text-foreground">
       <div className="w-full max-w-2xl">
-        <div className="mb-8 flex items-center">
-          <img src={katsukiLogo.url} alt="Katsuki IA" className="h-14 w-auto object-contain" />
-        </div>
-
         <h1 className="mb-6 text-3xl font-bold tracking-tight">Solicitação de Exclusão de Dados</h1>
 
         <div className="space-y-6 text-muted-foreground leading-relaxed">
