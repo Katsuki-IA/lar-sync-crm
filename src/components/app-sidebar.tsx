@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { useCrmUser } from "@/hooks/use-crm-user";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { getInitials, colorFromString } from "@/lib/lead-visuals";
-const katsukiLogo = { url: "/katsuki-symbol.png" };
+
 
 type Item = { title: string; url: string; match: string; icon: typeof LayoutDashboard };
 
