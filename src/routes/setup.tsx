@@ -57,9 +57,7 @@ function SetupPage() {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <Card className="w-full max-w-md rounded-2xl shadow-sm">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-3 h-24 w-auto overflow-hidden">
-            <img src={katsukiLogo.url} alt="Katsuki" className="h-full w-auto object-contain" />
-          </div>
+          <img src={katsukiLogo.url} alt="Katsuki IA" className="mx-auto mb-3 h-auto w-56 object-contain" />
           <CardTitle className="text-2xl">Primeiro Acesso</CardTitle>
           <CardDescription>
             Crie a conta do super administrador para começar a usar o Katsuki

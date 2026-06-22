@@ -7,7 +7,7 @@ import { hasAnyCrmUser } from "@/lib/setup.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 const katsukiLogo = { url: "/katsuki-logo.png" };
 
@@ -69,9 +69,7 @@ function AuthPage() {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <Card className="w-full max-w-md rounded-2xl shadow-sm">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-3 h-24 w-auto overflow-hidden">
-            <img src={katsukiLogo.url} alt="Katsuki" className="h-full w-auto object-contain" />
-          </div>
+          <img src={katsukiLogo.url} alt="Katsuki IA" className="mx-auto mb-3 h-auto w-56 object-contain" />
           <CardDescription>Entre na sua conta para continuar</CardDescription>
         </CardHeader>
         <CardContent>
