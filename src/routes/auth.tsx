@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
+import katsukiLogo from "@/assets/katsuki-logo.png.asset.json";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 
@@ -68,6 +69,7 @@ function AuthPage() {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <Card className="w-full max-w-md rounded-2xl shadow-sm">
         <CardHeader className="text-center">
+          <img src={katsukiLogo.url} alt="Katsuki" className="mx-auto mb-4 h-auto w-56" />
           <CardDescription>Entre na sua conta para continuar</CardDescription>
         </CardHeader>
         <CardContent>
