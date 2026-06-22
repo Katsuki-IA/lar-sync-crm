@@ -195,7 +195,7 @@ function KanbanColumn({ stage, leads }: { stage: { id: number; nome: string; cor
     <div
       ref={setNodeRef}
       className="w-72 shrink-0 rounded-xl border flex flex-col"
-      style={{ backgroundColor: "#1A1D27", borderColor: "#2A2D3A" }}
+      style={{ backgroundColor: "#14110D", borderColor: "#2A2520" }}
     >
       <div
         className="px-4 py-3 rounded-t-xl flex items-center justify-between border-b"
@@ -229,7 +229,7 @@ function DraggableCard({ lead, color }: { lead: LeadCard; color: string }) {
     opacity: isDragging ? 0.6 : 1,
     borderLeft: `3px solid ${color}`,
     boxShadow: "0 2px 8px rgba(0,0,0,0.4)",
-    backgroundColor: "#1A1D27",
+    backgroundColor: "#14110D",
   };
   return (
     <div
