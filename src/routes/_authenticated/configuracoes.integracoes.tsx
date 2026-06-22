@@ -27,6 +27,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { RdStationIntegrationCard } from "@/components/rd-station-integration-card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -503,6 +504,7 @@ function IntegracoesPage() {
             </div>
           </div>
         </Card>
+        <RdStationIntegrationCard />
       </div>
 
       <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>

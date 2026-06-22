@@ -16,6 +16,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PrivacidadeExclusaoDeDadosRouteImport } from './routes/privacidade.exclusao-de-dados'
+import { Route as IntegracoesRdRouteImport } from './routes/integracoes_.rd'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedRelatoriosRouteImport } from './routes/_authenticated/relatorios'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
@@ -72,6 +73,11 @@ const PrivacidadeExclusaoDeDadosRoute =
     path: '/privacidade/exclusao-de-dados',
     getParentRoute: () => rootRouteImport,
   } as any)
+const IntegracoesRdRoute = IntegracoesRdRouteImport.update({
+  id: '/integracoes_/rd',
+  path: '/integracoes/rd',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -194,6 +200,7 @@ export interface FileRoutesByFullPath {
   '/profile': typeof AuthenticatedProfileRoute
   '/relatorios': typeof AuthenticatedRelatoriosRoute
   '/settings': typeof AuthenticatedSettingsRouteWithChildren
+  '/integracoes/rd': typeof IntegracoesRdRoute
   '/privacidade/exclusao-de-dados': typeof PrivacidadeExclusaoDeDadosRoute
   '/admin/empresas': typeof AuthenticatedAdminEmpresasRoute
   '/admin/notifications': typeof AuthenticatedAdminNotificationsRoute
@@ -220,6 +227,7 @@ export interface FileRoutesByTo {
   '/kanban': typeof AuthenticatedKanbanRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/relatorios': typeof AuthenticatedRelatoriosRoute
+  '/integracoes/rd': typeof IntegracoesRdRoute
   '/privacidade/exclusao-de-dados': typeof PrivacidadeExclusaoDeDadosRoute
   '/admin/empresas': typeof AuthenticatedAdminEmpresasRoute
   '/admin/notifications': typeof AuthenticatedAdminNotificationsRoute
@@ -250,6 +258,7 @@ export interface FileRoutesById {
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/_authenticated/relatorios': typeof AuthenticatedRelatoriosRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRouteWithChildren
+  '/integracoes_/rd': typeof IntegracoesRdRoute
   '/privacidade/exclusao-de-dados': typeof PrivacidadeExclusaoDeDadosRoute
   '/_authenticated/admin/empresas': typeof AuthenticatedAdminEmpresasRoute
   '/_authenticated/admin/notifications': typeof AuthenticatedAdminNotificationsRoute
@@ -280,6 +289,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/relatorios'
     | '/settings'
+    | '/integracoes/rd'
     | '/privacidade/exclusao-de-dados'
     | '/admin/empresas'
     | '/admin/notifications'
@@ -306,6 +316,7 @@ export interface FileRouteTypes {
     | '/kanban'
     | '/profile'
     | '/relatorios'
+    | '/integracoes/rd'
     | '/privacidade/exclusao-de-dados'
     | '/admin/empresas'
     | '/admin/notifications'
@@ -335,6 +346,7 @@ export interface FileRouteTypes {
     | '/_authenticated/profile'
     | '/_authenticated/relatorios'
     | '/_authenticated/settings'
+    | '/integracoes_/rd'
     | '/privacidade/exclusao-de-dados'
     | '/_authenticated/admin/empresas'
     | '/_authenticated/admin/notifications'
@@ -359,6 +371,7 @@ export interface RootRouteChildren {
   IntegracoesRoute: typeof IntegracoesRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   SetupRoute: typeof SetupRoute
+  IntegracoesRdRoute: typeof IntegracoesRdRoute
   PrivacidadeExclusaoDeDadosRoute: typeof PrivacidadeExclusaoDeDadosRoute
 }
 
@@ -411,6 +424,13 @@ declare module '@tanstack/react-router' {
       path: '/privacidade/exclusao-de-dados'
       fullPath: '/privacidade/exclusao-de-dados'
       preLoaderRoute: typeof PrivacidadeExclusaoDeDadosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/integracoes_/rd': {
+      id: '/integracoes_/rd'
+      path: '/integracoes/rd'
+      fullPath: '/integracoes/rd'
+      preLoaderRoute: typeof IntegracoesRdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/settings': {
@@ -634,6 +654,7 @@ const rootRouteChildren: RootRouteChildren = {
   IntegracoesRoute: IntegracoesRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   SetupRoute: SetupRoute,
+  IntegracoesRdRoute: IntegracoesRdRoute,
   PrivacidadeExclusaoDeDadosRoute: PrivacidadeExclusaoDeDadosRoute,
 }
 export const routeTree = rootRouteImport

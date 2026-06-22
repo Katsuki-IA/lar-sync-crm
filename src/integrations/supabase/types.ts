@@ -930,6 +930,151 @@ export type Database = {
           },
         ]
       }
+      crm_rd_connections: {
+        Row: {
+          access_token: string | null
+          active: boolean
+          connected_at: string
+          created_at: string
+          default_id_empreendimento: number | null
+          id: string
+          id_empresa: number
+          last_error: string | null
+          last_event_at: string | null
+          platform_account_id: string | null
+          refresh_token: string | null
+          token_expires_at: string | null
+          updated_at: string
+          webhook_secret_hash: string | null
+          webhook_uuid: string | null
+        }
+        Insert: {
+          access_token?: string | null
+          active?: boolean
+          connected_at?: string
+          created_at?: string
+          default_id_empreendimento?: number | null
+          id?: string
+          id_empresa: number
+          last_error?: string | null
+          last_event_at?: string | null
+          platform_account_id?: string | null
+          refresh_token?: string | null
+          token_expires_at?: string | null
+          updated_at?: string
+          webhook_secret_hash?: string | null
+          webhook_uuid?: string | null
+        }
+        Update: {
+          access_token?: string | null
+          active?: boolean
+          connected_at?: string
+          created_at?: string
+          default_id_empreendimento?: number | null
+          id?: string
+          id_empresa?: number
+          last_error?: string | null
+          last_event_at?: string | null
+          platform_account_id?: string | null
+          refresh_token?: string | null
+          token_expires_at?: string | null
+          updated_at?: string
+          webhook_secret_hash?: string | null
+          webhook_uuid?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_rd_connections_default_id_empreendimento_fkey"
+            columns: ["default_id_empreendimento"]
+            isOneToOne: false
+            referencedRelation: "empreendimento"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_rd_connections_id_empresa_fkey"
+            columns: ["id_empresa"]
+            isOneToOne: true
+            referencedRelation: "empresa_dados"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_rd_events: {
+        Row: {
+          connection_id: string | null
+          contact_email: string | null
+          contact_uuid: string | null
+          crm_lead_id: number | null
+          error: string | null
+          event_identifier: string | null
+          event_key: string
+          event_timestamp: string | null
+          event_type: string
+          id: string
+          id_empresa: number
+          processed_at: string | null
+          raw_data: Json
+          received_at: string
+          status: string
+        }
+        Insert: {
+          connection_id?: string | null
+          contact_email?: string | null
+          contact_uuid?: string | null
+          crm_lead_id?: number | null
+          error?: string | null
+          event_identifier?: string | null
+          event_key: string
+          event_timestamp?: string | null
+          event_type: string
+          id?: string
+          id_empresa: number
+          processed_at?: string | null
+          raw_data: Json
+          received_at?: string
+          status?: string
+        }
+        Update: {
+          connection_id?: string | null
+          contact_email?: string | null
+          contact_uuid?: string | null
+          crm_lead_id?: number | null
+          error?: string | null
+          event_identifier?: string | null
+          event_key?: string
+          event_timestamp?: string | null
+          event_type?: string
+          id?: string
+          id_empresa?: number
+          processed_at?: string | null
+          raw_data?: Json
+          received_at?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_rd_events_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "crm_rd_connections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_rd_events_crm_lead_id_fkey"
+            columns: ["crm_lead_id"]
+            isOneToOne: false
+            referencedRelation: "crm_leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_rd_events_id_empresa_fkey"
+            columns: ["id_empresa"]
+            isOneToOne: false
+            referencedRelation: "empresa_dados"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       crm_metricas_sync_control: {
         Row: {
           atendimento_ia: number

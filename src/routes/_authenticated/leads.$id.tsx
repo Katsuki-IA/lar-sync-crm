@@ -524,6 +524,7 @@ function labelTipo(t: string) {
     case "tag_remove": return "Tag";
     case "custom_fields": return "Campos";
     case "meta_resubmission": return "Meta Ads";
+    case "rd_conversion": return "RD Station";
     case "system": return "Sistema";
     default: return t;
   }
