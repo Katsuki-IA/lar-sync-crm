@@ -999,6 +999,64 @@ export type Database = {
           },
         ]
       }
+      crm_rd_source_mappings: {
+        Row: {
+          active: boolean
+          connection_id: string
+          created_at: string
+          event_identifier: string
+          id: string
+          id_empresa: number
+          id_empreendimento: number | null
+          last_seen_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          connection_id: string
+          created_at?: string
+          event_identifier: string
+          id?: string
+          id_empresa: number
+          id_empreendimento?: number | null
+          last_seen_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          connection_id?: string
+          created_at?: string
+          event_identifier?: string
+          id?: string
+          id_empresa?: number
+          id_empreendimento?: number | null
+          last_seen_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_rd_source_mappings_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "crm_rd_connections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_rd_source_mappings_id_empresa_fkey"
+            columns: ["id_empresa"]
+            isOneToOne: false
+            referencedRelation: "empresa_dados"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_rd_source_mappings_id_empreendimento_fkey"
+            columns: ["id_empreendimento"]
+            isOneToOne: false
+            referencedRelation: "empreendimento"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       crm_rd_events: {
         Row: {
           connection_id: string | null
@@ -1012,9 +1070,11 @@ export type Database = {
           event_type: string
           id: string
           id_empresa: number
+          id_empreendimento: number | null
           processed_at: string | null
           raw_data: Json
           received_at: string
+          source_mapping_id: string | null
           status: string
         }
         Insert: {
@@ -1029,9 +1089,11 @@ export type Database = {
           event_type: string
           id?: string
           id_empresa: number
+          id_empreendimento?: number | null
           processed_at?: string | null
           raw_data: Json
           received_at?: string
+          source_mapping_id?: string | null
           status?: string
         }
         Update: {
@@ -1046,9 +1108,11 @@ export type Database = {
           event_type?: string
           id?: string
           id_empresa?: number
+          id_empreendimento?: number | null
           processed_at?: string | null
           raw_data?: Json
           received_at?: string
+          source_mapping_id?: string | null
           status?: string
         }
         Relationships: [
@@ -1071,6 +1135,20 @@ export type Database = {
             columns: ["id_empresa"]
             isOneToOne: false
             referencedRelation: "empresa_dados"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_rd_events_id_empreendimento_fkey"
+            columns: ["id_empreendimento"]
+            isOneToOne: false
+            referencedRelation: "empreendimento"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_rd_events_source_mapping_id_fkey"
+            columns: ["source_mapping_id"]
+            isOneToOne: false
+            referencedRelation: "crm_rd_source_mappings"
             referencedColumns: ["id"]
           },
         ]

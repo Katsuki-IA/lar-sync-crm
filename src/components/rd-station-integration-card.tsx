@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, Settings, Unplug, Webhook } from "lucide-react";
+import { AlertTriangle, Link2, Save, Settings, Unplug, Webhook } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -25,11 +25,18 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   createRdOAuthUrl,
   disconnectRdConnection,
   getRdIntegrationStatus,
+  saveRdSourceMapping,
   saveRdSettings,
 } from "@/lib/rd-oauth.functions";
 
@@ -53,7 +60,9 @@ export function RdStationIntegrationCard() {
   const [empreendimentoId, setEmpreendimentoId] = useState("");
   const [connecting, setConnecting] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [savingSource, setSavingSource] = useState<string | null>(null);
   const [disconnecting, setDisconnecting] = useState(false);
+  const [sourceSelections, setSourceSelections] = useState<Record<string, string>>({});
   const { data, isLoading } = useQuery({
     queryKey: ["rd-integration-status"],
     queryFn: getRdIntegrationStatus,
@@ -71,6 +80,18 @@ export function RdStationIntegrationCard() {
       setEmpreendimentoId(String(data.connection.default_id_empreendimento));
     }
   }, [data?.connection?.default_id_empreendimento, manageOpen]);
+
+  useEffect(() => {
+    if (!data?.sources) return;
+    setSourceSelections(
+      Object.fromEntries(
+        data.sources.map((source) => [
+          source.event_identifier,
+          source.id_empreendimento ? String(source.id_empreendimento) : "",
+        ]),
+      ),
+    );
+  }, [data?.sources]);
 
   useEffect(() => {
     const handler = async (event: MessageEvent) => {
@@ -134,6 +155,31 @@ export function RdStationIntegrationCard() {
     }
   }
 
+  async function saveSourceMapping(eventIdentifier: string) {
+    const selectedId = Number(sourceSelections[eventIdentifier]);
+    if (!selectedId) {
+      toast.error("Selecione o empreendimento desta conversão");
+      return;
+    }
+    try {
+      setSavingSource(eventIdentifier);
+      const result = await saveRdSourceMapping(eventIdentifier, selectedId);
+      await qc.invalidateQueries({ queryKey: ["rd-integration-status"] });
+      toast.success("Vínculo salvo", {
+        description: result.reprocessed
+          ? `${result.reprocessed} conversão(ões) pendente(s) processada(s).`
+          : "As próximas conversões usarão este empreendimento.",
+      });
+      if (result.failed) {
+        toast.warning(`${result.failed} conversão(ões) não puderam ser processadas`);
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Falha ao salvar vínculo");
+    } finally {
+      setSavingSource(null);
+    }
+  }
+
   async function disconnect() {
     try {
       setDisconnecting(true);
@@ -154,7 +200,10 @@ export function RdStationIntegrationCard() {
 
   return (
     <>
-      <Card className="p-5" style={{ backgroundColor: "var(--surface)", borderColor: "var(--border)" }}>
+      <Card
+        className="p-5"
+        style={{ backgroundColor: "var(--surface)", borderColor: "var(--border)" }}
+      >
         <div className="flex items-start gap-4">
           <div className="h-12 w-12 rounded-xl flex items-center justify-center shrink-0 bg-red-50">
             <Webhook className="h-6 w-6 text-red-500" />
@@ -177,17 +226,30 @@ export function RdStationIntegrationCard() {
             </p>
             {connected ? (
               <p className="mt-2 text-xs text-muted-foreground">
-                {data?.summary.processed ?? 0} lead(s) processado(s) · último evento {formatDate(data?.connection?.last_event_at ?? null)}
+                {data?.summary.processed ?? 0} processado(s)
+                {(data?.summary.pending ?? 0) > 0
+                  ? ` · ${data?.summary.pending} aguardando vínculo`
+                  : ""}
+                {` · último evento ${formatDate(data?.connection?.last_event_at ?? null)}`}
               </p>
             ) : null}
             <div className="mt-4 flex flex-wrap gap-2">
               {connected ? (
-                <Button variant="outline" size="sm" className="gap-2" onClick={() => setManageOpen(true)}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => setManageOpen(true)}
+                >
                   <Settings className="h-4 w-4" />
                   Acessar
                 </Button>
               ) : (
-                <Button size="sm" className="gap-2 bg-red-500 text-white hover:bg-red-600" onClick={() => setConnectOpen(true)}>
+                <Button
+                  size="sm"
+                  className="gap-2 bg-red-500 text-white hover:bg-red-600"
+                  onClick={() => setConnectOpen(true)}
+                >
                   <Webhook className="h-4 w-4" />
                   Conectar RD Station
                 </Button>
@@ -202,22 +264,29 @@ export function RdStationIntegrationCard() {
           <DialogHeader>
             <DialogTitle>Conectar RD Station Marketing</DialogTitle>
             <DialogDescription>
-              Escolha onde os novos leads serão cadastrados. A conta RD será autorizada na etapa seguinte.
+              Escolha o destino das conversões sem identificador. Depois da conexão, cada formulário
+              ou LP poderá ter seu próprio empreendimento.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2 py-2">
             <Label>Empreendimento padrão</Label>
             <Select value={empreendimentoId} onValueChange={setEmpreendimentoId}>
-              <SelectTrigger><SelectValue placeholder="Selecionar empreendimento" /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecionar empreendimento" />
+              </SelectTrigger>
               <SelectContent>
                 {data?.empreendimentos.map((item) => (
-                  <SelectItem key={item.id} value={String(item.id)}>{item.nome}</SelectItem>
+                  <SelectItem key={item.id} value={String(item.id)}>
+                    {item.nome}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setConnectOpen(false)}>Cancelar</Button>
+            <Button variant="outline" onClick={() => setConnectOpen(false)}>
+              Cancelar
+            </Button>
             <Button onClick={startOAuth} disabled={connecting || !empreendimentoId}>
               {connecting ? "Aguardando autorização..." : "Continuar com RD Station"}
             </Button>
@@ -226,11 +295,12 @@ export function RdStationIntegrationCard() {
       </Dialog>
 
       <Dialog open={manageOpen} onOpenChange={setManageOpen}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Conexão RD Station</DialogTitle>
             <DialogDescription>
-              Conta {data?.connection?.platform_account_id ?? "conectada"} · desde {formatDate(data?.connection?.connected_at ?? null)}
+              Conta {data?.connection?.platform_account_id ?? "conectada"} · desde{" "}
+              {formatDate(data?.connection?.connected_at ?? null)}
             </DialogDescription>
           </DialogHeader>
 
@@ -242,21 +312,26 @@ export function RdStationIntegrationCard() {
           ) : null}
 
           <div className="space-y-2">
-            <Label>Empreendimento padrão</Label>
+            <Label>Empreendimento para conversões sem identificador</Label>
             <Select value={empreendimentoId} onValueChange={setEmpreendimentoId}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 {data?.empreendimentos.map((item) => (
-                  <SelectItem key={item.id} value={String(item.id)}>{item.nome}</SelectItem>
+                  <SelectItem key={item.id} value={String(item.id)}>
+                    {item.nome}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {[
               ["Recebidos", data?.summary.total ?? 0],
               ["Processados", data?.summary.processed ?? 0],
+              ["Aguardando vínculo", data?.summary.pending ?? 0],
               ["Falhas", data?.summary.failed ?? 0],
             ].map(([label, value]) => (
               <div key={label} className="rounded-md border border-border p-3">
@@ -267,17 +342,72 @@ export function RdStationIntegrationCard() {
           </div>
 
           <div className="space-y-2">
-            <h4 className="text-sm font-medium">Conversões identificadas</h4>
+            <h4 className="text-sm font-medium">Formulários e landing pages</h4>
             {data?.sources.length ? (
-              <div className="overflow-hidden rounded-md border border-border">
+              <div className="divide-y divide-border overflow-hidden rounded-md border border-border">
                 {data.sources.map((source) => (
-                  <div key={source.event_identifier} className="flex items-center justify-between gap-4 border-b border-border px-3 py-2 last:border-0">
-                    <div className="min-w-0">
-                      <div className="truncate text-sm font-medium">{source.event_identifier}</div>
-                      <div className="text-xs text-muted-foreground">Último envio: {formatDate(source.last_received_at)}</div>
+                  <div key={source.event_identifier} className="space-y-3 p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <Link2 className="h-4 w-4 shrink-0 text-muted-foreground" />
+                          <div className="truncate text-sm font-medium">
+                            {source.event_identifier}
+                          </div>
+                        </div>
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          {source.total} recebida(s) · {source.processed} processada(s)
+                          {source.pending ? ` · ${source.pending} aguardando` : ""}
+                        </div>
+                      </div>
+                      <Badge variant={source.id_empreendimento ? "secondary" : "destructive"}>
+                        {source.id_empreendimento ? "Configurado" : "Pendente"}
+                      </Badge>
                     </div>
-                    <div className="text-xs text-muted-foreground whitespace-nowrap">
-                      {source.processed}/{source.total} processados
+                    {source.uses_default ? (
+                      <p className="text-xs text-muted-foreground">
+                        Usa o empreendimento padrão configurado acima.
+                      </p>
+                    ) : (
+                      <div className="flex flex-col gap-2 sm:flex-row">
+                        <Select
+                          value={sourceSelections[source.event_identifier] ?? ""}
+                          onValueChange={(value) =>
+                            setSourceSelections((current) => ({
+                              ...current,
+                              [source.event_identifier]: value,
+                            }))
+                          }
+                        >
+                          <SelectTrigger className="sm:flex-1">
+                            <SelectValue placeholder="Selecionar empreendimento" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {data.empreendimentos.map((item) => (
+                              <SelectItem key={item.id} value={String(item.id)}>
+                                {item.nome}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Button
+                          variant="outline"
+                          className="gap-2"
+                          disabled={
+                            savingSource === source.event_identifier ||
+                            !sourceSelections[source.event_identifier]
+                          }
+                          onClick={() => saveSourceMapping(source.event_identifier)}
+                        >
+                          <Save className="h-4 w-4" />
+                          {savingSource === source.event_identifier
+                            ? "Salvando..."
+                            : "Salvar vínculo"}
+                        </Button>
+                      </div>
+                    )}
+                    <div className="text-xs text-muted-foreground">
+                      Último envio: {formatDate(source.last_received_at)}
                     </div>
                   </div>
                 ))}
@@ -298,7 +428,8 @@ export function RdStationIntegrationCard() {
                 <AlertDialogHeader>
                   <AlertDialogTitle>Desconectar RD Station?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    O webhook será removido e novas conversões deixarão de entrar. Leads e históricos existentes serão preservados.
+                    O webhook será removido e novas conversões deixarão de entrar. Leads e
+                    históricos existentes serão preservados.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>

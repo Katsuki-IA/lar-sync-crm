@@ -14,13 +14,18 @@ export type RdConnectionStatus = {
 export type RdIntegrationStatus = {
   connection: RdConnectionStatus | null;
   empreendimentos: Array<{ id: number; nome: string }>;
-  summary: { total: number; processed: number; failed: number };
+  summary: { total: number; processed: number; failed: number; pending: number };
   sources: Array<{
     event_identifier: string;
+    mapping_id: string | null;
+    id_empreendimento: number | null;
+    active: boolean;
+    uses_default: boolean;
     total: number;
     processed: number;
     failed: number;
-    last_received_at: string;
+    pending: number;
+    last_received_at: string | null;
   }>;
   recentEvents: Array<{
     id: string;
@@ -29,9 +34,11 @@ export type RdIntegrationStatus = {
     event_timestamp: string | null;
     contact_email: string | null;
     crm_lead_id: number | null;
-    status: "received" | "processed" | "failed" | "ignored";
+    status: "received" | "pending_mapping" | "processed" | "failed" | "ignored";
     error: string | null;
     received_at: string;
+    id_empreendimento: number | null;
+    source_mapping_id: string | null;
   }>;
 };
 
@@ -65,14 +72,19 @@ export function createRdOAuthUrl(empreendimentoId: number) {
 }
 
 export function exchangeRdCode(data: { code: string; state: string }) {
-  return invokeRdFunction<{ ok: true; connection: RdConnectionStatus }>(
-    "rd-oauth-exchange",
-    data,
-  );
+  return invokeRdFunction<{ ok: true; connection: RdConnectionStatus }>("rd-oauth-exchange", data);
 }
 
 export function saveRdSettings(empreendimentoId: number) {
   return invokeRdFunction<{ ok: true }>("rd-settings-save", { empreendimentoId });
+}
+
+export function saveRdSourceMapping(eventIdentifier: string, empreendimentoId: number) {
+  return invokeRdFunction<{
+    ok: true;
+    reprocessed: number;
+    failed: number;
+  }>("rd-source-mapping-save", { eventIdentifier, empreendimentoId });
 }
 
 export function disconnectRdConnection() {
