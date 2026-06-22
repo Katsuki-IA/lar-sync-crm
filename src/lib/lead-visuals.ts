@@ -8,8 +8,8 @@ export function getInitials(name?: string | null, fallback = "?"): string {
 }
 
 const AVATAR_COLORS = [
-  "#F97316", "#3B82F6", "#8B5CF6", "#10B981", "#EF4444",
-  "#F59E0B", "#06B6D4", "#EC4899", "#84CC16", "#6366F1",
+  "#C14F21", "#E68F6A", "#F2B9A3", "#2D7D52", "#C0392B",
+  "#B07D1A", "#2471A3", "#7A3115", "#D96D3E", "#A3421C",
 ];
 
 export function colorFromString(s?: string | null): string {
@@ -22,14 +22,14 @@ export function colorFromString(s?: string | null): string {
 /** Map common stage names → semantic color. Falls back to provided color or orange. */
 export function stageColor(name?: string | null, fallback?: string | null): string {
   const n = (name ?? "").toLowerCase();
-  if (/perd/.test(n)) return "#EF4444";
-  if (/fech|ganh|venda/.test(n)) return "#10B981";
-  if (/propost|corretor/.test(n)) return "#F97316";
-  if (/visit/.test(n)) return "#8B5CF6";
-  if (/atend/.test(n)) return "#06B6D4";
-  if (/contat/.test(n)) return "#F59E0B";
-  if (/base/.test(n)) return "#3B82F6";
-  return fallback ?? "#F97316";
+  if (/perd/.test(n)) return "#C0392B";
+  if (/fech|ganh|venda/.test(n)) return "#2D7D52";
+  if (/propost|corretor/.test(n)) return "#C14F21";
+  if (/visit/.test(n)) return "#7A3115";
+  if (/atend/.test(n)) return "#2471A3";
+  if (/contat/.test(n)) return "#B07D1A";
+  if (/base/.test(n)) return "#E68F6A";
+  return fallback ?? "#C14F21";
 }
 
 export function relativeTime(iso?: string | null): string {

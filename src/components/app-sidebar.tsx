@@ -42,7 +42,18 @@ export function AppSidebar() {
       className="hidden md:flex flex-col text-sidebar-foreground border-r"
       style={{ width: 240, backgroundColor: "var(--sidebar)", borderColor: "var(--border)" }}
     >
-      {/* Nav */}
+      <div
+        className="flex items-center px-4 border-b"
+        style={{ height: 56, borderColor: "var(--border)" }}
+      >
+        <img
+          src="/katsuki-logo.svg"
+          alt="Katsuki"
+          className="object-contain"
+          style={{ height: 32, width: "auto" }}
+        />
+      </div>
+
       <nav className="flex-1 overflow-y-auto px-3 py-4">
         <SidebarGroup label="Principal" items={mainItems} pathname={pathname} />
         {!!adminItems.length && (
@@ -103,14 +114,14 @@ function SidebarGroup({
               )}
               style={
                 active
-                  ? { backgroundColor: "rgba(193,79,33,0.12)" }
+                  ? { backgroundColor: "var(--sidebar-active-bg)" }
                   : undefined
               }
             >
               {active && (
                 <span
                   className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-[3px] rounded-r"
-                  style={{ backgroundColor: "#C14F21" }}
+                  style={{ backgroundColor: "var(--primary)" }}
                 />
               )}
               <item.icon className={cn("h-4 w-4", active ? "text-primary" : "")} />

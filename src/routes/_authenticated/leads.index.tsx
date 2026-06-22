@@ -303,7 +303,7 @@ function LeadsList() {
           <div className="flex items-center gap-2">
             {funnels.length > 0 && (
               <Select value={funnelId ? String(funnelId) : ""} onValueChange={(v) => { setFunnelId(Number(v)); setPage(0); setStage("all"); }}>
-                <SelectTrigger className="h-9 w-[200px] bg-background/40">
+                <SelectTrigger className="h-9 w-[200px] bg-white">
                   <SelectValue placeholder="Funil" />
                 </SelectTrigger>
                 <SelectContent>
@@ -340,7 +340,7 @@ function LeadsList() {
           <div className="relative flex-1 min-w-[220px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
             <Input
-              className="pl-9 h-10 bg-background/40 border-border/80"
+              className="pl-9 h-10 bg-white border-border/80"
               placeholder="Buscar por nome ou telefone..."
               value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(0); }}
@@ -348,7 +348,7 @@ function LeadsList() {
           </div>
           <div
             className="flex items-center rounded-lg border p-1 gap-1"
-            style={{ backgroundColor: "#1A1D27", borderColor: "#2A2D3A" }}
+            style={{ backgroundColor: "#FFFFFF", borderColor: "var(--border)" }}
           >
             <button
               onClick={() => setView("list")}
@@ -380,7 +380,7 @@ function LeadsList() {
         {/* Filter bar */}
         <div
           className="rounded-xl border p-3 space-y-3"
-          style={{ backgroundColor: "#1A1D27", borderColor: "#2A2D3A" }}
+          style={{ backgroundColor: "#FFFFFF", borderColor: "var(--border)" }}
         >
           <div className="flex flex-wrap items-end gap-3">
             <LabeledFilter label="Estágio">
@@ -404,7 +404,7 @@ function LeadsList() {
                     <Button
                       variant="outline"
                       className={cn(
-                        "h-9 w-[125px] justify-start text-left font-normal text-xs bg-background/40 border-[#2A2D3A] hover:bg-background/60",
+                        "h-9 w-[125px] justify-start text-left font-normal text-xs bg-white border-border hover:bg-surface",
                         !dateFrom && "text-muted-foreground"
                       )}
                     >
@@ -428,7 +428,7 @@ function LeadsList() {
                     <Button
                       variant="outline"
                       className={cn(
-                        "h-9 w-[125px] justify-start text-left font-normal text-xs bg-background/40 border-[#2A2D3A] hover:bg-background/60",
+                        "h-9 w-[125px] justify-start text-left font-normal text-xs bg-white border-border hover:bg-surface",
                         !dateTo && "text-muted-foreground"
                       )}
                     >
@@ -451,7 +451,7 @@ function LeadsList() {
           </div>
 
           {(activeChips.length > 0 || search) && (
-            <div className="flex flex-wrap items-center gap-2 pt-2 border-t" style={{ borderColor: "#2A2D3A" }}>
+            <div className="flex flex-wrap items-center gap-2 pt-2 border-t" style={{ borderColor: "var(--border)" }}>
               {search && (
                 <Chip label={`Busca: "${search}"`} onClear={() => { setSearch(""); setPage(0); }} />
               )}
@@ -499,11 +499,11 @@ function LeadsList() {
             {/* Table */}
             <div
               className="rounded-xl border overflow-hidden group/table"
-              style={{ backgroundColor: "#1A1D27", borderColor: "#2A2D3A" }}
+              style={{ backgroundColor: "#FFFFFF", borderColor: "var(--border)" }}
             >
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b" style={{ borderColor: "#2A2D3A" }}>
+                  <tr className="border-b" style={{ borderColor: "var(--border)" }}>
                     <th className="w-10 pl-4">
                       <div className={cn("transition-opacity", selectionMode ? "opacity-100" : "opacity-0 group-hover/table:opacity-100")}>
                         <Checkbox
@@ -525,7 +525,7 @@ function LeadsList() {
                 </thead>
                 <tbody>
                   {isLoading && Array.from({ length: 6 }).map((_, i) => (
-                    <tr key={i} className="border-b" style={{ borderColor: "#2A2D3A" }}>
+                    <tr key={i} className="border-b" style={{ borderColor: "var(--border)" }}>
                       {Array.from({ length: 9 }).map((_, j) => (
                         <td key={j} className="px-4 py-4"><Skeleton className="h-5 w-full max-w-[160px]" /></td>
                       ))}
@@ -564,10 +564,10 @@ function LeadsList() {
                       <tr
                         key={l.id}
                         className={cn(
-                          "group/row border-b transition-colors hover:bg-white/[0.03]",
-                          isChecked && "bg-white/[0.04]",
+                          "group/row border-b transition-colors hover:bg-[var(--primary-50)]",
+                          isChecked && "bg-[var(--primary-50)]",
                         )}
-                        style={{ borderColor: "#2A2D3A" }}
+                        style={{ borderColor: "var(--border)" }}
                       >
                         <td className="pl-4 w-10">
                           <div className={cn("transition-opacity", isChecked || selectionMode ? "opacity-100" : "opacity-0 group-hover/row:opacity-100")}>
@@ -608,7 +608,7 @@ function LeadsList() {
                             {l.tagIds.map((tid) => {
                               const t = tagMap.get(tid);
                               if (!t) return null;
-                              const c = t.cor ?? "#ec2c5c";
+                              const c = t.cor ?? "#C14F21";
                               return (
                                 <span
                                   key={tid}
@@ -817,7 +817,7 @@ function LabeledFilter({ label, children }: { label: string; children: React.Rea
 function Chip({ label, onClear }: { label: string; onClear: () => void }) {
   return (
     <span
-      className="inline-flex items-center gap-1.5 pl-2.5 pr-1 py-1 rounded-full text-xs font-medium border border-border/80 bg-background/40 text-foreground/90"
+      className="inline-flex items-center gap-1.5 pl-2.5 pr-1 py-1 rounded-full text-xs font-medium border border-border/80 bg-white text-foreground/90"
     >
       {label}
       <button
@@ -844,7 +844,7 @@ function FilterSelect({
 }) {
   return (
     <Select value={value} onValueChange={onChange}>
-      <SelectTrigger className="h-9 w-auto min-w-[140px] bg-background/40">
+      <SelectTrigger className="h-9 w-auto min-w-[140px] bg-white">
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
       <SelectContent>

@@ -2,9 +2,7 @@
 @source "../src";
 @import "tw-animate-css";
 
-@custom-variant dark (&:is(.dark *));
-
-/* Ember theme — orange-forward CRM. Inter typography. */
+/* Katsuki — light theme only. Terracota (#C14F21) primary. Inter typography. */
 
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
@@ -48,80 +46,117 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
-  --color-ember-500: #c14f21;
-  --color-ember-400: #f59958;
-  --color-ember-600: #9a3e19;
+  --color-success: var(--success);
+  --color-success-bg: var(--success-bg);
+  --color-warning: var(--warning);
+  --color-warning-bg: var(--warning-bg);
+  --color-danger: var(--danger);
+  --color-danger-bg: var(--danger-bg);
+  --color-info: var(--info);
+  --color-info-bg: var(--info-bg);
 }
 
 :root {
-  --radius: 0.75rem;
-  --background: #fffcf8;
-  --foreground: #080705;
-  --card: #ffffff;
-  --card-foreground: #080705;
-  --popover: #ffffff;
-  --popover-foreground: #080705;
-  --primary: #c14f21;
-  --primary-foreground: #fffcf8;
-  --secondary: #f5ede4;
-  --secondary-foreground: #080705;
-  --muted: #f5ede4;
-  --muted-foreground: #6b5e52;
-  --accent: #fbe7d4;
-  --accent-foreground: #c14f21;
-  --destructive: #c14f21;
-  --destructive-foreground: #fffcf8;
-  --border: #ece2d5;
-  --input: #ece2d5;
-  --ring: #c14f21;
-  --chart-1: #c14f21;
-  --chart-2: #f59958;
-  --chart-3: #9a3e19;
-  --chart-4: #fbc8a0;
-  --chart-5: #6b2e14;
-  --sidebar: #fff8ef;
-  --sidebar-foreground: #6b5e52;
-  --sidebar-primary: #c14f21;
-  --sidebar-primary-foreground: #fffcf8;
-  --sidebar-accent: rgba(193,79,33,0.10);
-  --sidebar-accent-foreground: #c14f21;
-  --sidebar-border: #ece2d5;
-  --sidebar-ring: #c14f21;
-}
+  --radius: 0.625rem;
 
-.dark {
-  --background: #080705;
-  --foreground: #fffcf8;
-  --card: #14110d;
-  --card-foreground: #fffcf8;
-  --popover: #14110d;
-  --popover-foreground: #fffcf8;
-  --primary: #c14f21;
-  --primary-foreground: #fffcf8;
-  --secondary: #1c1814;
-  --secondary-foreground: #fffcf8;
-  --muted: #1c1814;
-  --muted-foreground: #a89684;
-  --accent: #1c1814;
-  --accent-foreground: #f59958;
-  --destructive: #ef4444;
-  --destructive-foreground: #fffcf8;
-  --border: #2a2520;
-  --input: #2a2520;
-  --ring: #c14f21;
-  --chart-1: #c14f21;
-  --chart-2: #f59958;
-  --chart-3: #9a3e19;
-  --chart-4: #fbc8a0;
-  --chart-5: #6b2e14;
-  --sidebar: #0d0b09;
-  --sidebar-foreground: #a89684;
-  --sidebar-primary: #c14f21;
-  --sidebar-primary-foreground: #fffcf8;
-  --sidebar-accent: rgba(193,79,33,0.15);
-  --sidebar-accent-foreground: #f59958;
-  --sidebar-border: #2a2520;
-  --sidebar-ring: #c14f21;
+  /* Backgrounds */
+  --bg: #FFFCF8;
+  --surface: #F5F0EA;
+  --surface-2: #EAE3DA;
+
+  /* Borders */
+  --border: #D4C9BC;
+  --border-strong: #B0A396;
+
+  /* Text */
+  --text: #2E2520;
+  --text-secondary: #6B5C50;
+  --text-muted: #8A7B6E;
+  --text-disabled: #B0A396;
+
+  /* Primary (Terracota) */
+  --primary-50:  #FDF2EE;
+  --primary-100: #F9DDD4;
+  --primary-200: #F2B9A3;
+  --primary-300: #E68F6A;
+  --primary-400: #D96D3E;
+  --primary-500: #C14F21;
+  --primary-600: #A3421C;
+  --primary-700: #7A3115;
+  --primary-800: #52200D;
+  --primary-900: #2B1107;
+
+  --primary: var(--primary-500);
+  --primary-hover: var(--primary-400);
+  --primary-pressed: var(--primary-600);
+  --primary-fg: #FFFFFF;
+  --primary-subtle: var(--primary-50);
+  --primary-subtle-border: var(--primary-200);
+
+  /* Focus */
+  --focus-ring: #C14F21;
+  --focus-ring-offset: #FFFCF8;
+
+  /* Sidebar tokens */
+  --sidebar-bg: #F5F0EA;
+  --sidebar-active-bg: #FDF2EE;
+  --sidebar-active-text: #C14F21;
+  --sidebar-text: #4A3D34;
+
+  /* Semantic */
+  --success: #2D7D52;
+  --success-bg: #EDF7F2;
+  --warning: #B07D1A;
+  --warning-bg: #FDF6E3;
+  --danger: #C0392B;
+  --danger-bg: #FDECEA;
+  --info: #2471A3;
+  --info-bg: #EAF4FB;
+
+  /* Charts */
+  --chart-primary: #C14F21;
+  --chart-secondary: #E68F6A;
+  --chart-tertiary: #F2B9A3;
+  --chart-grid: #EAE3DA;
+  --chart-label: #8A7B6E;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(42, 21, 7, 0.08);
+  --shadow-md: 0 4px 12px rgba(42, 21, 7, 0.10);
+
+  /* shadcn aliases */
+  --background: var(--bg);
+  --foreground: var(--text);
+  --card: var(--surface);
+  --card-foreground: var(--text);
+  --popover: #FFFFFF;
+  --popover-foreground: var(--text);
+  --primary-foreground: var(--primary-fg);
+  --secondary: var(--surface);
+  --secondary-foreground: var(--text);
+  --muted: var(--surface);
+  --muted-foreground: var(--text-secondary);
+  --accent: var(--primary-50);
+  --accent-foreground: var(--primary-700);
+  --destructive: var(--danger);
+  --destructive-foreground: #FFFFFF;
+  --input: var(--border);
+  --ring: var(--focus-ring);
+
+  --chart-1: var(--chart-primary);
+  --chart-2: var(--chart-secondary);
+  --chart-3: var(--chart-tertiary);
+  --chart-4: var(--primary-700);
+  --chart-5: var(--primary-300);
+
+  --sidebar: var(--sidebar-bg);
+  --sidebar-foreground: var(--sidebar-text);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-fg);
+  --sidebar-accent: var(--sidebar-active-bg);
+  --sidebar-accent-foreground: var(--sidebar-active-text);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--focus-ring);
 }
 
 @layer base {
@@ -130,13 +165,12 @@
   }
 
   body {
-    background-color: var(--color-background);
-    color: var(--color-foreground);
+    background-color: var(--bg);
+    color: var(--text);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
   }
 
-  /* Custom scrollbar */
   ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
@@ -145,15 +179,15 @@
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: #ece2d5;
+    background: var(--primary-200);
     border-radius: 8px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #c9b89e;
+    background: var(--primary-300);
   }
   * {
     scrollbar-width: thin;
-    scrollbar-color: #ece2d5 transparent;
+    scrollbar-color: var(--primary-200) transparent;
   }
   input[type="date"]::-webkit-calendar-picker-indicator {
     opacity: 0.7;

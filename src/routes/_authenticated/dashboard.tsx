@@ -59,7 +59,7 @@ function DashboardPage() {
 
       const byStage = (stages ?? []).map((s) => ({
         name: s.nome,
-        cor: s.cor ?? "#ec2c5c",
+        cor: s.cor ?? "var(--primary)",
         total: (leads ?? []).filter((l) => l.crm_stage_id === s.id).length,
       }));
 
@@ -112,7 +112,7 @@ function DashboardPage() {
               <XAxis dataKey="name" stroke="var(--color-muted-foreground)" fontSize={12} />
               <YAxis stroke="var(--color-muted-foreground)" fontSize={12} allowDecimals={false} />
               <Tooltip contentStyle={{ background: "var(--color-card)", border: "1px solid var(--color-border)", borderRadius: 12 }} />
-              <Bar dataKey="total" fill="#ec2c5c" radius={[8, 8, 0, 0]} />
+              <Bar dataKey="total" fill="var(--chart-primary)" radius={[8, 8, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </CardContent>

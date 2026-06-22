@@ -48,7 +48,7 @@ function StagesPage() {
 
   const [editing, setEditing] = useState<Stage | null>(null);
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ nome: "", cor: "#F97316" });
+  const [form, setForm] = useState({ nome: "", cor: "#C14F21" });
 
   // New-funnel dialog
   const [funnelOpen, setFunnelOpen] = useState(false);
@@ -138,7 +138,7 @@ function StagesPage() {
       qc.invalidateQueries({ queryKey: ["crm_stages"] });
       setOpen(false);
       setEditing(null);
-      setForm({ nome: "", cor: "#F97316" });
+      setForm({ nome: "", cor: "#C14F21" });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -211,7 +211,7 @@ function StagesPage() {
           </Dialog>
           <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button onClick={() => { setEditing(null); setForm({ nome: "", cor: "#F97316" }); }} disabled={!selectedFunnel}>
+            <Button onClick={() => { setEditing(null); setForm({ nome: "", cor: "#C14F21" }); }} disabled={!selectedFunnel}>
               <Plus className="h-4 w-4 mr-2" />Nova etapa
             </Button>
           </DialogTrigger>
@@ -251,7 +251,7 @@ function StagesPage() {
               <span className="text-xs text-muted-foreground font-mono w-6">{s.id}</span>
               <div className="flex-1 font-medium text-sm">{s.nome}</div>
               <span className="text-xs text-muted-foreground">Ordem {s.ordem}</span>
-              <Button size="icon" variant="ghost" onClick={() => { setEditing(s); setForm({ nome: s.nome, cor: s.cor ?? "#F97316" }); setOpen(true); }}>
+              <Button size="icon" variant="ghost" onClick={() => { setEditing(s); setForm({ nome: s.nome, cor: s.cor ?? "#C14F21" }); setOpen(true); }}>
                 <Pencil className="h-4 w-4" />
               </Button>
               <Button size="icon" variant="ghost" onClick={() => { if (confirm(`Remover etapa "${s.nome}"?`)) del.mutate(s.id); }}>

@@ -56,6 +56,12 @@ function SetupPage() {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <Card className="w-full max-w-md rounded-2xl shadow-sm">
         <CardHeader className="text-center">
+          <img
+            src="/katsuki-logo.svg"
+            alt="Katsuki"
+            className="mx-auto mb-4 object-contain"
+            style={{ height: 48, width: "auto" }}
+          />
           <CardTitle className="text-2xl">Primeiro Acesso</CardTitle>
           <CardDescription>
             Crie a conta do super administrador para começar a usar o Katsuki
@@ -64,8 +70,11 @@ function SetupPage() {
         <CardContent>
           {generatedPassword ? (
             <div className="space-y-4">
-              <div className="rounded-xl border border-green-200 bg-green-50 p-4 dark:bg-green-900/20">
-                <p className="text-sm font-medium text-green-700 dark:text-green-300">
+              <div
+                className="rounded-xl border p-4"
+                style={{ backgroundColor: "var(--success-bg)", borderColor: "var(--success)" }}
+              >
+                <p className="text-sm font-medium" style={{ color: "var(--success)" }}>
                   Conta criada! Anote a senha temporária abaixo. Ela não será mostrada novamente.
                 </p>
                 <div className="mt-2 rounded-lg bg-background p-3 text-center font-mono text-lg tracking-wide">

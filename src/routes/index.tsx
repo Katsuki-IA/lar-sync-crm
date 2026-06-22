@@ -68,11 +68,11 @@ function MetaOAuthRootCallback() {
   return (
     <div
       className="min-h-screen flex items-center justify-center p-6"
-      style={{ backgroundColor: "#0B0D14" }}
+      style={{ backgroundColor: "var(--bg)" }}
     >
       <div
         className="max-w-sm w-full rounded-xl border p-6 text-center"
-        style={{ backgroundColor: "#13151F", borderColor: "#2A2D3A" }}
+        style={{ backgroundColor: "var(--surface)", borderColor: "var(--border)" }}
       >
         <div className="text-sm font-medium text-foreground mb-2">
           {status === "loading" ? "Processando..." : status === "ok" ? "Sucesso" : "Falha"}

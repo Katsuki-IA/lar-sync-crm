@@ -33,7 +33,7 @@ function TagsPage() {
 
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Tag | null>(null);
-  const [form, setForm] = useState({ nome: "", cor: "#F97316" });
+  const [form, setForm] = useState({ nome: "", cor: "#C14F21" });
 
   const save = useMutation({
     mutationFn: async () => {
@@ -64,7 +64,7 @@ function TagsPage() {
       qc.invalidateQueries({ queryKey: ["crm_tags"] });
       setOpen(false);
       setEditing(null);
-      setForm({ nome: "", cor: "#F97316" });
+      setForm({ nome: "", cor: "#C14F21" });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -87,7 +87,7 @@ function TagsPage() {
         <h2 className="text-lg font-medium">Tags</h2>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button onClick={() => { setEditing(null); setForm({ nome: "", cor: "#F97316" }); }}>
+            <Button onClick={() => { setEditing(null); setForm({ nome: "", cor: "#C14F21" }); }}>
               <Plus className="h-4 w-4 mr-2" />Nova tag
             </Button>
           </DialogTrigger>
@@ -122,7 +122,7 @@ function TagsPage() {
           {tags.map((t) => (
             <div key={t.id} className="flex items-center gap-2 p-2 rounded-lg border border-border bg-card">
               <Badge style={{ background: t.cor, color: "#fff" }} className="border-0">{t.nome}</Badge>
-              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { setEditing(t); setForm({ nome: t.nome, cor: t.cor ?? "#F97316" }); setOpen(true); }}>
+              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { setEditing(t); setForm({ nome: t.nome, cor: t.cor ?? "#C14F21" }); setOpen(true); }}>
                 <Pencil className="h-3 w-3" />
               </Button>
               <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { if (confirm(`Remover tag "${t.nome}"?`)) del.mutate(t.id); }}>
