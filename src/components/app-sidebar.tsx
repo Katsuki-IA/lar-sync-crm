@@ -40,12 +40,12 @@ export function AppSidebar() {
   return (
     <aside
       className="hidden md:flex flex-col text-sidebar-foreground border-r"
-      style={{ width: 240, backgroundColor: "#0D0B09", borderColor: "#2A2520" }}
+      style={{ width: 240, backgroundColor: "var(--sidebar)", borderColor: "var(--border)" }}
     >
       {/* Logo */}
       <div
         className="h-16 flex items-center gap-3 px-5 border-b"
-        style={{ borderColor: "#2A2520" }}
+        style={{ borderColor: "var(--border)" }}
       >
         <div className="h-9 w-9 rounded-xl overflow-hidden shadow-lg shadow-primary/30 ring-1 ring-white/10">
           <img src={katsukiLogo.url} alt="Katsuki" className="h-full w-full object-cover" />
@@ -61,14 +61,14 @@ export function AppSidebar() {
         <SidebarGroup label="Principal" items={mainItems} pathname={pathname} />
         {!!adminItems.length && (
           <>
-            <div className="my-4 h-px" style={{ backgroundColor: "#2A2520" }} />
+            <div className="my-4 h-px" style={{ backgroundColor: "var(--border)" }} />
             <SidebarGroup label="Administração" items={adminItems} pathname={pathname} />
           </>
         )}
       </nav>
 
       {/* User */}
-      <div className="p-3 border-t" style={{ borderColor: "#2A2520" }}>
+      <div className="p-3 border-t" style={{ borderColor: "var(--border)" }}>
         <div className="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-white/[0.04] transition-colors">
           <Avatar className="h-9 w-9">
             <AvatarFallback
