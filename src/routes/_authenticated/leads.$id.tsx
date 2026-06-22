@@ -393,7 +393,7 @@ function LeadDetail() {
                               onClick={() => toggleTagMut.mutate({ tagId: t.id, add: !has })}
                               className={`w-full text-left px-2 py-1.5 rounded-md text-sm hover:bg-muted ${has ? "font-medium" : ""}`}
                             >
-                              <span className="inline-block w-2 h-2 rounded-full mr-2" style={{ backgroundColor: t.cor ?? "#f97316" }} />
+                              <span className="inline-block w-2 h-2 rounded-full mr-2" style={{ backgroundColor: t.cor ?? "#C14F21" }} />
                               {t.nome} {has && "✓"}
                             </button>
                           );
@@ -408,7 +408,7 @@ function LeadDetail() {
                     const t = meta?.tags.find((x) => x.id === tid);
                     if (!t) return null;
                     return (
-                      <Badge key={tid} variant="secondary" className="gap-1" style={{ backgroundColor: `${t.cor ?? "#f97316"}26`, color: t.cor ?? "#f97316" }}>
+                      <Badge key={tid} variant="secondary" className="gap-1" style={{ backgroundColor: `${t.cor ?? "#C14F21"}26`, color: t.cor ?? "#C14F21" }}>
                         {t.nome}
                         <button onClick={() => toggleTagMut.mutate({ tagId: tid, add: false })}>
                           <X className="h-3 w-3" />

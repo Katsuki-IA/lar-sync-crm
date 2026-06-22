@@ -451,14 +451,14 @@ function IntegracoesPage() {
                 ) : connected ? (
                   <Badge
                     className="text-[10px] border-0"
-                    style={{ backgroundColor: "rgba(34,197,94,0.15)", color: "#22c55e" }}
+                    style={{ backgroundColor: "var(--success-bg)", color: "var(--success)" }}
                   >
                     Conectado
                   </Badge>
                 ) : (
                   <Badge
                     className="text-[10px] border-0"
-                    style={{ backgroundColor: "rgba(148,163,184,0.15)", color: "#94a3b8" }}
+                    style={{ backgroundColor: "var(--surface-2)", color: "var(--text-muted)" }}
                   >
                     Não conectado
                   </Badge>
@@ -714,8 +714,8 @@ function IntegracoesPage() {
                             <Badge
                               className="border-0 text-[10px]"
                               style={{
-                                backgroundColor: "rgba(34,197,94,0.15)",
-                                color: "#22c55e",
+                                backgroundColor: "var(--success-bg)",
+                                color: "var(--success)",
                               }}
                             >
                               Concluído
@@ -724,8 +724,8 @@ function IntegracoesPage() {
                           <Badge
                             className="border-0 text-[10px]"
                             style={{
-                              backgroundColor: "rgba(148,163,184,0.15)",
-                              color: "#cbd5e1",
+                              backgroundColor: "var(--surface-2)",
+                              color: "var(--text-secondary)",
                             }}
                           >
                             Pendente
