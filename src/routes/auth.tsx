@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import katsukiLogo from "@/assets/katsuki-logo.png.asset.json";
+const katsukiLogo = { url: "/katsuki-logo.png" };
 
 
 export const Route = createFileRoute("/auth")({
@@ -69,10 +69,9 @@ function AuthPage() {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <Card className="w-full max-w-md rounded-2xl shadow-sm">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-3 h-14 w-14 overflow-hidden rounded-2xl ring-1 ring-white/10 shadow-lg shadow-primary/30">
-            <img src={katsukiLogo.url} alt="Katsuki" className="h-full w-full object-cover" />
+          <div className="mx-auto mb-3 h-24 w-auto overflow-hidden">
+            <img src={katsukiLogo.url} alt="Katsuki" className="h-full w-auto object-contain" />
           </div>
-          <CardTitle className="text-2xl tracking-[0.2em]">KATSUKI</CardTitle>
           <CardDescription>Entre na sua conta para continuar</CardDescription>
         </CardHeader>
         <CardContent>

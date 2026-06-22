@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { useCrmUser } from "@/hooks/use-crm-user";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { getInitials, colorFromString } from "@/lib/lead-visuals";
-import katsukiLogo from "@/assets/katsuki-logo.png.asset.json";
+const katsukiLogo = { url: "/katsuki-logo.png" };
 
 type Item = { title: string; url: string; match: string; icon: typeof LayoutDashboard };
 
@@ -44,15 +44,11 @@ export function AppSidebar() {
     >
       {/* Logo */}
       <div
-        className="h-16 flex items-center gap-3 px-5 border-b"
+        className="h-16 flex items-center px-5 border-b"
         style={{ borderColor: "var(--border)" }}
       >
-        <div className="h-9 w-9 rounded-xl overflow-hidden shadow-lg shadow-primary/30 ring-1 ring-white/10">
-          <img src={katsukiLogo.url} alt="Katsuki" className="h-full w-full object-cover" />
-        </div>
-        <div className="flex flex-col leading-tight">
-          <span className="font-bold text-[15px] text-foreground tracking-[0.18em]">KATSUKI</span>
-          <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Real Estate CRM</span>
+        <div className="h-10 w-auto overflow-hidden">
+          <img src={katsukiLogo.url} alt="Katsuki" className="h-full w-auto object-contain" />
         </div>
       </div>
 
