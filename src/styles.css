@@ -55,37 +55,37 @@
 
 :root {
   --radius: 0.75rem;
-  --background: #080705;
-  --foreground: #fffcf8;
-  --card: #14110d;
-  --card-foreground: #fffcf8;
-  --popover: #14110d;
-  --popover-foreground: #fffcf8;
+  --background: #fffcf8;
+  --foreground: #080705;
+  --card: #ffffff;
+  --card-foreground: #080705;
+  --popover: #ffffff;
+  --popover-foreground: #080705;
   --primary: #c14f21;
   --primary-foreground: #fffcf8;
-  --secondary: #1c1814;
-  --secondary-foreground: #fffcf8;
-  --muted: #1c1814;
-  --muted-foreground: #a89684;
-  --accent: #1c1814;
-  --accent-foreground: #f59958;
-  --destructive: #ef4444;
+  --secondary: #f5ede4;
+  --secondary-foreground: #080705;
+  --muted: #f5ede4;
+  --muted-foreground: #6b5e52;
+  --accent: #fbe7d4;
+  --accent-foreground: #c14f21;
+  --destructive: #c14f21;
   --destructive-foreground: #fffcf8;
-  --border: #2a2520;
-  --input: #2a2520;
+  --border: #ece2d5;
+  --input: #ece2d5;
   --ring: #c14f21;
   --chart-1: #c14f21;
   --chart-2: #f59958;
   --chart-3: #9a3e19;
   --chart-4: #fbc8a0;
   --chart-5: #6b2e14;
-  --sidebar: #0d0b09;
-  --sidebar-foreground: #a89684;
+  --sidebar: #fff8ef;
+  --sidebar-foreground: #6b5e52;
   --sidebar-primary: #c14f21;
   --sidebar-primary-foreground: #fffcf8;
-  --sidebar-accent: rgba(193,79,33,0.15);
-  --sidebar-accent-foreground: #f59958;
-  --sidebar-border: #2a2520;
+  --sidebar-accent: rgba(193,79,33,0.10);
+  --sidebar-accent-foreground: #c14f21;
+  --sidebar-border: #ece2d5;
   --sidebar-ring: #c14f21;
 }
 
@@ -145,18 +145,17 @@
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: #2a2520;
+    background: #ece2d5;
     border-radius: 8px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #4a4035;
+    background: #c9b89e;
   }
   * {
     scrollbar-width: thin;
-    scrollbar-color: #2a2520 transparent;
+    scrollbar-color: #ece2d5 transparent;
   }
   input[type="date"]::-webkit-calendar-picker-indicator {
-    filter: invert(1) brightness(1.4);
     opacity: 0.7;
     cursor: pointer;
   }
