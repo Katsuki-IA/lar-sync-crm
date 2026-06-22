@@ -45,7 +45,7 @@ function AdminUsersPage() {
                     </Badge>
                   </td>
                   <td className="px-4 py-2">
-                    {u.active ? <Badge style={{ background: "#22C55E", color: "#fff" }} className="border-0">Ativo</Badge> : <Badge variant="outline">Inativo</Badge>}
+                    {u.active ? <Badge style={{ background: "var(--success)", color: "#fff" }} className="border-0">Ativo</Badge> : <Badge variant="outline">Inativo</Badge>}
                   </td>
                 </tr>
               ))}

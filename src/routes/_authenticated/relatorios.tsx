@@ -634,7 +634,7 @@ function BrokerPanel({ data }: { data: ReportData }) {
                         <td className="py-2 text-right">{r.atribuidos}</td>
                         <td className="py-2 text-right">{r.convertidos}</td>
                         <td className="py-2 text-right">
-                          <span className={cn(r.taxa >= 30 ? "text-emerald-400" : r.taxa >= 10 ? "text-amber-400" : "text-rose-400")}>
+                          <span className={cn(r.taxa >= 30 ? "text-[var(--success)]" : r.taxa >= 10 ? "text-[var(--warning)]" : "text-[var(--danger)]")}>
                             {r.taxa.toFixed(1)}%
                           </span>
                         </td>
@@ -847,8 +847,8 @@ function EmpreendimentoPanel({ data }: { data: ReportData }) {
                       <td className="py-2">{r.nome}</td>
                       <td className="py-2 text-right">{r.total}</td>
                       <td className="py-2 text-right text-muted-foreground">{r.andamento}</td>
-                      <td className="py-2 text-right text-emerald-400">{r.convertidos}</td>
-                      <td className="py-2 text-right text-rose-400">{r.perdidos}</td>
+                      <td className="py-2 text-right text-[var(--success)]">{r.convertidos}</td>
+                      <td className="py-2 text-right text-[var(--danger)]">{r.perdidos}</td>
                       <td className="py-2 text-right">{taxa.toFixed(1)}%</td>
                     </tr>
                   );

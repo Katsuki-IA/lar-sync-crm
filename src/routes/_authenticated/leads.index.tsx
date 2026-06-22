@@ -608,7 +608,7 @@ function LeadsList() {
                             {l.tagIds.map((tid) => {
                               const t = tagMap.get(tid);
                               if (!t) return null;
-                              const c = t.cor ?? "#ec2c5c";
+                              const c = t.cor ?? "#C14F21";
                               return (
                                 <span
                                   key={tid}

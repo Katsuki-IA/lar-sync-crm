@@ -276,7 +276,7 @@ function DraggableCard({ lead, color }: { lead: LeadCard; color: string }) {
               key={t.id}
               variant="secondary"
               className="text-[10px] px-1.5 py-0 h-4"
-              style={{ backgroundColor: `${t.cor ?? "#f97316"}26`, color: t.cor ?? "#f97316" }}
+              style={{ backgroundColor: `${t.cor ?? "#C14F21"}26`, color: t.cor ?? "#C14F21" }}
             >
               {t.nome}
             </Badge>
