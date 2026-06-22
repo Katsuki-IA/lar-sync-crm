@@ -44,15 +44,11 @@ export function AppSidebar() {
     >
       {/* Logo */}
       <div
-        className="h-16 flex items-center gap-3 px-5 border-b"
+        className="h-16 flex items-center px-5 border-b"
         style={{ borderColor: "var(--border)" }}
       >
         <div className="h-10 w-auto overflow-hidden">
           <img src={katsukiLogo.url} alt="Katsuki" className="h-full w-auto object-contain" />
-        </div>
-        <div className="flex flex-col leading-tight">
-          <span className="font-bold text-[15px] text-foreground tracking-[0.18em]">KATSUKI</span>
-          <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Real Estate CRM</span>
         </div>
       </div>
 
