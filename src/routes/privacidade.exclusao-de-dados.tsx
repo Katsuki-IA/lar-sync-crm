@@ -1,5 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-const katsukiLogo = { url: "/katsuki-symbol.png" };
 
 export const Route = createFileRoute("/privacidade/exclusao-de-dados")({
   head: () => ({

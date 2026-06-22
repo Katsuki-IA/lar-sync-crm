@@ -42,14 +42,6 @@ export function AppSidebar() {
       className="hidden md:flex flex-col text-sidebar-foreground border-r"
       style={{ width: 240, backgroundColor: "var(--sidebar)", borderColor: "var(--border)" }}
     >
-      {/* Logo */}
-      <div
-        className="h-16 flex items-center px-5 border-b"
-        style={{ borderColor: "var(--border)" }}
-      >
-        <img src={katsukiLogo.url} alt="Katsuki IA" className="h-11 w-auto object-contain" />
-      </div>
-
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto px-3 py-4">
         <SidebarGroup label="Principal" items={mainItems} pathname={pathname} />
