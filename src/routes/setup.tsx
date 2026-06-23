@@ -63,7 +63,7 @@ function SetupPage() {
             src="/katsuki-logo.svg"
             alt="Katsuki"
             className="mx-auto mb-4 object-contain"
-            style={{ height: 96, width: "auto" }}
+            style={{ height: 110, width: "auto" }}
           />
           <CardTitle className="text-2xl">Primeiro Acesso</CardTitle>
           <CardDescription>
