@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, Link2, Save, Settings, Unplug, Webhook } from "lucide-react";
+import { AlertTriangle, Link2, RefreshCw, Save, Settings, Unplug, Webhook } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -38,6 +38,7 @@ import {
   getRdIntegrationStatus,
   saveRdSourceMapping,
   saveRdSettings,
+  syncRdAssets,
 } from "@/lib/rd-oauth.functions";
 
 type RdOAuthCallbackMessage = {
@@ -53,6 +54,45 @@ function formatDate(value: string | null) {
   return value ? new Date(value).toLocaleString("pt-BR") : "—";
 }
 
+function RdDisconnectButton({
+  disconnecting,
+  compact = false,
+  onDisconnect,
+}: {
+  disconnecting: boolean;
+  compact?: boolean;
+  onDisconnect: () => Promise<void>;
+}) {
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button
+          variant="outline"
+          size={compact ? "sm" : "default"}
+          className="gap-2 text-destructive"
+        >
+          <Unplug className="h-4 w-4" /> Desconectar
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Desconectar RD Station?</AlertDialogTitle>
+          <AlertDialogDescription>
+            O webhook será removido e novas conversões deixarão de entrar. Leads e históricos
+            existentes serão preservados.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogAction onClick={() => void onDisconnect()} disabled={disconnecting}>
+            {disconnecting ? "Desconectando..." : "Desconectar"}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
 export function RdStationIntegrationCard() {
   const qc = useQueryClient();
   const [connectOpen, setConnectOpen] = useState(false);
@@ -61,6 +101,7 @@ export function RdStationIntegrationCard() {
   const [connecting, setConnecting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [savingSource, setSavingSource] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
   const [sourceSelections, setSourceSelections] = useState<Record<string, string>>({});
   const { data, isLoading } = useQuery({
@@ -99,6 +140,16 @@ export function RdStationIntegrationCard() {
       if (message?.source !== "rd-oauth" || event.origin !== window.location.origin) return;
       setConnecting(false);
       if (message.ok) {
+        try {
+          setSyncing(true);
+          await syncRdAssets();
+        } catch (error) {
+          toast.warning("Conta conectada, mas os ativos não puderam ser sincronizados", {
+            description: error instanceof Error ? error.message : undefined,
+          });
+        } finally {
+          setSyncing(false);
+        }
         await qc.invalidateQueries({ queryKey: ["rd-integration-status"] });
         setConnectOpen(false);
         toast.success("Conta RD Station conectada");
@@ -180,6 +231,23 @@ export function RdStationIntegrationCard() {
     }
   }
 
+  async function syncSources() {
+    try {
+      setSyncing(true);
+      const result = await syncRdAssets();
+      await qc.invalidateQueries({ queryKey: ["rd-integration-status"] });
+      toast.success(`${result.found} fonte(s) encontrada(s)`, {
+        description: result.created
+          ? `${result.created} nova(s) fonte(s) adicionada(s).`
+          : "A lista já estava atualizada.",
+      });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Falha ao sincronizar fontes da RD");
+    } finally {
+      setSyncing(false);
+    }
+  }
+
   async function disconnect() {
     try {
       setDisconnecting(true);
@@ -235,15 +303,22 @@ export function RdStationIntegrationCard() {
             ) : null}
             <div className="mt-4 flex flex-wrap gap-2">
               {connected ? (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-2"
-                  onClick={() => setManageOpen(true)}
-                >
-                  <Settings className="h-4 w-4" />
-                  Acessar
-                </Button>
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                    onClick={() => setManageOpen(true)}
+                  >
+                    <Settings className="h-4 w-4" />
+                    Acessar
+                  </Button>
+                  <RdDisconnectButton
+                    compact
+                    disconnecting={disconnecting}
+                    onDisconnect={disconnect}
+                  />
+                </>
               ) : (
                 <Button
                   size="sm"
@@ -342,7 +417,19 @@ export function RdStationIntegrationCard() {
           </div>
 
           <div className="space-y-2">
-            <h4 className="text-sm font-medium">Formulários e landing pages</h4>
+            <div className="flex items-center justify-between gap-3">
+              <h4 className="text-sm font-medium">Formulários e landing pages</h4>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                disabled={syncing}
+                onClick={() => void syncSources()}
+              >
+                <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
+                {syncing ? "Atualizando..." : "Atualizar"}
+              </Button>
+            </div>
             {data?.sources.length ? (
               <div className="divide-y divide-border overflow-hidden rounded-md border border-border">
                 {data.sources.map((source) => (
@@ -413,33 +500,14 @@ export function RdStationIntegrationCard() {
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">Nenhuma conversão recebida ainda.</p>
+              <p className="text-sm text-muted-foreground">
+                Nenhum formulário ou landing page encontrado nos últimos 45 dias.
+              </p>
             )}
           </div>
 
           <DialogFooter className="sm:justify-between gap-2">
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="outline" className="gap-2 text-destructive">
-                  <Unplug className="h-4 w-4" /> Desconectar
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Desconectar RD Station?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    O webhook será removido e novas conversões deixarão de entrar. Leads e
-                    históricos existentes serão preservados.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                  <AlertDialogAction onClick={disconnect} disabled={disconnecting}>
-                    Desconectar
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+            <RdDisconnectButton disconnecting={disconnecting} onDisconnect={disconnect} />
             <Button onClick={saveSettings} disabled={saving || !empreendimentoId}>
               {saving ? "Salvando..." : "Salvar"}
             </Button>

@@ -67,6 +67,14 @@ export function getRdIntegrationStatus() {
   return invokeRdFunction<RdIntegrationStatus>("rd-integration-status");
 }
 
+export function syncRdAssets() {
+  return invokeRdFunction<{
+    ok: true;
+    found: number;
+    created: number;
+  }>("rd-assets-sync");
+}
+
 export function createRdOAuthUrl(empreendimentoId: number) {
   return invokeRdFunction<{ url: string }>("rd-oauth-start", { empreendimentoId });
 }
