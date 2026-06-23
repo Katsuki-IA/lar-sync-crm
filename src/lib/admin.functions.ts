@@ -1,6 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import {
+  generateTemporaryPassword,
+  getPasswordPolicyError,
+  PASSWORD_POLICY_MESSAGE,
+} from "@/lib/password-policy";
 
 async function getMe(supabase: any, userId: string) {
   const { data, error } = await supabase
@@ -13,15 +18,6 @@ async function getMe(supabase: any, userId: string) {
   return data as { id: string; id_empresa: number | null; role: string };
 }
 
-function randomPassword(len = 12) {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
-  let out = "";
-  const arr = new Uint32Array(len);
-  crypto.getRandomValues(arr);
-  for (let i = 0; i < len; i++) out += chars[arr[i] % chars.length];
-  return out + "!2";
-}
-
 // -------- Criar usuário CRM (gestor cria na própria empresa; super_admin em qualquer) --------
 export const createCrmUser = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -32,7 +28,10 @@ export const createCrmUser = createServerFn({ method: "POST" })
         email: z.string().email(),
         role: z.enum(["agent", "manager", "super_admin"]),
         id_empresa: z.number().optional(),
-        password: z.string().min(6).optional(),
+        password: z
+          .string()
+          .refine((password) => !getPasswordPolicyError(password), PASSWORD_POLICY_MESSAGE)
+          .optional(),
       })
       .parse(d),
   )
@@ -48,7 +47,7 @@ export const createCrmUser = createServerFn({ method: "POST" })
     }
     if (!targetEmpresa && data.role !== "super_admin") throw new Error("Empresa obrigatória");
 
-    const password = data.password ?? randomPassword();
+    const password = data.password ?? generateTemporaryPassword();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const { data: authData, error: authErr } = await supabaseAdmin.auth.admin.createUser({
@@ -90,7 +89,7 @@ export const resetCrmUserPassword = createServerFn({ method: "POST" })
     if (tErr || !target) throw new Error("Usuário não encontrado");
     if (me.role === "manager" && target.id_empresa !== me.id_empresa) throw new Error("Sem permissão");
     if (!target.auth_user_id) throw new Error("Usuário sem auth vinculado");
-    const password = randomPassword();
+    const password = generateTemporaryPassword();
     const { error } = await supabaseAdmin.auth.admin.updateUserById(target.auth_user_id, { password });
     if (error) throw new Error(error.message);
     return { ok: true, password };

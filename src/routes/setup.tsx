@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { getPasswordPolicyError, PASSWORD_MIN_LENGTH } from "@/lib/password-policy";
 
 export const Route = createFileRoute("/setup")({
   ssr: false,
@@ -28,6 +29,8 @@ function SetupPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    const policyError = password ? getPasswordPolicyError(password) : null;
+    if (policyError) return toast.error(policyError);
     setLoading(true);
     try {
       const payload: { nome: string; email: string; password?: string } = {
@@ -117,9 +120,10 @@ function SetupPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Deixe em branco para gerar automática"
+                  minLength={PASSWORD_MIN_LENGTH}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Se não informar, uma senha temporária será gerada.
+                  Se informada, use pelo menos 8 caracteres e um caractere especial. Em branco, uma senha segura será gerada.
                 </p>
               </div>
               <Button type="submit" className="w-full rounded-xl" disabled={loading}>

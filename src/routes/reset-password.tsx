@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { getPasswordPolicyError, PASSWORD_MIN_LENGTH } from "@/lib/password-policy";
 
 export const Route = createFileRoute("/reset-password")({
   ssr: false,
@@ -31,12 +32,13 @@ function ResetPasswordPage() {
 
   async function handleReset(e: React.FormEvent) {
     e.preventDefault();
-    if (password !== confirmPassword) {
-      toast.error("As senhas não coincidem");
+    const policyError = getPasswordPolicyError(password);
+    if (policyError) {
+      toast.error(policyError);
       return;
     }
-    if (password.length < 6) {
-      toast.error("A senha deve ter pelo menos 6 caracteres");
+    if (password !== confirmPassword) {
+      toast.error("As senhas não coincidem");
       return;
     }
 
@@ -80,7 +82,7 @@ function ResetPasswordPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  minLength={6}
+                  minLength={PASSWORD_MIN_LENGTH}
                 />
               </div>
               <div className="space-y-2">
@@ -92,9 +94,12 @@ function ResetPasswordPage() {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="••••••••"
-                  minLength={6}
+                  minLength={PASSWORD_MIN_LENGTH}
                 />
               </div>
+              <p className="text-xs text-muted-foreground">
+                Use pelo menos 8 caracteres e um caractere especial, como !, @, # ou ?.
+              </p>
               <Button type="submit" className="w-full rounded-xl" disabled={loading}>
                 {loading ? "Redefinindo..." : "Redefinir senha"}
               </Button>

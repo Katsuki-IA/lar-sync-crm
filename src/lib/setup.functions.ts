@@ -1,5 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import {
+  generateTemporaryPassword,
+  getPasswordPolicyError,
+  PASSWORD_POLICY_MESSAGE,
+} from "@/lib/password-policy";
 
 export const hasAnyCrmUser = createServerFn({ method: "GET" }).handler(async () => {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -8,22 +13,16 @@ export const hasAnyCrmUser = createServerFn({ method: "GET" }).handler(async () 
   return { hasUsers: (data?.length ?? 0) > 0 };
 });
 
-function randomPassword(len = 12) {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
-  let out = "";
-  const arr = new Uint32Array(len);
-  crypto.getRandomValues(arr);
-  for (let i = 0; i < len; i++) out += chars[arr[i] % chars.length];
-  return out + "!2";
-}
-
 export const firstSetup = createServerFn({ method: "POST" })
   .inputValidator((d) =>
     z
       .object({
         nome: z.string().min(2),
         email: z.string().email(),
-        password: z.string().min(6).optional(),
+        password: z
+          .string()
+          .refine((password) => !getPasswordPolicyError(password), PASSWORD_POLICY_MESSAGE)
+          .optional(),
       })
       .parse(d),
   )
@@ -38,7 +37,7 @@ export const firstSetup = createServerFn({ method: "POST" })
     if (countErr) throw new Error(countErr.message);
     if (existing && existing.length > 0) throw new Error("O sistema já foi configurado. Use a página de login.");
 
-    const password = data.password ?? randomPassword();
+    const password = data.password ?? generateTemporaryPassword();
 
     const { data: authData, error: authErr } = await supabaseAdmin.auth.admin.createUser({
       email: data.email,

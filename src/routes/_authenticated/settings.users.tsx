@@ -16,6 +16,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { getPasswordPolicyError, PASSWORD_MIN_LENGTH } from "@/lib/password-policy";
 
 export const Route = createFileRoute("/_authenticated/settings/users")({
   component: UsersPage,
@@ -67,6 +68,7 @@ function UsersPage() {
     id_empresa: "",
   });
   const [tempPwd, setTempPwd] = useState<string | null>(null);
+  const customPasswordError = form.password ? getPasswordPolicyError(form.password) : null;
 
   const create = useMutation({
     mutationFn: () =>
@@ -156,7 +158,21 @@ function UsersPage() {
                 )}
                 <div className="space-y-2">
                   <Label>Senha temporária (opcional)</Label>
-                  <Input value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="Deixe em branco para gerar" />
+                  <Input
+                    type="password"
+                    value={form.password}
+                    onChange={(e) => setForm({ ...form, password: e.target.value })}
+                    placeholder="Deixe em branco para gerar"
+                    minLength={PASSWORD_MIN_LENGTH}
+                    aria-describedby="temporary-password-help"
+                  />
+                  <p
+                    id="temporary-password-help"
+                    className={customPasswordError ? "text-xs text-destructive" : "text-xs text-muted-foreground"}
+                  >
+                    {customPasswordError ??
+                      "Se informada, use pelo menos 8 caracteres e um caractere especial. Em branco, uma senha segura será gerada."}
+                  </p>
                 </div>
               </div>
             )}
@@ -172,6 +188,7 @@ function UsersPage() {
                       !form.nome ||
                       !form.email ||
                       (isSuperAdmin && form.role !== "super_admin" && !form.id_empresa) ||
+                      !!customPasswordError ||
                       create.isPending
                     }
                   >

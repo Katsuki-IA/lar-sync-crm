@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { getPasswordPolicyError, PASSWORD_MIN_LENGTH } from "@/lib/password-policy";
 
 export const Route = createFileRoute("/_authenticated/profile")({
   component: ProfilePage,
@@ -27,7 +28,8 @@ function ProfilePage() {
   async function handleChangePassword(e: React.FormEvent) {
     e.preventDefault();
     if (!currentPwd) return toast.error("Informe a senha atual");
-    if (pwd.length < 6) return toast.error("A senha deve ter ao menos 6 caracteres");
+    const policyError = getPasswordPolicyError(pwd);
+    if (policyError) return toast.error(policyError);
     if (pwd !== confirm) return toast.error("As senhas não coincidem");
     if (currentPwd === pwd) return toast.error("A nova senha deve ser diferente da senha atual");
     if (!me?.email) return toast.error("Email do usuário não encontrado");
@@ -97,6 +99,7 @@ function ProfilePage() {
               autoComplete="new-password"
               onChange={setPwd}
               onToggleVisibility={() => setShowPwd((current) => !current)}
+              minLength={PASSWORD_MIN_LENGTH}
             />
             <PasswordInput
               id="confirm"
@@ -106,7 +109,11 @@ function ProfilePage() {
               autoComplete="new-password"
               onChange={setConfirm}
               onToggleVisibility={() => setShowConfirm((current) => !current)}
+              minLength={PASSWORD_MIN_LENGTH}
             />
+            <p className="text-xs text-muted-foreground">
+              Use pelo menos 8 caracteres e um caractere especial, como !, @, # ou ?.
+            </p>
             <Button type="submit" disabled={loading} className="rounded-xl">
               {loading ? "Salvando..." : "Atualizar senha"}
             </Button>
@@ -125,6 +132,7 @@ function PasswordInput({
   autoComplete,
   onChange,
   onToggleVisibility,
+  minLength,
 }: {
   id: string;
   label: string;
@@ -133,6 +141,7 @@ function PasswordInput({
   autoComplete: string;
   onChange: (value: string) => void;
   onToggleVisibility: () => void;
+  minLength?: number;
 }) {
   return (
     <div className="space-y-1.5">
@@ -144,6 +153,7 @@ function PasswordInput({
           value={value}
           onChange={(event) => onChange(event.target.value)}
           autoComplete={autoComplete}
+          minLength={minLength}
           className="pr-11"
         />
         <button
