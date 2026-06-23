@@ -340,7 +340,7 @@ function LeadsList() {
             <button
               onClick={() => setView("list")}
               className={cn(
-                "h-8 w-8 flex items-center justify-center rounded-md transition-colors",
+                "h-8 w-8 flex cursor-pointer items-center justify-center rounded-md transition-colors",
                 view === "list" ? "text-primary" : "text-muted-foreground hover:text-foreground"
               )}
               style={view === "list" ? { backgroundColor: "rgba(193,79,33,0.12)" } : undefined}
@@ -352,7 +352,7 @@ function LeadsList() {
             <button
               onClick={() => setView("kanban")}
               className={cn(
-                "h-8 w-8 flex items-center justify-center rounded-md transition-colors",
+                "h-8 w-8 flex cursor-pointer items-center justify-center rounded-md transition-colors",
                 view === "kanban" ? "text-primary" : "text-muted-foreground hover:text-foreground"
               )}
               style={view === "kanban" ? { backgroundColor: "rgba(193,79,33,0.12)" } : undefined}

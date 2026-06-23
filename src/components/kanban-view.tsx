@@ -27,6 +27,7 @@ type LeadCard = {
   crm_assigned_to: string | null;
   id_empreendimento: number | null;
   lead_quente: boolean | null;
+  created_at?: string | null;
   empreendimento_nome?: string | null;
   responsavel_nome?: string | null;
   tags?: { id: number; nome: string; cor: string | null }[];
@@ -66,8 +67,9 @@ export function KanbanView({ searchFilter, funnelId }: { searchFilter?: string; 
       if (!stageIds.length) return [];
       let q = supabase
         .from("crm_leads")
-        .select("id, nome, telefone, crm_stage_id, crm_assigned_to, id_empreendimento, lead_quente")
-        .in("id_empresa", allowed ?? []);
+        .select("id, nome, telefone, crm_stage_id, crm_assigned_to, id_empreendimento, lead_quente, created_at")
+        .in("id_empresa", allowed ?? [])
+        .order("created_at", { ascending: false });
       if (me?.role === "agent") q = q.eq("crm_assigned_to", me.id);
       // Filtra leads pelo funil: estágios desse funil. Leads sem estágio só aparecem no funil padrão.
       const isDefault = await isFunnelDefault(funnelId!);
