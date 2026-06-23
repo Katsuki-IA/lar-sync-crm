@@ -1,6 +1,23 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  closestCenter,
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { toast } from "sonner";
 import { Pencil, Plus, Trash2, GripVertical, FolderKanban } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -17,13 +34,17 @@ export const Route = createFileRoute("/_authenticated/settings/stages")({
   component: StagesPage,
 });
 
-type Stage = { id: number; nome: string; cor: string; ordem: number; ativo: boolean; id_funnel: number | null };
+type Stage = { id: number; nome: string; ordem: number; ativo: boolean; id_funnel: number | null };
 
 function StagesPage() {
   const qc = useQueryClient();
   const { data: me } = useCrmUser();
   const { data: funnels = [] } = useFunnels(me?.id_empresa);
   const [selectedFunnel, setSelectedFunnel] = useState<number | null>(null);
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
 
   useEffect(() => {
     if (selectedFunnel == null && funnels.length) {
@@ -38,7 +59,7 @@ function StagesPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("crm_stages")
-        .select("id,nome,cor,ordem,ativo,id_funnel")
+        .select("id,nome,ordem,ativo,id_funnel")
         .eq("id_funnel", selectedFunnel!)
         .order("ordem", { ascending: true });
       if (error) throw error;
@@ -48,7 +69,12 @@ function StagesPage() {
 
   const [editing, setEditing] = useState<Stage | null>(null);
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ nome: "", cor: "#C14F21" });
+  const [form, setForm] = useState({ nome: "" });
+  const [orderedStages, setOrderedStages] = useState<Stage[]>([]);
+
+  useEffect(() => {
+    setOrderedStages(stages);
+  }, [stages]);
 
   // New-funnel dialog
   const [funnelOpen, setFunnelOpen] = useState(false);
@@ -115,7 +141,7 @@ function StagesPage() {
       if (editing) {
         const { error } = await supabase
           .from("crm_stages")
-          .update({ nome: form.nome, cor: form.cor })
+          .update({ nome: form.nome })
           .eq("id", editing.id);
         if (error) throw error;
       } else {
@@ -124,7 +150,6 @@ function StagesPage() {
         if (!me?.id_empresa) throw new Error("Empresa não encontrada");
         const { error } = await supabase.from("crm_stages").insert({
           nome: form.nome,
-          cor: form.cor,
           ordem: maxOrdem + 1,
           ativo: true,
           id_empresa: me.id_empresa,
@@ -138,7 +163,7 @@ function StagesPage() {
       qc.invalidateQueries({ queryKey: ["crm_stages"] });
       setOpen(false);
       setEditing(null);
-      setForm({ nome: "", cor: "#C14F21" });
+      setForm({ nome: "" });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -154,6 +179,47 @@ function StagesPage() {
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  const reorder = useMutation({
+    mutationFn: async (nextStages: Stage[]) => {
+      if (!selectedFunnel || !me?.id_empresa) throw new Error("Funil não encontrado");
+      for (const [index, stage] of nextStages.entries()) {
+        const { error } = await supabase
+          .from("crm_stages")
+          .update({ ordem: index + 1 })
+          .eq("id", stage.id)
+          .eq("id_funnel", selectedFunnel)
+          .eq("id_empresa", me.id_empresa);
+        if (error) throw error;
+      }
+    },
+    onSuccess: async () => {
+      toast.success("Ordem das etapas atualizada");
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["crm_stages"] }),
+        qc.invalidateQueries({ queryKey: ["kanban-stages"] }),
+        qc.invalidateQueries({ queryKey: ["leads-meta"] }),
+      ]);
+    },
+    onError: async (e: Error) => {
+      setOrderedStages(stages);
+      await qc.invalidateQueries({ queryKey: ["crm_stages"] });
+      toast.error(e.message);
+    },
+  });
+
+  const handleDragEnd = ({ active, over }: DragEndEvent) => {
+    if (!over || active.id === over.id || reorder.isPending) return;
+    const oldIndex = orderedStages.findIndex((stage) => stage.id === active.id);
+    const newIndex = orderedStages.findIndex((stage) => stage.id === over.id);
+    if (oldIndex < 0 || newIndex < 0) return;
+    const nextStages = arrayMove(orderedStages, oldIndex, newIndex).map((stage, index) => ({
+      ...stage,
+      ordem: index + 1,
+    }));
+    setOrderedStages(nextStages);
+    reorder.mutate(nextStages);
+  };
 
   return (
     <Card className="p-4">
@@ -211,7 +277,7 @@ function StagesPage() {
           </Dialog>
           <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button onClick={() => { setEditing(null); setForm({ nome: "", cor: "#C14F21" }); }} disabled={!selectedFunnel}>
+            <Button onClick={() => { setEditing(null); setForm({ nome: "" }); }} disabled={!selectedFunnel}>
               <Plus className="h-4 w-4 mr-2" />Nova etapa
             </Button>
           </DialogTrigger>
@@ -221,13 +287,6 @@ function StagesPage() {
               <div className="space-y-2">
                 <Label>Nome</Label>
                 <Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} placeholder="Ex.: Qualificado" />
-              </div>
-              <div className="space-y-2">
-                <Label>Cor</Label>
-                <div className="flex items-center gap-2">
-                  <input type="color" value={form.cor} onChange={(e) => setForm({ ...form, cor: e.target.value })} className="h-9 w-12 rounded border border-input bg-background" />
-                  <Input value={form.cor} onChange={(e) => setForm({ ...form, cor: e.target.value })} className="font-mono" />
-                </div>
               </div>
             </div>
             <DialogFooter>
@@ -243,24 +302,89 @@ function StagesPage() {
       ) : stages.length === 0 ? (
         <div className="text-sm text-muted-foreground py-8 text-center">Nenhuma etapa cadastrada.</div>
       ) : (
-        <div className="space-y-2">
-          {stages.map((s) => (
-            <div key={s.id} className="flex items-center gap-3 p-3 rounded-lg border border-border bg-card">
-              <GripVertical className="h-4 w-4 text-muted-foreground" />
-              <div className="h-3 w-3 rounded-full" style={{ background: s.cor }} />
-              <span className="text-xs text-muted-foreground font-mono w-6">{s.id}</span>
-              <div className="flex-1 font-medium text-sm">{s.nome}</div>
-              <span className="text-xs text-muted-foreground">Ordem {s.ordem}</span>
-              <Button size="icon" variant="ghost" onClick={() => { setEditing(s); setForm({ nome: s.nome, cor: s.cor ?? "#C14F21" }); setOpen(true); }}>
-                <Pencil className="h-4 w-4" />
-              </Button>
-              <Button size="icon" variant="ghost" onClick={() => { if (confirm(`Remover etapa "${s.nome}"?`)) del.mutate(s.id); }}>
-                <Trash2 className="h-4 w-4" />
-              </Button>
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext
+            items={orderedStages.map((stage) => stage.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div className="space-y-2">
+              {orderedStages.map((stage) => (
+                <SortableStageRow
+                  key={stage.id}
+                  stage={stage}
+                  disabled={reorder.isPending}
+                  onEdit={() => {
+                    setEditing(stage);
+                    setForm({ nome: stage.nome });
+                    setOpen(true);
+                  }}
+                  onDelete={() => {
+                    if (confirm(`Remover etapa "${stage.nome}"?`)) del.mutate(stage.id);
+                  }}
+                />
+              ))}
             </div>
-          ))}
-        </div>
+          </SortableContext>
+        </DndContext>
       )}
     </Card>
+  );
+}
+
+function SortableStageRow({
+  stage,
+  disabled,
+  onEdit,
+  onDelete,
+}: {
+  stage: Stage;
+  disabled: boolean;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setActivatorNodeRef,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: stage.id, disabled });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className="flex items-center gap-3 rounded-lg border border-border bg-card p-3"
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.65 : 1,
+        position: "relative",
+        zIndex: isDragging ? 10 : undefined,
+      }}
+    >
+      <button
+        ref={setActivatorNodeRef}
+        type="button"
+        className="touch-none cursor-grab rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground active:cursor-grabbing disabled:cursor-not-allowed"
+        title="Arrastar para reordenar"
+        aria-label={`Reordenar etapa ${stage.nome}`}
+        disabled={disabled}
+        {...attributes}
+        {...listeners}
+      >
+        <GripVertical className="h-4 w-4" />
+      </button>
+      <span className="w-6 font-mono text-xs text-muted-foreground">{stage.id}</span>
+      <div className="flex-1 text-sm font-medium">{stage.nome}</div>
+      <span className="text-xs text-muted-foreground">Ordem {stage.ordem}</span>
+      <Button size="icon" variant="ghost" onClick={onEdit} aria-label={`Editar ${stage.nome}`}>
+        <Pencil className="h-4 w-4" />
+      </Button>
+      <Button size="icon" variant="ghost" onClick={onDelete} aria-label={`Excluir ${stage.nome}`}>
+        <Trash2 className="h-4 w-4" />
+      </Button>
+    </div>
   );
 }
