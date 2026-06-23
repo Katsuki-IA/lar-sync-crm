@@ -23,6 +23,10 @@ export type MetaFormStatus = {
 export type MetaIntegrationStatus = {
   connection: MetaConnectionStatus | null;
   forms: MetaFormStatus[];
+  summary: {
+    processed: number;
+    last_event_at: string | null;
+  };
 };
 
 export type MetaFormsSyncResult = {

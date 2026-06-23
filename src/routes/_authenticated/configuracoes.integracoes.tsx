@@ -10,6 +10,7 @@ import {
   Plug,
   RefreshCw,
   Search,
+  Settings,
   Unplug,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -30,7 +31,13 @@ import { Card } from "@/components/ui/card";
 import { RdStationIntegrationCard } from "@/components/rd-station-integration-card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Sheet,
   SheetContent,
@@ -126,6 +133,10 @@ const TEST_VALUE_PLACEHOLDERS: Record<string, string> = {
   origem: "FB",
   observacoes: "Lead criado pelo simulador",
 };
+
+function formatIntegrationDate(value: string | null | undefined) {
+  return value ? new Date(value).toLocaleString("pt-BR") : "—";
+}
 
 function getSupabaseOrigin() {
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
@@ -265,9 +276,7 @@ function IntegracoesPage() {
 
     return Array.from(byId.values())
       .filter((page) => page.formsCount > 0)
-      .sort((a, b) =>
-        (a.pageName ?? a.pageId).localeCompare(b.pageName ?? b.pageId),
-      );
+      .sort((a, b) => (a.pageName ?? a.pageId).localeCompare(b.pageName ?? b.pageId));
   }, [forms, lastSync]);
 
   const filteredPages = pages.filter((page) => {
@@ -434,7 +443,10 @@ function IntegracoesPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card className="p-5" style={{ backgroundColor: "var(--surface)", borderColor: "var(--border)" }}>
+        <Card
+          className="p-5"
+          style={{ backgroundColor: "var(--surface)", borderColor: "var(--border)" }}
+        >
           <div className="flex items-start gap-4">
             <div
               className="h-12 w-12 rounded-xl flex items-center justify-center shrink-0"
@@ -468,6 +480,12 @@ function IntegracoesPage() {
               <p className="text-sm text-muted-foreground mt-1">
                 Receba leads automaticamente dos seus formulários do Facebook e Instagram
               </p>
+              {connected ? (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  {status?.summary.processed ?? 0} processado(s)
+                  {` · último evento ${formatIntegrationDate(status?.summary.last_event_at)}`}
+                </p>
+              ) : null}
 
               <div className="mt-4 flex flex-wrap gap-2">
                 {connected ? (
@@ -475,15 +493,17 @@ function IntegracoesPage() {
                     <Button
                       variant="outline"
                       size="sm"
+                      className="gap-2"
                       onClick={() => {
                         setDrawerOpen(true);
                         openMetaManager();
                       }}
                     >
+                      <Settings className="h-4 w-4" />
                       Acessar
                     </Button>
                     <DisconnectMetaButton
-                      className="gap-2"
+                      className="gap-2 text-destructive"
                       onDisconnected={handleDisconnected}
                       variant="outline"
                     />
@@ -526,21 +546,21 @@ function IntegracoesPage() {
             ) : null}
             <SheetTitle>
               {drawerView === "mapping"
-                ? selectedForm?.form_name ?? "Combinar campos"
+                ? (selectedForm?.form_name ?? "Combinar campos")
                 : drawerView === "forms"
-                ? selectedPage?.pageName ?? "Formulários"
-                : drawerView === "pages"
-                  ? "Páginas do Meta Lead Ads"
-                  : "Conexão Meta Ads"}
+                  ? (selectedPage?.pageName ?? "Formulários")
+                  : drawerView === "pages"
+                    ? "Páginas do Meta Lead Ads"
+                    : "Conexão Meta Ads"}
             </SheetTitle>
             <SheetDescription>
               {drawerView === "mapping"
                 ? "Combine os campos do formulário Meta com os campos do CRM."
                 : drawerView === "forms"
-                ? "Selecione os formulários e ajuste a combinação de campos."
-                : drawerView === "pages"
-                  ? "Selecione uma página para visualizar os formulários disponíveis."
-                  : "Detalhes da conta conectada e formulários sincronizados."}
+                  ? "Selecione os formulários e ajuste a combinação de campos."
+                  : drawerView === "pages"
+                    ? "Selecione uma página para visualizar os formulários disponíveis."
+                    : "Detalhes da conta conectada e formulários sincronizados."}
             </SheetDescription>
           </SheetHeader>
 
@@ -557,7 +577,12 @@ function IntegracoesPage() {
                   ID: {connection?.user_id_meta}
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <Button variant="outline" size="sm" disabled={connecting} onClick={startMetaOAuth}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={connecting}
+                    onClick={startMetaOAuth}
+                  >
                     {connecting ? "Aguardando..." : "Reconfigurar acesso"}
                   </Button>
                   <Button size="sm" className="gap-2" onClick={openMetaManager}>
@@ -596,9 +621,7 @@ function IntegracoesPage() {
                       disabled={syncing}
                       onClick={handleSyncForms}
                     >
-                      <RefreshCw
-                        className={syncing ? "h-3.5 w-3.5 animate-spin" : "h-3.5 w-3.5"}
-                      />
+                      <RefreshCw className={syncing ? "h-3.5 w-3.5 animate-spin" : "h-3.5 w-3.5"} />
                       {syncing ? "Sincronizando" : "Atualizar"}
                     </Button>
                   </div>
@@ -624,7 +647,10 @@ function IntegracoesPage() {
                   </div>
                 ) : null}
 
-                <div className="rounded-lg border overflow-hidden" style={{ borderColor: "var(--border)" }}>
+                <div
+                  className="rounded-lg border overflow-hidden"
+                  style={{ borderColor: "var(--border)" }}
+                >
                   <div
                     className="grid grid-cols-[1fr_130px_38px] gap-3 border-b px-4 py-3 text-[10px] uppercase tracking-wider text-muted-foreground"
                     style={{ borderColor: "var(--border)" }}
@@ -651,7 +677,9 @@ function IntegracoesPage() {
                           <div className="truncate text-sm font-medium text-foreground">
                             {page.pageName ?? page.pageId}
                           </div>
-                          <div className="truncate text-xs text-muted-foreground">{page.pageId}</div>
+                          <div className="truncate text-xs text-muted-foreground">
+                            {page.pageId}
+                          </div>
                         </div>
                         <div className="text-sm text-muted-foreground">{page.formsCount}</div>
                         <ArrowRight className="h-4 w-4 text-muted-foreground transition-colors group-hover:text-foreground" />
@@ -662,8 +690,8 @@ function IntegracoesPage() {
 
                 {lastSync && lastSync.pagesCount === 0 && (
                   <p className="text-xs leading-relaxed text-muted-foreground">
-                    A Meta não retornou páginas para esta conta. Clique em Conectar página e, na tela
-                    do Facebook, use Editar configurações para selecionar a BM/páginas certas.
+                    A Meta não retornou páginas para esta conta. Clique em Conectar página e, na
+                    tela do Facebook, use Editar configurações para selecionar a BM/páginas certas.
                   </p>
                 )}
               </>
@@ -681,7 +709,10 @@ function IntegracoesPage() {
                   />
                 </div>
 
-                <div className="rounded-lg border overflow-hidden" style={{ borderColor: "var(--border)" }}>
+                <div
+                  className="rounded-lg border overflow-hidden"
+                  style={{ borderColor: "var(--border)" }}
+                >
                   <div
                     className="grid grid-cols-[1fr_140px_132px] gap-3 border-b px-4 py-3 text-[10px] uppercase tracking-wider text-muted-foreground"
                     style={{ borderColor: "var(--border)" }}
@@ -723,15 +754,15 @@ function IntegracoesPage() {
                               Concluído
                             </Badge>
                           ) : (
-                          <Badge
-                            className="border-0 text-[10px]"
-                            style={{
-                              backgroundColor: "var(--surface-2)",
-                              color: "var(--text-secondary)",
-                            }}
-                          >
-                            Pendente
-                          </Badge>
+                            <Badge
+                              className="border-0 text-[10px]"
+                              style={{
+                                backgroundColor: "var(--surface-2)",
+                                color: "var(--text-secondary)",
+                              }}
+                            >
+                              Pendente
+                            </Badge>
                           )}
                         </div>
                         <Button
@@ -779,7 +810,8 @@ function IntegracoesPage() {
                           </SelectContent>
                         </Select>
                         <p className="text-xs text-muted-foreground">
-                          Todos os leads recebidos por este formulário serão vinculados a este empreendimento.
+                          Todos os leads recebidos por este formulário serão vinculados a este
+                          empreendimento.
                         </p>
                         {formFields.empreendimentos.length === 0 ? (
                           <p className="text-xs text-destructive">
@@ -866,7 +898,9 @@ function IntegracoesPage() {
                       <div className="grid gap-4 sm:grid-cols-2">
                         <div className="space-y-1.5">
                           <Label className="text-xs text-muted-foreground">Obrigatórios</Label>
-                          <div className="text-sm text-foreground">Nome, Telefone e Empreendimento</div>
+                          <div className="text-sm text-foreground">
+                            Nome, Telefone e Empreendimento
+                          </div>
                         </div>
                         <div className="flex flex-wrap items-end justify-start gap-2 sm:justify-end">
                           <Button
@@ -876,10 +910,7 @@ function IntegracoesPage() {
                           >
                             {savingMapping ? "Salvando..." : "Salvar mapeamento"}
                           </Button>
-                          <Button
-                            disabled={creatingTestLead}
-                            onClick={handleCreateTestLead}
-                          >
+                          <Button disabled={creatingTestLead} onClick={handleCreateTestLead}>
                             {creatingTestLead ? "Criando..." : "Criar lead teste"}
                           </Button>
                         </div>
@@ -889,7 +920,6 @@ function IntegracoesPage() {
                 )}
               </>
             )}
-
           </div>
         </SheetContent>
       </Sheet>
@@ -917,8 +947,8 @@ function DisconnectMetaButton({
         <AlertDialogHeader>
           <AlertDialogTitle>Desconectar Meta Ads?</AlertDialogTitle>
           <AlertDialogDescription>
-            Você deixará de receber leads dos formulários do Facebook e Instagram. Esta ação pode ser
-            revertida reconectando a conta.
+            Você deixará de receber leads dos formulários do Facebook e Instagram. Esta ação pode
+            ser revertida reconectando a conta.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

@@ -41,6 +41,18 @@ Deno.serve(async (req) => {
         : { data: [], error: null };
     if (mappingsError) throw new Error(mappingsError.message);
 
+    const {
+      data: latestMetaLead,
+      count: processedCount,
+      error: leadsError,
+    } = await supabaseAdmin
+      .from("crm_meta_leads")
+      .select("created_at", { count: "exact" })
+      .eq("id_empresa", crmUser.id_empresa)
+      .order("created_at", { ascending: false })
+      .limit(1);
+    if (leadsError) throw new Error(leadsError.message);
+
     const mappedCountByForm = new Map<string, number>();
     for (const mapping of mappings ?? []) {
       mappedCountByForm.set(mapping.form_id, (mappedCountByForm.get(mapping.form_id) ?? 0) + 1);
@@ -52,6 +64,10 @@ Deno.serve(async (req) => {
         ...form,
         mapped_fields_count: mappedCountByForm.get(form.form_id) ?? 0,
       })),
+      summary: {
+        processed: processedCount ?? 0,
+        last_event_at: latestMetaLead?.[0]?.created_at ?? null,
+      },
     });
   });
 });
