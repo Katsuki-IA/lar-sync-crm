@@ -649,7 +649,7 @@ function LeadsList() {
                             )}
                             <button
                               onClick={() => navigate({ to: "/leads/$id", params: { id: String(l.id) } })}
-                              className="h-7 w-7 rounded-md inline-flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-white/5 opacity-0 group-hover/row:opacity-100 transition-opacity"
+                              className="h-7 w-7 cursor-pointer rounded-md inline-flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-white/5 opacity-0 group-hover/row:opacity-100 transition-opacity"
                               title="Editar"
                               aria-label="Editar"
                             >
@@ -658,7 +658,7 @@ function LeadsList() {
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <button
-                                  className="h-7 w-7 rounded-md inline-flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-white/5"
+                                  className="h-7 w-7 cursor-pointer rounded-md inline-flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-white/5"
                                   aria-label="Mais ações"
                                 >
                                   <MoreHorizontal className="h-4 w-4" />
