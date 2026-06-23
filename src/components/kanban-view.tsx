@@ -254,13 +254,13 @@ function DraggableCard({ lead, color }: { lead: LeadCard; color: string }) {
       </div>
       {lead.telefone && (
         <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1.5">
-          <WhatsAppIcon className="h-3.5 w-3.5 text-white shrink-0" />
+          <WhatsAppIcon className="h-3.5 w-3.5 shrink-0 text-[var(--success)]" />
           <span className="truncate">{lead.telefone}</span>
         </div>
       )}
       {lead.empreendimento_nome && (
         <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1.5">
-          <Building2 className="h-3.5 w-3.5 text-white shrink-0" />
+          <Building2 className="h-3.5 w-3.5 shrink-0 text-primary" />
           <span className="truncate">{lead.empreendimento_nome}</span>
         </div>
       )}
