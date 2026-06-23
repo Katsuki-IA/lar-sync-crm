@@ -18,7 +18,7 @@ function ExclusaoDeDadosPage() {
           src="/katsuki-logo.svg"
           alt="Katsuki"
           className="mb-6 object-contain"
-          style={{ height: 48, width: "auto" }}
+          style={{ height: 72, width: "auto" }}
         />
         <h1 className="mb-6 text-3xl font-bold tracking-tight">Solicitação de Exclusão de Dados</h1>
 

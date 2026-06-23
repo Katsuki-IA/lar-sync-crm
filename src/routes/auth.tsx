@@ -72,7 +72,7 @@ function AuthPage() {
             src="/katsuki-logo.svg"
             alt="Katsuki"
             className="mx-auto mb-4 object-contain"
-            style={{ height: 48, width: "auto" }}
+            style={{ height: 96, width: "auto" }}
           />
           <CardDescription>Entre na sua conta para continuar</CardDescription>
         </CardHeader>

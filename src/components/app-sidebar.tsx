@@ -43,14 +43,14 @@ export function AppSidebar() {
       style={{ width: 240, backgroundColor: "var(--sidebar)", borderColor: "var(--border)" }}
     >
       <div
-        className="flex items-center px-4 border-b"
-        style={{ height: 56, borderColor: "var(--border)" }}
+        className="flex items-center justify-center px-4 border-b"
+        style={{ height: 80, borderColor: "var(--border)" }}
       >
         <img
           src="/katsuki-logo.svg"
           alt="Katsuki"
           className="object-contain"
-          style={{ height: 32, width: "auto" }}
+          style={{ height: 64, width: "auto" }}
         />
       </div>
 
