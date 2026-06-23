@@ -14,7 +14,6 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu,
@@ -44,7 +43,7 @@ import {
 import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 
-import { stageColor, relativeTime } from "@/lib/lead-visuals";
+import { stageColor } from "@/lib/lead-visuals";
 import { KanbanView } from "@/components/kanban-view";
 import { cn } from "@/lib/utils";
 
@@ -156,24 +155,13 @@ function LeadsList() {
       const { data: rows, count, error } = await q;
       if (error) throw error;
 
-      const leadIds = (rows ?? []).map((r) => r.id);
-      const { data: tagLinks } = leadIds.length
-        ? await supabase.from("crm_lead_tags").select("lead_id, tag_id").in("lead_id", leadIds)
-        : { data: [] as { lead_id: number; tag_id: number }[] };
-      const tagByLead = new Map<number, number[]>();
-      for (const t of tagLinks ?? []) {
-        const arr = tagByLead.get(t.lead_id) ?? [];
-        arr.push(t.tag_id);
-        tagByLead.set(t.lead_id, arr);
-      }
-      return { rows: (rows ?? []).map((r) => ({ ...r, tagIds: tagByLead.get(r.id) ?? [] })), count: count ?? 0 };
+      return { rows: rows ?? [], count: count ?? 0 };
     },
   });
 
   const stageMap = new Map((meta?.stages ?? []).map((s) => [s.id, s]));
   const userMap = new Map((meta?.users ?? []).map((u) => [u.id, u.nome]));
   const empMap = new Map((meta?.emps ?? []).map((e) => [e.id, e.nome]));
-  const tagMap = new Map((meta?.tags ?? []).map((t) => [t.id, t]));
 
   const total = data?.count ?? 0;
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -284,8 +272,7 @@ function LeadsList() {
   }
 
   return (
-    <TooltipProvider delayDuration={200}>
-      <div className="space-y-5">
+    <div className="space-y-5">
         {/* Header */}
         <div className="flex items-end justify-between gap-4 flex-wrap">
           <div>
@@ -513,12 +500,12 @@ function LeadsList() {
                         />
                       </div>
                     </th>
+                    <Th className="w-20">ID</Th>
                     <Th>Nome</Th>
                     <Th>Telefone</Th>
                     <Th className="hidden md:table-cell">Empreendimento</Th>
                     <Th>Responsável</Th>
                     <Th>Estágio</Th>
-                    <Th className="hidden lg:table-cell">Tags</Th>
                     <Th className="hidden lg:table-cell">Criado</Th>
                     <Th className="text-right pr-4">Ações</Th>
                   </tr>
@@ -574,12 +561,14 @@ function LeadsList() {
                             <Checkbox checked={isChecked} onCheckedChange={(v) => toggleOne(l.id, !!v)} aria-label="Selecionar lead" />
                           </div>
                         </td>
+                        <td className="px-4 py-4 text-xs font-medium text-muted-foreground">
+                          #{l.id}
+                        </td>
                         <td className="px-4 py-4">
                           <Link to="/leads/$id" params={{ id: String(l.id) }} className="group">
                             <div className="min-w-0">
                               <div className="font-semibold text-foreground group-hover:text-primary transition-colors truncate">{l.nome ?? "—"}</div>
                               {l.email && <div className="text-xs text-muted-foreground truncate">{l.email}</div>}
-                              <div className="text-[10px] text-muted-foreground/80 mt-0.5">#{l.id}</div>
                             </div>
                           </Link>
                         </td>
@@ -604,32 +593,9 @@ function LeadsList() {
                           ) : "—"}
                         </td>
                         <td className="px-4 py-4 hidden lg:table-cell">
-                          <div className="flex flex-wrap gap-1">
-                            {l.tagIds.map((tid) => {
-                              const t = tagMap.get(tid);
-                              if (!t) return null;
-                              const c = t.cor ?? "#C14F21";
-                              return (
-                                <span
-                                  key={tid}
-                                  className="text-[10px] px-1.5 py-0.5 rounded font-medium"
-                                  style={{ backgroundColor: `${c}26`, color: c }}
-                                >
-                                  {t.nome}
-                                </span>
-                              );
-                            })}
-                          </div>
-                        </td>
-                        <td className="px-4 py-4 hidden lg:table-cell">
-                          {l.created_at ? (
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <span className="text-xs text-muted-foreground cursor-default">{relativeTime(l.created_at)}</span>
-                              </TooltipTrigger>
-                              <TooltipContent>{new Date(l.created_at).toLocaleString("pt-BR")}</TooltipContent>
-                            </Tooltip>
-                          ) : "—"}
+                          <span className="text-xs text-muted-foreground">
+                            {formatLeadCreatedAt(l.created_at)}
+                          </span>
                         </td>
                         <td className="px-4 py-4 text-right">
                           <div className={cn("inline-flex items-center gap-1 justify-end", selectionMode && "opacity-30 pointer-events-none")}>
@@ -792,9 +758,24 @@ function LeadsList() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-      </div>
-    </TooltipProvider>
+    </div>
   );
+}
+
+function formatLeadCreatedAt(value?: string | null) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date
+    .toLocaleString("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    })
+    .replace(",", "");
 }
 
 function Th({ children, className }: { children: React.ReactNode; className?: string }) {
