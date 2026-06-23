@@ -35,6 +35,7 @@ export const Route = createFileRoute("/_authenticated/settings/stages")({
 });
 
 type Stage = { id: number; nome: string; ordem: number; ativo: boolean; id_funnel: number | null };
+const EMPTY_STAGES: Stage[] = [];
 
 function StagesPage() {
   const qc = useQueryClient();
@@ -53,7 +54,7 @@ function StagesPage() {
     }
   }, [funnels, selectedFunnel]);
 
-  const { data: stages = [], isLoading } = useQuery({
+  const { data: stages = EMPTY_STAGES, isLoading } = useQuery({
     enabled: selectedFunnel != null,
     queryKey: ["crm_stages", selectedFunnel],
     queryFn: async () => {
