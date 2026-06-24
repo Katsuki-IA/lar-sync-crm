@@ -108,7 +108,7 @@ function LeadsList() {
         supabase.from("crm_stages").select("id, nome, cor").eq("ativo", true).eq("id_funnel", funnelId!).order("ordem"),
         supabase.from("crm_tags").select("id, nome, cor"),
         supabase.from("empreendimento").select("id, nome").in("id_empresa", allowed ?? []),
-        supabase.from("crm_users").select("id, nome").in("id_empresa", allowed ?? []),
+        supabase.from("crm_users").select("id, nome").eq("active", true).in("id_empresa", allowed ?? []),
       ]);
       return { stages: stages ?? [], tags: tags ?? [], emps: emps ?? [], users: users ?? [] };
     },
