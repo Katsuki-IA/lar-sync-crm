@@ -298,6 +298,48 @@ export type Database = {
           },
         ]
       }
+      crm_empreendimento_atendimento: {
+        Row: {
+          atendimento_ativo: boolean
+          created_at: string
+          id: number
+          id_empresa: number
+          id_empreendimento: number
+          updated_at: string
+        }
+        Insert: {
+          atendimento_ativo?: boolean
+          created_at?: string
+          id?: number
+          id_empresa: number
+          id_empreendimento: number
+          updated_at?: string
+        }
+        Update: {
+          atendimento_ativo?: boolean
+          created_at?: string
+          id?: number
+          id_empresa?: number
+          id_empreendimento?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_empreendimento_atendimento_id_empresa_fkey"
+            columns: ["id_empresa"]
+            isOneToOne: false
+            referencedRelation: "empresa_dados"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_empreendimento_atendimento_id_empreendimento_fkey"
+            columns: ["id_empreendimento"]
+            isOneToOne: false
+            referencedRelation: "empreendimento"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       crm_funnels: {
         Row: {
           ativo: boolean
