@@ -284,7 +284,7 @@ function ImportLeadsPage() {
         const id_empreendimento = empRaw ? empByName.get(norm(empRaw)) ?? null : null;
         const stageId = stageRaw ? stageByName.get(norm(stageRaw)) ?? null : null;
         const respId = respRaw ? userByKey.get(norm(respRaw)) ?? null : null;
-        const assignedTo = respId ?? (assignMe ? me.id : null);
+        const assignedTo = me.role === "agent" ? me.id : respId ?? (assignMe ? me.id : null);
         const finalStage = stageId ?? (defaultStage ? Number(defaultStage) : null);
 
         const insert = {

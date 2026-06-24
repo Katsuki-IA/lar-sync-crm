@@ -176,7 +176,7 @@ function NewLead() {
       const defaultStageId = meta?.stages?.[0]?.id ?? null;
       // Default assignee = oldest manager
       const oldestManager = (meta?.users ?? []).find((user) => user.role === "manager");
-      const defaultAssignee = oldestManager?.id ?? me.id;
+      const defaultAssignee = me.role === "agent" ? me.id : oldestManager?.id ?? me.id;
       const insert = {
         id_empresa: me.id_empresa,
         nome: form.nome,
@@ -184,7 +184,7 @@ function NewLead() {
         email: form.email || null,
         origem: form.origem,
         id_empreendimento: form.id_empreendimento ? Number(form.id_empreendimento) : null,
-        crm_assigned_to: form.crm_assigned_to || defaultAssignee,
+        crm_assigned_to: me.role === "agent" ? me.id : form.crm_assigned_to || defaultAssignee,
         crm_stage_id: form.crm_stage_id ? Number(form.crm_stage_id) : defaultStageId,
       };
       const { data: lead, error } = await supabase.from("crm_leads").insert(insert).select("id").single();
