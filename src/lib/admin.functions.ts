@@ -128,7 +128,7 @@ export const listEmpresas = createServerFn({ method: "GET" })
     const { data: creds } = await supabaseAdmin
       .from("credentials")
       .select("id_empresa")
-      .eq("default_crm", "katsuki");
+      .eq("default_crm", "hub");
     const allowed = (creds ?? [])
       .map((c: any) => c.id_empresa as number | null)
       .filter((v: number | null): v is number => v != null);
@@ -160,7 +160,7 @@ export const listAllCrmUsers = createServerFn({ method: "GET" })
     const { data: creds } = await supabaseAdmin
       .from("credentials")
       .select("id_empresa")
-      .eq("default_crm", "katsuki");
+      .eq("default_crm", "hub");
     const allowed = (creds ?? [])
       .map((c: any) => c.id_empresa as number | null)
       .filter((v: number | null): v is number => v != null);

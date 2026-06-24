@@ -52,7 +52,7 @@ export const sendNotification = createServerFn({ method: "POST" })
       const { data: creds } = await supabaseAdmin
         .from("credentials")
         .select("id_empresa")
-        .eq("default_crm", "katsuki");
+        .eq("default_crm", "hub");
       targets = (creds ?? [])
         .map((c: any) => c.id_empresa as number | null)
         .filter((v: number | null): v is number => v != null);

@@ -2,13 +2,13 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCrmUser } from "@/hooks/use-crm-user";
 
-// Empresas habilitadas no CRM Katsuki — filtradas por credentials.default_crm = 'katsuki'.
+// Empresas habilitadas no CRM Hub — filtradas por credentials.default_crm = 'hub'.
 export function useAllowedEmpresas() {
   const { data: me } = useCrmUser();
 
   return useQuery({
     enabled: !!me,
-    queryKey: ["allowed-empresas-katsuki", me?.id, me?.id_empresa, me?.role],
+    queryKey: ["allowed-empresas-hub", me?.id, me?.id_empresa, me?.role],
     staleTime: 5 * 60_000,
     queryFn: async (): Promise<number[]> => {
       if (me?.role !== "super_admin") {
@@ -18,7 +18,7 @@ export function useAllowedEmpresas() {
       const { data, error } = await supabase
         .from("credentials")
         .select("id_empresa")
-        .eq("default_crm", "katsuki");
+        .eq("default_crm", "hub");
       if (error) throw error;
       return (data ?? [])
         .map((r) => r.id_empresa as number | null)

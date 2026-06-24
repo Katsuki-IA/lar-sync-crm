@@ -35,7 +35,7 @@ function UsersPage() {
 
   const { data: empresas = [] } = useQuery({
     enabled: isSuperAdmin && !!allowed,
-    queryKey: ["empresas-katsuki", allowed],
+    queryKey: ["empresas-hub", allowed],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("empresa_dados")
