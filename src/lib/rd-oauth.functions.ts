@@ -6,6 +6,7 @@ export type RdConnectionStatus = {
   connected_at: string;
   active: boolean;
   default_id_empreendimento: number | null;
+  default_id_funnel: number | null;
   last_event_at: string | null;
   last_error: string | null;
   webhook_uuid: string | null;
@@ -14,11 +15,13 @@ export type RdConnectionStatus = {
 export type RdIntegrationStatus = {
   connection: RdConnectionStatus | null;
   empreendimentos: Array<{ id: number; nome: string }>;
+  funnels: Array<{ id: number; nome: string; is_default: boolean }>;
   summary: { total: number; processed: number; failed: number; pending: number };
   sources: Array<{
     event_identifier: string;
     mapping_id: string | null;
     id_empreendimento: number | null;
+    id_funnel: number | null;
     active: boolean;
     uses_default: boolean;
     total: number;
@@ -38,6 +41,7 @@ export type RdIntegrationStatus = {
     error: string | null;
     received_at: string;
     id_empreendimento: number | null;
+    id_funnel: number | null;
     source_mapping_id: string | null;
   }>;
 };
@@ -75,24 +79,24 @@ export function syncRdAssets() {
   }>("rd-assets-sync");
 }
 
-export function createRdOAuthUrl(empreendimentoId: number) {
-  return invokeRdFunction<{ url: string }>("rd-oauth-start", { empreendimentoId });
+export function createRdOAuthUrl(empreendimentoId: number, funnelId: number) {
+  return invokeRdFunction<{ url: string }>("rd-oauth-start", { empreendimentoId, funnelId });
 }
 
 export function exchangeRdCode(data: { code: string; state: string }) {
   return invokeRdFunction<{ ok: true; connection: RdConnectionStatus }>("rd-oauth-exchange", data);
 }
 
-export function saveRdSettings(empreendimentoId: number) {
-  return invokeRdFunction<{ ok: true }>("rd-settings-save", { empreendimentoId });
+export function saveRdSettings(empreendimentoId: number, funnelId: number) {
+  return invokeRdFunction<{ ok: true }>("rd-settings-save", { empreendimentoId, funnelId });
 }
 
-export function saveRdSourceMapping(eventIdentifier: string, empreendimentoId: number) {
+export function saveRdSourceMapping(eventIdentifier: string, empreendimentoId: number, funnelId: number) {
   return invokeRdFunction<{
     ok: true;
     reprocessed: number;
     failed: number;
-  }>("rd-source-mapping-save", { eventIdentifier, empreendimentoId });
+  }>("rd-source-mapping-save", { eventIdentifier, empreendimentoId, funnelId });
 }
 
 export function disconnectRdConnection() {

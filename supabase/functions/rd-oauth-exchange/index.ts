@@ -23,7 +23,7 @@ Deno.serve(async (req) => {
 
     const { userId, crmUser } = await getAuthorizedCrmUser(req);
     const { clientSecret, supabaseUrl } = getRdConfig();
-    const { empreendimentoId } = await verifyRdSignedState({
+    const { empreendimentoId, funnelId } = await verifyRdSignedState({
       state,
       expectedUserId: userId,
       expectedEmpresa: crmUser.id_empresa,
@@ -48,13 +48,14 @@ Deno.serve(async (req) => {
           webhook_uuid: webhook.webhookUuid,
           webhook_secret_hash: await sha256Hex(webhookSecret),
           default_id_empreendimento: empreendimentoId,
+          default_id_funnel: funnelId,
           connected_at: new Date().toISOString(),
           active: true,
           last_error: null,
         },
         { onConflict: "id_empresa" },
       )
-      .select("id,platform_account_id,connected_at,active,default_id_empreendimento")
+      .select("id,platform_account_id,connected_at,active,default_id_empreendimento,default_id_funnel")
       .single();
     if (error) throw new Error(error.message);
 

@@ -8,6 +8,7 @@ import { useCrmUser } from "@/hooks/use-crm-user";
 import { useAllowedEmpresas } from "@/hooks/use-allowed-empresas";
 import { useLeadCustomFields } from "@/hooks/use-lead-custom-fields";
 import { LeadCustomFieldsForm } from "@/components/lead-custom-fields-form";
+import { useFunnels } from "@/hooks/use-funnels";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -71,6 +72,7 @@ function NewLead() {
   const { data: me } = useCrmUser();
   const { data: allowed } = useAllowedEmpresas();
   const { data: customFields = [] } = useLeadCustomFields(me?.id_empresa);
+  const { data: funnels = [] } = useFunnels(me?.id_empresa);
   const navigate = useNavigate();
   const [countryCode, setCountryCode] = useState("BR");
   const country = COUNTRIES.find((c) => c.code === countryCode) ?? COUNTRIES[0];
@@ -81,6 +83,7 @@ function NewLead() {
     id_empreendimento: "",
     origem: DEFAULT_LEAD_ORIGIN,
     crm_assigned_to: "",
+    id_funnel: "",
     crm_stage_id: "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -123,23 +126,23 @@ function NewLead() {
     enabled: !!me && !!allowed,
     queryKey: ["new-lead-meta", me?.id_empresa, allowed],
     queryFn: async () => {
-      // Estágios do funil padrão da empresa
-      const { data: defaultFunnel } = await supabase
-        .from("crm_funnels")
-        .select("id")
-        .eq("id_empresa", me!.id_empresa!)
-        .eq("is_default", true)
-        .maybeSingle();
-      const stagesQ = supabase.from("crm_stages").select("id, nome, ordem").eq("ativo", true).order("ordem");
-      if (defaultFunnel?.id) stagesQ.eq("id_funnel", defaultFunnel.id);
       const [{ data: stages }, { data: emps }, { data: users }] = await Promise.all([
-        stagesQ,
+        supabase.from("crm_stages").select("id, nome, ordem, id_funnel").eq("ativo", true).order("ordem"),
         supabase.from("empreendimento").select("id, nome").in("id_empresa", allowed ?? []),
         supabase.from("crm_users").select("id, nome, role, created_at").eq("active", true).in("id_empresa", allowed ?? []).order("created_at", { ascending: true }),
       ]);
       return { stages: stages ?? [], emps: emps ?? [], users: users ?? [] };
     },
   });
+
+  const selectedFunnelId = form.id_funnel
+    ? Number(form.id_funnel)
+    : funnels.length
+      ? (funnels.find((funnel) => funnel.is_default) ?? funnels[0]).id
+      : null;
+  const visibleStages = (meta?.stages ?? []).filter((stage) =>
+    selectedFunnelId ? stage.id_funnel === selectedFunnelId : true,
+  );
 
   const createMut = useMutation({
     mutationFn: async () => {
@@ -173,7 +176,7 @@ function NewLead() {
         }
       }
       // Default stage = first (lowest ordem)
-      const defaultStageId = meta?.stages?.[0]?.id ?? null;
+      const defaultStageId = visibleStages[0]?.id ?? null;
       // Default assignee = oldest manager
       const oldestManager = (meta?.users ?? []).find((user) => user.role === "manager");
       const defaultAssignee = me.role === "agent" ? me.id : oldestManager?.id ?? me.id;
@@ -303,11 +306,29 @@ function NewLead() {
                   </SelectContent>
                 </Select>
               </Field>
+              {funnels.length > 1 ? (
+                <Field label="Funil">
+                  <Select
+                    value={selectedFunnelId ? String(selectedFunnelId) : ""}
+                    onValueChange={(v) => setForm({ ...form, id_funnel: v, crm_stage_id: "" })}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Selecionar funil" /></SelectTrigger>
+                    <SelectContent>
+                      {funnels.map((funnel) => (
+                        <SelectItem key={funnel.id} value={String(funnel.id)}>
+                          {funnel.nome}
+                          {funnel.is_default ? " (padrão)" : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+              ) : null}
               <Field label="Estágio inicial">
                 <Select value={form.crm_stage_id} onValueChange={(v) => setForm({ ...form, crm_stage_id: v })}>
                   <SelectTrigger><SelectValue placeholder="Base (padrão)" /></SelectTrigger>
                   <SelectContent>
-                    {meta?.stages.map((s) => <SelectItem key={s.id} value={String(s.id)}>{s.nome}</SelectItem>)}
+                    {visibleStages.map((s) => <SelectItem key={s.id} value={String(s.id)}>{s.nome}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </Field>

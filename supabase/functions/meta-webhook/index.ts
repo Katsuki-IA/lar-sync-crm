@@ -92,7 +92,11 @@ async function isValidSignature(rawBody: string, signatureHeader: string | null,
   return timingSafeEqual(expected, received);
 }
 
-async function getDefaultRouting(supabaseAdmin: ReturnType<typeof createSupabaseAdmin>, idEmpresa: number) {
+async function getDefaultRouting(
+  supabaseAdmin: ReturnType<typeof createSupabaseAdmin>,
+  idEmpresa: number,
+  funnelId: number | null,
+) {
   const { data: manager, error: managerError } = await supabaseAdmin
     .from("crm_users")
     .select("id")
@@ -104,13 +108,17 @@ async function getDefaultRouting(supabaseAdmin: ReturnType<typeof createSupabase
     .maybeSingle();
   if (managerError) throw new Error(managerError.message);
 
-  const { data: defaultFunnel, error: funnelError } = await supabaseAdmin
-    .from("crm_funnels")
-    .select("id")
-    .eq("id_empresa", idEmpresa)
-    .eq("is_default", true)
-    .maybeSingle();
-  if (funnelError) throw new Error(funnelError.message);
+  let resolvedFunnelId = funnelId;
+  if (!resolvedFunnelId) {
+    const { data: defaultFunnel, error: funnelError } = await supabaseAdmin
+      .from("crm_funnels")
+      .select("id")
+      .eq("id_empresa", idEmpresa)
+      .eq("is_default", true)
+      .maybeSingle();
+    if (funnelError) throw new Error(funnelError.message);
+    resolvedFunnelId = defaultFunnel?.id ?? null;
+  }
 
   let stagesQuery = supabaseAdmin
     .from("crm_stages")
@@ -119,8 +127,8 @@ async function getDefaultRouting(supabaseAdmin: ReturnType<typeof createSupabase
     .eq("ativo", true)
     .order("ordem", { ascending: true })
     .limit(1);
-  if (defaultFunnel?.id) {
-    stagesQuery = stagesQuery.eq("id_funnel", defaultFunnel.id);
+  if (resolvedFunnelId) {
+    stagesQuery = stagesQuery.eq("id_funnel", resolvedFunnelId);
   }
   const { data: stage, error: stageError } = await stagesQuery.maybeSingle();
   if (stageError) throw new Error(stageError.message);
@@ -148,7 +156,7 @@ async function processLeadgenEvent(args: {
   const { data: form, error: formError } = await supabaseAdmin
     .from("crm_meta_forms")
     .select(
-      "id_empresa,form_id,form_name,page_id,page_name,page_access_token,id_empreendimento,connection_id",
+      "id_empresa,form_id,form_name,page_id,page_name,page_access_token,id_empreendimento,id_funnel,connection_id",
     )
     .eq("form_id", formId)
     .eq("page_id", pageId)
@@ -229,7 +237,7 @@ async function processLeadgenEvent(args: {
   );
   const observacoes =
     getMappedMetaValue({ values, mapping, crmField: "observacoes" }).trim() || null;
-  const routing = await getDefaultRouting(supabaseAdmin, form.id_empresa);
+  const routing = await getDefaultRouting(supabaseAdmin, form.id_empresa, form.id_funnel ?? null);
   const rawData = {
     source: "meta_webhook",
     webhook: {
@@ -241,6 +249,7 @@ async function processLeadgenEvent(args: {
     destination: {
       id_empresa: form.id_empresa,
       id_empreendimento: form.id_empreendimento,
+      id_funnel: form.id_funnel ?? null,
     },
     normalized_fields: {
       telefone: {

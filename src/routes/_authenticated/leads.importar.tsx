@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useCrmUser } from "@/hooks/use-crm-user";
 import { useAllowedEmpresas } from "@/hooks/use-allowed-empresas";
+import { useFunnels } from "@/hooks/use-funnels";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -139,6 +140,7 @@ function ImportLeadsPage() {
   const navigate = useNavigate();
   const { data: me } = useCrmUser();
   const { data: allowed } = useAllowedEmpresas();
+  const { data: funnels = [] } = useFunnels(me?.id_empresa);
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
 
@@ -165,6 +167,7 @@ function ImportLeadsPage() {
   // Step 3
   const [skipDup, setSkipDup] = useState(true);
   const [assignMe, setAssignMe] = useState(true);
+  const [defaultFunnel, setDefaultFunnel] = useState<string>("");
   const [defaultStage, setDefaultStage] = useState<string>("");
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [result, setResult] = useState<{ success: number; dup: number; errors: Array<{ row: string[]; motivo: string }> } | null>(null);
@@ -176,21 +179,42 @@ function ImportLeadsPage() {
     queryFn: async () => {
       const { data: defaultFunnel } = await supabase
         .from("crm_funnels").select("id").eq("id_empresa", me!.id_empresa!).eq("is_default", true).maybeSingle();
-      const stagesQ = supabase.from("crm_stages").select("id, nome").eq("ativo", true).order("ordem");
-      if (defaultFunnel?.id) stagesQ.eq("id_funnel", defaultFunnel.id);
+      const stagesQ = supabase.from("crm_stages").select("id, nome, id_funnel, ordem").eq("ativo", true).order("ordem");
       const [{ data: stages }, { data: emps }, { data: users }, { data: tags }] = await Promise.all([
         stagesQ,
         supabase.from("empreendimento").select("id, nome").in("id_empresa", allowed ?? []),
         supabase.from("crm_users").select("id, nome, email").eq("active", true).in("id_empresa", allowed ?? []),
         supabase.from("crm_tags").select("id, nome").in("id_empresa", allowed ?? []),
       ]);
-      return { stages: stages ?? [], emps: emps ?? [], users: users ?? [], tags: tags ?? [] };
+      return { stages: stages ?? [], emps: emps ?? [], users: users ?? [], tags: tags ?? [], defaultFunnelId: defaultFunnel?.id ?? null };
     },
   });
 
   useEffect(() => {
-    if (!defaultStage && meta?.stages?.length) setDefaultStage(String(meta.stages[0].id));
-  }, [meta, defaultStage]);
+    if (!defaultFunnel && funnels.length) {
+      const selected = funnels.length === 1
+        ? funnels[0]
+        : funnels.find((funnel) => funnel.is_default) ?? funnels[0];
+      setDefaultFunnel(String(selected.id));
+    }
+  }, [funnels, defaultFunnel]);
+
+  const selectedFunnelId = defaultFunnel
+    ? Number(defaultFunnel)
+    : (meta?.defaultFunnelId ?? null);
+  const visibleStages = (meta?.stages ?? []).filter((stage) =>
+    selectedFunnelId ? stage.id_funnel === selectedFunnelId : true,
+  );
+
+  useEffect(() => {
+    if (!visibleStages.length) {
+      if (defaultStage) setDefaultStage("");
+      return;
+    }
+    if (!defaultStage || !visibleStages.some((stage) => String(stage.id) === defaultStage)) {
+      setDefaultStage(String(visibleStages[0].id));
+    }
+  }, [defaultStage, visibleStages]);
 
   /* file handling */
   async function loadFile(f: File) {
@@ -240,7 +264,7 @@ function ImportLeadsPage() {
     setResult(null);
 
     const empByName = new Map((meta?.emps ?? []).map((e) => [norm(e.nome), e.id]));
-    const stageByName = new Map((meta?.stages ?? []).map((s) => [norm(s.nome), s.id]));
+    const stageByName = new Map(visibleStages.map((s) => [norm(s.nome), s.id]));
     const userByKey = new Map<string, string>();
     (meta?.users ?? []).forEach((u) => {
       userByKey.set(norm(u.nome), u.id);
@@ -401,7 +425,10 @@ function ImportLeadsPage() {
           setAssignMe={setAssignMe}
           defaultStage={defaultStage}
           setDefaultStage={setDefaultStage}
-          stages={meta?.stages ?? []}
+          defaultFunnel={selectedFunnelId ? String(selectedFunnelId) : ""}
+          setDefaultFunnel={setDefaultFunnel}
+          funnels={funnels}
+          stages={visibleStages}
           progress={progress}
           result={result}
           onBack={() => { if (!progress) setStep(2); }}
@@ -621,7 +648,7 @@ function Step2({
 /* ===== Step 3 ===== */
 function Step3({
   file, sep, headers, mapping, totalRows, skipDup, setSkipDup, assignMe, setAssignMe,
-  defaultStage, setDefaultStage, stages, progress, result,
+  defaultStage, setDefaultStage, defaultFunnel, setDefaultFunnel, funnels, stages, progress, result,
   onBack, onImport, onFinish, onDownloadErrors,
 }: {
   file: File;
@@ -632,6 +659,8 @@ function Step3({
   skipDup: boolean; setSkipDup: (b: boolean) => void;
   assignMe: boolean; setAssignMe: (b: boolean) => void;
   defaultStage: string; setDefaultStage: (s: string) => void;
+  defaultFunnel: string; setDefaultFunnel: (s: string) => void;
+  funnels: Array<{ id: number; nome: string; is_default: boolean }>;
   stages: Array<{ id: number; nome: string }>;
   progress: { done: number; total: number } | null;
   result: { success: number; dup: number; errors: Array<{ row: string[]; motivo: string }> } | null;
@@ -698,6 +727,25 @@ function Step3({
             <Checkbox checked={assignMe} onCheckedChange={(v) => setAssignMe(!!v)} />
             Atribuir para mim se responsável não estiver mapeado
           </label>
+          {funnels.length > 1 ? (
+            <div className="space-y-1.5 max-w-sm">
+              <Label className="text-sm">Funil padrão para leads importados</Label>
+              <Select value={defaultFunnel} onValueChange={(value) => {
+                setDefaultFunnel(value);
+                setDefaultStage("");
+              }}>
+                <SelectTrigger><SelectValue placeholder="Selecione um funil" /></SelectTrigger>
+                <SelectContent>
+                  {funnels.map((funnel) => (
+                    <SelectItem key={funnel.id} value={String(funnel.id)}>
+                      {funnel.nome}
+                      {funnel.is_default ? " (padrão)" : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : null}
           <div className="space-y-1.5 max-w-sm">
             <Label className="text-sm">Estágio padrão para leads sem estágio mapeado</Label>
             <Select value={defaultStage} onValueChange={setDefaultStage}>

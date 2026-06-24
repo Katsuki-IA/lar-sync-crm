@@ -28,7 +28,7 @@ Deno.serve(async (req) => {
   const supabaseAdmin = createSupabaseAdmin();
   const { data: connection, error: connectionError } = await supabaseAdmin
     .from("crm_rd_connections")
-    .select("id,id_empresa,default_id_empreendimento,active")
+    .select("id,id_empresa,default_id_empreendimento,default_id_funnel,active")
     .eq("webhook_secret_hash", await sha256Hex(token))
     .eq("active", true)
     .maybeSingle();
@@ -69,7 +69,7 @@ Deno.serve(async (req) => {
       { onConflict: "id_empresa,event_key" },
     )
     .select(
-      "id,id_empresa,connection_id,event_identifier,event_timestamp,contact_uuid,contact_email,raw_data,status,crm_lead_id",
+      "id,id_empresa,connection_id,event_identifier,event_timestamp,contact_uuid,contact_email,raw_data,status,crm_lead_id,id_funnel",
     )
     .single();
   if (eventError) return response({ error: "Falha ao registrar evento" }, 500);

@@ -861,6 +861,7 @@ export type Database = {
           id: string
           id_empreendimento: number | null
           id_empresa: number
+          id_funnel: number | null
           leads_count: number | null
           page_access_token: string | null
           page_id: string
@@ -875,6 +876,7 @@ export type Database = {
           id?: string
           id_empreendimento?: number | null
           id_empresa: number
+          id_funnel?: number | null
           leads_count?: number | null
           page_access_token?: string | null
           page_id: string
@@ -889,6 +891,7 @@ export type Database = {
           id?: string
           id_empreendimento?: number | null
           id_empresa?: number
+          id_funnel?: number | null
           leads_count?: number | null
           page_access_token?: string | null
           page_id?: string
@@ -914,6 +917,13 @@ export type Database = {
             columns: ["id_empresa"]
             isOneToOne: false
             referencedRelation: "empresa_dados"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_meta_forms_id_funnel_fkey"
+            columns: ["id_funnel"]
+            isOneToOne: false
+            referencedRelation: "crm_funnels"
             referencedColumns: ["id"]
           },
         ]
@@ -979,6 +989,7 @@ export type Database = {
           connected_at: string
           created_at: string
           default_id_empreendimento: number | null
+          default_id_funnel: number | null
           id: string
           id_empresa: number
           last_error: string | null
@@ -996,6 +1007,7 @@ export type Database = {
           connected_at?: string
           created_at?: string
           default_id_empreendimento?: number | null
+          default_id_funnel?: number | null
           id?: string
           id_empresa: number
           last_error?: string | null
@@ -1013,6 +1025,7 @@ export type Database = {
           connected_at?: string
           created_at?: string
           default_id_empreendimento?: number | null
+          default_id_funnel?: number | null
           id?: string
           id_empresa?: number
           last_error?: string | null
@@ -1039,6 +1052,13 @@ export type Database = {
             referencedRelation: "empresa_dados"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "crm_rd_connections_default_id_funnel_fkey"
+            columns: ["default_id_funnel"]
+            isOneToOne: false
+            referencedRelation: "crm_funnels"
+            referencedColumns: ["id"]
+          },
         ]
       }
       crm_rd_source_mappings: {
@@ -1050,6 +1070,7 @@ export type Database = {
           id: string
           id_empresa: number
           id_empreendimento: number | null
+          id_funnel: number | null
           last_seen_at: string | null
           updated_at: string
         }
@@ -1061,6 +1082,7 @@ export type Database = {
           id?: string
           id_empresa: number
           id_empreendimento?: number | null
+          id_funnel?: number | null
           last_seen_at?: string | null
           updated_at?: string
         }
@@ -1072,6 +1094,7 @@ export type Database = {
           id?: string
           id_empresa?: number
           id_empreendimento?: number | null
+          id_funnel?: number | null
           last_seen_at?: string | null
           updated_at?: string
         }
@@ -1097,6 +1120,13 @@ export type Database = {
             referencedRelation: "empreendimento"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "crm_rd_source_mappings_id_funnel_fkey"
+            columns: ["id_funnel"]
+            isOneToOne: false
+            referencedRelation: "crm_funnels"
+            referencedColumns: ["id"]
+          },
         ]
       }
       crm_rd_events: {
@@ -1113,6 +1143,7 @@ export type Database = {
           id: string
           id_empresa: number
           id_empreendimento: number | null
+          id_funnel: number | null
           processed_at: string | null
           raw_data: Json
           received_at: string
@@ -1132,6 +1163,7 @@ export type Database = {
           id?: string
           id_empresa: number
           id_empreendimento?: number | null
+          id_funnel?: number | null
           processed_at?: string | null
           raw_data: Json
           received_at?: string
@@ -1151,6 +1183,7 @@ export type Database = {
           id?: string
           id_empresa?: number
           id_empreendimento?: number | null
+          id_funnel?: number | null
           processed_at?: string | null
           raw_data?: Json
           received_at?: string
@@ -1184,6 +1217,13 @@ export type Database = {
             columns: ["id_empreendimento"]
             isOneToOne: false
             referencedRelation: "empreendimento"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_rd_events_id_funnel_fkey"
+            columns: ["id_funnel"]
+            isOneToOne: false
+            referencedRelation: "crm_funnels"
             referencedColumns: ["id"]
           },
           {

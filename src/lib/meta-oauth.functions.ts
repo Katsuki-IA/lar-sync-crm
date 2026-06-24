@@ -17,6 +17,7 @@ export type MetaFormStatus = {
   leads_count: number | null;
   active: boolean | null;
   id_empreendimento: number | null;
+  id_funnel: number | null;
   mapped_fields_count?: number;
 };
 
@@ -71,10 +72,16 @@ export type MetaFormFieldsResult = {
     page_id: string;
     page_name: string | null;
     id_empreendimento: number | null;
+    id_funnel: number | null;
   };
   empreendimentos: Array<{
     id: number;
     nome: string;
+  }>;
+  funnels: Array<{
+    id: number;
+    nome: string;
+    is_default: boolean;
   }>;
   fields: MetaFormField[];
   mapping: Record<string, string>;
@@ -83,6 +90,7 @@ export type MetaFormFieldsResult = {
 export type MetaSaveFieldMappingInput = {
   formId: string;
   empreendimentoId: number;
+  funnelId: number;
   mapping: Array<{
     metaFieldKey: string;
     crmField: string;

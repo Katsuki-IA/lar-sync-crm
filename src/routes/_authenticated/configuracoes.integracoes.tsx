@@ -90,6 +90,7 @@ type MetaForm = {
   leads_count: number | null;
   active: boolean | null;
   id_empreendimento: number | null;
+  id_funnel: number | null;
   mapped_fields_count?: number;
 };
 
@@ -161,6 +162,7 @@ function IntegracoesPage() {
   const [formSearch, setFormSearch] = useState("");
   const [fieldMapping, setFieldMapping] = useState<Record<string, string>>({});
   const [selectedEmpreendimentoId, setSelectedEmpreendimentoId] = useState("");
+  const [selectedFunnelId, setSelectedFunnelId] = useState("");
   const [testValues, setTestValues] = useState<Record<string, string>>({});
   const [savingMapping, setSavingMapping] = useState(false);
   const [creatingTestLead, setCreatingTestLead] = useState(false);
@@ -327,6 +329,17 @@ function IntegracoesPage() {
           ? String(formFields.empreendimentos[0].id)
           : "",
     );
+    const savedFunnelId = formFields.form.id_funnel;
+    const defaultFunnel = formFields.funnels.find((funnel) => funnel.is_default);
+    setSelectedFunnelId(
+      savedFunnelId
+        ? String(savedFunnelId)
+        : formFields.funnels.length === 1
+          ? String(formFields.funnels[0].id)
+          : defaultFunnel
+            ? String(defaultFunnel.id)
+            : "",
+    );
   }, [formFields]);
 
   const openMetaManager = () => {
@@ -371,6 +384,7 @@ function IntegracoesPage() {
     setSelectedFormId(form.form_id);
     setFieldMapping({});
     setSelectedEmpreendimentoId("");
+    setSelectedFunnelId("");
     setTestValues({});
     setDrawerView("mapping");
   };
@@ -382,12 +396,18 @@ function IntegracoesPage() {
       toast.error("Selecione o empreendimento que receberá os leads");
       return;
     }
+    const funnelId = Number(selectedFunnelId);
+    if (!Number.isSafeInteger(funnelId) || funnelId <= 0) {
+      toast.error("Selecione o funil que receberá os leads");
+      return;
+    }
 
     try {
       setSavingMapping(true);
       await saveMetaFieldMapping({
         formId: selectedFormId,
         empreendimentoId,
+        funnelId,
         mapping: formFields.fields.map((field) => ({
           metaFieldKey: field.key,
           crmField: fieldMapping[field.key] ?? "__ignore__",
@@ -743,7 +763,7 @@ function IntegracoesPage() {
                           </div>
                         </div>
                         <div>
-                          {Number(form.mapped_fields_count ?? 0) >= 2 && form.id_empreendimento ? (
+                          {Number(form.mapped_fields_count ?? 0) >= 2 && form.id_empreendimento && form.id_funnel ? (
                             <Badge
                               className="border-0 text-[10px]"
                               style={{
@@ -819,6 +839,30 @@ function IntegracoesPage() {
                           </p>
                         ) : null}
                       </div>
+                      {formFields.funnels.length > 1 ? (
+                        <div className="mt-4 max-w-md space-y-2">
+                          <Label htmlFor="meta-funnel">Funil *</Label>
+                          <Select
+                            value={selectedFunnelId}
+                            onValueChange={setSelectedFunnelId}
+                          >
+                            <SelectTrigger id="meta-funnel">
+                              <SelectValue placeholder="Selecionar funil" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {formFields.funnels.map((funnel) => (
+                                <SelectItem key={funnel.id} value={String(funnel.id)}>
+                                  {funnel.nome}
+                                  {funnel.is_default ? " (padrão)" : ""}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <p className="text-xs text-muted-foreground">
+                            Os leads entrarão no primeiro estágio deste funil.
+                          </p>
+                        </div>
+                      ) : null}
                     </div>
 
                     <div
@@ -900,12 +944,13 @@ function IntegracoesPage() {
                           <Label className="text-xs text-muted-foreground">Obrigatórios</Label>
                           <div className="text-sm text-foreground">
                             Nome, Telefone e Empreendimento
+                            {formFields.funnels.length > 1 ? ", Funil" : ""}
                           </div>
                         </div>
                         <div className="flex flex-wrap items-end justify-start gap-2 sm:justify-end">
                           <Button
                             variant="outline"
-                            disabled={savingMapping || !selectedEmpreendimentoId}
+                            disabled={savingMapping || !selectedEmpreendimentoId || !selectedFunnelId}
                             onClick={handleSaveMapping}
                           >
                             {savingMapping ? "Salvando..." : "Salvar mapeamento"}

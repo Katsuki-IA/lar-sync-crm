@@ -31,6 +31,7 @@ export type RdStoredEvent = {
   event_timestamp: string | null;
   contact_uuid: string | null;
   contact_email: string | null;
+  id_funnel?: number | null;
   raw_data: RdWebhookPayload;
 };
 
@@ -38,32 +39,35 @@ export type RdConnectionContext = {
   id: string;
   id_empresa: number;
   default_id_empreendimento: number | null;
+  default_id_funnel?: number | null;
 };
 
 export class PermanentRdPayloadError extends Error {}
 
-async function getDefaultRouting(idEmpresa: number) {
+async function getDefaultRouting(idEmpresa: number, funnelId: number | null) {
   const supabaseAdmin = createSupabaseAdmin();
-  const [{ data: manager, error: managerError }, { data: funnel, error: funnelError }] =
-    await Promise.all([
-      supabaseAdmin
-        .from("crm_users")
-        .select("id")
-        .eq("id_empresa", idEmpresa)
-        .eq("role", "manager")
-        .eq("active", true)
-        .order("created_at", { ascending: true })
-        .limit(1)
-        .maybeSingle(),
-      supabaseAdmin
-        .from("crm_funnels")
-        .select("id")
-        .eq("id_empresa", idEmpresa)
-        .eq("is_default", true)
-        .maybeSingle(),
-    ]);
+  const { data: manager, error: managerError } = await supabaseAdmin
+    .from("crm_users")
+    .select("id")
+    .eq("id_empresa", idEmpresa)
+    .eq("role", "manager")
+    .eq("active", true)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
   if (managerError) throw new Error(managerError.message);
-  if (funnelError) throw new Error(funnelError.message);
+
+  let resolvedFunnelId = funnelId;
+  if (!resolvedFunnelId) {
+    const { data: funnel, error: funnelError } = await supabaseAdmin
+      .from("crm_funnels")
+      .select("id")
+      .eq("id_empresa", idEmpresa)
+      .eq("is_default", true)
+      .maybeSingle();
+    if (funnelError) throw new Error(funnelError.message);
+    resolvedFunnelId = funnel?.id ?? null;
+  }
 
   let stageQuery = supabaseAdmin
     .from("crm_stages")
@@ -72,7 +76,7 @@ async function getDefaultRouting(idEmpresa: number) {
     .eq("ativo", true)
     .order("ordem", { ascending: true })
     .limit(1);
-  if (funnel?.id) stageQuery = stageQuery.eq("id_funnel", funnel.id);
+  if (resolvedFunnelId) stageQuery = stageQuery.eq("id_funnel", resolvedFunnelId);
   const { data: stage, error: stageError } = await stageQuery.maybeSingle();
   if (stageError) throw new Error(stageError.message);
   return { assignedTo: manager?.id ?? null, stageId: stage?.id ?? null };
@@ -132,6 +136,7 @@ async function resolveEventDestination(event: RdStoredEvent, connection: RdConne
     return {
       mappingId: null,
       empreendimentoId: connection.default_id_empreendimento,
+      funnelId: connection.default_id_funnel ?? null,
       pendingReason: connection.default_id_empreendimento
         ? null
         : "Conversão RD sem identificador e sem empreendimento padrão",
@@ -150,7 +155,7 @@ async function resolveEventDestination(event: RdStoredEvent, connection: RdConne
       },
       { onConflict: "id_empresa,event_identifier" },
     )
-    .select("id,id_empreendimento,active")
+    .select("id,id_empreendimento,id_funnel,active")
     .single();
   if (error) throw new Error(error.message);
 
@@ -162,6 +167,7 @@ async function resolveEventDestination(event: RdStoredEvent, connection: RdConne
   return {
     mappingId: mapping.id,
     empreendimentoId: mapping.id_empreendimento as number | null,
+    funnelId: (mapping.id_funnel as number | null) ?? connection.default_id_funnel ?? null,
     pendingReason,
   };
 }
@@ -179,6 +185,7 @@ export async function processRdEventWithRouting(args: {
       .update({
         source_mapping_id: destination.mappingId,
         id_empreendimento: destination.empreendimentoId,
+        id_funnel: destination.funnelId,
         status: "pending_mapping",
         error: destination.pendingReason ?? "Empreendimento da conversão não configurado",
         processed_at: null,
@@ -210,7 +217,7 @@ export async function processRdEventWithRouting(args: {
     if (!normalizedPhone) {
       throw new PermanentRdPayloadError("Contato RD sem telefone e sem lead existente por email");
     }
-    const routing = await getDefaultRouting(args.connection.id_empresa);
+    const routing = await getDefaultRouting(args.connection.id_empresa, destination.funnelId);
     const fallbackName = email?.split("@")[0] || "Lead RD Station";
     const { data: lead, error: leadError } = await supabaseAdmin
       .from("crm_leads")
@@ -258,6 +265,7 @@ export async function processRdEventWithRouting(args: {
       event_identifier: args.event.event_identifier,
       event_timestamp: args.event.event_timestamp,
       id_empreendimento: destination.empreendimentoId,
+      id_funnel: destination.funnelId,
       duplicate_contact: Boolean(existingLeadId),
     },
   });
@@ -270,6 +278,7 @@ export async function processRdEventWithRouting(args: {
       .update({
         source_mapping_id: destination.mappingId,
         id_empreendimento: destination.empreendimentoId,
+        id_funnel: destination.funnelId,
         status: "processed",
         crm_lead_id: leadId,
         error: null,

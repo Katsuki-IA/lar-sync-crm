@@ -70,6 +70,7 @@ export async function createRdSignedState(args: {
   userId: string;
   idEmpresa: number;
   empreendimentoId: number;
+  funnelId: number;
   secret: string;
 }) {
   const payload = base64UrlEncode(
@@ -77,6 +78,7 @@ export async function createRdSignedState(args: {
       userId: args.userId,
       idEmpresa: args.idEmpresa,
       empreendimentoId: args.empreendimentoId,
+      funnelId: args.funnelId,
       expiresAt: Date.now() + 10 * 60 * 1000,
       nonce: crypto.randomUUID(),
     }),
@@ -100,18 +102,20 @@ export async function verifyRdSignedState(args: {
     userId?: string;
     idEmpresa?: number;
     empreendimentoId?: number;
+    funnelId?: number;
     expiresAt?: number;
   };
   if (
     parsed.userId !== args.expectedUserId ||
     parsed.idEmpresa !== args.expectedEmpresa ||
     !parsed.empreendimentoId ||
+    !parsed.funnelId ||
     !parsed.expiresAt ||
     parsed.expiresAt < Date.now()
   ) {
     throw new Error("State OAuth expirado ou incompatível");
   }
-  return { empreendimentoId: parsed.empreendimentoId };
+  return { empreendimentoId: parsed.empreendimentoId, funnelId: parsed.funnelId };
 }
 
 export function buildRdOAuthUrl(args: {

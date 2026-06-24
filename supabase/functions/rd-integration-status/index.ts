@@ -10,6 +10,7 @@ type SourceSummary = {
   event_identifier: string;
   mapping_id: string | null;
   id_empreendimento: number | null;
+  id_funnel: number | null;
   active: boolean;
   uses_default: boolean;
   total: number;
@@ -26,12 +27,12 @@ Deno.serve(async (req) => {
   return withErrorHandling(async () => {
     const { crmUser } = await getAuthorizedCrmUser(req);
     const supabaseAdmin = createSupabaseAdmin();
-    const [connectionResult, empreendimentosResult, eventsResult, mappingsResult] =
+    const [connectionResult, empreendimentosResult, funnelsResult, eventsResult, mappingsResult] =
       await Promise.all([
         supabaseAdmin
           .from("crm_rd_connections")
           .select(
-            "id,platform_account_id,connected_at,active,default_id_empreendimento,last_event_at,last_error,webhook_uuid",
+            "id,platform_account_id,connected_at,active,default_id_empreendimento,default_id_funnel,last_event_at,last_error,webhook_uuid",
           )
           .eq("id_empresa", crmUser.id_empresa)
           .eq("active", true)
@@ -42,21 +43,29 @@ Deno.serve(async (req) => {
           .eq("id_empresa", crmUser.id_empresa)
           .order("nome", { ascending: true }),
         supabaseAdmin
+          .from("crm_funnels")
+          .select("id,nome,is_default")
+          .eq("id_empresa", crmUser.id_empresa)
+          .eq("ativo", true)
+          .order("ordem", { ascending: true })
+          .order("id", { ascending: true }),
+        supabaseAdmin
           .from("crm_rd_events")
           .select(
-            "id,event_type,event_identifier,event_timestamp,contact_email,crm_lead_id,status,error,received_at,id_empreendimento,source_mapping_id",
+            "id,event_type,event_identifier,event_timestamp,contact_email,crm_lead_id,status,error,received_at,id_empreendimento,id_funnel,source_mapping_id",
           )
           .eq("id_empresa", crmUser.id_empresa)
           .order("received_at", { ascending: false })
           .limit(500),
         supabaseAdmin
           .from("crm_rd_source_mappings")
-          .select("id,event_identifier,id_empreendimento,active,last_seen_at")
+          .select("id,event_identifier,id_empreendimento,id_funnel,active,last_seen_at")
           .eq("id_empresa", crmUser.id_empresa)
           .order("event_identifier", { ascending: true }),
       ]);
     if (connectionResult.error) throw new Error(connectionResult.error.message);
     if (empreendimentosResult.error) throw new Error(empreendimentosResult.error.message);
+    if (funnelsResult.error) throw new Error(funnelsResult.error.message);
     if (eventsResult.error) throw new Error(eventsResult.error.message);
     if (mappingsResult.error) throw new Error(mappingsResult.error.message);
 
@@ -68,6 +77,7 @@ Deno.serve(async (req) => {
         event_identifier: mapping.event_identifier,
         mapping_id: mapping.id,
         id_empreendimento: mapping.id_empreendimento,
+        id_funnel: mapping.id_funnel,
         active: mapping.active,
         uses_default: false,
         total: 0,
@@ -86,6 +96,9 @@ Deno.serve(async (req) => {
         id_empreendimento: event.event_identifier
           ? event.id_empreendimento
           : (connection?.default_id_empreendimento ?? null),
+        id_funnel: event.event_identifier
+          ? event.id_funnel
+          : (connection?.default_id_funnel ?? null),
         active: true,
         uses_default: !event.event_identifier,
         total: 0,
@@ -111,6 +124,7 @@ Deno.serve(async (req) => {
     return jsonResponse({
       connection: connection ?? null,
       empreendimentos: empreendimentosResult.data ?? [],
+      funnels: funnelsResult.data ?? [],
       summary: {
         total: events.length,
         processed: events.filter((event) => event.status === "processed").length,

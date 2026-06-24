@@ -16,22 +16,26 @@ Deno.serve(async (req) => {
   if (options) return options;
 
   return withErrorHandling(async () => {
-    const { eventIdentifier, empreendimentoId } = (await req.json()) as {
+    const { eventIdentifier, empreendimentoId, funnelId } = (await req.json()) as {
       eventIdentifier?: string;
       empreendimentoId?: number;
+      funnelId?: number;
     };
     const normalizedIdentifier = eventIdentifier?.trim();
     if (!normalizedIdentifier) throw new Error("Identificador da conversão não informado");
     if (!empreendimentoId || !Number.isInteger(empreendimentoId)) {
       throw new Error("Selecione o empreendimento");
     }
+    if (!funnelId || !Number.isInteger(funnelId)) {
+      throw new Error("Selecione o funil");
+    }
 
     const { crmUser } = await getAuthorizedCrmUser(req);
     const supabaseAdmin = createSupabaseAdmin();
-    const [connectionResult, empreendimentoResult] = await Promise.all([
+    const [connectionResult, empreendimentoResult, funnelResult] = await Promise.all([
       supabaseAdmin
         .from("crm_rd_connections")
-        .select("id,id_empresa,default_id_empreendimento")
+        .select("id,id_empresa,default_id_empreendimento,default_id_funnel")
         .eq("id_empresa", crmUser.id_empresa)
         .eq("active", true)
         .maybeSingle(),
@@ -41,11 +45,20 @@ Deno.serve(async (req) => {
         .eq("id", empreendimentoId)
         .eq("id_empresa", crmUser.id_empresa)
         .maybeSingle(),
+      supabaseAdmin
+        .from("crm_funnels")
+        .select("id")
+        .eq("id", funnelId)
+        .eq("id_empresa", crmUser.id_empresa)
+        .eq("ativo", true)
+        .maybeSingle(),
     ]);
     if (connectionResult.error) throw new Error(connectionResult.error.message);
     if (empreendimentoResult.error) throw new Error(empreendimentoResult.error.message);
+    if (funnelResult.error) throw new Error(funnelResult.error.message);
     if (!connectionResult.data) throw new Error("Conexão RD Station não encontrada");
     if (!empreendimentoResult.data) throw new Error("Empreendimento não pertence à empresa atual");
+    if (!funnelResult.data) throw new Error("Funil não pertence à empresa atual");
 
     const connection = connectionResult.data;
     const { data: mapping, error: mappingError } = await supabaseAdmin
@@ -56,18 +69,19 @@ Deno.serve(async (req) => {
           connection_id: connection.id,
           event_identifier: normalizedIdentifier,
           id_empreendimento: empreendimentoId,
+          id_funnel: funnelId,
           active: true,
         },
         { onConflict: "id_empresa,event_identifier" },
       )
-      .select("id,event_identifier,id_empreendimento,active,last_seen_at")
+      .select("id,event_identifier,id_empreendimento,id_funnel,active,last_seen_at")
       .single();
     if (mappingError) throw new Error(mappingError.message);
 
     const { data: pendingEvents, error: pendingError } = await supabaseAdmin
       .from("crm_rd_events")
       .select(
-        "id,id_empresa,connection_id,event_identifier,event_timestamp,contact_uuid,contact_email,raw_data",
+        "id,id_empresa,connection_id,event_identifier,event_timestamp,contact_uuid,contact_email,raw_data,id_funnel",
       )
       .eq("id_empresa", crmUser.id_empresa)
       .eq("event_identifier", normalizedIdentifier)

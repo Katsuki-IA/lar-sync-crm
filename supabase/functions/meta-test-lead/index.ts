@@ -64,7 +64,7 @@ Deno.serve(async (req) => {
 
     const { data: form, error: formError } = await supabaseAdmin
       .from("crm_meta_forms")
-      .select("form_id,form_name,page_id,page_name,id_empreendimento")
+      .select("form_id,form_name,page_id,page_name,id_empreendimento,id_funnel")
       .eq("id_empresa", crmUser.id_empresa)
       .eq("form_id", formId)
       .eq("active", true)
@@ -116,12 +116,16 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (crmUserError) throw new Error(crmUserError.message);
 
-    const { data: defaultFunnel } = await supabaseAdmin
-      .from("crm_funnels")
-      .select("id")
-      .eq("id_empresa", crmUser.id_empresa)
-      .eq("is_default", true)
-      .maybeSingle();
+    let selectedFunnelId = form.id_funnel ?? null;
+    if (!selectedFunnelId) {
+      const { data: defaultFunnel } = await supabaseAdmin
+        .from("crm_funnels")
+        .select("id")
+        .eq("id_empresa", crmUser.id_empresa)
+        .eq("is_default", true)
+        .maybeSingle();
+      selectedFunnelId = defaultFunnel?.id ?? null;
+    }
 
     let defaultStageId: number | null = null;
     const stagesQuery = supabaseAdmin
@@ -131,7 +135,7 @@ Deno.serve(async (req) => {
       .eq("ativo", true)
       .order("ordem", { ascending: true })
       .limit(1);
-    if (defaultFunnel?.id) stagesQuery.eq("id_funnel", defaultFunnel.id);
+    if (selectedFunnelId) stagesQuery.eq("id_funnel", selectedFunnelId);
     const { data: stage } = await stagesQuery.maybeSingle();
     defaultStageId = stage?.id ?? null;
 
@@ -147,6 +151,7 @@ Deno.serve(async (req) => {
         id: empreendimento.id,
         nome: empreendimento.nome,
       },
+      id_funnel: selectedFunnelId,
       field_data: Object.entries(fieldValues).map(([name, value]) => ({
         name,
         values: [value],

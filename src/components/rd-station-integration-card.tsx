@@ -98,12 +98,14 @@ export function RdStationIntegrationCard() {
   const [connectOpen, setConnectOpen] = useState(false);
   const [manageOpen, setManageOpen] = useState(false);
   const [empreendimentoId, setEmpreendimentoId] = useState("");
+  const [funnelId, setFunnelId] = useState("");
   const [connecting, setConnecting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [savingSource, setSavingSource] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
   const [sourceSelections, setSourceSelections] = useState<Record<string, string>>({});
+  const [sourceFunnelSelections, setSourceFunnelSelections] = useState<Record<string, string>>({});
   const { data, isLoading } = useQuery({
     queryKey: ["rd-integration-status"],
     queryFn: getRdIntegrationStatus,
@@ -117,10 +119,22 @@ export function RdStationIntegrationCard() {
   }, [data?.empreendimentos, empreendimentoId]);
 
   useEffect(() => {
+    if (!funnelId && data?.funnels.length) {
+      const selected = data.funnels.length === 1
+        ? data.funnels[0]
+        : data.funnels.find((item) => item.is_default) ?? data.funnels[0];
+      setFunnelId(String(selected.id));
+    }
+  }, [data?.funnels, funnelId]);
+
+  useEffect(() => {
     if (manageOpen && data?.connection?.default_id_empreendimento) {
       setEmpreendimentoId(String(data.connection.default_id_empreendimento));
     }
-  }, [data?.connection?.default_id_empreendimento, manageOpen]);
+    if (manageOpen && data?.connection?.default_id_funnel) {
+      setFunnelId(String(data.connection.default_id_funnel));
+    }
+  }, [data?.connection?.default_id_empreendimento, data?.connection?.default_id_funnel, manageOpen]);
 
   useEffect(() => {
     if (!data?.sources) return;
@@ -132,7 +146,19 @@ export function RdStationIntegrationCard() {
         ]),
       ),
     );
-  }, [data?.sources]);
+    setSourceFunnelSelections(
+      Object.fromEntries(
+        data.sources.map((source) => [
+          source.event_identifier,
+          source.id_funnel
+            ? String(source.id_funnel)
+            : data.connection?.default_id_funnel
+              ? String(data.connection.default_id_funnel)
+              : "",
+        ]),
+      ),
+    );
+  }, [data?.sources, data?.connection?.default_id_funnel]);
 
   useEffect(() => {
     const handler = async (event: MessageEvent) => {
@@ -167,6 +193,11 @@ export function RdStationIntegrationCard() {
       toast.error("Selecione o empreendimento padrão");
       return;
     }
+    const selectedFunnelId = Number(funnelId);
+    if (!selectedFunnelId) {
+      toast.error("Selecione o funil padrão");
+      return;
+    }
     const width = 560;
     const height = 720;
     const popup = window.open(
@@ -180,7 +211,7 @@ export function RdStationIntegrationCard() {
     }
     try {
       setConnecting(true);
-      const { url } = await createRdOAuthUrl(selectedId);
+      const { url } = await createRdOAuthUrl(selectedId, selectedFunnelId);
       popup.location.href = url;
       popup.focus();
     } catch (error) {
@@ -192,10 +223,11 @@ export function RdStationIntegrationCard() {
 
   async function saveSettings() {
     const selectedId = Number(empreendimentoId);
-    if (!selectedId) return;
+    const selectedFunnelId = Number(funnelId);
+    if (!selectedId || !selectedFunnelId) return;
     try {
       setSaving(true);
-      await saveRdSettings(selectedId);
+      await saveRdSettings(selectedId, selectedFunnelId);
       await qc.invalidateQueries({ queryKey: ["rd-integration-status"] });
       setManageOpen(false);
       toast.success("Configuração do RD Station atualizada");
@@ -208,13 +240,18 @@ export function RdStationIntegrationCard() {
 
   async function saveSourceMapping(eventIdentifier: string) {
     const selectedId = Number(sourceSelections[eventIdentifier]);
+    const selectedFunnelId = Number(sourceFunnelSelections[eventIdentifier]);
     if (!selectedId) {
       toast.error("Selecione o empreendimento desta conversão");
       return;
     }
+    if (!selectedFunnelId) {
+      toast.error("Selecione o funil desta conversão");
+      return;
+    }
     try {
       setSavingSource(eventIdentifier);
-      const result = await saveRdSourceMapping(eventIdentifier, selectedId);
+      const result = await saveRdSourceMapping(eventIdentifier, selectedId, selectedFunnelId);
       await qc.invalidateQueries({ queryKey: ["rd-integration-status"] });
       toast.success("Vínculo salvo", {
         description: result.reprocessed
@@ -358,11 +395,29 @@ export function RdStationIntegrationCard() {
               </SelectContent>
             </Select>
           </div>
+          {data?.funnels.length && data.funnels.length > 1 ? (
+            <div className="space-y-2 py-2">
+              <Label>Funil padrão</Label>
+              <Select value={funnelId} onValueChange={setFunnelId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecionar funil" />
+                </SelectTrigger>
+                <SelectContent>
+                  {data.funnels.map((item) => (
+                    <SelectItem key={item.id} value={String(item.id)}>
+                      {item.nome}
+                      {item.is_default ? " (padrão)" : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : null}
           <DialogFooter>
             <Button variant="outline" onClick={() => setConnectOpen(false)}>
               Cancelar
             </Button>
-            <Button onClick={startOAuth} disabled={connecting || !empreendimentoId}>
+            <Button onClick={startOAuth} disabled={connecting || !empreendimentoId || !funnelId}>
               {connecting ? "Aguardando autorização..." : "Continuar com RD Station"}
             </Button>
           </DialogFooter>
@@ -401,6 +456,24 @@ export function RdStationIntegrationCard() {
               </SelectContent>
             </Select>
           </div>
+          {data?.funnels.length && data.funnels.length > 1 ? (
+            <div className="space-y-2">
+              <Label>Funil para conversões sem identificador</Label>
+              <Select value={funnelId} onValueChange={setFunnelId}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {data.funnels.map((item) => (
+                    <SelectItem key={item.id} value={String(item.id)}>
+                      {item.nome}
+                      {item.is_default ? " (padrão)" : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : null}
 
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {[
@@ -447,8 +520,8 @@ export function RdStationIntegrationCard() {
                           {source.pending ? ` · ${source.pending} aguardando` : ""}
                         </div>
                       </div>
-                      <Badge variant={source.id_empreendimento ? "secondary" : "destructive"}>
-                        {source.id_empreendimento ? "Configurado" : "Pendente"}
+                      <Badge variant={source.id_empreendimento && source.id_funnel ? "secondary" : "destructive"}>
+                        {source.id_empreendimento && source.id_funnel ? "Configurado" : "Pendente"}
                       </Badge>
                     </div>
                     {source.uses_default ? (
@@ -456,7 +529,7 @@ export function RdStationIntegrationCard() {
                         Usa o empreendimento padrão configurado acima.
                       </p>
                     ) : (
-                      <div className="flex flex-col gap-2 sm:flex-row">
+                      <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
                         <Select
                           value={sourceSelections[source.event_identifier] ?? ""}
                           onValueChange={(value) =>
@@ -477,12 +550,36 @@ export function RdStationIntegrationCard() {
                             ))}
                           </SelectContent>
                         </Select>
+                        {data.funnels.length > 1 ? (
+                          <Select
+                            value={sourceFunnelSelections[source.event_identifier] ?? ""}
+                            onValueChange={(value) =>
+                              setSourceFunnelSelections((current) => ({
+                                ...current,
+                                [source.event_identifier]: value,
+                              }))
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecionar funil" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {data.funnels.map((item) => (
+                                <SelectItem key={item.id} value={String(item.id)}>
+                                  {item.nome}
+                                  {item.is_default ? " (padrão)" : ""}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : null}
                         <Button
                           variant="outline"
                           className="gap-2"
                           disabled={
                             savingSource === source.event_identifier ||
-                            !sourceSelections[source.event_identifier]
+                            !sourceSelections[source.event_identifier] ||
+                            !sourceFunnelSelections[source.event_identifier]
                           }
                           onClick={() => saveSourceMapping(source.event_identifier)}
                         >
@@ -508,7 +605,7 @@ export function RdStationIntegrationCard() {
 
           <DialogFooter className="sm:justify-between gap-2">
             <RdDisconnectButton disconnecting={disconnecting} onDisconnect={disconnect} />
-            <Button onClick={saveSettings} disabled={saving || !empreendimentoId}>
+            <Button onClick={saveSettings} disabled={saving || !empreendimentoId || !funnelId}>
               {saving ? "Salvando..." : "Salvar"}
             </Button>
           </DialogFooter>

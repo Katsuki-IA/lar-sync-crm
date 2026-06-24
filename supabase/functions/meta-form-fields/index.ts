@@ -39,7 +39,7 @@ Deno.serve(async (req) => {
 
     const { data: form, error: formError } = await supabaseAdmin
       .from("crm_meta_forms")
-      .select("form_id,form_name,page_id,page_name,page_access_token,connection_id,id_empreendimento")
+      .select("form_id,form_name,page_id,page_name,page_access_token,connection_id,id_empreendimento,id_funnel")
       .eq("id_empresa", crmUser.id_empresa)
       .eq("form_id", formId)
       .eq("active", true)
@@ -98,6 +98,15 @@ Deno.serve(async (req) => {
       .order("nome", { ascending: true });
     if (empreendimentosError) throw new Error(empreendimentosError.message);
 
+    const { data: funnels, error: funnelsError } = await supabaseAdmin
+      .from("crm_funnels")
+      .select("id,nome,is_default")
+      .eq("id_empresa", crmUser.id_empresa)
+      .eq("ativo", true)
+      .order("ordem", { ascending: true })
+      .order("id", { ascending: true });
+    if (funnelsError) throw new Error(funnelsError.message);
+
     return jsonResponse({
       form: {
         form_id: form.form_id,
@@ -105,8 +114,10 @@ Deno.serve(async (req) => {
         page_id: form.page_id,
         page_name: form.page_name ?? null,
         id_empreendimento: form.id_empreendimento ?? null,
+        id_funnel: form.id_funnel ?? null,
       },
       empreendimentos: empreendimentos ?? [],
+      funnels: funnels ?? [],
       fields,
       mapping,
     });

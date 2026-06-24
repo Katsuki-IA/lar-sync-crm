@@ -24,9 +24,10 @@ Deno.serve(async (req) => {
   if (options) return options;
 
   return withErrorHandling(async () => {
-    const { formId, empreendimentoId, mapping } = (await req.json()) as {
+    const { formId, empreendimentoId, funnelId, mapping } = (await req.json()) as {
       formId?: string;
       empreendimentoId?: number;
+      funnelId?: number;
       mapping?: MappingInput[];
     };
 
@@ -38,6 +39,9 @@ Deno.serve(async (req) => {
     }
     if (!Number.isSafeInteger(empreendimentoId) || Number(empreendimentoId) <= 0) {
       throw new Error("Empreendimento inválido");
+    }
+    if (!Number.isSafeInteger(funnelId) || Number(funnelId) <= 0) {
+      throw new Error("Funil inválido");
     }
 
     const { crmUser } = await getAuthorizedCrmUser(req);
@@ -62,6 +66,16 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (empreendimentoError) throw new Error(empreendimentoError.message);
     if (!empreendimento) throw new Error("Empreendimento não encontrado para esta empresa");
+
+    const { data: funnel, error: funnelError } = await supabaseAdmin
+      .from("crm_funnels")
+      .select("id")
+      .eq("id_empresa", crmUser.id_empresa)
+      .eq("id", funnelId)
+      .eq("ativo", true)
+      .maybeSingle();
+    if (funnelError) throw new Error(funnelError.message);
+    if (!funnel) throw new Error("Funil não encontrado para esta empresa");
 
     const rows = mapping
       .map((item) => ({
@@ -105,7 +119,7 @@ Deno.serve(async (req) => {
 
     const { error: formUpdateError } = await supabaseAdmin
       .from("crm_meta_forms")
-      .update({ id_empreendimento: empreendimento.id })
+      .update({ id_empreendimento: empreendimento.id, id_funnel: funnel.id })
       .eq("id_empresa", crmUser.id_empresa)
       .eq("form_id", form.form_id);
     if (formUpdateError) throw new Error(formUpdateError.message);

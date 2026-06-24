@@ -44,7 +44,7 @@ Deno.serve(async (req) => {
     const supabaseAdmin = createSupabaseAdmin();
     const { data: connection, error: connectionError } = await supabaseAdmin
       .from("crm_rd_connections")
-      .select("id,access_token,refresh_token,token_expires_at")
+      .select("id,access_token,refresh_token,token_expires_at,default_id_funnel")
       .eq("id_empresa", crmUser.id_empresa)
       .eq("active", true)
       .maybeSingle();
@@ -91,6 +91,7 @@ Deno.serve(async (req) => {
           connection_id: connection.id,
           event_identifier: eventIdentifier,
           id_empreendimento: null,
+          id_funnel: connection.default_id_funnel ?? null,
           active: true,
         })),
       );
