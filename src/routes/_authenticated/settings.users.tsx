@@ -53,6 +53,7 @@ function UsersPage() {
       const { data, error } = await supabase
         .from("crm_users")
         .select("id,nome,email,role,active")
+        .neq("role", "ai_agent")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data as Row[];

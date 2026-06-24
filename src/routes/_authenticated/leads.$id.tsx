@@ -37,6 +37,15 @@ export const Route = createFileRoute("/_authenticated/leads/$id")({
   component: LeadDetail,
 });
 
+type LeadActivity = {
+  id: number;
+  tipo: string;
+  descricao: string | null;
+  created_at: string | null;
+  crm_user_id: string | null;
+  crm_users?: { nome: string | null } | null;
+};
+
 function LeadDetail() {
   const { id } = Route.useParams();
   const leadId = Number(id);
@@ -192,11 +201,11 @@ function LeadDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("crm_lead_activities")
-        .select("id, tipo, descricao, created_at, crm_user_id")
+        .select("id, tipo, descricao, created_at, crm_user_id, crm_users(nome)")
         .eq("lead_id", leadId)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data;
+      return (data ?? []) as LeadActivity[];
     },
   });
 
@@ -335,7 +344,11 @@ function LeadDetail() {
                         <span className="text-xs text-muted-foreground">{a.created_at ? new Date(a.created_at).toLocaleString("pt-BR") : ""}</span>
                       </div>
                       <p className="text-sm mt-0.5">{a.descricao}</p>
-                      {a.crm_user_id && <p className="text-xs text-muted-foreground mt-1">por {userMap.get(a.crm_user_id) ?? "—"}</p>}
+                      {a.crm_user_id && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          por {a.crm_users?.nome ?? userMap.get(a.crm_user_id) ?? "—"}
+                        </p>
+                      )}
                     </div>
                   </div>
                 ))}
