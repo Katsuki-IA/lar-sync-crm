@@ -226,16 +226,58 @@ function LeadsList() {
   // Mutations
   const bulkStageMut = useMutation({
     mutationFn: async ({ ids, stageId }: { ids: number[]; stageId: number }) => {
+      const { data: before, error: beforeError } = await supabase
+        .from("crm_leads")
+        .select("id, crm_stage_id")
+        .in("id", ids);
+      if (beforeError) throw beforeError;
+
       const { error } = await supabase.from("crm_leads").update({ crm_stage_id: stageId }).in("id", ids);
       if (error) throw error;
+
+      if (me?.id) {
+        const toName = stageMap.get(stageId)?.nome ?? "—";
+        const activities = (before ?? [])
+          .filter((lead) => lead.crm_stage_id !== stageId)
+          .map((lead) => ({
+            lead_id: lead.id,
+            crm_user_id: me.id,
+            tipo: "stage_change",
+            descricao: `De ${lead.crm_stage_id ? stageMap.get(lead.crm_stage_id)?.nome ?? "—" : "—"} para ${toName}`,
+          }));
+        if (activities.length) {
+          await supabase.from("crm_lead_activities").insert(activities);
+        }
+      }
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["leads-list"] }); toast.success("Estágio atualizado"); setBulkStageOpen(false); setRowStageLead(null); setSelected(new Set()); },
     onError: (e: Error) => toast.error("Erro", { description: e.message }),
   });
   const bulkUserMut = useMutation({
     mutationFn: async ({ ids, uid }: { ids: number[]; uid: string }) => {
+      const { data: before, error: beforeError } = await supabase
+        .from("crm_leads")
+        .select("id, crm_assigned_to")
+        .in("id", ids);
+      if (beforeError) throw beforeError;
+
       const { error } = await supabase.from("crm_leads").update({ crm_assigned_to: uid }).in("id", ids);
       if (error) throw error;
+
+      if (me?.id) {
+        const toName = userMap.get(uid) ?? "—";
+        const activities = (before ?? [])
+          .filter((lead) => lead.crm_assigned_to !== uid)
+          .map((lead) => ({
+            lead_id: lead.id,
+            crm_user_id: me.id,
+            tipo: "assignment",
+            descricao: `Responsável alterado de ${lead.crm_assigned_to ? userMap.get(lead.crm_assigned_to) ?? "—" : "—"} para ${toName}`,
+          }));
+        if (activities.length) {
+          await supabase.from("crm_lead_activities").insert(activities);
+        }
+      }
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["leads-list"] }); toast.success("Responsável atualizado"); setBulkUserOpen(false); setRowUserLead(null); setSelected(new Set()); },
     onError: (e: Error) => toast.error("Erro", { description: e.message }),
