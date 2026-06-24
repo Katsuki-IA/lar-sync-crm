@@ -1,12 +1,20 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useCrmUser } from "@/hooks/use-crm-user";
 
 // Empresas habilitadas no CRM Katsuki — filtradas por credentials.default_crm = 'katsuki'.
 export function useAllowedEmpresas() {
+  const { data: me } = useCrmUser();
+
   return useQuery({
-    queryKey: ["allowed-empresas-katsuki"],
+    enabled: !!me,
+    queryKey: ["allowed-empresas-katsuki", me?.id, me?.id_empresa, me?.role],
     staleTime: 5 * 60_000,
     queryFn: async (): Promise<number[]> => {
+      if (me?.role !== "super_admin") {
+        return me?.id_empresa ? [me.id_empresa] : [];
+      }
+
       const { data, error } = await supabase
         .from("credentials")
         .select("id_empresa")
