@@ -241,6 +241,9 @@ function StagesPage() {
           </Select>
           {currentFunnel && (
             <>
+              <span className="rounded-full border border-border px-2 py-1 text-xs font-medium text-muted-foreground">
+                ID {currentFunnel.id}
+              </span>
               <Button size="sm" variant="ghost" onClick={() => {
                 const novo = prompt("Renomear funil", currentFunnel.nome);
                 if (novo && novo.trim() && novo !== currentFunnel.nome) renameFunnel.mutate(novo.trim());
@@ -377,7 +380,7 @@ function SortableStageRow({
       >
         <GripVertical className="h-4 w-4" />
       </button>
-      <span className="w-6 font-mono text-xs text-muted-foreground">{stage.id}</span>
+      <span className="w-14 font-mono text-xs text-muted-foreground">ID {stage.id}</span>
       <div className="flex-1 text-sm font-medium">{stage.nome}</div>
       <span className="text-xs text-muted-foreground">Ordem {stage.ordem}</span>
       <Button size="icon" variant="ghost" onClick={onEdit} aria-label={`Editar ${stage.nome}`}>
