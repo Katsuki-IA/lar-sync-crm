@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, Users, Settings, Shield, BarChart2, Plug } from "lucide-react";
+import { LayoutDashboard, Users, Settings, Shield, BarChart2, Plug, MessagesSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCrmUser } from "@/hooks/use-crm-user";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -11,6 +11,7 @@ type Item = { title: string; url: string; match: string; icon: typeof LayoutDash
 const mainItems: Item[] = [
   { title: "Dashboard", url: "/dashboard", match: "/dashboard", icon: LayoutDashboard },
   { title: "Leads", url: "/leads", match: "/leads", icon: Users },
+  { title: "Conversas", url: "/conversas", match: "/conversas", icon: MessagesSquare },
   { title: "Relatórios", url: "/relatorios", match: "/relatorios", icon: BarChart2 },
 ];
 

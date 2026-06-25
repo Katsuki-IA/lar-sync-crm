@@ -23,6 +23,7 @@ const ROUTE_LABELS: Record<string, string> = {
   dashboard: "Dashboard",
   kanban: "Kanban",
   leads: "Leads",
+  conversas: "Conversas",
   new: "Novo",
   settings: "Configurações",
   stages: "Estágios",
