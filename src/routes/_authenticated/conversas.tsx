@@ -52,8 +52,19 @@ function crmLeadId(value?: string | null) {
 }
 
 function sessionCandidates(conversation: ConversationItem) {
-  const phone = onlyDigits(conversation.numero || conversation.crmLead?.telefone);
-  return Array.from(new Set([phone ? `${phone}${conversation.id_empresa}` : "", phone].filter(Boolean)));
+  const numbers = [
+    onlyDigits(conversation.numero),
+    onlyDigits(conversation.crmLead?.telefone),
+  ].filter(Boolean);
+
+  return Array.from(
+    new Set(
+      numbers.flatMap((number) => [
+        `${number}${conversation.id_empresa}`,
+        number,
+      ]),
+    ),
+  );
 }
 
 function messageToText(message: Json | null) {
@@ -71,23 +82,41 @@ function messageToText(message: Json | null) {
   return JSON.stringify(message);
 }
 
-function formatTime(value?: string | null) {
+function parseDateValue(value?: string | number | null) {
   if (!value) return "—";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
+  const raw = String(value).trim();
+  if (!raw) return "—";
+
+  const numeric = Number(raw);
+  const date = Number.isFinite(numeric) && /^\d+$/.test(raw)
+    ? new Date(raw.length <= 10 ? numeric * 1000 : numeric)
+    : new Date(raw);
+
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function formatTime(value?: string | number | null) {
+  const date = parseDateValue(value);
+  if (!date || date === "—") return "—";
   return date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 }
 
-function formatDateTime(value?: string | null) {
-  if (!value) return "—";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString("pt-BR", {
+function formatDateTime(value?: string | number | null) {
+  const date = parseDateValue(value);
+  if (!date || date === "—") return "—";
+  return date.toLocaleDateString("pt-BR", {
     day: "2-digit",
     month: "2-digit",
+    year: "numeric",
+  }) + " " + date.toLocaleTimeString("pt-BR", {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function timestampMs(value?: string | null) {
+  const date = parseDateValue(value);
+  return !date || date === "—" ? 0 : date.getTime();
 }
 
 function conversationTimestamp(row: LeadConversationRow) {
@@ -115,7 +144,7 @@ function ConversationsPage() {
 
       const rows = ((leadRows ?? []) as LeadConversationRow[])
         .filter((row) => row.id_crm || row.numero)
-        .sort((a, b) => conversationTimestamp(b).localeCompare(conversationTimestamp(a)));
+        .sort((a, b) => timestampMs(conversationTimestamp(b)) - timestampMs(conversationTimestamp(a)));
 
       const crmIds = Array.from(new Set(rows.map((row) => crmLeadId(row.id_crm)).filter((id): id is number => id != null)));
       let crmMap = new Map<number, CrmLeadLite>();
@@ -252,7 +281,7 @@ function ConversationsPage() {
                           <p className="mt-2 line-clamp-2 text-xs text-muted-foreground">{preview}</p>
                         </div>
                         <div className="shrink-0 text-right text-[11px] text-muted-foreground">
-                          <div>{formatTime(conversation.last_message_timestamp ?? conversation.updated_at)}</div>
+                          <div>{formatDateTime(conversation.last_message_timestamp ?? conversation.updated_at)}</div>
                           {conversation.qtd_interacoes ? (
                             <Badge variant="secondary" className="mt-2">
                               {conversation.qtd_interacoes}

@@ -32,6 +32,7 @@ import {
   type LeadCustomFieldValues,
 } from "@/lib/lead-custom-fields";
 import { formatLeadOrigin } from "@/lib/lead-origin";
+import { stageColor } from "@/lib/lead-visuals";
 
 export const Route = createFileRoute("/_authenticated/leads/$id")({
   component: LeadDetail,
@@ -283,6 +284,7 @@ function LeadDetail() {
 
   const empNome = lead.id_empreendimento ? meta?.emps.find((e) => e.id === lead.id_empreendimento)?.nome : null;
   const stage = meta?.stages.find((s) => s.id === lead.crm_stage_id);
+  const currentStageColor = stageColor(stage?.nome, stage?.cor);
   const userMap = new Map((meta?.users ?? []).map((u) => [u.id, u.nome]));
   const isManager = me?.role !== "agent";
 
@@ -367,13 +369,38 @@ function LeadDetail() {
               <div>
                 <label className="text-xs text-muted-foreground">Estágio</label>
                 <Select value={lead.crm_stage_id ? String(lead.crm_stage_id) : ""} onValueChange={(v) => stageMut.mutate(Number(v))}>
-                  <SelectTrigger className="mt-1">
+                  <SelectTrigger
+                    className="mt-1"
+                    style={stage ? { borderColor: `${currentStageColor}66` } : undefined}
+                  >
                     <SelectValue placeholder="Selecionar">
-                      {stage && <span style={{ color: stage.cor ?? undefined }}>{stage.nome}</span>}
+                      {stage && (
+                        <span
+                          className="inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-medium"
+                          style={{
+                            backgroundColor: `${currentStageColor}1F`,
+                            borderColor: `${currentStageColor}40`,
+                            color: currentStageColor,
+                          }}
+                        >
+                          <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: currentStageColor }} />
+                          {stage.nome}
+                        </span>
+                      )}
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    {meta?.stages.map((s) => <SelectItem key={s.id} value={String(s.id)}>{s.nome}</SelectItem>)}
+                    {meta?.stages.map((s) => {
+                      const color = stageColor(s.nome, s.cor);
+                      return (
+                        <SelectItem key={s.id} value={String(s.id)}>
+                          <span className="inline-flex items-center gap-2">
+                            <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: color }} />
+                            <span style={{ color }}>{s.nome}</span>
+                          </span>
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
               </div>
