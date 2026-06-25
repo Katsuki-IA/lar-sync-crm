@@ -30,16 +30,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 
@@ -94,6 +84,7 @@ function LeadsList() {
   const [rowDeleteLead, setRowDeleteLead] = useState<number | null>(null);
   const [pickStage, setPickStage] = useState<string>("");
   const [pickUser, setPickUser] = useState<string>("");
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
 
   const filters = useMemo(
     () => ({ search, stage, tagId, empId, userId, dateFrom, dateTo, page }),
@@ -287,7 +278,14 @@ function LeadsList() {
       const { error } = await supabase.from("crm_leads").delete().in("id", ids);
       if (error) throw error;
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["leads-list"] }); toast.success("Leads excluídos"); setBulkDeleteOpen(false); setRowDeleteLead(null); setSelected(new Set()); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["leads-list"] });
+      toast.success("Leads excluídos");
+      setBulkDeleteOpen(false);
+      setRowDeleteLead(null);
+      setDeleteConfirmText("");
+      setSelected(new Set());
+    },
     onError: (e: Error) => toast.error("Erro", { description: e.message }),
   });
 
@@ -782,24 +780,64 @@ function LeadsList() {
           </DialogContent>
         </Dialog>
 
-        {/* Bulk: excluir */}
-        <AlertDialog open={bulkDeleteOpen || rowDeleteLead != null} onOpenChange={(o) => { if (!o) { setBulkDeleteOpen(false); setRowDeleteLead(null); } }}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Excluir leads?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Esta ação não pode ser desfeita. Serão excluídos {rowDeleteLead != null ? 1 : selected.size} lead(s).
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+        {/* Bulk/linha: excluir */}
+        <Dialog
+          open={bulkDeleteOpen || rowDeleteLead != null}
+          onOpenChange={(open) => {
+            if (!open) {
+              setBulkDeleteOpen(false);
+              setRowDeleteLead(null);
+              setDeleteConfirmText("");
+            }
+          }}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{rowDeleteLead != null ? "Excluir lead?" : "Excluir leads?"}</DialogTitle>
+              <DialogDescription>
+                {rowDeleteLead != null ? (
+                  <>
+                    Esta ação não pode ser desfeita. Digite{" "}
+                    <strong>deletar{rowDeleteLead}</strong> para confirmar.
+                  </>
+                ) : (
+                  <>Esta ação não pode ser desfeita. Serão excluídos {selected.size} lead(s).</>
+                )}
+              </DialogDescription>
+            </DialogHeader>
+
+            {rowDeleteLead != null && (
+              <Input
+                value={deleteConfirmText}
+                onChange={(event) => setDeleteConfirmText(event.target.value)}
+                placeholder={`deletar${rowDeleteLead}`}
+              />
+            )}
+
+            <DialogFooter>
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setBulkDeleteOpen(false);
+                  setRowDeleteLead(null);
+                  setDeleteConfirmText("");
+                }}
+              >
+                Cancelar
+              </Button>
+              <Button
+                variant="destructive"
+                disabled={
+                  bulkDeleteMut.isPending ||
+                  (rowDeleteLead != null && deleteConfirmText !== `deletar${rowDeleteLead}`)
+                }
                 onClick={() => bulkDeleteMut.mutate(rowDeleteLead != null ? [rowDeleteLead] : Array.from(selected))}
-              >Excluir</AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+              >
+                {bulkDeleteMut.isPending ? "Excluindo..." : "Excluir"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
     </div>
   );
 }
