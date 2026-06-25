@@ -396,11 +396,6 @@ function ConversationsPage() {
                         </div>
                         <div className="shrink-0 text-right text-[11px] text-muted-foreground">
                           <div>{formatDateTime(conversation.last_message_timestamp ?? conversation.updated_at)}</div>
-                          {conversation.qtd_interacoes ? (
-                            <Badge variant="secondary" className="mt-2">
-                              {conversation.qtd_interacoes}
-                            </Badge>
-                          ) : null}
                           {conversation.crmLead?.id ? (
                             <div className="mt-2 font-medium">#{conversation.crmLead.id}</div>
                           ) : null}
