@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from "react";
 import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Search, Plus, X, Users as UsersIcon, List, LayoutGrid, MoreHorizontal, Pencil, Eye, ArrowRightLeft, UserCog, Trash2, Download, CalendarIcon, Upload } from "lucide-react";
+import { Search, Plus, X, Users as UsersIcon, List, LayoutGrid, MoreHorizontal, Pencil, Eye, ArrowRightLeft, UserCog, Trash2, Download, CalendarIcon, Upload, PauseCircle } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useCrmUser } from "@/hooks/use-crm-user";
@@ -82,6 +82,7 @@ function LeadsList() {
   const [rowStageLead, setRowStageLead] = useState<number | null>(null);
   const [rowUserLead, setRowUserLead] = useState<number | null>(null);
   const [rowDeleteLead, setRowDeleteLead] = useState<number | null>(null);
+  const [rowPauseAiLead, setRowPauseAiLead] = useState<number | null>(null);
   const [pickStage, setPickStage] = useState<string>("");
   const [pickUser, setPickUser] = useState<string>("");
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
@@ -285,6 +286,57 @@ function LeadsList() {
       setRowDeleteLead(null);
       setDeleteConfirmText("");
       setSelected(new Set());
+    },
+    onError: (e: Error) => toast.error("Erro", { description: e.message }),
+  });
+  const pauseAiMut = useMutation({
+    mutationFn: async (leadId: number) => {
+      const { data: lead, error: leadError } = await supabase
+        .from("crm_leads")
+        .select("id, id_empresa")
+        .eq("id", leadId)
+        .single();
+      if (leadError) throw leadError;
+
+      const now = new Date().toISOString();
+      const { data: updatedLeadRows, error: updateError } = await supabase
+        .from("lead")
+        .update({
+          status: "Atendimento Humano",
+          atendimento_humano: true,
+          updated_at: now,
+        })
+        .eq("id_crm", String(lead.id))
+        .eq("id_empresa", lead.id_empresa)
+        .select("id");
+      if (updateError) throw updateError;
+      if (!updatedLeadRows?.length) {
+        throw new Error("Nenhum atendimento da IA foi encontrado para este lead.");
+      }
+
+      if (me?.id) {
+        const { error: activityError } = await supabase
+          .from("crm_lead_activities")
+          .insert({
+            lead_id: lead.id,
+            crm_user_id: me.id,
+            tipo: "whatsapp_automation",
+            descricao:
+              "[AUTOMAÇÃO WHATSAPP]\n\nAtendimento da IA pausado.\nEnvio de follow-ups para este lead interrompido.",
+            metadata: {
+              source: "crm",
+              event: "ai_followups_paused",
+              external_lead_ids: updatedLeadRows.map((row) => row.id),
+            },
+          });
+        if (activityError) throw activityError;
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["leads-list"] });
+      qc.invalidateQueries({ queryKey: ["lead-activities"] });
+      toast.success("Atendimento da IA pausado");
+      setRowPauseAiLead(null);
     },
     onError: (e: Error) => toast.error("Erro", { description: e.message }),
   });
@@ -685,6 +737,9 @@ function LeadsList() {
                                     <UserCog className="h-4 w-4 mr-2" /> Redistribuir responsável
                                   </DropdownMenuItem>
                                 )}
+                                <DropdownMenuItem onClick={() => setRowPauseAiLead(l.id)}>
+                                  <PauseCircle className="h-4 w-4 mr-2" /> Pausar Atendimento da IA
+                                </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
                                   className="text-destructive focus:text-destructive"
@@ -776,6 +831,39 @@ function LeadsList() {
                   bulkUserMut.mutate({ ids, uid: pickUser });
                 }}
               >Aplicar</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Linha: pausar IA */}
+        <Dialog
+          open={rowPauseAiLead != null}
+          onOpenChange={(open) => {
+            if (!open) setRowPauseAiLead(null);
+          }}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Pausar Atendimento da IA?</DialogTitle>
+              <DialogDescription>
+                Ao confirmar, o envio de follow-ups para este lead será interrompido e o atendimento será marcado como humano.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              Esta ação altera o status do lead na automação para <strong>Atendimento Humano</strong> e registra a pausa no histórico do lead.
+            </div>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setRowPauseAiLead(null)}>
+                Cancelar
+              </Button>
+              <Button
+                disabled={pauseAiMut.isPending || rowPauseAiLead == null}
+                onClick={() => {
+                  if (rowPauseAiLead != null) pauseAiMut.mutate(rowPauseAiLead);
+                }}
+              >
+                {pauseAiMut.isPending ? "Pausando..." : "Confirmar pausa"}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
