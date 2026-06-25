@@ -27,6 +27,10 @@ export const Route = createFileRoute("/_authenticated/conversas")({
 
 type LeadConversationRow = Database["public"]["Tables"]["lead"]["Row"];
 type ChatConversationRow = Database["public"]["Tables"]["n8n_chat_conversas"]["Row"];
+type LeadActivityRow = Pick<
+  Database["public"]["Tables"]["crm_lead_activities"]["Row"],
+  "id" | "descricao" | "created_at" | "tipo"
+>;
 
 type CrmLeadLite = {
   id: number;
@@ -40,6 +44,22 @@ type CrmLeadLite = {
 type ConversationItem = LeadConversationRow & {
   crmLead: CrmLeadLite | null;
 };
+
+type ConversationMessage = {
+  id: string;
+  type: string | null;
+  message: Json | null;
+  time: string | null;
+  created_at: string | null;
+};
+
+const ACTIVITY_BLOCK_MARKERS = [
+  "Mensagem recebida do lead:",
+  "Resposta enviada pela IA:",
+  "Mensagem enviada pela IA:",
+  "Mensagem enviada ao lead:",
+  "Mensagem enviada:",
+];
 
 function onlyDigits(value?: string | null) {
   return (value ?? "").replace(/\D/g, "");
@@ -86,6 +106,58 @@ function messageToText(message: Json | null) {
     if (typeof value === "string" && value.trim()) return value;
   }
   return JSON.stringify(message);
+}
+
+function extractActivityBlock(text: string, marker: string) {
+  const start = text.indexOf(marker);
+  if (start < 0) return null;
+
+  let body = text.slice(start + marker.length);
+  body = body.replace(/^\s*\n?-{3,}\n?/, "");
+
+  const nextIndexes = ACTIVITY_BLOCK_MARKERS
+    .filter((candidate) => candidate !== marker)
+    .map((candidate) => body.indexOf(candidate))
+    .filter((index) => index >= 0);
+
+  const end = nextIndexes.length ? Math.min(...nextIndexes) : body.length;
+  const value = body.slice(0, end).replace(/-{3,}\s*$/, "").trim();
+  return value || null;
+}
+
+function activityToConversationMessages(activity: LeadActivityRow): ConversationMessage[] {
+  const description = activity.descricao ?? "";
+  if (!description.trim()) return [];
+
+  const humanMessage = extractActivityBlock(description, "Mensagem recebida do lead:");
+  const aiMessage =
+    extractActivityBlock(description, "Resposta enviada pela IA:") ??
+    extractActivityBlock(description, "Mensagem enviada pela IA:") ??
+    extractActivityBlock(description, "Mensagem enviada ao lead:") ??
+    extractActivityBlock(description, "Mensagem enviada:");
+
+  const messages: ConversationMessage[] = [];
+  if (humanMessage) {
+    messages.push({
+      id: `activity-${activity.id}-human`,
+      type: "human",
+      message: humanMessage,
+      time: activity.created_at,
+      created_at: activity.created_at,
+    });
+  }
+
+  if (aiMessage) {
+    messages.push({
+      id: `activity-${activity.id}-ai`,
+      type: "ai",
+      message: aiMessage,
+      time: activity.created_at,
+      created_at: activity.created_at,
+    });
+  }
+
+  return messages;
 }
 
 function parseDateValue(value?: string | number | null) {
@@ -207,24 +279,47 @@ function ConversationsPage() {
   const messageQuery = useQuery({
     enabled: !!selectedConversation,
     queryKey: ["conversation-messages", selectedConversation?.id, selectedConversation?.numero, selectedConversation?.id_empresa],
-    queryFn: async (): Promise<ChatConversationRow[]> => {
+    queryFn: async (): Promise<ConversationMessage[]> => {
       if (!selectedConversation) return [];
       const candidates = sessionCandidates(selectedConversation);
-      if (!candidates.length) return [];
 
-      const phoneFilters = phoneVariants(selectedConversation.numero || selectedConversation.crmLead?.telefone)
-        .map((phone) => `numero.ilike.%${phone}%`);
-      const exactFilters = candidates.map((candidate) => `numero.eq.${candidate}`);
-      const filters = [...exactFilters, ...phoneFilters].join(",");
+      if (candidates.length) {
+        const phoneFilters = phoneVariants(selectedConversation.numero || selectedConversation.crmLead?.telefone)
+          .map((phone) => `numero.ilike.%${phone}%`);
+        const exactFilters = candidates.map((candidate) => `numero.eq.${candidate}`);
+        const filters = [...exactFilters, ...phoneFilters].join(",");
 
-      const { data, error } = await supabase
-        .from("n8n_chat_conversas")
-        .select("id,numero,type,message,time,created_at")
-        .or(filters)
-        .order("time", { ascending: true });
+        const { data, error } = await supabase
+          .from("n8n_chat_conversas")
+          .select("id,numero,type,message,time,created_at")
+          .or(filters)
+          .order("time", { ascending: true });
 
-      if (error) throw error;
-      return (data ?? []) as ChatConversationRow[];
+        if (error) throw error;
+
+        const messages = ((data ?? []) as ChatConversationRow[]).map((message) => ({
+          id: `chat-${message.id}`,
+          type: message.type,
+          message: message.message,
+          time: message.time,
+          created_at: message.created_at,
+        }));
+
+        if (messages.length) return messages;
+      }
+
+      if (!selectedConversation.crmLead?.id) return [];
+
+      const { data: activityRows, error: activityError } = await supabase
+        .from("crm_lead_activities")
+        .select("id,tipo,descricao,created_at")
+        .eq("lead_id", selectedConversation.crmLead.id)
+        .eq("tipo", "whatsapp_automation")
+        .order("created_at", { ascending: true });
+
+      if (activityError) throw activityError;
+
+      return ((activityRows ?? []) as LeadActivityRow[]).flatMap(activityToConversationMessages);
     },
   });
 
@@ -306,6 +401,9 @@ function ConversationsPage() {
                               {conversation.qtd_interacoes}
                             </Badge>
                           ) : null}
+                          {conversation.crmLead?.id ? (
+                            <div className="mt-2 font-medium">#{conversation.crmLead.id}</div>
+                          ) : null}
                         </div>
                       </div>
                     </button>
@@ -382,7 +480,7 @@ function ConversationsPage() {
                                 : "rounded-bl-md bg-white text-foreground",
                             )}
                           >
-                            <p className="whitespace-pre-wrap leading-relaxed">{text || "Mensagem sem conteúdo"}</p>
+                            <MessageContent text={text || "Mensagem sem conteúdo"} />
                             <div className="mt-1 flex items-center justify-end gap-1 text-[10px] text-muted-foreground">
                               {isAi ? <Bot className="h-3 w-3" /> : null}
                               {formatTime(message.time ?? message.created_at)}
@@ -410,6 +508,44 @@ function ConversationsPage() {
           )}
         </section>
       </div>
+    </div>
+  );
+}
+
+function MessageContent({ text }: { text: string }) {
+  const parts = text.split(/(\[IMG:[^\]\s]+\])/g);
+
+  return (
+    <div className="space-y-2 leading-relaxed">
+      {parts.map((part, index) => {
+        const match = part.match(/^\[IMG:([^\]\s]+)\]$/);
+        if (match) {
+          const fileId = match[1];
+          return (
+            <a
+              key={`${fileId}-${index}`}
+              href={`https://drive.google.com/file/d/${fileId}/view`}
+              target="_blank"
+              rel="noreferrer"
+              className="block w-fit max-w-full cursor-pointer overflow-hidden rounded-lg border bg-background shadow-sm"
+              title="Abrir imagem"
+            >
+              <img
+                src={`https://drive.google.com/thumbnail?id=${fileId}&sz=w600`}
+                alt="Imagem enviada pela IA"
+                className="block max-h-[360px] w-full max-w-[600px] object-contain"
+                loading="lazy"
+              />
+            </a>
+          );
+        }
+
+        return part ? (
+          <span key={index} className="block whitespace-pre-wrap break-words">
+            {part}
+          </span>
+        ) : null;
+      })}
     </div>
   );
 }
