@@ -91,6 +91,25 @@ function LeadDetail() {
     },
   });
 
+  const { data: aiStatus } = useQuery({
+    enabled: Boolean(lead?.id_empresa),
+    queryKey: ["lead-ai-status", lead?.id_empresa, leadId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("lead")
+        .select("status, atendimento_humano")
+        .eq("id_crm", String(leadId))
+        .eq("id_empresa", lead!.id_empresa)
+        .limit(1);
+      if (error) throw error;
+      const row = data?.[0];
+      return {
+        paused: Boolean(row?.atendimento_humano) || String(row?.status ?? "").trim().toLowerCase() === "atendimento humano",
+        status: row?.status ?? null,
+      };
+    },
+  });
+
   const { data: customFields = [] } = useLeadCustomFields(lead?.id_empresa ?? me?.id_empresa);
 
   const { data: customValueRows = [] } = useQuery({
@@ -287,6 +306,7 @@ function LeadDetail() {
   const currentStageColor = stageColor(stage?.nome, stage?.cor);
   const userMap = new Map((meta?.users ?? []).map((u) => [u.id, u.nome]));
   const isManager = me?.role !== "agent";
+  const aiPaused = aiStatus?.paused ?? false;
 
   return (
     <div className="space-y-6 max-w-5xl">
@@ -301,6 +321,11 @@ function LeadDetail() {
             {lead.qualificado ? (
               <Badge variant="secondary">Qualificado</Badge>
             ) : null}
+            {aiPaused && (
+              <Badge className="border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-50">
+                IA pausada
+              </Badge>
+            )}
           </div>
           <p className="text-sm text-muted-foreground">{lead.telefone} · {lead.email ?? "sem email"}</p>
         </div>
@@ -366,6 +391,16 @@ function LeadDetail() {
             <CardContent className="space-y-4 text-sm">
               <Field label="Empreendimento" value={empNome ?? "Sem interesse"} />
               <Field label="Origem" value={formatLeadOrigin(lead.origem)} />
+              {aiPaused && (
+                <div>
+                  <label className="text-xs text-muted-foreground">Atendimento IA</label>
+                  <div className="mt-1">
+                    <Badge className="border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-50">
+                      Pausado
+                    </Badge>
+                  </div>
+                </div>
+              )}
               <div>
                 <label className="text-xs text-muted-foreground">Estágio</label>
                 <Select value={lead.crm_stage_id ? String(lead.crm_stage_id) : ""} onValueChange={(v) => stageMut.mutate(Number(v))}>

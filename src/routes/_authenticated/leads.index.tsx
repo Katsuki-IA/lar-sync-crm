@@ -43,6 +43,18 @@ export const Route = createFileRoute("/_authenticated/leads/")({
 
 const PAGE_SIZE = 25;
 
+type LeadListRow = {
+  id: number;
+  nome: string | null;
+  telefone: string | null;
+  email: string | null;
+  crm_stage_id: number | null;
+  crm_assigned_to: string | null;
+  id_empreendimento: number | null;
+  created_at: string | null;
+  ai_paused?: boolean;
+};
+
 function onlyDigits(s?: string | null) {
   return (s ?? "").replace(/\D/g, "");
 }
@@ -109,7 +121,7 @@ function LeadsList() {
   const { data, isLoading } = useQuery({
     enabled: !!me && !!allowed && !!meta,
     queryKey: ["leads-list", me?.id, me?.role, filters, allowed, funnelId, (meta?.stages ?? []).map((s) => s.id).join(",")],
-    queryFn: async () => {
+    queryFn: async (): Promise<{ rows: LeadListRow[]; count: number }> => {
       let leadIdsByTag: number[] | null = null;
       if (tagId !== "all") {
         const { data: links } = await supabase
@@ -147,7 +159,28 @@ function LeadsList() {
       const { data: rows, count, error } = await q;
       if (error) throw error;
 
-      return { rows: rows ?? [], count: count ?? 0 };
+      const baseRows = (rows ?? []) as LeadListRow[];
+      const crmIds = baseRows.map((row) => String(row.id));
+      if (!crmIds.length) return { rows: baseRows, count: count ?? 0 };
+
+      const { data: automationRows, error: automationError } = await supabase
+        .from("lead")
+        .select("id_crm,status,atendimento_humano")
+        .in("id_crm", crmIds)
+        .in("id_empresa", allowed ?? []);
+      if (automationError) throw automationError;
+
+      const pausedIds = new Set(
+        (automationRows ?? [])
+          .filter((row) => row.atendimento_humano || String(row.status ?? "").trim().toLowerCase() === "atendimento humano")
+          .map((row) => Number(row.id_crm))
+          .filter(Number.isFinite),
+      );
+
+      return {
+        rows: baseRows.map((row) => ({ ...row, ai_paused: pausedIds.has(row.id) })),
+        count: count ?? 0,
+      };
     },
   });
 
@@ -644,6 +677,7 @@ function LeadsList() {
                         key={l.id}
                         className={cn(
                           "group/row border-b transition-colors hover:bg-[var(--primary-50)]",
+                          l.ai_paused && "bg-amber-50/70 hover:bg-amber-50",
                           isChecked && "bg-[var(--primary-50)]",
                         )}
                         style={{ borderColor: "var(--border)" }}
@@ -659,7 +693,14 @@ function LeadsList() {
                         <td className="px-4 py-4">
                           <Link to="/leads/$id" params={{ id: String(l.id) }} className="group">
                             <div className="min-w-0">
-                              <div className="font-semibold text-foreground group-hover:text-primary transition-colors truncate">{l.nome ?? "—"}</div>
+                              <div className="flex min-w-0 items-center gap-2">
+                                <div className="truncate font-semibold text-foreground transition-colors group-hover:text-primary">{l.nome ?? "—"}</div>
+                                {l.ai_paused && (
+                                  <span className="shrink-0 rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
+                                    Pausado
+                                  </span>
+                                )}
+                              </div>
                               {l.email && <div className="text-xs text-muted-foreground truncate">{l.email}</div>}
                             </div>
                           </Link>
