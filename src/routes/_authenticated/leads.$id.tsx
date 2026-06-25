@@ -345,7 +345,7 @@ function LeadDetail() {
                         <span className="text-xs uppercase tracking-wide text-muted-foreground">{labelTipo(a.tipo)}</span>
                         <span className="text-xs text-muted-foreground">{a.created_at ? new Date(a.created_at).toLocaleString("pt-BR") : ""}</span>
                       </div>
-                      <p className="text-sm mt-0.5">{a.descricao}</p>
+                      <ActivityDescription text={a.descricao} />
                       {a.crm_user_id && (
                         <p className="text-xs text-muted-foreground mt-1">
                           por {a.crm_users?.nome ?? userMap.get(a.crm_user_id) ?? "—"}
@@ -551,6 +551,46 @@ function Field({ label, value }: { label: string; value: string }) {
     <div>
       <div className="text-xs text-muted-foreground">{label}</div>
       <div className="mt-0.5">{value}</div>
+    </div>
+  );
+}
+
+function ActivityDescription({ text }: { text?: string | null }) {
+  if (!text) return null;
+
+  const parts = text.split(/(\[IMG:[^\]\s]+\])/g);
+
+  return (
+    <div className="mt-0.5 space-y-2 text-sm">
+      {parts.map((part, index) => {
+        const match = part.match(/^\[IMG:([^\]\s]+)\]$/);
+        if (match) {
+          const fileId = match[1];
+          return (
+            <a
+              key={`${fileId}-${index}`}
+              href={`https://drive.google.com/file/d/${fileId}/view`}
+              target="_blank"
+              rel="noreferrer"
+              className="block w-fit max-w-full cursor-pointer overflow-hidden rounded-lg border bg-background shadow-sm"
+              title="Abrir imagem"
+            >
+              <img
+                src={`https://drive.google.com/thumbnail?id=${fileId}&sz=w600`}
+                alt="Imagem enviada pela IA"
+                className="block max-h-[360px] w-full max-w-[600px] object-contain"
+                loading="lazy"
+              />
+            </a>
+          );
+        }
+
+        return part ? (
+          <span key={index} className="block whitespace-pre-wrap break-words">
+            {part}
+          </span>
+        ) : null;
+      })}
     </div>
   );
 }
