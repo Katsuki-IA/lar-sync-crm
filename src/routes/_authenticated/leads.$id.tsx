@@ -362,7 +362,7 @@ function LeadDetail() {
           <Card className="rounded-2xl">
             <CardHeader><CardTitle className="text-base">Detalhes</CardTitle></CardHeader>
             <CardContent className="space-y-4 text-sm">
-              <Field label="Empreendimento" value={empNome ?? "—"} />
+              <Field label="Empreendimento" value={empNome ?? "Sem interesse"} />
               <Field label="Origem" value={formatLeadOrigin(lead.origem)} />
               <div>
                 <label className="text-xs text-muted-foreground">Estágio</label>

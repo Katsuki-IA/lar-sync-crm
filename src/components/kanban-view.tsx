@@ -260,12 +260,10 @@ function DraggableCard({ lead, color }: { lead: LeadCard; color: string }) {
           <span className="truncate">{lead.telefone}</span>
         </div>
       )}
-      {lead.empreendimento_nome && (
-        <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1.5">
-          <Building2 className="h-3.5 w-3.5 shrink-0 text-primary" />
-          <span className="truncate">{lead.empreendimento_nome}</span>
-        </div>
-      )}
+      <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1.5">
+        <Building2 className="h-3.5 w-3.5 shrink-0 text-primary" />
+        <span className="truncate">{lead.empreendimento_nome ?? "Sem interesse"}</span>
+      </div>
       {lead.responsavel_nome && (
         <div className="text-xs text-muted-foreground mt-2 truncate">
           {lead.responsavel_nome}

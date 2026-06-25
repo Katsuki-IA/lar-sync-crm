@@ -616,7 +616,7 @@ function LeadsList() {
                         </td>
                         <td className="px-4 py-4 text-muted-foreground">{l.telefone ?? "—"}</td>
                         <td className="px-4 py-4 hidden md:table-cell text-muted-foreground">
-                          {l.id_empreendimento ? empMap.get(l.id_empreendimento) ?? "—" : "—"}
+                          {l.id_empreendimento ? empMap.get(l.id_empreendimento) ?? "—" : "Sem interesse"}
                         </td>
                         <td className="px-4 py-4">
                           {responsavel ? (

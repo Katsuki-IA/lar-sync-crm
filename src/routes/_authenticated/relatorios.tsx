@@ -739,7 +739,7 @@ function EmpreendimentoPanel({ data }: { data: ReportData }) {
   const map = new Map<number, Row>();
   for (const l of data.leads) {
     const id = l.id_empreendimento ?? 0;
-    const nome = empMap.get(id) ?? "—";
+    const nome = id ? empMap.get(id) ?? "—" : "Sem interesse";
     const st = l.crm_stage_id ? stageById.get(l.crm_stage_id) : null;
     const cur = map.get(id) ?? { id, nome, total: 0, andamento: 0, convertidos: 0, perdidos: 0 };
     cur.total += 1;
