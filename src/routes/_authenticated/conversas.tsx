@@ -45,6 +45,12 @@ function onlyDigits(value?: string | null) {
   return (value ?? "").replace(/\D/g, "");
 }
 
+function phoneVariants(value?: string | null) {
+  const digits = onlyDigits(value);
+  if (!digits) return [];
+  return Array.from(new Set([digits, digits.length > 11 ? digits.slice(-11) : digits]));
+}
+
 function crmLeadId(value?: string | null) {
   if (!value) return null;
   const parsed = Number(value);
@@ -53,9 +59,9 @@ function crmLeadId(value?: string | null) {
 
 function sessionCandidates(conversation: ConversationItem) {
   const numbers = [
-    onlyDigits(conversation.numero),
-    onlyDigits(conversation.crmLead?.telefone),
-  ].filter(Boolean);
+    ...phoneVariants(conversation.numero),
+    ...phoneVariants(conversation.crmLead?.telefone),
+  ];
 
   return Array.from(
     new Set(
@@ -121,6 +127,12 @@ function timestampMs(value?: string | null) {
 
 function conversationTimestamp(row: LeadConversationRow) {
   return row.last_message_timestamp ?? row.updated_at ?? row.created_at ?? "";
+}
+
+function previewText(row: ConversationItem) {
+  const value = row.ult_message ?? row.last_mesage;
+  if (!value) return null;
+  return parseDateValue(value) ? null : value;
 }
 
 function ConversationsPage() {
@@ -200,10 +212,15 @@ function ConversationsPage() {
       const candidates = sessionCandidates(selectedConversation);
       if (!candidates.length) return [];
 
+      const phoneFilters = phoneVariants(selectedConversation.numero || selectedConversation.crmLead?.telefone)
+        .map((phone) => `numero.ilike.%${phone}%`);
+      const exactFilters = candidates.map((candidate) => `numero.eq.${candidate}`);
+      const filters = [...exactFilters, ...phoneFilters].join(",");
+
       const { data, error } = await supabase
         .from("n8n_chat_conversas")
         .select("id,numero,type,message,time,created_at")
-        .in("numero", candidates)
+        .or(filters)
         .order("time", { ascending: true });
 
       if (error) throw error;
@@ -256,7 +273,7 @@ function ConversationsPage() {
                   const active = selectedConversation?.id === conversation.id;
                   const name = conversation.crmLead?.nome ?? conversation.nome;
                   const phone = conversation.crmLead?.telefone ?? conversation.numero;
-                  const preview = conversation.ult_message ?? conversation.last_mesage ?? "Sem mensagem recente";
+                  const preview = previewText(conversation);
 
                   return (
                     <button
@@ -278,7 +295,9 @@ function ConversationsPage() {
                             ) : null}
                           </div>
                           <p className="mt-1 truncate text-xs text-muted-foreground">{phone || "Sem telefone"}</p>
-                          <p className="mt-2 line-clamp-2 text-xs text-muted-foreground">{preview}</p>
+                          {preview ? (
+                            <p className="mt-2 line-clamp-2 text-xs text-muted-foreground">{preview}</p>
+                          ) : null}
                         </div>
                         <div className="shrink-0 text-right text-[11px] text-muted-foreground">
                           <div>{formatDateTime(conversation.last_message_timestamp ?? conversation.updated_at)}</div>
