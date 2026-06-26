@@ -17,6 +17,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PrivacidadeExclusaoDeDadosRouteImport } from './routes/privacidade.exclusao-de-dados'
 import { Route as IntegracoesRdRouteImport } from './routes/integracoes_.rd'
+import { Route as HistoricoLeadIdRouteImport } from './routes/historico.$leadId'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedRelatoriosRouteImport } from './routes/_authenticated/relatorios'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
@@ -30,6 +31,7 @@ import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authentic
 import { Route as AuthenticatedSettingsUsersRouteImport } from './routes/_authenticated/settings.users'
 import { Route as AuthenticatedSettingsTagsRouteImport } from './routes/_authenticated/settings.tags'
 import { Route as AuthenticatedSettingsStagesRouteImport } from './routes/_authenticated/settings.stages'
+import { Route as AuthenticatedSettingsHubRouteImport } from './routes/_authenticated/settings.hub'
 import { Route as AuthenticatedSettingsEmpreendimentosRouteImport } from './routes/_authenticated/settings.empreendimentos'
 import { Route as AuthenticatedSettingsCustomFieldsRouteImport } from './routes/_authenticated/settings.custom-fields'
 import { Route as AuthenticatedLeadsNewRouteImport } from './routes/_authenticated/leads.new'
@@ -78,6 +80,11 @@ const PrivacidadeExclusaoDeDadosRoute =
 const IntegracoesRdRoute = IntegracoesRdRouteImport.update({
   id: '/integracoes_/rd',
   path: '/integracoes/rd',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HistoricoLeadIdRoute = HistoricoLeadIdRouteImport.update({
+  id: '/historico/$leadId',
+  path: '/historico/$leadId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
@@ -149,6 +156,12 @@ const AuthenticatedSettingsStagesRoute =
     path: '/stages',
     getParentRoute: () => AuthenticatedSettingsRoute,
   } as any)
+const AuthenticatedSettingsHubRoute =
+  AuthenticatedSettingsHubRouteImport.update({
+    id: '/hub',
+    path: '/hub',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
 const AuthenticatedSettingsEmpreendimentosRoute =
   AuthenticatedSettingsEmpreendimentosRouteImport.update({
     id: '/empreendimentos',
@@ -214,6 +227,7 @@ export interface FileRoutesByFullPath {
   '/profile': typeof AuthenticatedProfileRoute
   '/relatorios': typeof AuthenticatedRelatoriosRoute
   '/settings': typeof AuthenticatedSettingsRouteWithChildren
+  '/historico/$leadId': typeof HistoricoLeadIdRoute
   '/integracoes/rd': typeof IntegracoesRdRoute
   '/privacidade/exclusao-de-dados': typeof PrivacidadeExclusaoDeDadosRoute
   '/admin/empresas': typeof AuthenticatedAdminEmpresasRoute
@@ -225,6 +239,7 @@ export interface FileRoutesByFullPath {
   '/leads/new': typeof AuthenticatedLeadsNewRoute
   '/settings/custom-fields': typeof AuthenticatedSettingsCustomFieldsRoute
   '/settings/empreendimentos': typeof AuthenticatedSettingsEmpreendimentosRoute
+  '/settings/hub': typeof AuthenticatedSettingsHubRoute
   '/settings/stages': typeof AuthenticatedSettingsStagesRoute
   '/settings/tags': typeof AuthenticatedSettingsTagsRoute
   '/settings/users': typeof AuthenticatedSettingsUsersRoute
@@ -243,6 +258,7 @@ export interface FileRoutesByTo {
   '/kanban': typeof AuthenticatedKanbanRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/relatorios': typeof AuthenticatedRelatoriosRoute
+  '/historico/$leadId': typeof HistoricoLeadIdRoute
   '/integracoes/rd': typeof IntegracoesRdRoute
   '/privacidade/exclusao-de-dados': typeof PrivacidadeExclusaoDeDadosRoute
   '/admin/empresas': typeof AuthenticatedAdminEmpresasRoute
@@ -254,6 +270,7 @@ export interface FileRoutesByTo {
   '/leads/new': typeof AuthenticatedLeadsNewRoute
   '/settings/custom-fields': typeof AuthenticatedSettingsCustomFieldsRoute
   '/settings/empreendimentos': typeof AuthenticatedSettingsEmpreendimentosRoute
+  '/settings/hub': typeof AuthenticatedSettingsHubRoute
   '/settings/stages': typeof AuthenticatedSettingsStagesRoute
   '/settings/tags': typeof AuthenticatedSettingsTagsRoute
   '/settings/users': typeof AuthenticatedSettingsUsersRoute
@@ -276,6 +293,7 @@ export interface FileRoutesById {
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/_authenticated/relatorios': typeof AuthenticatedRelatoriosRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRouteWithChildren
+  '/historico/$leadId': typeof HistoricoLeadIdRoute
   '/integracoes_/rd': typeof IntegracoesRdRoute
   '/privacidade/exclusao-de-dados': typeof PrivacidadeExclusaoDeDadosRoute
   '/_authenticated/admin/empresas': typeof AuthenticatedAdminEmpresasRoute
@@ -287,6 +305,7 @@ export interface FileRoutesById {
   '/_authenticated/leads/new': typeof AuthenticatedLeadsNewRoute
   '/_authenticated/settings/custom-fields': typeof AuthenticatedSettingsCustomFieldsRoute
   '/_authenticated/settings/empreendimentos': typeof AuthenticatedSettingsEmpreendimentosRoute
+  '/_authenticated/settings/hub': typeof AuthenticatedSettingsHubRoute
   '/_authenticated/settings/stages': typeof AuthenticatedSettingsStagesRoute
   '/_authenticated/settings/tags': typeof AuthenticatedSettingsTagsRoute
   '/_authenticated/settings/users': typeof AuthenticatedSettingsUsersRoute
@@ -309,6 +328,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/relatorios'
     | '/settings'
+    | '/historico/$leadId'
     | '/integracoes/rd'
     | '/privacidade/exclusao-de-dados'
     | '/admin/empresas'
@@ -320,6 +340,7 @@ export interface FileRouteTypes {
     | '/leads/new'
     | '/settings/custom-fields'
     | '/settings/empreendimentos'
+    | '/settings/hub'
     | '/settings/stages'
     | '/settings/tags'
     | '/settings/users'
@@ -338,6 +359,7 @@ export interface FileRouteTypes {
     | '/kanban'
     | '/profile'
     | '/relatorios'
+    | '/historico/$leadId'
     | '/integracoes/rd'
     | '/privacidade/exclusao-de-dados'
     | '/admin/empresas'
@@ -349,6 +371,7 @@ export interface FileRouteTypes {
     | '/leads/new'
     | '/settings/custom-fields'
     | '/settings/empreendimentos'
+    | '/settings/hub'
     | '/settings/stages'
     | '/settings/tags'
     | '/settings/users'
@@ -370,6 +393,7 @@ export interface FileRouteTypes {
     | '/_authenticated/profile'
     | '/_authenticated/relatorios'
     | '/_authenticated/settings'
+    | '/historico/$leadId'
     | '/integracoes_/rd'
     | '/privacidade/exclusao-de-dados'
     | '/_authenticated/admin/empresas'
@@ -381,6 +405,7 @@ export interface FileRouteTypes {
     | '/_authenticated/leads/new'
     | '/_authenticated/settings/custom-fields'
     | '/_authenticated/settings/empreendimentos'
+    | '/_authenticated/settings/hub'
     | '/_authenticated/settings/stages'
     | '/_authenticated/settings/tags'
     | '/_authenticated/settings/users'
@@ -396,6 +421,7 @@ export interface RootRouteChildren {
   IntegracoesRoute: typeof IntegracoesRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   SetupRoute: typeof SetupRoute
+  HistoricoLeadIdRoute: typeof HistoricoLeadIdRoute
   IntegracoesRdRoute: typeof IntegracoesRdRoute
   PrivacidadeExclusaoDeDadosRoute: typeof PrivacidadeExclusaoDeDadosRoute
 }
@@ -456,6 +482,13 @@ declare module '@tanstack/react-router' {
       path: '/integracoes/rd'
       fullPath: '/integracoes/rd'
       preLoaderRoute: typeof IntegracoesRdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/historico/$leadId': {
+      id: '/historico/$leadId'
+      path: '/historico/$leadId'
+      fullPath: '/historico/$leadId'
+      preLoaderRoute: typeof HistoricoLeadIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/settings': {
@@ -549,6 +582,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsStagesRouteImport
       parentRoute: typeof AuthenticatedSettingsRoute
     }
+    '/_authenticated/settings/hub': {
+      id: '/_authenticated/settings/hub'
+      path: '/hub'
+      fullPath: '/settings/hub'
+      preLoaderRoute: typeof AuthenticatedSettingsHubRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
     '/_authenticated/settings/empreendimentos': {
       id: '/_authenticated/settings/empreendimentos'
       path: '/empreendimentos'
@@ -635,6 +675,7 @@ const AuthenticatedAdminRouteWithChildren =
 interface AuthenticatedSettingsRouteChildren {
   AuthenticatedSettingsCustomFieldsRoute: typeof AuthenticatedSettingsCustomFieldsRoute
   AuthenticatedSettingsEmpreendimentosRoute: typeof AuthenticatedSettingsEmpreendimentosRoute
+  AuthenticatedSettingsHubRoute: typeof AuthenticatedSettingsHubRoute
   AuthenticatedSettingsStagesRoute: typeof AuthenticatedSettingsStagesRoute
   AuthenticatedSettingsTagsRoute: typeof AuthenticatedSettingsTagsRoute
   AuthenticatedSettingsUsersRoute: typeof AuthenticatedSettingsUsersRoute
@@ -646,6 +687,7 @@ const AuthenticatedSettingsRouteChildren: AuthenticatedSettingsRouteChildren = {
     AuthenticatedSettingsCustomFieldsRoute,
   AuthenticatedSettingsEmpreendimentosRoute:
     AuthenticatedSettingsEmpreendimentosRoute,
+  AuthenticatedSettingsHubRoute: AuthenticatedSettingsHubRoute,
   AuthenticatedSettingsStagesRoute: AuthenticatedSettingsStagesRoute,
   AuthenticatedSettingsTagsRoute: AuthenticatedSettingsTagsRoute,
   AuthenticatedSettingsUsersRoute: AuthenticatedSettingsUsersRoute,
@@ -698,6 +740,7 @@ const rootRouteChildren: RootRouteChildren = {
   IntegracoesRoute: IntegracoesRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   SetupRoute: SetupRoute,
+  HistoricoLeadIdRoute: HistoricoLeadIdRoute,
   IntegracoesRdRoute: IntegracoesRdRoute,
   PrivacidadeExclusaoDeDadosRoute: PrivacidadeExclusaoDeDadosRoute,
 }

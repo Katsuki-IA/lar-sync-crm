@@ -1638,6 +1638,7 @@ export type Database = {
           booking_rules_text: string | null
           c2s_company_id: string | null
           calendar_mail: string | null
+          codigo_hub: string | null
           created_at: string | null
           default_crm: string | null
           email_aviso: string | null
@@ -1661,6 +1662,7 @@ export type Database = {
           booking_rules_text?: string | null
           c2s_company_id?: string | null
           calendar_mail?: string | null
+          codigo_hub?: string | null
           created_at?: string | null
           default_crm?: string | null
           email_aviso?: string | null
@@ -1684,6 +1686,7 @@ export type Database = {
           booking_rules_text?: string | null
           c2s_company_id?: string | null
           calendar_mail?: string | null
+          codigo_hub?: string | null
           created_at?: string | null
           default_crm?: string | null
           email_aviso?: string | null
@@ -2739,6 +2742,10 @@ export type Database = {
       crm_get_my_empresa: { Args: never; Returns: number }
       crm_get_my_id: { Args: never; Returns: string }
       crm_get_my_role: { Args: never; Returns: string }
+      crm_public_lead_history: {
+        Args: { p_codigo: string; p_lead_id: number }
+        Returns: Json
+      }
       crm_normalize_lead_origin: {
         Args: { p_modulo?: string | null; p_origem: string | null }
         Returns: string

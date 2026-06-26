@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowUpRight,
   Bot,
@@ -22,6 +22,9 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/conversas")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    lead: typeof search.lead === "string" ? search.lead : undefined,
+  }),
   component: ConversationsPage,
 });
 
@@ -208,6 +211,7 @@ function previewText(row: ConversationItem) {
 }
 
 function ConversationsPage() {
+  const { lead } = Route.useSearch();
   const { data: me } = useCrmUser();
   const { data: allowed } = useAllowedEmpresas();
   const [search, setSearch] = useState("");
@@ -253,6 +257,15 @@ function ConversationsPage() {
   });
 
   const conversations = conversationsQuery.data ?? [];
+  useEffect(() => {
+    if (!lead || !conversations.length) return;
+    const leadId = Number(lead);
+    if (!Number.isFinite(leadId)) return;
+
+    const conversation = conversations.find((item) => item.crmLead?.id === leadId);
+    if (conversation) setSelectedId(conversation.id);
+  }, [lead, conversations]);
+
   const filteredConversations = useMemo(() => {
     const term = search.trim().toLowerCase();
     if (!term) return conversations;
