@@ -39,7 +39,9 @@ import { Route as AuthenticatedLeadsImportarRouteImport } from './routes/_authen
 import { Route as AuthenticatedLeadsIdRouteImport } from './routes/_authenticated/leads.$id'
 import { Route as AuthenticatedConfiguracoesIntegracoesRouteImport } from './routes/_authenticated/configuracoes.integracoes'
 import { Route as AuthenticatedAdminUsersRouteImport } from './routes/_authenticated/admin.users'
+import { Route as AuthenticatedAdminTagsRouteImport } from './routes/_authenticated/admin.tags'
 import { Route as AuthenticatedAdminNotificationsRouteImport } from './routes/_authenticated/admin.notifications'
+import { Route as AuthenticatedAdminFunnelRouteImport } from './routes/_authenticated/admin.funnel'
 import { Route as AuthenticatedAdminEmpresasRouteImport } from './routes/_authenticated/admin.empresas'
 
 const SetupRoute = SetupRouteImport.update({
@@ -201,10 +203,21 @@ const AuthenticatedAdminUsersRoute = AuthenticatedAdminUsersRouteImport.update({
   path: '/users',
   getParentRoute: () => AuthenticatedAdminRoute,
 } as any)
+const AuthenticatedAdminTagsRoute = AuthenticatedAdminTagsRouteImport.update({
+  id: '/tags',
+  path: '/tags',
+  getParentRoute: () => AuthenticatedAdminRoute,
+} as any)
 const AuthenticatedAdminNotificationsRoute =
   AuthenticatedAdminNotificationsRouteImport.update({
     id: '/notifications',
     path: '/notifications',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminFunnelRoute =
+  AuthenticatedAdminFunnelRouteImport.update({
+    id: '/funnel',
+    path: '/funnel',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
 const AuthenticatedAdminEmpresasRoute =
@@ -231,7 +244,9 @@ export interface FileRoutesByFullPath {
   '/integracoes/rd': typeof IntegracoesRdRoute
   '/privacidade/exclusao-de-dados': typeof PrivacidadeExclusaoDeDadosRoute
   '/admin/empresas': typeof AuthenticatedAdminEmpresasRoute
+  '/admin/funnel': typeof AuthenticatedAdminFunnelRoute
   '/admin/notifications': typeof AuthenticatedAdminNotificationsRoute
+  '/admin/tags': typeof AuthenticatedAdminTagsRoute
   '/admin/users': typeof AuthenticatedAdminUsersRoute
   '/configuracoes/integracoes': typeof AuthenticatedConfiguracoesIntegracoesRoute
   '/leads/$id': typeof AuthenticatedLeadsIdRoute
@@ -262,7 +277,9 @@ export interface FileRoutesByTo {
   '/integracoes/rd': typeof IntegracoesRdRoute
   '/privacidade/exclusao-de-dados': typeof PrivacidadeExclusaoDeDadosRoute
   '/admin/empresas': typeof AuthenticatedAdminEmpresasRoute
+  '/admin/funnel': typeof AuthenticatedAdminFunnelRoute
   '/admin/notifications': typeof AuthenticatedAdminNotificationsRoute
+  '/admin/tags': typeof AuthenticatedAdminTagsRoute
   '/admin/users': typeof AuthenticatedAdminUsersRoute
   '/configuracoes/integracoes': typeof AuthenticatedConfiguracoesIntegracoesRoute
   '/leads/$id': typeof AuthenticatedLeadsIdRoute
@@ -297,7 +314,9 @@ export interface FileRoutesById {
   '/integracoes_/rd': typeof IntegracoesRdRoute
   '/privacidade/exclusao-de-dados': typeof PrivacidadeExclusaoDeDadosRoute
   '/_authenticated/admin/empresas': typeof AuthenticatedAdminEmpresasRoute
+  '/_authenticated/admin/funnel': typeof AuthenticatedAdminFunnelRoute
   '/_authenticated/admin/notifications': typeof AuthenticatedAdminNotificationsRoute
+  '/_authenticated/admin/tags': typeof AuthenticatedAdminTagsRoute
   '/_authenticated/admin/users': typeof AuthenticatedAdminUsersRoute
   '/_authenticated/configuracoes/integracoes': typeof AuthenticatedConfiguracoesIntegracoesRoute
   '/_authenticated/leads/$id': typeof AuthenticatedLeadsIdRoute
@@ -332,7 +351,9 @@ export interface FileRouteTypes {
     | '/integracoes/rd'
     | '/privacidade/exclusao-de-dados'
     | '/admin/empresas'
+    | '/admin/funnel'
     | '/admin/notifications'
+    | '/admin/tags'
     | '/admin/users'
     | '/configuracoes/integracoes'
     | '/leads/$id'
@@ -363,7 +384,9 @@ export interface FileRouteTypes {
     | '/integracoes/rd'
     | '/privacidade/exclusao-de-dados'
     | '/admin/empresas'
+    | '/admin/funnel'
     | '/admin/notifications'
+    | '/admin/tags'
     | '/admin/users'
     | '/configuracoes/integracoes'
     | '/leads/$id'
@@ -397,7 +420,9 @@ export interface FileRouteTypes {
     | '/integracoes_/rd'
     | '/privacidade/exclusao-de-dados'
     | '/_authenticated/admin/empresas'
+    | '/_authenticated/admin/funnel'
     | '/_authenticated/admin/notifications'
+    | '/_authenticated/admin/tags'
     | '/_authenticated/admin/users'
     | '/_authenticated/configuracoes/integracoes'
     | '/_authenticated/leads/$id'
@@ -638,11 +663,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminUsersRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/tags': {
+      id: '/_authenticated/admin/tags'
+      path: '/tags'
+      fullPath: '/admin/tags'
+      preLoaderRoute: typeof AuthenticatedAdminTagsRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/admin/notifications': {
       id: '/_authenticated/admin/notifications'
       path: '/notifications'
       fullPath: '/admin/notifications'
       preLoaderRoute: typeof AuthenticatedAdminNotificationsRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/funnel': {
+      id: '/_authenticated/admin/funnel'
+      path: '/funnel'
+      fullPath: '/admin/funnel'
+      preLoaderRoute: typeof AuthenticatedAdminFunnelRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
     '/_authenticated/admin/empresas': {
@@ -657,14 +696,18 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminEmpresasRoute: typeof AuthenticatedAdminEmpresasRoute
+  AuthenticatedAdminFunnelRoute: typeof AuthenticatedAdminFunnelRoute
   AuthenticatedAdminNotificationsRoute: typeof AuthenticatedAdminNotificationsRoute
+  AuthenticatedAdminTagsRoute: typeof AuthenticatedAdminTagsRoute
   AuthenticatedAdminUsersRoute: typeof AuthenticatedAdminUsersRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
 }
 
 const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminEmpresasRoute: AuthenticatedAdminEmpresasRoute,
+  AuthenticatedAdminFunnelRoute: AuthenticatedAdminFunnelRoute,
   AuthenticatedAdminNotificationsRoute: AuthenticatedAdminNotificationsRoute,
+  AuthenticatedAdminTagsRoute: AuthenticatedAdminTagsRoute,
   AuthenticatedAdminUsersRoute: AuthenticatedAdminUsersRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
 }
