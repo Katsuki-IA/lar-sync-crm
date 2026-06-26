@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from "react";
 import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Search, Plus, X, Users as UsersIcon, List, LayoutGrid, MoreHorizontal, Pencil, Eye, ArrowRightLeft, UserCog, Trash2, Download, CalendarIcon, Upload, PauseCircle } from "lucide-react";
+import { Search, Plus, X, Users as UsersIcon, List, LayoutGrid, MoreHorizontal, Pencil, Eye, ArrowRightLeft, UserCog, Trash2, Download, CalendarIcon, Upload, PauseCircle, Bot } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useCrmUser } from "@/hooks/use-crm-user";
@@ -53,6 +53,7 @@ type LeadListRow = {
   id_empreendimento: number | null;
   created_at: string | null;
   ai_paused?: boolean;
+  ai_active?: boolean;
 };
 
 function onlyDigits(s?: string | null) {
@@ -95,6 +96,7 @@ function LeadsList() {
   const [rowUserLead, setRowUserLead] = useState<number | null>(null);
   const [rowDeleteLead, setRowDeleteLead] = useState<number | null>(null);
   const [rowPauseAiLead, setRowPauseAiLead] = useState<number | null>(null);
+  const [rowStartAiLead, setRowStartAiLead] = useState<number | null>(null);
   const [pickStage, setPickStage] = useState<string>("");
   const [pickUser, setPickUser] = useState<string>("");
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
@@ -163,13 +165,27 @@ function LeadsList() {
       const crmIds = baseRows.map((row) => String(row.id));
       if (!crmIds.length) return { rows: baseRows, count: count ?? 0 };
 
-      const { data: automationRows, error: automationError } = await supabase
-        .from("lead")
-        .select("id_crm,status,atendimento_humano")
-        .in("id_crm", crmIds)
-        .in("id_empresa", allowed ?? []);
+      const [{ data: automationRows, error: automationError }, { data: queueRows, error: queueError }] = await Promise.all([
+        supabase
+          .from("lead")
+          .select("id_crm,status,atendimento_humano")
+          .in("id_crm", crmIds)
+          .in("id_empresa", allowed ?? []),
+        supabase
+          .from("fila_leads")
+          .select("id_lead,status")
+          .in("id_lead", crmIds)
+          .in("id_empresa", allowed ?? []),
+      ]);
       if (automationError) throw automationError;
+      if (queueError) throw queueError;
 
+      const activeIds = new Set(
+        [
+          ...(automationRows ?? []).map((row) => Number(row.id_crm)),
+          ...(queueRows ?? []).map((row) => Number(row.id_lead)),
+        ].filter(Number.isFinite),
+      );
       const pausedIds = new Set(
         (automationRows ?? [])
           .filter((row) => row.atendimento_humano || String(row.status ?? "").trim().toLowerCase() === "atendimento humano")
@@ -178,7 +194,11 @@ function LeadsList() {
       );
 
       return {
-        rows: baseRows.map((row) => ({ ...row, ai_paused: pausedIds.has(row.id) })),
+        rows: baseRows.map((row) => ({
+          ...row,
+          ai_active: activeIds.has(row.id),
+          ai_paused: pausedIds.has(row.id),
+        })),
         count: count ?? 0,
       };
     },
@@ -370,6 +390,74 @@ function LeadsList() {
       qc.invalidateQueries({ queryKey: ["lead-activities"] });
       toast.success("Atendimento da IA pausado");
       setRowPauseAiLead(null);
+    },
+    onError: (e: Error) => toast.error("Erro", { description: e.message }),
+  });
+  const startAiMut = useMutation({
+    mutationFn: async (leadId: number) => {
+      const { data: lead, error: leadError } = await supabase
+        .from("crm_leads")
+        .select("id, id_empresa, id_empreendimento")
+        .eq("id", leadId)
+        .single();
+      if (leadError) throw leadError;
+      if (!lead.id_empreendimento) {
+        throw new Error("Defina o empreendimento de interesse antes de enviar este lead para atendimento da IA.");
+      }
+
+      const [{ data: automationRows, error: automationError }, { data: queueRows, error: queueError }] = await Promise.all([
+        supabase
+          .from("lead")
+          .select("id")
+          .eq("id_crm", String(lead.id))
+          .eq("id_empresa", lead.id_empresa)
+          .limit(1),
+        supabase
+          .from("fila_leads")
+          .select("id")
+          .eq("id_lead", String(lead.id))
+          .eq("id_empresa", lead.id_empresa)
+          .limit(1),
+      ]);
+      if (automationError) throw automationError;
+      if (queueError) throw queueError;
+      if ((automationRows?.length ?? 0) > 0 || (queueRows?.length ?? 0) > 0) {
+        throw new Error("Este lead já está na fila ou em atendimento da IA.");
+      }
+
+      const { error: queueInsertError } = await supabase.from("fila_leads").insert({
+        id_lead: String(lead.id),
+        crm_provider: "Hub",
+        id_empresa: lead.id_empresa,
+        id_empreendimento: lead.id_empreendimento,
+        verificado: 0,
+        status: "pending",
+      });
+      if (queueInsertError) throw queueInsertError;
+
+      if (me?.id) {
+        const { error: activityError } = await supabase
+          .from("crm_lead_activities")
+          .insert({
+            lead_id: lead.id,
+            crm_user_id: me.id,
+            tipo: "whatsapp_automation",
+            descricao:
+              "Atendimento da IA iniciado manualmente.\nLead enviado para a fila de atendimento.",
+            metadata: {
+              source: "crm",
+              event: "ai_service_started_manually",
+              id_empreendimento: lead.id_empreendimento,
+            },
+          });
+        if (activityError) throw activityError;
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["leads-list"] });
+      qc.invalidateQueries({ queryKey: ["lead-activities"] });
+      toast.success("Lead enviado para Atendimento IA");
+      setRowStartAiLead(null);
     },
     onError: (e: Error) => toast.error("Erro", { description: e.message }),
   });
@@ -778,9 +866,19 @@ function LeadsList() {
                                     <UserCog className="h-4 w-4 mr-2" /> Redistribuir responsável
                                   </DropdownMenuItem>
                                 )}
-                                <DropdownMenuItem onClick={() => setRowPauseAiLead(l.id)}>
-                                  <PauseCircle className="h-4 w-4 mr-2" /> Pausar Atendimento da IA
-                                </DropdownMenuItem>
+                                {l.ai_paused ? (
+                                  <DropdownMenuItem disabled>
+                                    <PauseCircle className="h-4 w-4 mr-2" /> Atendimento da IA pausado
+                                  </DropdownMenuItem>
+                                ) : l.ai_active ? (
+                                  <DropdownMenuItem onClick={() => setRowPauseAiLead(l.id)}>
+                                    <PauseCircle className="h-4 w-4 mr-2" /> Pausar Atendimento da IA
+                                  </DropdownMenuItem>
+                                ) : (
+                                  <DropdownMenuItem onClick={() => setRowStartAiLead(l.id)}>
+                                    <Bot className="h-4 w-4 mr-2" /> Enviar para Atendimento IA
+                                  </DropdownMenuItem>
+                                )}
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
                                   className="text-destructive focus:text-destructive"
@@ -904,6 +1002,39 @@ function LeadsList() {
                 }}
               >
                 {pauseAiMut.isPending ? "Pausando..." : "Confirmar pausa"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Linha: iniciar IA */}
+        <Dialog
+          open={rowStartAiLead != null}
+          onOpenChange={(open) => {
+            if (!open) setRowStartAiLead(null);
+          }}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Enviar para Atendimento IA?</DialogTitle>
+              <DialogDescription>
+                Ao confirmar, este lead será enviado para a fila de atendimento e a IA irá iniciar o atendimento conforme o fluxo configurado.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="rounded-lg border border-primary/25 bg-primary/5 px-4 py-3 text-sm text-foreground">
+              Confirme apenas se o lead deve entrar no atendimento automático. O envio será registrado no histórico do lead.
+            </div>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setRowStartAiLead(null)}>
+                Cancelar
+              </Button>
+              <Button
+                disabled={startAiMut.isPending || rowStartAiLead == null}
+                onClick={() => {
+                  if (rowStartAiLead != null) startAiMut.mutate(rowStartAiLead);
+                }}
+              >
+                {startAiMut.isPending ? "Enviando..." : "Confirmar envio"}
               </Button>
             </DialogFooter>
           </DialogContent>
