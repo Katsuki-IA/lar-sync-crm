@@ -5,7 +5,7 @@ import {
   jsonResponse,
   withErrorHandling,
 } from "../_shared/meta.ts";
-import { getRdConfig } from "../_shared/rd.ts";
+import { getRdDestinationConfig } from "../_shared/rd.ts";
 
 type ExternalRdConnection = {
   id: string;
@@ -70,7 +70,7 @@ async function getValidExternalRdAccessToken(connection: ExternalRdConnection) {
   if (connection.access_token && expiresAt > Date.now() + 60_000) return connection.access_token;
   if (!connection.refresh_token) throw new Error("Refresh token do RD Station ausente");
 
-  const { clientId, clientSecret } = getRdConfig();
+  const { clientId, clientSecret } = getRdDestinationConfig();
   const response = await fetch("https://api.rd.services/auth/token", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -220,7 +220,9 @@ Deno.serve(async (req) => {
     return jsonResponse({
       funnels: [],
       warning:
-        "A RD Station não retornou a lista de funis/etapas para os escopos atuais deste aplicativo.",
+        errors.some((error) => error.includes("global_credentials"))
+          ? "A conexão atual do RD não possui credenciais globais para acessar os funis do RD CRM. Use um aplicativo RD CRM com acesso a credenciais globais ou configure RD_CRM_CLIENT_ID e RD_CRM_CLIENT_SECRET no Supabase."
+          : "A RD Station não retornou a lista de funis/etapas para os escopos atuais deste aplicativo.",
       details: errors.slice(0, 3),
     });
   });

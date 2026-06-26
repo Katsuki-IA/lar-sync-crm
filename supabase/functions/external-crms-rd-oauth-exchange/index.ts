@@ -20,7 +20,8 @@ Deno.serve(async (req) => {
     if (!code || !state) throw new Error("Retorno OAuth do RD Station incompleto");
 
     const { userId, crmUser } = await getAuthorizedCrmUser(req);
-    const { clientSecret } = getRdDestinationConfig();
+    const rdConfig = getRdDestinationConfig();
+    const { clientSecret } = rdConfig;
     await verifyRdDestinationSignedState({
       state,
       expectedUserId: userId,
@@ -28,7 +29,7 @@ Deno.serve(async (req) => {
       secret: clientSecret,
     });
 
-    const tokens = await exchangeRdAuthorizationCode(code);
+    const tokens = await exchangeRdAuthorizationCode(code, rdConfig);
     const supabaseAdmin = createSupabaseAdmin();
     const { data, error } = await supabaseAdmin
       .from("crm_external_crm_connections")

@@ -19,6 +19,14 @@ type RdTokenResponse = {
   error_description?: string;
 };
 
+type RdOAuthConfig = {
+  clientId: string;
+  clientSecret: string;
+  redirectUri: string;
+  supabaseUrl: string;
+  appOrigin: string;
+};
+
 function base64UrlEncode(input: string | Uint8Array): string {
   const bytes = typeof input === "string" ? new TextEncoder().encode(input) : input;
   let binary = "";
@@ -68,10 +76,15 @@ export function getRdConfig() {
 
 export function getRdDestinationConfig() {
   const config = getRdConfig();
+  const clientId = Deno.env.get("RD_CRM_CLIENT_ID") ?? config.clientId;
+  const clientSecret = Deno.env.get("RD_CRM_CLIENT_SECRET") ?? config.clientSecret;
   const redirectUri =
     Deno.env.get("RD_CRM_REDIRECT_URI") ??
-    `${config.appOrigin}/integracoes/rd-crm`;
-  return { ...config, redirectUri };
+    `${config.appOrigin}/integracoes/rd`;
+  if (!clientId || !clientSecret) {
+    throw new Error("RD_CRM_CLIENT_ID ou RD_CRM_CLIENT_SECRET não configurado no Supabase");
+  }
+  return { ...config, clientId, clientSecret, redirectUri };
 }
 
 export async function createRdSignedState(args: {
@@ -209,8 +222,8 @@ function rdError(payload: Record<string, unknown>, fallback: string) {
   );
 }
 
-export async function exchangeRdAuthorizationCode(code: string) {
-  const { clientId, clientSecret } = getRdConfig();
+export async function exchangeRdAuthorizationCode(code: string, config: RdOAuthConfig = getRdConfig()) {
+  const { clientId, clientSecret } = config;
   const response = await fetch("https://api.rd.services/auth/token?token_by=code", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
