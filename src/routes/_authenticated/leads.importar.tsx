@@ -169,6 +169,7 @@ function ImportLeadsPage() {
   const [assignMe, setAssignMe] = useState(true);
   const [defaultFunnel, setDefaultFunnel] = useState<string>("");
   const [defaultStage, setDefaultStage] = useState<string>("");
+  const [defaultEmpreendimento, setDefaultEmpreendimento] = useState<string>("");
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [result, setResult] = useState<{ success: number; dup: number; errors: Array<{ row: string[]; motivo: string }> } | null>(null);
 
@@ -216,6 +217,13 @@ function ImportLeadsPage() {
     }
   }, [defaultStage, visibleStages]);
 
+  useEffect(() => {
+    const emps = meta?.emps ?? [];
+    if (!defaultEmpreendimento && emps.length === 1) {
+      setDefaultEmpreendimento(String(emps[0].id));
+    }
+  }, [defaultEmpreendimento, meta?.emps]);
+
   /* file handling */
   async function loadFile(f: File) {
     setUploadError(null);
@@ -259,10 +267,19 @@ function ImportLeadsPage() {
   /* ===== Import action ===== */
   async function runImport() {
     if (!me?.id_empresa) { toast.error("Empresa não definida"); return; }
+    const hasMappedEmpreendimento = mapping.includes("empreendimento");
+    if (!hasMappedEmpreendimento && (meta?.emps ?? []).length > 1 && !defaultEmpreendimento) {
+      toast.error("Selecione o empreendimento de interesse para esta importação");
+      return;
+    }
+
     const total = dataRows.length;
     setProgress({ done: 0, total });
     setResult(null);
 
+    const defaultEmpreendimentoId = defaultEmpreendimento
+      ? Number(defaultEmpreendimento)
+      : (meta?.emps?.length === 1 ? meta.emps[0].id : null);
     const empByName = new Map((meta?.emps ?? []).map((e) => [norm(e.nome), e.id]));
     const stageByName = new Map(visibleStages.map((s) => [norm(s.nome), s.id]));
     const userByKey = new Map<string, string>();
@@ -305,7 +322,7 @@ function ImportLeadsPage() {
         const obs = get("observacoes");
         const origem = resolveLeadOrigin(get("origem"));
 
-        const id_empreendimento = empRaw ? empByName.get(norm(empRaw)) ?? null : null;
+        const id_empreendimento = empRaw ? empByName.get(norm(empRaw)) ?? null : defaultEmpreendimentoId;
         const stageId = stageRaw ? stageByName.get(norm(stageRaw)) ?? null : null;
         const respId = respRaw ? userByKey.get(norm(respRaw)) ?? null : null;
         const assignedTo = me.role === "agent" ? me.id : respId ?? (assignMe ? me.id : null);
@@ -425,10 +442,14 @@ function ImportLeadsPage() {
           setAssignMe={setAssignMe}
           defaultStage={defaultStage}
           setDefaultStage={setDefaultStage}
+          defaultEmpreendimento={defaultEmpreendimento}
+          setDefaultEmpreendimento={setDefaultEmpreendimento}
           defaultFunnel={selectedFunnelId ? String(selectedFunnelId) : ""}
           setDefaultFunnel={setDefaultFunnel}
           funnels={funnels}
           stages={visibleStages}
+          empreendimentos={meta?.emps ?? []}
+          hasMappedEmpreendimento={mapping.includes("empreendimento")}
           progress={progress}
           result={result}
           onBack={() => { if (!progress) setStep(2); }}
@@ -648,7 +669,8 @@ function Step2({
 /* ===== Step 3 ===== */
 function Step3({
   file, sep, headers, mapping, totalRows, skipDup, setSkipDup, assignMe, setAssignMe,
-  defaultStage, setDefaultStage, defaultFunnel, setDefaultFunnel, funnels, stages, progress, result,
+  defaultStage, setDefaultStage, defaultEmpreendimento, setDefaultEmpreendimento,
+  defaultFunnel, setDefaultFunnel, funnels, stages, empreendimentos, hasMappedEmpreendimento, progress, result,
   onBack, onImport, onFinish, onDownloadErrors,
 }: {
   file: File;
@@ -659,9 +681,12 @@ function Step3({
   skipDup: boolean; setSkipDup: (b: boolean) => void;
   assignMe: boolean; setAssignMe: (b: boolean) => void;
   defaultStage: string; setDefaultStage: (s: string) => void;
+  defaultEmpreendimento: string; setDefaultEmpreendimento: (s: string) => void;
   defaultFunnel: string; setDefaultFunnel: (s: string) => void;
   funnels: Array<{ id: number; nome: string; is_default: boolean }>;
   stages: Array<{ id: number; nome: string }>;
+  empreendimentos: Array<{ id: number; nome: string }>;
+  hasMappedEmpreendimento: boolean;
   progress: { done: number; total: number } | null;
   result: { success: number; dup: number; errors: Array<{ row: string[]; motivo: string }> } | null;
   onBack: () => void;
@@ -727,6 +752,29 @@ function Step3({
             <Checkbox checked={assignMe} onCheckedChange={(v) => setAssignMe(!!v)} />
             Atribuir para mim se responsável não estiver mapeado
           </label>
+          {empreendimentos.length > 1 ? (
+            <div className="space-y-1.5 max-w-sm">
+              <Label className="text-sm">Empreendimento de interesse</Label>
+              <Select value={defaultEmpreendimento} onValueChange={setDefaultEmpreendimento}>
+                <SelectTrigger><SelectValue placeholder="Selecione um empreendimento" /></SelectTrigger>
+                <SelectContent>
+                  {empreendimentos.map((emp) => (
+                    <SelectItem key={emp.id} value={String(emp.id)}>{emp.nome}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {hasMappedEmpreendimento
+                  ? "Usado quando a coluna de empreendimento vier vazia no arquivo."
+                  : "Todos os leads deste arquivo serão vinculados a este empreendimento."}
+              </p>
+            </div>
+          ) : null}
+          {empreendimentos.length === 1 ? (
+            <p className="text-xs text-muted-foreground">
+              Empreendimento aplicado automaticamente: {empreendimentos[0].nome}
+            </p>
+          ) : null}
           {funnels.length > 1 ? (
             <div className="space-y-1.5 max-w-sm">
               <Label className="text-sm">Funil padrão para leads importados</Label>
