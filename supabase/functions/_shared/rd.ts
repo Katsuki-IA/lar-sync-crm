@@ -66,6 +66,14 @@ export function getRdConfig() {
   return { clientId, clientSecret, redirectUri, supabaseUrl, appOrigin };
 }
 
+export function getRdDestinationConfig() {
+  const config = getRdConfig();
+  const redirectUri =
+    Deno.env.get("RD_CRM_REDIRECT_URI") ??
+    `${config.appOrigin}/integracoes/rd-crm`;
+  return { ...config, redirectUri };
+}
+
 export async function createRdSignedState(args: {
   userId: string;
   idEmpresa: number;
@@ -79,6 +87,23 @@ export async function createRdSignedState(args: {
       idEmpresa: args.idEmpresa,
       empreendimentoId: args.empreendimentoId,
       funnelId: args.funnelId,
+      expiresAt: Date.now() + 10 * 60 * 1000,
+      nonce: crypto.randomUUID(),
+    }),
+  );
+  return `${payload}.${await signPayload(payload, args.secret)}`;
+}
+
+export async function createRdDestinationSignedState(args: {
+  userId: string;
+  idEmpresa: number;
+  secret: string;
+}) {
+  const payload = base64UrlEncode(
+    JSON.stringify({
+      userId: args.userId,
+      idEmpresa: args.idEmpresa,
+      purpose: "external_crm_destination",
       expiresAt: Date.now() + 10 * 60 * 1000,
       nonce: crypto.randomUUID(),
     }),
@@ -116,6 +141,35 @@ export async function verifyRdSignedState(args: {
     throw new Error("State OAuth expirado ou incompatível");
   }
   return { empreendimentoId: parsed.empreendimentoId, funnelId: parsed.funnelId };
+}
+
+export async function verifyRdDestinationSignedState(args: {
+  state: string;
+  expectedUserId: string;
+  expectedEmpresa: number;
+  secret: string;
+}) {
+  const [payload, signature] = args.state.split(".");
+  if (!payload || !signature) throw new Error("State OAuth inválido");
+  if ((await signPayload(payload, args.secret)) !== signature) {
+    throw new Error("State OAuth inválido");
+  }
+
+  const parsed = JSON.parse(base64UrlDecode(payload)) as {
+    userId?: string;
+    idEmpresa?: number;
+    purpose?: string;
+    expiresAt?: number;
+  };
+  if (
+    parsed.userId !== args.expectedUserId ||
+    parsed.idEmpresa !== args.expectedEmpresa ||
+    parsed.purpose !== "external_crm_destination" ||
+    !parsed.expiresAt ||
+    parsed.expiresAt < Date.now()
+  ) {
+    throw new Error("State OAuth expirado ou incompatível");
+  }
 }
 
 export function buildRdOAuthUrl(args: {
