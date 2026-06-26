@@ -623,6 +623,7 @@ export type Database = {
           id: number
           id_empreendimento: number | null
           id_empresa: number
+          historico_token: string
           lead_id: number | null
           lead_quente: boolean | null
           loft_id_negociacao: string | null
@@ -646,6 +647,7 @@ export type Database = {
           id?: number
           id_empreendimento?: number | null
           id_empresa: number
+          historico_token?: string
           lead_id?: number | null
           lead_quente?: boolean | null
           loft_id_negociacao?: string | null
@@ -669,6 +671,7 @@ export type Database = {
           id?: number
           id_empreendimento?: number | null
           id_empresa?: number
+          historico_token?: string
           lead_id?: number | null
           lead_quente?: boolean | null
           loft_id_negociacao?: string | null
@@ -2743,7 +2746,7 @@ export type Database = {
       crm_get_my_id: { Args: never; Returns: string }
       crm_get_my_role: { Args: never; Returns: string }
       crm_public_lead_history: {
-        Args: { p_codigo: string; p_lead_id: number }
+        Args: { p_codigo: string; p_lead_ref: string }
         Returns: Json
       }
       crm_normalize_lead_origin: {

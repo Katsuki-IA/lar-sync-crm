@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Copy, KeyRound, Plus } from "lucide-react";
+import { Copy, KeyRound, Link2, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { createCrmUser, resetCrmUserPassword, setCrmUserActive } from "@/lib/admin.functions";
 import { useCrmUser } from "@/hooks/use-crm-user";
@@ -23,6 +23,7 @@ export const Route = createFileRoute("/_authenticated/settings/users")({
 });
 
 type Row = { id: string; nome: string; email: string; role: string; active: boolean | null };
+type EmpresaHubCode = { id: number; nome: string | null; codigo_hub: string | null };
 
 function UsersPage() {
   const qc = useQueryClient();
@@ -71,6 +72,24 @@ function UsersPage() {
   const [tempPwd, setTempPwd] = useState<string | null>(null);
   const customPasswordError = form.password ? getPasswordPolicyError(form.password) : null;
 
+  const { data: hubCodes = [], isLoading: isLoadingHubCodes } = useQuery({
+    enabled: !!allowed,
+    queryKey: ["settings-users-hub-codes", allowed],
+    queryFn: async (): Promise<EmpresaHubCode[]> => {
+      const empresaIds = allowed ?? [];
+      if (!empresaIds.length) return [];
+
+      const { data, error } = await supabase
+        .from("empresa_dados")
+        .select("id,nome,codigo_hub")
+        .in("id", empresaIds)
+        .order("nome");
+
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
   const create = useMutation({
     mutationFn: () =>
       createFn({
@@ -110,7 +129,10 @@ function UsersPage() {
   });
 
   return (
-    <Card className="p-4 space-y-4">
+    <div className="space-y-4">
+      <HubAccessCodeCard rows={hubCodes} isLoading={isLoadingHubCodes} />
+
+      <Card className="p-4 space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-medium">Usuários</h2>
         <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setTempPwd(null); }}>
@@ -247,6 +269,68 @@ function UsersPage() {
           <Button size="sm" variant="ghost" onClick={() => setTempPwd(null)}>OK</Button>
         </div>
       )}
+      </Card>
+    </div>
+  );
+}
+
+function HubAccessCodeCard({
+  rows,
+  isLoading,
+}: {
+  rows: EmpresaHubCode[];
+  isLoading: boolean;
+}) {
+  async function copyCode(code: string) {
+    await navigator.clipboard.writeText(code);
+    toast.success("Código copiado");
+  }
+
+  return (
+    <Card className="p-4">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex min-w-0 items-center gap-4">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <Link2 className="h-5 w-5" />
+          </div>
+          <div className="min-w-0">
+            <h2 className="text-lg font-medium">Código de acesso</h2>
+            <p className="text-sm text-muted-foreground">
+              Compartilhe apenas com colaboradores autorizados a visualizar históricos individuais de leads.
+            </p>
+          </div>
+        </div>
+
+        {isLoading ? (
+          <div className="text-sm text-muted-foreground">Carregando...</div>
+        ) : !rows.length ? (
+          <div className="text-sm text-muted-foreground">Nenhuma empresa encontrada.</div>
+        ) : (
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {rows.map((empresa) => (
+              <div key={empresa.id} className="flex items-center gap-2 rounded-lg border bg-muted/30 px-3 py-2">
+                <span className="font-mono text-2xl font-bold tracking-wide text-foreground">
+                  {empresa.codigo_hub ?? "----"}
+                </span>
+                <span className="text-sm text-muted-foreground">
+                  Código do HUB Katsuki{rows.length > 1 ? ` - ${empresa.nome ?? empresa.id}` : ""}
+                </span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  disabled={!empresa.codigo_hub}
+                  onClick={() => empresa.codigo_hub && copyCode(empresa.codigo_hub)}
+                  title="Copiar código"
+                  aria-label="Copiar código"
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </Card>
   );
 }

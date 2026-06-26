@@ -31,7 +31,6 @@ import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authentic
 import { Route as AuthenticatedSettingsUsersRouteImport } from './routes/_authenticated/settings.users'
 import { Route as AuthenticatedSettingsTagsRouteImport } from './routes/_authenticated/settings.tags'
 import { Route as AuthenticatedSettingsStagesRouteImport } from './routes/_authenticated/settings.stages'
-import { Route as AuthenticatedSettingsHubRouteImport } from './routes/_authenticated/settings.hub'
 import { Route as AuthenticatedSettingsEmpreendimentosRouteImport } from './routes/_authenticated/settings.empreendimentos'
 import { Route as AuthenticatedSettingsCustomFieldsRouteImport } from './routes/_authenticated/settings.custom-fields'
 import { Route as AuthenticatedLeadsNewRouteImport } from './routes/_authenticated/leads.new'
@@ -156,12 +155,6 @@ const AuthenticatedSettingsStagesRoute =
     path: '/stages',
     getParentRoute: () => AuthenticatedSettingsRoute,
   } as any)
-const AuthenticatedSettingsHubRoute =
-  AuthenticatedSettingsHubRouteImport.update({
-    id: '/hub',
-    path: '/hub',
-    getParentRoute: () => AuthenticatedSettingsRoute,
-  } as any)
 const AuthenticatedSettingsEmpreendimentosRoute =
   AuthenticatedSettingsEmpreendimentosRouteImport.update({
     id: '/empreendimentos',
@@ -239,7 +232,6 @@ export interface FileRoutesByFullPath {
   '/leads/new': typeof AuthenticatedLeadsNewRoute
   '/settings/custom-fields': typeof AuthenticatedSettingsCustomFieldsRoute
   '/settings/empreendimentos': typeof AuthenticatedSettingsEmpreendimentosRoute
-  '/settings/hub': typeof AuthenticatedSettingsHubRoute
   '/settings/stages': typeof AuthenticatedSettingsStagesRoute
   '/settings/tags': typeof AuthenticatedSettingsTagsRoute
   '/settings/users': typeof AuthenticatedSettingsUsersRoute
@@ -270,7 +262,6 @@ export interface FileRoutesByTo {
   '/leads/new': typeof AuthenticatedLeadsNewRoute
   '/settings/custom-fields': typeof AuthenticatedSettingsCustomFieldsRoute
   '/settings/empreendimentos': typeof AuthenticatedSettingsEmpreendimentosRoute
-  '/settings/hub': typeof AuthenticatedSettingsHubRoute
   '/settings/stages': typeof AuthenticatedSettingsStagesRoute
   '/settings/tags': typeof AuthenticatedSettingsTagsRoute
   '/settings/users': typeof AuthenticatedSettingsUsersRoute
@@ -305,7 +296,6 @@ export interface FileRoutesById {
   '/_authenticated/leads/new': typeof AuthenticatedLeadsNewRoute
   '/_authenticated/settings/custom-fields': typeof AuthenticatedSettingsCustomFieldsRoute
   '/_authenticated/settings/empreendimentos': typeof AuthenticatedSettingsEmpreendimentosRoute
-  '/_authenticated/settings/hub': typeof AuthenticatedSettingsHubRoute
   '/_authenticated/settings/stages': typeof AuthenticatedSettingsStagesRoute
   '/_authenticated/settings/tags': typeof AuthenticatedSettingsTagsRoute
   '/_authenticated/settings/users': typeof AuthenticatedSettingsUsersRoute
@@ -340,7 +330,6 @@ export interface FileRouteTypes {
     | '/leads/new'
     | '/settings/custom-fields'
     | '/settings/empreendimentos'
-    | '/settings/hub'
     | '/settings/stages'
     | '/settings/tags'
     | '/settings/users'
@@ -371,7 +360,6 @@ export interface FileRouteTypes {
     | '/leads/new'
     | '/settings/custom-fields'
     | '/settings/empreendimentos'
-    | '/settings/hub'
     | '/settings/stages'
     | '/settings/tags'
     | '/settings/users'
@@ -405,7 +393,6 @@ export interface FileRouteTypes {
     | '/_authenticated/leads/new'
     | '/_authenticated/settings/custom-fields'
     | '/_authenticated/settings/empreendimentos'
-    | '/_authenticated/settings/hub'
     | '/_authenticated/settings/stages'
     | '/_authenticated/settings/tags'
     | '/_authenticated/settings/users'
@@ -582,13 +569,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsStagesRouteImport
       parentRoute: typeof AuthenticatedSettingsRoute
     }
-    '/_authenticated/settings/hub': {
-      id: '/_authenticated/settings/hub'
-      path: '/hub'
-      fullPath: '/settings/hub'
-      preLoaderRoute: typeof AuthenticatedSettingsHubRouteImport
-      parentRoute: typeof AuthenticatedSettingsRoute
-    }
     '/_authenticated/settings/empreendimentos': {
       id: '/_authenticated/settings/empreendimentos'
       path: '/empreendimentos'
@@ -675,7 +655,6 @@ const AuthenticatedAdminRouteWithChildren =
 interface AuthenticatedSettingsRouteChildren {
   AuthenticatedSettingsCustomFieldsRoute: typeof AuthenticatedSettingsCustomFieldsRoute
   AuthenticatedSettingsEmpreendimentosRoute: typeof AuthenticatedSettingsEmpreendimentosRoute
-  AuthenticatedSettingsHubRoute: typeof AuthenticatedSettingsHubRoute
   AuthenticatedSettingsStagesRoute: typeof AuthenticatedSettingsStagesRoute
   AuthenticatedSettingsTagsRoute: typeof AuthenticatedSettingsTagsRoute
   AuthenticatedSettingsUsersRoute: typeof AuthenticatedSettingsUsersRoute
@@ -687,7 +666,6 @@ const AuthenticatedSettingsRouteChildren: AuthenticatedSettingsRouteChildren = {
     AuthenticatedSettingsCustomFieldsRoute,
   AuthenticatedSettingsEmpreendimentosRoute:
     AuthenticatedSettingsEmpreendimentosRoute,
-  AuthenticatedSettingsHubRoute: AuthenticatedSettingsHubRoute,
   AuthenticatedSettingsStagesRoute: AuthenticatedSettingsStagesRoute,
   AuthenticatedSettingsTagsRoute: AuthenticatedSettingsTagsRoute,
   AuthenticatedSettingsUsersRoute: AuthenticatedSettingsUsersRoute,

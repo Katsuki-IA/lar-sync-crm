@@ -52,6 +52,7 @@ type LeadListRow = {
   crm_assigned_to: string | null;
   id_empreendimento: number | null;
   created_at: string | null;
+  historico_token: string | null;
   ai_paused?: boolean;
   ai_active?: boolean;
 };
@@ -174,7 +175,7 @@ function LeadsList() {
 
       let q = supabase
         .from("crm_leads")
-        .select("id, nome, telefone, email, crm_stage_id, crm_assigned_to, id_empreendimento, created_at", { count: "exact" })
+        .select("id, nome, telefone, email, crm_stage_id, crm_assigned_to, id_empreendimento, created_at, historico_token", { count: "exact" })
         .in("id_empresa", allowed ?? []);
 
       if (me?.role === "agent") q = q.eq("crm_assigned_to", me.id);
@@ -537,8 +538,9 @@ function LeadsList() {
     URL.revokeObjectURL(url);
   }
 
-  async function copyHistoryLink(leadId: number) {
-    const url = `${window.location.origin}/historico/${leadId}`;
+  async function copyHistoryLink(lead: LeadListRow) {
+    const ref = lead.historico_token ?? String(lead.id);
+    const url = `${window.location.origin}/historico/${ref}`;
     await navigator.clipboard.writeText(url);
     toast.success("Link do histórico copiado");
   }
@@ -907,7 +909,7 @@ function LeadsList() {
                               <MessagesSquare className="h-3.5 w-3.5" />
                             </button>
                             <button
-                              onClick={() => copyHistoryLink(l.id)}
+                              onClick={() => copyHistoryLink(l)}
                               className="h-7 w-7 cursor-pointer rounded-md inline-flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-primary/10 opacity-0 group-hover/row:opacity-100 transition-opacity"
                               title="Copiar link do histórico"
                               aria-label="Copiar link do histórico"

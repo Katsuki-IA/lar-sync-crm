@@ -18,6 +18,7 @@ type PublicLeadHistoryPayload = {
   lead: {
     id: number;
     id_empresa: number;
+    historico_token: string | null;
     empresa_nome: string | null;
     nome: string | null;
     telefone: string | null;
@@ -150,18 +151,18 @@ function timestampMs(value?: string | null) {
 
 function PublicLeadHistoryPage() {
   const { leadId } = Route.useParams();
-  const leadNumber = Number(leadId);
-  const validLeadId = Number.isFinite(leadNumber) && leadNumber > 0;
+  const leadRef = leadId.trim();
+  const validLeadRef = leadRef.length > 0;
   const [digits, setDigits] = useState(["", "", "", ""]);
   const inputs = useRef<Array<HTMLInputElement | null>>([]);
   const code = digits.join("");
 
   const historyQuery = useQuery({
-    enabled: validLeadId && code.length === 4,
-    queryKey: ["public-lead-history", leadNumber, code],
+    enabled: validLeadRef && code.length === 4,
+    queryKey: ["public-lead-history", leadRef, code],
     queryFn: async (): Promise<PublicLeadHistoryPayload | null> => {
       const { data, error } = await supabase.rpc("crm_public_lead_history", {
-        p_lead_id: leadNumber,
+        p_lead_ref: leadRef,
         p_codigo: code,
       });
       if (error) throw error;
@@ -202,7 +203,7 @@ function PublicLeadHistoryPage() {
     await navigator.clipboard.writeText(phone);
   }
 
-  if (!validLeadId) {
+  if (!validLeadRef) {
     return (
       <AccessShell>
         <p className="text-center text-sm text-muted-foreground">Link de histórico inválido.</p>
@@ -258,7 +259,7 @@ function PublicLeadHistoryPage() {
           </p>
 
           <Button asChild variant="outline" className="mt-20">
-            <Link to="/auth">Tenho uma conta, fazer login</Link>
+            <Link to="/auth">Efetuar Login</Link>
           </Button>
         </div>
       </AccessShell>
