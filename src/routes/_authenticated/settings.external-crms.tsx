@@ -7,6 +7,7 @@ import {
   CircleSlash,
   ExternalLink,
   Plug,
+  RefreshCw,
   Save,
   Settings,
   Unplug,
@@ -35,11 +36,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   createExternalCrmRdOAuthUrl,
   disconnectExternalCrm,
+  getExternalCrmRdFunnels,
   getExternalCrmsStatus,
   saveExternalCrmSettings,
   type ExternalCrmProvider,
@@ -103,6 +105,17 @@ function ExternalCrmsPage() {
   );
   const rdConnection = rdProvider?.connection ?? null;
   const rdConnected = Boolean(rdConnection?.active);
+  const rdFunnelsQuery = useQuery({
+    queryKey: ["external-crms-rd-funnels", rdConnection?.id],
+    queryFn: getExternalCrmRdFunnels,
+    enabled: rdDialogOpen && rdConnected,
+  });
+  const rdFunnels = rdFunnelsQuery.data?.funnels ?? [];
+  const selectedRdFunnel = rdFunnels.find((funnel) => funnel.id === rdFunnelId) ?? null;
+  const selectedRdStage =
+    selectedRdFunnel?.stages.find((stage) => stage.id === rdStageId) ??
+    selectedRdFunnel?.stages[0] ??
+    null;
 
   useEffect(() => {
     if (!rdDialogOpen || !rdConnection?.settings) return;
@@ -113,12 +126,41 @@ function ExternalCrmsPage() {
   }, [rdConnection?.settings, rdDialogOpen]);
 
   useEffect(() => {
+    if (!rdDialogOpen || !rdFunnels.length) return;
+
+    const current = rdFunnels.find((funnel) => funnel.id === rdFunnelId);
+    const funnel = current ?? rdFunnels[0];
+    const stage = current?.stages.find((item) => item.id === rdStageId) ?? funnel.stages[0] ?? null;
+
+    if (!current) {
+      setRdFunnelId(funnel.id);
+      setRdFunnelName(funnel.name);
+    } else {
+      setRdFunnelName(current.name);
+    }
+
+    setRdStageId(stage?.id ?? "");
+    setRdStageName(stage?.name ?? "");
+  }, [rdDialogOpen, rdFunnels, rdFunnelId, rdStageId]);
+
+  function handleRdFunnelChange(funnelId: string) {
+    const funnel = rdFunnels.find((item) => item.id === funnelId);
+    if (!funnel) return;
+    const stage = funnel.stages[0] ?? null;
+    setRdFunnelId(funnel.id);
+    setRdFunnelName(funnel.name);
+    setRdStageId(stage?.id ?? "");
+    setRdStageName(stage?.name ?? "");
+  }
+
+  useEffect(() => {
     const handler = async (event: MessageEvent) => {
       const message = event.data as RdOAuthCallbackMessage | undefined;
       if (message?.source !== "external-crm-rd-oauth" || event.origin !== window.location.origin) return;
       setConnecting(false);
       if (message.ok) {
         await qc.invalidateQueries({ queryKey: ["external-crms-status"] });
+        await qc.invalidateQueries({ queryKey: ["external-crms-rd-funnels"] });
         setRdDialogOpen(true);
         toast.success("RD Station CRM conectado");
       } else {
@@ -165,6 +207,7 @@ function ExternalCrmsPage() {
         rdStageName,
       });
       await qc.invalidateQueries({ queryKey: ["external-crms-status"] });
+      await qc.invalidateQueries({ queryKey: ["external-crms-rd-funnels"] });
       toast.success("Destino RD Station salvo");
       setRdDialogOpen(false);
     } catch (error) {
@@ -202,7 +245,7 @@ function ExternalCrmsPage() {
           const connected = Boolean(provider.connection?.active);
           const configured = Boolean(
             provider.provider === "rd_station" &&
-              provider.connection?.settings?.rd_funnel_id || provider.connection?.settings?.rd_funnel_name,
+              (provider.connection?.settings?.rd_funnel_id || provider.connection?.settings?.rd_funnel_name),
           );
           return (
             <Card key={provider.provider} className="p-5">
@@ -277,48 +320,65 @@ function ExternalCrmsPage() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="grid gap-4 py-2 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="rd-funnel-id">ID do funil no RD</Label>
-              <Input
-                id="rd-funnel-id"
-                value={rdFunnelId}
-                onChange={(event) => setRdFunnelId(event.target.value)}
-                placeholder="Ex.: 64f..."
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="rd-funnel-name">Nome do funil</Label>
-              <Input
-                id="rd-funnel-name"
-                value={rdFunnelName}
-                onChange={(event) => setRdFunnelName(event.target.value)}
-                placeholder="Ex.: Funil de vendas"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="rd-stage-id">ID da etapa inicial</Label>
-              <Input
-                id="rd-stage-id"
-                value={rdStageId}
-                onChange={(event) => setRdStageId(event.target.value)}
-                placeholder="Opcional"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="rd-stage-name">Nome da etapa inicial</Label>
-              <Input
-                id="rd-stage-name"
-                value={rdStageName}
-                onChange={(event) => setRdStageName(event.target.value)}
-                placeholder="Opcional"
-              />
-            </div>
-          </div>
+          <div className="space-y-4 py-2">
+            {rdFunnelsQuery.isLoading ? (
+              <div className="flex items-center gap-2 rounded-md border border-border p-3 text-sm text-muted-foreground">
+                <RefreshCw className="h-4 w-4 animate-spin" />
+                Buscando funis e etapas no RD Station...
+              </div>
+            ) : null}
 
-          <div className="rounded-md border border-border p-3 text-sm text-muted-foreground">
-            A listagem automática de funis externos depende do endpoint/escopo do RD CRM. Por
-            enquanto, esses identificadores ficam salvos para o envio via API.
+            {rdFunnelsQuery.data?.warning && !rdFunnels.length ? (
+              <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
+                {rdFunnelsQuery.data.warning}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="mt-3 gap-2 bg-transparent"
+                  onClick={() => void rdFunnelsQuery.refetch()}
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  Tentar novamente
+                </Button>
+              </div>
+            ) : null}
+
+            {rdFunnelsQuery.isError ? (
+              <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+                Não foi possível buscar os funis do RD Station. Verifique a conexão e tente novamente.
+              </div>
+            ) : null}
+
+            {rdFunnels.length ? (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="rd-funnel-select">Funil no RD</Label>
+                  <Select value={rdFunnelId} onValueChange={handleRdFunnelChange}>
+                    <SelectTrigger id="rd-funnel-select" className="cursor-pointer">
+                      <SelectValue placeholder="Selecione o funil" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {rdFunnels.map((funnel) => (
+                        <SelectItem key={funnel.id} value={funnel.id} className="cursor-pointer">
+                          {funnel.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Etapa inicial</Label>
+                  <div className="rounded-md border border-input bg-muted/30 px-3 py-2 text-sm">
+                    {selectedRdStage?.name ?? "Etapa inicial padrão do RD"}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    O HUB envia para a primeira etapa retornada pelo RD para esse funil.
+                  </p>
+                </div>
+              </div>
+            ) : null}
           </div>
 
           <DialogFooter className="sm:justify-between gap-2">
@@ -351,7 +411,7 @@ function ExternalCrmsPage() {
                   Docs RD
                 </a>
               </Button>
-              <Button onClick={saveRdDestination} disabled={saving || (!rdFunnelId && !rdFunnelName)}>
+              <Button onClick={saveRdDestination} disabled={saving || !rdFunnelId || rdFunnelsQuery.isLoading}>
                 <Save className="mr-2 h-4 w-4" />
                 {saving ? "Salvando..." : "Salvar destino"}
               </Button>

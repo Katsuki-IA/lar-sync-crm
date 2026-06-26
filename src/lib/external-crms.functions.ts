@@ -28,6 +28,12 @@ export type ExternalCrmsStatus = {
   providers: ExternalCrmProvider[];
 };
 
+export type ExternalCrmRdFunnel = {
+  id: string;
+  name: string;
+  stages: Array<{ id: string; name: string }>;
+};
+
 async function getFunctionErrorMessage(error: unknown, fallback: string) {
   const context = (error as { context?: unknown } | null)?.context;
   if (context instanceof Response) {
@@ -62,6 +68,14 @@ export function exchangeExternalCrmRdCode(data: { code: string; state: string })
     "external-crms-rd-oauth-exchange",
     data,
   );
+}
+
+export function getExternalCrmRdFunnels() {
+  return invokeExternalCrmFunction<{
+    funnels: ExternalCrmRdFunnel[];
+    warning: string | null;
+    details?: string[];
+  }>("external-crms-rd-funnels");
 }
 
 export function saveExternalCrmSettings(data: {
