@@ -56,6 +56,8 @@ type LeadListRow = {
   ai_active?: boolean;
 };
 
+type AiStatusFilter = "all" | "active" | "paused" | "inactive";
+
 function onlyDigits(s?: string | null) {
   return (s ?? "").replace(/\D/g, "");
 }
@@ -80,13 +82,14 @@ function LeadsList() {
   const [tagId, setTagId] = useState<string>("all");
   const [empId, setEmpId] = useState<string>("all");
   const [userId, setUserId] = useState<string>("all");
+  const [aiStatus, setAiStatus] = useState<AiStatusFilter>("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [page, setPage] = useState(0);
 
   // Bulk selection
   const [selected, setSelected] = useState<Set<number>>(new Set());
-  useEffect(() => { setSelected(new Set()); }, [page, funnelId, stage, tagId, empId, userId, dateFrom, dateTo, search]);
+  useEffect(() => { setSelected(new Set()); }, [page, funnelId, stage, tagId, empId, userId, aiStatus, dateFrom, dateTo, search]);
 
   // Dialogs
   const [bulkStageOpen, setBulkStageOpen] = useState(false);
@@ -102,8 +105,8 @@ function LeadsList() {
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
 
   const filters = useMemo(
-    () => ({ search, stage, tagId, empId, userId, dateFrom, dateTo, page }),
-    [search, stage, tagId, empId, userId, dateFrom, dateTo, page],
+    () => ({ search, stage, tagId, empId, userId, aiStatus, dateFrom, dateTo, page }),
+    [search, stage, tagId, empId, userId, aiStatus, dateFrom, dateTo, page],
   );
 
   const { data: meta } = useQuery({
@@ -134,6 +137,45 @@ function LeadsList() {
         if (!leadIdsByTag.length) return { rows: [], count: 0 };
       }
 
+      let aiLeadIds: number[] | null = null;
+      if (aiStatus !== "all") {
+        const [{ data: automationRows, error: automationError }, { data: queueRows, error: queueError }] = await Promise.all([
+          supabase
+            .from("lead")
+            .select("id_crm,status,atendimento_humano")
+            .in("id_empresa", allowed ?? []),
+          supabase
+            .from("fila_leads")
+            .select("id_lead")
+            .in("id_empresa", allowed ?? []),
+        ]);
+        if (automationError) throw automationError;
+        if (queueError) throw queueError;
+
+        const activeIds = new Set(
+          [
+            ...(automationRows ?? []).map((row) => Number(row.id_crm)),
+            ...(queueRows ?? []).map((row) => Number(row.id_lead)),
+          ].filter(Number.isFinite),
+        );
+        const pausedIds = new Set(
+          (automationRows ?? [])
+            .filter((row) => row.atendimento_humano || String(row.status ?? "").trim().toLowerCase() === "atendimento humano")
+            .map((row) => Number(row.id_crm))
+            .filter(Number.isFinite),
+        );
+
+        if (aiStatus === "paused") {
+          aiLeadIds = Array.from(pausedIds);
+          if (!aiLeadIds.length) return { rows: [], count: 0 };
+        } else if (aiStatus === "active") {
+          aiLeadIds = Array.from(activeIds).filter((id) => !pausedIds.has(id));
+          if (!aiLeadIds.length) return { rows: [], count: 0 };
+        } else if (aiStatus === "inactive" && activeIds.size > 0) {
+          aiLeadIds = Array.from(activeIds);
+        }
+      }
+
       let q = supabase
         .from("crm_leads")
         .select("id, nome, telefone, email, crm_stage_id, crm_assigned_to, id_empreendimento, created_at", { count: "exact" })
@@ -155,6 +197,11 @@ function LeadsList() {
       if (dateTo) q = q.lte("created_at", `${dateTo}T23:59:59`);
       if (search) q = q.or(`nome.ilike.%${search}%,telefone.ilike.%${search}%`);
       if (leadIdsByTag) q = q.in("id", leadIdsByTag);
+      if (aiStatus === "inactive" && aiLeadIds?.length) {
+        q = q.not("id", "in", `(${aiLeadIds.join(",")})`);
+      } else if (aiLeadIds) {
+        q = q.in("id", aiLeadIds);
+      }
 
       q = q.order("created_at", { ascending: false }).range(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE - 1);
 
@@ -235,6 +282,15 @@ function LeadsList() {
     const u = meta?.users.find((x) => x.id === userId);
     if (u) activeChips.push({ key: "user", label: `Responsável: ${u.nome}`, onClear: () => { setUserId("all"); setPage(0); } });
   }
+  if (aiStatus !== "all") {
+    const labels: Record<AiStatusFilter, string> = {
+      all: "Todos",
+      active: "Em atendimento",
+      paused: "Atendimento pausado",
+      inactive: "Sem atendimento",
+    };
+    activeChips.push({ key: "ai-status", label: `Status: ${labels[aiStatus]}`, onClear: () => { setAiStatus("all"); setPage(0); } });
+  }
   if (dateFrom) activeChips.push({ key: "from", label: `De: ${dateFrom}`, onClear: () => { setDateFrom(""); setPage(0); } });
   if (dateTo) activeChips.push({ key: "to", label: `Até: ${dateTo}`, onClear: () => { setDateTo(""); setPage(0); } });
 
@@ -244,6 +300,7 @@ function LeadsList() {
     setTagId("all");
     setEmpId("all");
     setUserId("all");
+    setAiStatus("all");
     setDateFrom("");
     setDateTo("");
     setPage(0);
@@ -596,6 +653,19 @@ function LeadsList() {
             </LabeledFilter>
             <LabeledFilter label="Tag">
               <FilterSelect value={tagId} onChange={(v) => { setTagId(v); setPage(0); }} placeholder="Tag" options={[{ value: "all", label: "Todas" }, ...(meta?.tags ?? []).map((t) => ({ value: String(t.id), label: t.nome }))]} />
+            </LabeledFilter>
+            <LabeledFilter label="Status">
+              <FilterSelect
+                value={aiStatus}
+                onChange={(v) => { setAiStatus(v as AiStatusFilter); setPage(0); }}
+                placeholder="Status"
+                options={[
+                  { value: "all", label: "Todos" },
+                  { value: "active", label: "Em atendimento" },
+                  { value: "paused", label: "Atendimento pausado" },
+                  { value: "inactive", label: "Sem atendimento" },
+                ]}
+              />
             </LabeledFilter>
             <LabeledFilter label="Período">
               <div className="flex items-center gap-1.5">
