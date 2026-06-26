@@ -26,6 +26,7 @@ type RdFunnel = {
 };
 
 const CANDIDATE_ENDPOINTS = [
+  "https://api.rd.services/crm/v2/pipelines",
   "https://api.rd.services/platform/funnels",
   "https://api.rd.services/platform/contact_funnels",
   "https://api.rd.services/platform/contacts/funnels",
@@ -56,6 +57,10 @@ function readError(payload: Record<string, unknown>, fallback: string) {
     (typeof payload.error === "string" ? payload.error : null) ??
     fallback
   );
+}
+
+function endpointError(endpoint: string, response: Response, payload: Record<string, unknown>) {
+  return `${endpoint}: ${response.status} ${readError(payload, response.statusText)}`;
 }
 
 async function getValidExternalRdAccessToken(connection: ExternalRdConnection) {
@@ -113,11 +118,28 @@ function itemArray(value: unknown): Record<string, unknown>[] {
   return value.filter((item): item is Record<string, unknown> => item !== null && typeof item === "object");
 }
 
+function firstItemArray(item: Record<string, unknown>, keys: string[]) {
+  for (const key of keys) {
+    const items = itemArray(item[key]);
+    if (items.length) return items;
+  }
+  return [];
+}
+
 function extractCollection(payload: unknown): Record<string, unknown>[] {
   if (Array.isArray(payload)) return itemArray(payload);
   if (!payload || typeof payload !== "object") return [];
   const obj = payload as Record<string, unknown>;
-  for (const key of ["funnels", "contact_funnels", "funnel_stages", "stages", "items", "data"]) {
+  for (const key of [
+    "pipelines",
+    "pipeline_stages",
+    "funnels",
+    "contact_funnels",
+    "funnel_stages",
+    "stages",
+    "items",
+    "data",
+  ]) {
     const items = itemArray(obj[key]);
     if (items.length) return items;
   }
@@ -127,7 +149,7 @@ function extractCollection(payload: unknown): Record<string, unknown>[] {
 function normalizeStages(items: Record<string, unknown>[]) {
   return items
     .map((stage) => {
-      const id = stringValue(stage, ["id", "uuid", "identifier", "value"]);
+      const id = stringValue(stage, ["id", "_id", "uuid", "stage_id", "identifier", "value"]);
       const name = stringValue(stage, ["name", "label", "title", "value"]);
       return id && name ? { id, name } : null;
     })
@@ -138,14 +160,15 @@ function normalizeFunnels(payload: unknown): RdFunnel[] {
   const items = extractCollection(payload);
   const funnels = items
     .map((item) => {
-      const id = stringValue(item, ["id", "uuid", "identifier", "value"]);
+      const id = stringValue(item, ["id", "_id", "uuid", "pipeline_id", "identifier", "value"]);
       const name = stringValue(item, ["name", "label", "title", "value"]);
-      const stageItems =
-        itemArray(item.stages).length
-          ? itemArray(item.stages)
-          : itemArray(item.funnel_stages).length
-            ? itemArray(item.funnel_stages)
-            : itemArray(item.contact_funnel_stages);
+      const stageItems = firstItemArray(item, [
+        "stages",
+        "pipeline_stages",
+        "deal_stages",
+        "funnel_stages",
+        "contact_funnel_stages",
+      ]);
       const stages = normalizeStages(stageItems);
       return id && name ? { id, name, stages } : null;
     })
@@ -185,7 +208,7 @@ Deno.serve(async (req) => {
       });
       const payload = await readJson(response);
       if (!response.ok) {
-        errors.push(readError(payload, `${endpoint}: ${response.status}`));
+        errors.push(endpointError(endpoint, response, payload));
         continue;
       }
       const funnels = normalizeFunnels(payload);

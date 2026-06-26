@@ -329,18 +329,53 @@ function ExternalCrmsPage() {
             ) : null}
 
             {rdFunnelsQuery.data?.warning && !rdFunnels.length ? (
-              <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
-                {rdFunnelsQuery.data.warning}
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="mt-3 gap-2 bg-transparent"
-                  onClick={() => void rdFunnelsQuery.refetch()}
-                >
-                  <RefreshCw className="h-4 w-4" />
-                  Tentar novamente
-                </Button>
+              <div className="space-y-3 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
+                <p>{rdFunnelsQuery.data.warning}</p>
+                {rdFunnelsQuery.data.details?.length ? (
+                  <details className="text-xs">
+                    <summary className="cursor-pointer font-medium">Ver diagnóstico técnico</summary>
+                    <ul className="mt-2 space-y-1">
+                      {rdFunnelsQuery.data.details.map((detail) => (
+                        <li key={detail} className="break-words rounded border border-amber-200 bg-white/60 px-2 py-1">
+                          {detail}
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                ) : null}
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="gap-2 bg-transparent"
+                    onClick={() => void rdFunnelsQuery.refetch()}
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                    Tentar novamente
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="gap-2 bg-transparent"
+                    onClick={() => {
+                      setRdFunnelId("");
+                      setRdFunnelName("Funil padrão do RD");
+                      setRdStageId("");
+                      setRdStageName("Etapa inicial padrão do RD");
+                    }}
+                  >
+                    Usar funil padrão do RD
+                  </Button>
+                </div>
+              </div>
+            ) : null}
+
+            {!rdFunnels.length && rdFunnelName ? (
+              <div className="rounded-md border border-input bg-muted/30 p-3 text-sm">
+                <div className="font-medium">{rdFunnelName}</div>
+                <div className="text-muted-foreground">{rdStageName || "Etapa inicial padrão do RD"}</div>
               </div>
             ) : null}
 
@@ -411,7 +446,7 @@ function ExternalCrmsPage() {
                   Docs RD
                 </a>
               </Button>
-              <Button onClick={saveRdDestination} disabled={saving || !rdFunnelId || rdFunnelsQuery.isLoading}>
+              <Button onClick={saveRdDestination} disabled={saving || (!rdFunnelId && !rdFunnelName) || rdFunnelsQuery.isLoading}>
                 <Save className="mr-2 h-4 w-4" />
                 {saving ? "Salvando..." : "Salvar destino"}
               </Button>
