@@ -6,7 +6,7 @@ import {
   withErrorHandling,
 } from "../_shared/meta.ts";
 import {
-  exchangeRdAuthorizationCode,
+  exchangeRdCrmAuthorizationCode,
   getRdDestinationConfig,
   verifyRdDestinationSignedState,
 } from "../_shared/rd.ts";
@@ -29,7 +29,7 @@ Deno.serve(async (req) => {
       secret: clientSecret,
     });
 
-    const tokens = await exchangeRdAuthorizationCode(code, rdConfig);
+    const tokens = await exchangeRdCrmAuthorizationCode(code, rdConfig);
     const supabaseAdmin = createSupabaseAdmin();
     const { data, error } = await supabaseAdmin
       .from("crm_external_crm_connections")

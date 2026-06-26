@@ -5,7 +5,7 @@ import {
   withErrorHandling,
 } from "../_shared/meta.ts";
 import {
-  buildRdOAuthUrl,
+  buildRdCrmOAuthUrl,
   createRdDestinationSignedState,
   getRdDestinationConfig,
 } from "../_shared/rd.ts";
@@ -24,7 +24,7 @@ Deno.serve(async (req) => {
     });
 
     return jsonResponse({
-      url: buildRdOAuthUrl({ clientId, redirectUri, state }),
+      url: buildRdCrmOAuthUrl({ clientId, redirectUri, state }),
     });
   });
 });

@@ -71,14 +71,16 @@ async function getValidExternalRdAccessToken(connection: ExternalRdConnection) {
   if (!connection.refresh_token) throw new Error("Refresh token do RD Station ausente");
 
   const { clientId, clientSecret } = getRdDestinationConfig();
-  const response = await fetch("https://api.rd.services/auth/token", {
+  const body = new URLSearchParams({
+    client_id: clientId,
+    client_secret: clientSecret,
+    refresh_token: connection.refresh_token,
+    grant_type: "refresh_token",
+  });
+  const response = await fetch("https://api.rd.services/oauth2/token", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      client_id: clientId,
-      client_secret: clientSecret,
-      refresh_token: connection.refresh_token,
-    }),
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body,
   });
   const payload = await readJson(response);
   if (!response.ok || typeof payload.access_token !== "string") {

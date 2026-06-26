@@ -197,6 +197,19 @@ export function buildRdOAuthUrl(args: {
   return url.toString();
 }
 
+export function buildRdCrmOAuthUrl(args: {
+  clientId: string;
+  redirectUri: string;
+  state: string;
+}) {
+  const url = new URL("https://accounts.rdstation.com/oauth/authorize");
+  url.searchParams.set("response_type", "code");
+  url.searchParams.set("client_id", args.clientId);
+  url.searchParams.set("redirect_uri", args.redirectUri);
+  url.searchParams.set("state", args.state);
+  return url.toString();
+}
+
 function tokenExpiresAt(expiresIn?: number) {
   const seconds = typeof expiresIn === "number" && expiresIn > 0 ? expiresIn : 86_400;
   return new Date(Date.now() + seconds * 1000).toISOString();
@@ -232,6 +245,30 @@ export async function exchangeRdAuthorizationCode(code: string, config: RdOAuthC
   const payload = (await readJson(response)) as RdTokenResponse;
   if (!response.ok || !payload.access_token || !payload.refresh_token) {
     throw new Error(rdError(payload as Record<string, unknown>, "Falha ao obter token do RD Station"));
+  }
+  return {
+    accessToken: payload.access_token,
+    refreshToken: payload.refresh_token,
+    tokenExpiresAt: tokenExpiresAt(payload.expires_in),
+  };
+}
+
+export async function exchangeRdCrmAuthorizationCode(code: string, config: RdOAuthConfig) {
+  const body = new URLSearchParams({
+    client_id: config.clientId,
+    client_secret: config.clientSecret,
+    code,
+    redirect_uri: config.redirectUri,
+    grant_type: "authorization_code",
+  });
+  const response = await fetch("https://api.rd.services/oauth2/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body,
+  });
+  const payload = (await readJson(response)) as RdTokenResponse;
+  if (!response.ok || !payload.access_token || !payload.refresh_token) {
+    throw new Error(rdError(payload as Record<string, unknown>, "Falha ao obter token do RD Station CRM"));
   }
   return {
     accessToken: payload.access_token,
