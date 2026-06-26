@@ -759,6 +759,7 @@ function LeadsList() {
                     const sColor = stageColor(s?.nome, s?.cor);
                     const responsavel = l.crm_assigned_to ? userMap.get(l.crm_assigned_to) : null;
                     const isChecked = selected.has(l.id);
+                    const aiNotStarted = !l.ai_active && !l.ai_paused;
                     const waNumber = onlyDigits(l.telefone);
                     return (
                       <tr
@@ -766,6 +767,7 @@ function LeadsList() {
                         className={cn(
                           "group/row border-b transition-colors hover:bg-[var(--primary-50)]",
                           l.ai_paused && "bg-amber-50/70 hover:bg-amber-50",
+                          aiNotStarted && "bg-slate-50/70 hover:bg-slate-50",
                           isChecked && "bg-[var(--primary-50)]",
                         )}
                         style={{ borderColor: "var(--border)" }}
@@ -786,6 +788,11 @@ function LeadsList() {
                                 {l.ai_paused && (
                                   <span className="shrink-0 rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
                                     Pausado
+                                  </span>
+                                )}
+                                {aiNotStarted && (
+                                  <span className="shrink-0 rounded-full border border-slate-300 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600">
+                                    Sem atendimento IA
                                   </span>
                                 )}
                               </div>
