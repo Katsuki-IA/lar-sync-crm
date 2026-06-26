@@ -17,17 +17,19 @@ Deno.serve(async (req) => {
 
   return withErrorHandling(async () => {
     const { code, state } = (await req.json()) as { code?: string; state?: string };
-    if (!code || !state) throw new Error("Retorno OAuth do RD Station incompleto");
+    if (!code) throw new Error("Retorno OAuth do RD Station incompleto");
 
     const { userId, crmUser } = await getAuthorizedCrmUser(req);
     const rdConfig = getRdDestinationConfig();
     const { clientSecret } = rdConfig;
-    await verifyRdDestinationSignedState({
-      state,
-      expectedUserId: userId,
-      expectedEmpresa: crmUser.id_empresa,
-      secret: clientSecret,
-    });
+    if (state) {
+      await verifyRdDestinationSignedState({
+        state,
+        expectedUserId: userId,
+        expectedEmpresa: crmUser.id_empresa,
+        secret: clientSecret,
+      });
+    }
 
     const tokens = await exchangeRdCrmAuthorizationCode(code, rdConfig);
     const supabaseAdmin = createSupabaseAdmin();

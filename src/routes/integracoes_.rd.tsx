@@ -28,7 +28,7 @@ function RdOAuthCallback() {
       setTimeout(() => window.close(), 1500);
       return;
     }
-    if (!code || !state) {
+    if (!code || (oauthSource !== "external-crm-rd-oauth" && !state)) {
       setStatus("error");
       setMessage("Retorno do RD Station incompleto");
       send({ ok: false, error: "Retorno do RD Station incompleto" });
@@ -78,8 +78,8 @@ function RdOAuthCallback() {
 }
 
 function getOAuthSource(state: string | null) {
+  if (!state) return "external-crm-rd-oauth";
   const defaultSource = "rd-oauth";
-  if (!state) return defaultSource;
   try {
     const [payload] = state.split(".");
     if (!payload) return defaultSource;

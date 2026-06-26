@@ -63,7 +63,7 @@ export function createExternalCrmRdOAuthUrl() {
   return invokeExternalCrmFunction<{ url: string }>("external-crms-rd-oauth-start");
 }
 
-export function exchangeExternalCrmRdCode(data: { code: string; state: string }) {
+export function exchangeExternalCrmRdCode(data: { code: string; state?: string | null }) {
   return invokeExternalCrmFunction<{ ok: true; connection: ExternalCrmConnection }>(
     "external-crms-rd-oauth-exchange",
     data,

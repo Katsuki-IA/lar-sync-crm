@@ -200,13 +200,13 @@ export function buildRdOAuthUrl(args: {
 export function buildRdCrmOAuthUrl(args: {
   clientId: string;
   redirectUri: string;
-  state: string;
+  state?: string;
 }) {
   const url = new URL("https://accounts.rdstation.com/oauth/authorize");
   url.searchParams.set("response_type", "code");
   url.searchParams.set("client_id", args.clientId);
   url.searchParams.set("redirect_uri", args.redirectUri);
-  url.searchParams.set("state", args.state);
+  if (args.state) url.searchParams.set("state", args.state);
   return url.toString();
 }
 

@@ -6,7 +6,6 @@ import {
 } from "../_shared/meta.ts";
 import {
   buildRdCrmOAuthUrl,
-  createRdDestinationSignedState,
   getRdDestinationConfig,
 } from "../_shared/rd.ts";
 
@@ -15,16 +14,11 @@ Deno.serve(async (req) => {
   if (options) return options;
 
   return withErrorHandling(async () => {
-    const { userId, crmUser } = await getAuthorizedCrmUser(req);
-    const { clientId, clientSecret, redirectUri } = getRdDestinationConfig();
-    const state = await createRdDestinationSignedState({
-      userId,
-      idEmpresa: crmUser.id_empresa,
-      secret: clientSecret,
-    });
+    await getAuthorizedCrmUser(req);
+    const { clientId, redirectUri } = getRdDestinationConfig();
 
     return jsonResponse({
-      url: buildRdCrmOAuthUrl({ clientId, redirectUri, state }),
+      url: buildRdCrmOAuthUrl({ clientId, redirectUri }),
     });
   });
 });
