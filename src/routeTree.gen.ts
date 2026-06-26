@@ -16,7 +16,6 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PrivacidadeExclusaoDeDadosRouteImport } from './routes/privacidade.exclusao-de-dados'
-import { Route as IntegracoesRdCrmRouteImport } from './routes/integracoes_.rd-crm'
 import { Route as IntegracoesRdRouteImport } from './routes/integracoes_.rd'
 import { Route as HistoricoLeadIdRouteImport } from './routes/historico.$leadId'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
@@ -33,7 +32,6 @@ import { Route as AuthenticatedSettingsUsersRouteImport } from './routes/_authen
 import { Route as AuthenticatedSettingsTagsRouteImport } from './routes/_authenticated/settings.tags'
 import { Route as AuthenticatedSettingsStagesRouteImport } from './routes/_authenticated/settings.stages'
 import { Route as AuthenticatedSettingsHubRouteImport } from './routes/_authenticated/settings.hub'
-import { Route as AuthenticatedSettingsExternalCrmsRouteImport } from './routes/_authenticated/settings.external-crms'
 import { Route as AuthenticatedSettingsEmpreendimentosRouteImport } from './routes/_authenticated/settings.empreendimentos'
 import { Route as AuthenticatedSettingsCustomFieldsRouteImport } from './routes/_authenticated/settings.custom-fields'
 import { Route as AuthenticatedLeadsNewRouteImport } from './routes/_authenticated/leads.new'
@@ -79,11 +77,6 @@ const PrivacidadeExclusaoDeDadosRoute =
     path: '/privacidade/exclusao-de-dados',
     getParentRoute: () => rootRouteImport,
   } as any)
-const IntegracoesRdCrmRoute = IntegracoesRdCrmRouteImport.update({
-  id: '/integracoes_/rd-crm',
-  path: '/integracoes/rd-crm',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const IntegracoesRdRoute = IntegracoesRdRouteImport.update({
   id: '/integracoes_/rd',
   path: '/integracoes/rd',
@@ -169,12 +162,6 @@ const AuthenticatedSettingsHubRoute =
     path: '/hub',
     getParentRoute: () => AuthenticatedSettingsRoute,
   } as any)
-const AuthenticatedSettingsExternalCrmsRoute =
-  AuthenticatedSettingsExternalCrmsRouteImport.update({
-    id: '/external-crms',
-    path: '/external-crms',
-    getParentRoute: () => AuthenticatedSettingsRoute,
-  } as any)
 const AuthenticatedSettingsEmpreendimentosRoute =
   AuthenticatedSettingsEmpreendimentosRouteImport.update({
     id: '/empreendimentos',
@@ -242,7 +229,6 @@ export interface FileRoutesByFullPath {
   '/settings': typeof AuthenticatedSettingsRouteWithChildren
   '/historico/$leadId': typeof HistoricoLeadIdRoute
   '/integracoes/rd': typeof IntegracoesRdRoute
-  '/integracoes/rd-crm': typeof IntegracoesRdCrmRoute
   '/privacidade/exclusao-de-dados': typeof PrivacidadeExclusaoDeDadosRoute
   '/admin/empresas': typeof AuthenticatedAdminEmpresasRoute
   '/admin/notifications': typeof AuthenticatedAdminNotificationsRoute
@@ -253,7 +239,6 @@ export interface FileRoutesByFullPath {
   '/leads/new': typeof AuthenticatedLeadsNewRoute
   '/settings/custom-fields': typeof AuthenticatedSettingsCustomFieldsRoute
   '/settings/empreendimentos': typeof AuthenticatedSettingsEmpreendimentosRoute
-  '/settings/external-crms': typeof AuthenticatedSettingsExternalCrmsRoute
   '/settings/hub': typeof AuthenticatedSettingsHubRoute
   '/settings/stages': typeof AuthenticatedSettingsStagesRoute
   '/settings/tags': typeof AuthenticatedSettingsTagsRoute
@@ -275,7 +260,6 @@ export interface FileRoutesByTo {
   '/relatorios': typeof AuthenticatedRelatoriosRoute
   '/historico/$leadId': typeof HistoricoLeadIdRoute
   '/integracoes/rd': typeof IntegracoesRdRoute
-  '/integracoes/rd-crm': typeof IntegracoesRdCrmRoute
   '/privacidade/exclusao-de-dados': typeof PrivacidadeExclusaoDeDadosRoute
   '/admin/empresas': typeof AuthenticatedAdminEmpresasRoute
   '/admin/notifications': typeof AuthenticatedAdminNotificationsRoute
@@ -286,7 +270,6 @@ export interface FileRoutesByTo {
   '/leads/new': typeof AuthenticatedLeadsNewRoute
   '/settings/custom-fields': typeof AuthenticatedSettingsCustomFieldsRoute
   '/settings/empreendimentos': typeof AuthenticatedSettingsEmpreendimentosRoute
-  '/settings/external-crms': typeof AuthenticatedSettingsExternalCrmsRoute
   '/settings/hub': typeof AuthenticatedSettingsHubRoute
   '/settings/stages': typeof AuthenticatedSettingsStagesRoute
   '/settings/tags': typeof AuthenticatedSettingsTagsRoute
@@ -312,7 +295,6 @@ export interface FileRoutesById {
   '/_authenticated/settings': typeof AuthenticatedSettingsRouteWithChildren
   '/historico/$leadId': typeof HistoricoLeadIdRoute
   '/integracoes_/rd': typeof IntegracoesRdRoute
-  '/integracoes_/rd-crm': typeof IntegracoesRdCrmRoute
   '/privacidade/exclusao-de-dados': typeof PrivacidadeExclusaoDeDadosRoute
   '/_authenticated/admin/empresas': typeof AuthenticatedAdminEmpresasRoute
   '/_authenticated/admin/notifications': typeof AuthenticatedAdminNotificationsRoute
@@ -323,7 +305,6 @@ export interface FileRoutesById {
   '/_authenticated/leads/new': typeof AuthenticatedLeadsNewRoute
   '/_authenticated/settings/custom-fields': typeof AuthenticatedSettingsCustomFieldsRoute
   '/_authenticated/settings/empreendimentos': typeof AuthenticatedSettingsEmpreendimentosRoute
-  '/_authenticated/settings/external-crms': typeof AuthenticatedSettingsExternalCrmsRoute
   '/_authenticated/settings/hub': typeof AuthenticatedSettingsHubRoute
   '/_authenticated/settings/stages': typeof AuthenticatedSettingsStagesRoute
   '/_authenticated/settings/tags': typeof AuthenticatedSettingsTagsRoute
@@ -349,7 +330,6 @@ export interface FileRouteTypes {
     | '/settings'
     | '/historico/$leadId'
     | '/integracoes/rd'
-    | '/integracoes/rd-crm'
     | '/privacidade/exclusao-de-dados'
     | '/admin/empresas'
     | '/admin/notifications'
@@ -360,7 +340,6 @@ export interface FileRouteTypes {
     | '/leads/new'
     | '/settings/custom-fields'
     | '/settings/empreendimentos'
-    | '/settings/external-crms'
     | '/settings/hub'
     | '/settings/stages'
     | '/settings/tags'
@@ -382,7 +361,6 @@ export interface FileRouteTypes {
     | '/relatorios'
     | '/historico/$leadId'
     | '/integracoes/rd'
-    | '/integracoes/rd-crm'
     | '/privacidade/exclusao-de-dados'
     | '/admin/empresas'
     | '/admin/notifications'
@@ -393,7 +371,6 @@ export interface FileRouteTypes {
     | '/leads/new'
     | '/settings/custom-fields'
     | '/settings/empreendimentos'
-    | '/settings/external-crms'
     | '/settings/hub'
     | '/settings/stages'
     | '/settings/tags'
@@ -418,7 +395,6 @@ export interface FileRouteTypes {
     | '/_authenticated/settings'
     | '/historico/$leadId'
     | '/integracoes_/rd'
-    | '/integracoes_/rd-crm'
     | '/privacidade/exclusao-de-dados'
     | '/_authenticated/admin/empresas'
     | '/_authenticated/admin/notifications'
@@ -429,7 +405,6 @@ export interface FileRouteTypes {
     | '/_authenticated/leads/new'
     | '/_authenticated/settings/custom-fields'
     | '/_authenticated/settings/empreendimentos'
-    | '/_authenticated/settings/external-crms'
     | '/_authenticated/settings/hub'
     | '/_authenticated/settings/stages'
     | '/_authenticated/settings/tags'
@@ -448,7 +423,6 @@ export interface RootRouteChildren {
   SetupRoute: typeof SetupRoute
   HistoricoLeadIdRoute: typeof HistoricoLeadIdRoute
   IntegracoesRdRoute: typeof IntegracoesRdRoute
-  IntegracoesRdCrmRoute: typeof IntegracoesRdCrmRoute
   PrivacidadeExclusaoDeDadosRoute: typeof PrivacidadeExclusaoDeDadosRoute
 }
 
@@ -501,13 +475,6 @@ declare module '@tanstack/react-router' {
       path: '/privacidade/exclusao-de-dados'
       fullPath: '/privacidade/exclusao-de-dados'
       preLoaderRoute: typeof PrivacidadeExclusaoDeDadosRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/integracoes_/rd-crm': {
-      id: '/integracoes_/rd-crm'
-      path: '/integracoes/rd-crm'
-      fullPath: '/integracoes/rd-crm'
-      preLoaderRoute: typeof IntegracoesRdCrmRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/integracoes_/rd': {
@@ -622,13 +589,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsHubRouteImport
       parentRoute: typeof AuthenticatedSettingsRoute
     }
-    '/_authenticated/settings/external-crms': {
-      id: '/_authenticated/settings/external-crms'
-      path: '/external-crms'
-      fullPath: '/settings/external-crms'
-      preLoaderRoute: typeof AuthenticatedSettingsExternalCrmsRouteImport
-      parentRoute: typeof AuthenticatedSettingsRoute
-    }
     '/_authenticated/settings/empreendimentos': {
       id: '/_authenticated/settings/empreendimentos'
       path: '/empreendimentos'
@@ -715,7 +675,6 @@ const AuthenticatedAdminRouteWithChildren =
 interface AuthenticatedSettingsRouteChildren {
   AuthenticatedSettingsCustomFieldsRoute: typeof AuthenticatedSettingsCustomFieldsRoute
   AuthenticatedSettingsEmpreendimentosRoute: typeof AuthenticatedSettingsEmpreendimentosRoute
-  AuthenticatedSettingsExternalCrmsRoute: typeof AuthenticatedSettingsExternalCrmsRoute
   AuthenticatedSettingsHubRoute: typeof AuthenticatedSettingsHubRoute
   AuthenticatedSettingsStagesRoute: typeof AuthenticatedSettingsStagesRoute
   AuthenticatedSettingsTagsRoute: typeof AuthenticatedSettingsTagsRoute
@@ -728,8 +687,6 @@ const AuthenticatedSettingsRouteChildren: AuthenticatedSettingsRouteChildren = {
     AuthenticatedSettingsCustomFieldsRoute,
   AuthenticatedSettingsEmpreendimentosRoute:
     AuthenticatedSettingsEmpreendimentosRoute,
-  AuthenticatedSettingsExternalCrmsRoute:
-    AuthenticatedSettingsExternalCrmsRoute,
   AuthenticatedSettingsHubRoute: AuthenticatedSettingsHubRoute,
   AuthenticatedSettingsStagesRoute: AuthenticatedSettingsStagesRoute,
   AuthenticatedSettingsTagsRoute: AuthenticatedSettingsTagsRoute,
@@ -785,7 +742,6 @@ const rootRouteChildren: RootRouteChildren = {
   SetupRoute: SetupRoute,
   HistoricoLeadIdRoute: HistoricoLeadIdRoute,
   IntegracoesRdRoute: IntegracoesRdRoute,
-  IntegracoesRdCrmRoute: IntegracoesRdCrmRoute,
   PrivacidadeExclusaoDeDadosRoute: PrivacidadeExclusaoDeDadosRoute,
 }
 export const routeTree = rootRouteImport

@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { exchangeExternalCrmRdCode } from "@/lib/external-crms.functions";
 import { exchangeRdCode } from "@/lib/rd-oauth.functions";
 
 export const Route = createFileRoute("/integracoes_/rd")({
@@ -28,7 +27,7 @@ function RdOAuthCallback() {
       setTimeout(() => window.close(), 1500);
       return;
     }
-    if (!code || (oauthSource !== "external-crm-rd-oauth" && !state)) {
+    if (!code || !state) {
       setStatus("error");
       setMessage("Retorno do RD Station incompleto");
       send({ ok: false, error: "Retorno do RD Station incompleto" });
@@ -37,17 +36,9 @@ function RdOAuthCallback() {
 
     void (async () => {
       try {
-        if (oauthSource === "external-crm-rd-oauth") {
-          await exchangeExternalCrmRdCode({ code, state });
-        } else {
-          await exchangeRdCode({ code, state });
-        }
+        await exchangeRdCode({ code, state });
         setStatus("ok");
-        setMessage(
-          oauthSource === "external-crm-rd-oauth"
-            ? "RD Station CRM conectado com sucesso."
-            : "Conta RD Station conectada com sucesso.",
-        );
+        setMessage("Conta RD Station conectada com sucesso.");
         send({ ok: true });
         setTimeout(() => window.close(), 800);
       } catch (exchangeError) {
@@ -78,8 +69,8 @@ function RdOAuthCallback() {
 }
 
 function getOAuthSource(state: string | null) {
-  if (!state) return "external-crm-rd-oauth";
   const defaultSource = "rd-oauth";
+  if (!state) return defaultSource;
   try {
     const [payload] = state.split(".");
     if (!payload) return defaultSource;
@@ -88,9 +79,7 @@ function getOAuthSource(state: string | null) {
       .replace(/_/g, "/")
       .padEnd(Math.ceil(payload.length / 4) * 4, "=");
     const parsed = JSON.parse(atob(padded)) as { purpose?: string };
-    return parsed.purpose === "external_crm_destination"
-      ? "external-crm-rd-oauth"
-      : defaultSource;
+    return parsed.purpose === "external_crm_destination" ? "external-crm-rd-oauth" : defaultSource;
   } catch {
     return defaultSource;
   }
