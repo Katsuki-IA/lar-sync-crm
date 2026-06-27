@@ -15,7 +15,6 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  createMetaTestLead,
   createMetaOAuthUrl,
   disconnectMetaConnection,
   exchangeMetaCode,
@@ -165,7 +164,6 @@ function IntegracoesPage() {
   const [selectedFunnelId, setSelectedFunnelId] = useState("");
   const [testValues, setTestValues] = useState<Record<string, string>>({});
   const [savingMapping, setSavingMapping] = useState(false);
-  const [creatingTestLead, setCreatingTestLead] = useState(false);
 
   useEffect(() => {
     const supabaseOrigin = getSupabaseOrigin();
@@ -422,27 +420,6 @@ function IntegracoesPage() {
       toast.error(error instanceof Error ? error.message : "Falha ao salvar mapeamento");
     } finally {
       setSavingMapping(false);
-    }
-  };
-
-  const handleCreateTestLead = async () => {
-    if (!selectedFormId || !formFields) return;
-    if (!formFields.form.id_empreendimento) {
-      toast.error("Salve o mapeamento e o empreendimento antes de criar o lead teste");
-      return;
-    }
-
-    try {
-      setCreatingTestLead(true);
-      const result = await createMetaTestLead({
-        formId: selectedFormId,
-        fieldValues: testValues,
-      });
-      toast.success(`Lead teste criado: #${result.leadId}`);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Falha ao criar lead teste");
-    } finally {
-      setCreatingTestLead(false);
     }
   };
 
@@ -954,9 +931,6 @@ function IntegracoesPage() {
                             onClick={handleSaveMapping}
                           >
                             {savingMapping ? "Salvando..." : "Salvar mapeamento"}
-                          </Button>
-                          <Button disabled={creatingTestLead} onClick={handleCreateTestLead}>
-                            {creatingTestLead ? "Criando..." : "Criar lead teste"}
                           </Button>
                         </div>
                       </div>

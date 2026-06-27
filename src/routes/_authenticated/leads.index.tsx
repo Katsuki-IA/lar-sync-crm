@@ -422,46 +422,10 @@ function LeadsList() {
   });
   const pauseAiMut = useMutation({
     mutationFn: async (leadId: number) => {
-      const { data: lead, error: leadError } = await supabase
-        .from("crm_leads")
-        .select("id, id_empresa")
-        .eq("id", leadId)
-        .single();
-      if (leadError) throw leadError;
-
-      const now = new Date().toISOString();
-      const { data: updatedLeadRows, error: updateError } = await supabase
-        .from("lead")
-        .update({
-          status: "Atendimento Humano",
-          atendimento_humano: true,
-          updated_at: now,
-        })
-        .eq("id_crm", String(lead.id))
-        .eq("id_empresa", lead.id_empresa)
-        .select("id");
-      if (updateError) throw updateError;
-      if (!updatedLeadRows?.length) {
-        throw new Error("Nenhum atendimento da IA foi encontrado para este lead.");
-      }
-
-      if (me?.id) {
-        const { error: activityError } = await supabase
-          .from("crm_lead_activities")
-          .insert({
-            lead_id: lead.id,
-            crm_user_id: me.id,
-            tipo: "whatsapp_automation",
-            descricao:
-              "[AUTOMAÇÃO WHATSAPP]\n\nAtendimento da IA pausado.\nEnvio de follow-ups para este lead interrompido.",
-            metadata: {
-              source: "crm",
-              event: "ai_followups_paused",
-              external_lead_ids: updatedLeadRows.map((row) => row.id),
-            },
-          });
-        if (activityError) throw activityError;
-      }
+      const { error } = await (supabase as any).rpc("crm_pause_ai_attendance", {
+        p_lead_id: leadId,
+      });
+      if (error) throw error;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["leads-list"] });
@@ -946,7 +910,8 @@ function LeadsList() {
                                   <DropdownMenuItem onClick={() => { setPickUser(""); setRowUserLead(l.id); }}>
                                     <UserCog className="h-4 w-4 mr-2" /> Redistribuir responsável
                                   </DropdownMenuItem>
-                                  {l.ai_paused ? (
+                                </>)}
+                                {(me?.role === "super_admin" || me?.role === "manager") && (l.ai_paused ? (
                                   <DropdownMenuItem disabled>
                                     <PauseCircle className="h-4 w-4 mr-2" /> Atendimento da IA pausado
                                   </DropdownMenuItem>
@@ -954,11 +919,12 @@ function LeadsList() {
                                   <DropdownMenuItem onClick={() => setRowPauseAiLead(l.id)}>
                                     <PauseCircle className="h-4 w-4 mr-2" /> Pausar Atendimento da IA
                                   </DropdownMenuItem>
-                                ) : (
+                                ) : me?.role === "super_admin" ? (
                                   <DropdownMenuItem onClick={() => setRowStartAiLead(l.id)}>
                                     <Bot className="h-4 w-4 mr-2" /> Enviar para Atendimento IA
                                   </DropdownMenuItem>
-                                  )}
+                                ) : null)}
+                                {me?.role === "super_admin" && (<>
                                   <DropdownMenuSeparator />
                                   <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setRowDeleteLead(l.id)}><Trash2 className="h-4 w-4 mr-2" /> Excluir</DropdownMenuItem>
                                 </>)}
