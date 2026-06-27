@@ -64,7 +64,29 @@ function LeadsList() {
   const qc = useQueryClient();
   const { data: me } = useCrmUser();
   const { data: allowed } = useAllowedEmpresas();
-  const { data: funnels = [] } = useFunnels(me?.id_empresa);
+  const [companyId, setCompanyId] = useState<number | null>(null);
+  const { data: companies = [] } = useQuery({
+    enabled: !!allowed?.length,
+    queryKey: ["leads-companies", allowed],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("empresa_dados")
+        .select("id, nome")
+        .in("id", allowed ?? [])
+        .order("nome");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+  useEffect(() => {
+    if (!me || !allowed) return;
+    const nextCompanyId = me.role === "super_admin"
+      ? (companies.find((company) => company.id === companyId)?.id ?? companies[0]?.id ?? null)
+      : (me.id_empresa ?? null);
+    if (nextCompanyId !== companyId) setCompanyId(nextCompanyId);
+  }, [allowed, companies, companyId, me]);
+
+  const { data: funnels = [] } = useFunnels(companyId);
   const [funnelId, setFunnelId] = useState<number | null>(null);
   useEffect(() => {
     if (funnelId == null && funnels.length) {
@@ -83,10 +105,18 @@ function LeadsList() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [page, setPage] = useState(0);
+  useEffect(() => {
+    setFunnelId(null);
+    setStage("all");
+    setTagId("all");
+    setEmpId("all");
+    setUserId("all");
+    setPage(0);
+  }, [companyId]);
 
   // Bulk selection
   const [selected, setSelected] = useState<Set<number>>(new Set());
-  useEffect(() => { setSelected(new Set()); }, [page, funnelId, stage, tagId, empId, userId, aiStatus, dateFrom, dateTo, search]);
+  useEffect(() => { setSelected(new Set()); }, [companyId, page, funnelId, stage, tagId, empId, userId, aiStatus, dateFrom, dateTo, search]);
 
   // Dialogs
   const [bulkStageOpen, setBulkStageOpen] = useState(false);
@@ -107,22 +137,22 @@ function LeadsList() {
   );
 
   const { data: meta } = useQuery({
-    enabled: !!me && !!allowed && funnelId != null,
-    queryKey: ["leads-meta", me?.id_empresa, allowed, funnelId],
+    enabled: !!me && companyId != null && funnelId != null,
+    queryKey: ["leads-meta", companyId, funnelId],
     queryFn: async () => {
       const [{ data: stages }, { data: tags }, { data: emps }, { data: users }] = await Promise.all([
-        supabase.from("crm_stages").select("id, nome, cor").eq("ativo", true).eq("id_funnel", funnelId!).order("ordem"),
-        supabase.from("crm_tags").select("id, nome, cor"),
-        supabase.from("empreendimento").select("id, nome").in("id_empresa", allowed ?? []),
-        supabase.from("crm_users").select("id, nome").eq("active", true).in("id_empresa", allowed ?? []),
+        supabase.from("crm_stages").select("id, nome, cor").eq("id_empresa", companyId!).eq("ativo", true).eq("id_funnel", funnelId!).order("ordem"),
+        supabase.from("crm_tags").select("id, nome, cor").eq("id_empresa", companyId!),
+        supabase.from("empreendimento").select("id, nome").eq("id_empresa", companyId!),
+        supabase.from("crm_users").select("id, nome").eq("id_empresa", companyId!).eq("active", true),
       ]);
       return { stages: stages ?? [], tags: tags ?? [], emps: emps ?? [], users: users ?? [] };
     },
   });
 
   const { data, isLoading } = useQuery({
-    enabled: !!me && !!allowed && !!meta,
-    queryKey: ["leads-list", me?.id, me?.role, filters, allowed, funnelId, (meta?.stages ?? []).map((s) => s.id).join(",")],
+    enabled: !!me && companyId != null && !!meta,
+    queryKey: ["leads-list", me?.id, me?.role, filters, companyId, funnelId, (meta?.stages ?? []).map((s) => s.id).join(",")],
     queryFn: async (): Promise<{ rows: LeadListRow[]; count: number }> => {
       let leadIdsByTag: number[] | null = null;
       if (tagId !== "all") {
@@ -140,11 +170,11 @@ function LeadsList() {
           supabase
             .from("lead")
             .select("id_crm,status,atendimento_humano")
-            .in("id_empresa", allowed ?? []),
+            .eq("id_empresa", companyId!),
           supabase
             .from("fila_leads")
             .select("id_lead")
-            .in("id_empresa", allowed ?? []),
+            .eq("id_empresa", companyId!),
         ]);
         if (automationError) throw automationError;
         if (queueError) throw queueError;
@@ -174,7 +204,7 @@ function LeadsList() {
       let q = supabase
         .from("crm_leads")
         .select("id, nome, telefone, email, crm_stage_id, crm_assigned_to, id_empreendimento, created_at, historico_token", { count: "exact" })
-        .in("id_empresa", allowed ?? []);
+        .eq("id_empresa", companyId!);
 
       if (me?.role === "agent") q = q.eq("crm_assigned_to", me.id);
       // Restringe ao funil selecionado (estágios desse funil). Funil padrão também inclui leads sem estágio.
@@ -210,12 +240,12 @@ function LeadsList() {
           .from("lead")
           .select("id_crm,status,atendimento_humano")
           .in("id_crm", crmIds)
-          .in("id_empresa", allowed ?? []),
+          .eq("id_empresa", companyId!),
         supabase
           .from("fila_leads")
           .select("id_lead,status")
           .in("id_lead", crmIds)
-          .in("id_empresa", allowed ?? []),
+          .eq("id_empresa", companyId!),
       ]);
       if (automationError) throw automationError;
       if (queueError) throw queueError;
@@ -628,6 +658,16 @@ function LeadsList() {
           style={{ backgroundColor: "#FFFFFF", borderColor: "var(--border)" }}
         >
           <div className="flex flex-wrap items-end gap-3">
+            {me?.role === "super_admin" && (
+              <LabeledFilter label="Empresa">
+                <FilterSelect
+                  value={companyId == null ? "" : String(companyId)}
+                  onChange={(value) => setCompanyId(Number(value))}
+                  placeholder="Selecione a empresa"
+                  options={companies.map((company) => ({ value: String(company.id), label: company.nome }))}
+                />
+              </LabeledFilter>
+            )}
             <LabeledFilter label="Estágio">
               <FilterSelect value={stage} onChange={(v) => { setStage(v); setPage(0); }} placeholder="Estágio" options={[{ value: "all", label: "Todos os estágios" }, ...(meta?.stages ?? []).map((s) => ({ value: String(s.id), label: s.nome }))]} />
             </LabeledFilter>
@@ -723,7 +763,7 @@ function LeadsList() {
         </div>
 
         {view === "kanban" ? (
-          <KanbanView searchFilter={search} funnelId={funnelId} />
+          <KanbanView searchFilter={search} funnelId={funnelId} idEmpresa={companyId} />
         ) : (
           <>
             {/* Bulk action bar */}

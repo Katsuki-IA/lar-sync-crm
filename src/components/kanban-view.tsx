@@ -6,7 +6,6 @@ import { Link } from "@tanstack/react-router";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useCrmUser } from "@/hooks/use-crm-user";
-import { useAllowedEmpresas } from "@/hooks/use-allowed-empresas";
 import { Badge } from "@/components/ui/badge";
 import { stageColor } from "@/lib/lead-visuals";
 import { cn } from "@/lib/utils";
@@ -40,18 +39,18 @@ async function isFunnelDefault(funnelId: number): Promise<boolean> {
   return !!data?.is_default;
 }
 
-export function KanbanView({ searchFilter, funnelId }: { searchFilter?: string; funnelId?: number | null }) {
+export function KanbanView({ searchFilter, funnelId, idEmpresa }: { searchFilter?: string; funnelId?: number | null; idEmpresa?: number | null }) {
   const { data: me } = useCrmUser();
-  const { data: allowed } = useAllowedEmpresas();
   const qc = useQueryClient();
 
   const { data: stages } = useQuery({
-    enabled: !!me && funnelId != null,
-    queryKey: ["kanban-stages", me?.id_empresa, funnelId],
+    enabled: !!me && idEmpresa != null && funnelId != null,
+    queryKey: ["kanban-stages", idEmpresa, funnelId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("crm_stages")
         .select("id, nome, cor, ordem, id_funnel")
+        .eq("id_empresa", idEmpresa!)
         .eq("ativo", true)
         .eq("id_funnel", funnelId!)
         .order("ordem");
@@ -61,15 +60,15 @@ export function KanbanView({ searchFilter, funnelId }: { searchFilter?: string; 
   });
 
   const { data: leads } = useQuery({
-    enabled: !!me && !!allowed && !!stages,
-    queryKey: ["kanban-leads", me?.id, me?.role, allowed, funnelId, (stages ?? []).map((s) => s.id).join(",")],
+    enabled: !!me && idEmpresa != null && !!stages,
+    queryKey: ["kanban-leads", me?.id, me?.role, idEmpresa, funnelId, (stages ?? []).map((s) => s.id).join(",")],
     queryFn: async (): Promise<LeadCard[]> => {
       const stageIds = (stages ?? []).map((s) => s.id);
       if (!stageIds.length) return [];
       let q = supabase
         .from("crm_leads")
         .select("id, nome, telefone, crm_stage_id, crm_assigned_to, id_empreendimento, lead_quente, created_at")
-        .in("id_empresa", allowed ?? [])
+        .eq("id_empresa", idEmpresa!)
         .order("created_at", { ascending: false });
       if (me?.role === "agent") q = q.eq("crm_assigned_to", me.id);
       // Filtra leads pelo funil: estágios desse funil. Leads sem estágio só aparecem no funil padrão.
@@ -90,7 +89,7 @@ export function KanbanView({ searchFilter, funnelId }: { searchFilter?: string; 
         empIds.length ? supabase.from("empreendimento").select("id, nome").in("id", empIds) : Promise.resolve({ data: [] as { id: number; nome: string }[] }),
         userIds.length ? supabase.from("crm_users").select("id, nome").in("id", userIds) : Promise.resolve({ data: [] as { id: string; nome: string }[] }),
         leadIds.length ? supabase.from("crm_lead_tags").select("lead_id, tag_id").in("lead_id", leadIds) : Promise.resolve({ data: [] as { lead_id: number; tag_id: number }[] }),
-        supabase.from("crm_tags").select("id, nome, cor"),
+        supabase.from("crm_tags").select("id, nome, cor").eq("id_empresa", idEmpresa!),
       ]);
 
       // Tempo no estágio: usa a última atividade tipo 'stage_change' por lead; fallback para created_at do lead.
@@ -137,7 +136,7 @@ export function KanbanView({ searchFilter, funnelId }: { searchFilter?: string; 
     mutationFn: async ({ leadId, fromStageId, toStageId }: { leadId: number; fromStageId: number | null; toStageId: number }) => {
       const fromName = stages?.find((s) => s.id === fromStageId)?.nome ?? "—";
       const toName = stages?.find((s) => s.id === toStageId)?.nome ?? "—";
-      const { error } = await supabase.from("crm_leads").update({ crm_stage_id: toStageId }).eq("id", leadId);
+      const { error } = await supabase.from("crm_leads").update({ crm_stage_id: toStageId }).eq("id", leadId).eq("id_empresa", idEmpresa!);
       if (error) throw error;
       if (me) {
         await supabase.from("crm_lead_activities").insert({
