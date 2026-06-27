@@ -89,7 +89,7 @@ function LeadsList() {
   const { data: funnels = [] } = useFunnels(companyId);
   const [funnelId, setFunnelId] = useState<number | null>(null);
   useEffect(() => {
-    if (funnelId == null && funnels.length) {
+    if (funnels.length && !funnels.some((funnel) => funnel.id === funnelId)) {
       const def = funnels.find((f) => f.is_default) ?? funnels[0];
       setFunnelId(def.id);
     }
@@ -106,7 +106,6 @@ function LeadsList() {
   const [dateTo, setDateTo] = useState("");
   const [page, setPage] = useState(0);
   useEffect(() => {
-    setFunnelId(null);
     setStage("all");
     setTagId("all");
     setEmpId("all");
