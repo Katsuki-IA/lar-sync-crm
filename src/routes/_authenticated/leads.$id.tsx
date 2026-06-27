@@ -6,7 +6,6 @@ import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useCrmUser } from "@/hooks/use-crm-user";
-import { useAllowedEmpresas } from "@/hooks/use-allowed-empresas";
 import { useLeadCustomFields } from "@/hooks/use-lead-custom-fields";
 import { LeadCustomFieldsForm } from "@/components/lead-custom-fields-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -51,7 +50,6 @@ function LeadDetail() {
   const leadId = Number(id);
   const navigate = useNavigate();
   const { data: me } = useCrmUser();
-  const { data: allowed } = useAllowedEmpresas();
   const qc = useQueryClient();
   const [note, setNote] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -192,16 +190,21 @@ function LeadDetail() {
   });
 
   const { data: meta } = useQuery({
-    enabled: !!me && !!allowed,
-    queryKey: ["lead-meta", me?.id_empresa, allowed],
+    enabled: !!me && !!lead?.id_empresa,
+    queryKey: ["lead-meta", lead?.id_empresa, lead?.crm_stage_id],
     queryFn: async () => {
       const [{ data: stages }, { data: tags }, { data: emps }, { data: users }] = await Promise.all([
-        supabase.from("crm_stages").select("id, nome, cor").eq("ativo", true).order("ordem"),
-        supabase.from("crm_tags").select("id, nome, cor"),
-        supabase.from("empreendimento").select("id, nome").in("id_empresa", allowed ?? []),
-        supabase.from("crm_users").select("id, nome").eq("active", true).in("id_empresa", allowed ?? []),
+        supabase.from("crm_stages").select("id, nome, cor, ativo").eq("id_empresa", lead!.id_empresa).order("ordem"),
+        supabase.from("crm_tags").select("id, nome, cor").eq("id_empresa", lead!.id_empresa),
+        supabase.from("empreendimento").select("id, nome").eq("id_empresa", lead!.id_empresa),
+        supabase.from("crm_users").select("id, nome").eq("id_empresa", lead!.id_empresa).eq("active", true),
       ]);
-      return { stages: stages ?? [], tags: tags ?? [], emps: emps ?? [], users: users ?? [] };
+      return {
+        stages: (stages ?? []).filter((stage) => stage.ativo || stage.id === lead!.crm_stage_id),
+        tags: tags ?? [],
+        emps: emps ?? [],
+        users: users ?? [],
+      };
     },
   });
 
