@@ -28,7 +28,7 @@ export function AppSidebar() {
 
   const adminItems: Item[] = [];
   if (me?.role === "manager" || me?.role === "super_admin") {
-    adminItems.push({ title: "Configurações", url: "/settings/empreendimentos", match: "/settings", icon: Settings });
+    adminItems.push({ title: "Configurações", url: "/settings/users", match: "/settings", icon: Settings });
     adminItems.push({ title: "Integrações", url: "/configuracoes/integracoes", match: "/configuracoes", icon: Plug });
   }
   if (me?.role === "super_admin") {

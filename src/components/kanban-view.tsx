@@ -9,6 +9,7 @@ import { useCrmUser } from "@/hooks/use-crm-user";
 import { useAllowedEmpresas } from "@/hooks/use-allowed-empresas";
 import { Badge } from "@/components/ui/badge";
 import { stageColor } from "@/lib/lead-visuals";
+import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 function WhatsAppIcon({ className }: { className?: string }) {
@@ -157,6 +158,7 @@ export function KanbanView({ searchFilter, funnelId }: { searchFilter?: string; 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
   function onDragEnd(ev: DragEndEvent) {
+    if (me?.role !== "super_admin") return;
     if (!ev.over) return;
     const leadId = Number(ev.active.id);
     const toStageId = Number(ev.over.id);
@@ -182,7 +184,7 @@ export function KanbanView({ searchFilter, funnelId }: { searchFilter?: string; 
           const stageLeads = filteredLeads.filter((l) =>
             l.crm_stage_id === stage.id || (l.crm_stage_id == null && stage.id === firstStageId),
           );
-          return <KanbanColumn key={stage.id} stage={stage} leads={stageLeads} />;
+          return <KanbanColumn key={stage.id} stage={stage} leads={stageLeads} canManage={me?.role === "super_admin"} />;
         })}
       </div>
     </DndContext>
@@ -190,7 +192,7 @@ export function KanbanView({ searchFilter, funnelId }: { searchFilter?: string; 
   );
 }
 
-function KanbanColumn({ stage, leads }: { stage: { id: number; nome: string; cor: string | null }; leads: LeadCard[] }) {
+function KanbanColumn({ stage, leads, canManage }: { stage: { id: number; nome: string; cor: string | null }; leads: LeadCard[]; canManage: boolean }) {
   const { setNodeRef, isOver } = useDroppable({ id: stage.id });
   const color = stageColor(stage.nome, stage.cor);
   return (
@@ -216,7 +218,7 @@ function KanbanColumn({ stage, leads }: { stage: { id: number; nome: string; cor
       </div>
       <div className={`p-2 space-y-2 min-h-32 flex-1 transition-colors rounded-b-xl ${isOver ? "bg-primary/5 ring-2 ring-primary/30 ring-inset" : ""}`}>
         {leads.map((l) => (
-          <DraggableCard key={l.id} lead={l} color={color} />
+          <DraggableCard key={l.id} lead={l} color={color} canManage={canManage} />
         ))}
         {!leads.length && <p className="text-xs text-muted-foreground text-center py-6">Sem leads</p>}
       </div>
@@ -224,8 +226,8 @@ function KanbanColumn({ stage, leads }: { stage: { id: number; nome: string; cor
   );
 }
 
-function DraggableCard({ lead, color }: { lead: LeadCard; color: string }) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: lead.id });
+function DraggableCard({ lead, color, canManage }: { lead: LeadCard; color: string; canManage: boolean }) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: lead.id, disabled: !canManage });
   const style: React.CSSProperties = {
     transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
     opacity: isDragging ? 0.6 : 1,
@@ -239,7 +241,7 @@ function DraggableCard({ lead, color }: { lead: LeadCard; color: string }) {
       style={style}
       {...listeners}
       {...attributes}
-      className="rounded-[10px] border p-3 cursor-grab active:cursor-grabbing transition-transform hover:-translate-y-0.5"
+      className={cn("rounded-[10px] border p-3 transition-transform hover:-translate-y-0.5", canManage && "cursor-grab active:cursor-grabbing")}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">

@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Upload, X, FileText, Check, ArrowLeft, ArrowRight, AlertTriangle, Download as DownloadIcon, CheckCircle2 } from "lucide-react";
@@ -17,6 +17,12 @@ import { cn } from "@/lib/utils";
 import { formatLeadOrigin, resolveLeadOrigin } from "@/lib/lead-origin";
 
 export const Route = createFileRoute("/_authenticated/leads/importar")({
+  beforeLoad: async () => {
+    const { data } = await supabase.auth.getUser();
+    if (!data.user) throw redirect({ to: "/auth" });
+    const { data: me } = await supabase.from("crm_users").select("role").eq("auth_user_id", data.user.id).maybeSingle();
+    if (me?.role !== "super_admin") throw redirect({ to: "/leads" });
+  },
   component: ImportLeadsPage,
 });
 
@@ -140,7 +146,9 @@ function ImportLeadsPage() {
   const navigate = useNavigate();
   const { data: me } = useCrmUser();
   const { data: allowed } = useAllowedEmpresas();
-  const { data: funnels = [] } = useFunnels(me?.id_empresa);
+  const [targetCompany, setTargetCompany] = useState<string>("");
+  const targetCompanyId = targetCompany ? Number(targetCompany) : null;
+  const { data: funnels = [] } = useFunnels(targetCompanyId);
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
 
@@ -173,23 +181,39 @@ function ImportLeadsPage() {
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [result, setResult] = useState<{ success: number; dup: number; errors: Array<{ row: string[]; motivo: string }> } | null>(null);
 
+  const { data: companies = [] } = useQuery({
+    enabled: Boolean(allowed?.length),
+    queryKey: ["import-companies", allowed],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("empresa_dados").select("id,nome").in("id", allowed ?? []).order("nome");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
   /* meta */
   const { data: meta } = useQuery({
-    enabled: !!me && !!allowed,
-    queryKey: ["import-meta", me?.id_empresa, allowed],
+    enabled: !!me && !!targetCompanyId,
+    queryKey: ["import-meta", targetCompanyId],
     queryFn: async () => {
       const { data: defaultFunnel } = await supabase
-        .from("crm_funnels").select("id").eq("id_empresa", me!.id_empresa!).eq("is_default", true).maybeSingle();
-      const stagesQ = supabase.from("crm_stages").select("id, nome, id_funnel, ordem").eq("ativo", true).order("ordem");
+        .from("crm_funnels").select("id").eq("id_empresa", targetCompanyId!).eq("is_default", true).maybeSingle();
+      const stagesQ = supabase.from("crm_stages").select("id, nome, id_funnel, ordem").eq("id_empresa", targetCompanyId!).eq("ativo", true).order("ordem");
       const [{ data: stages }, { data: emps }, { data: users }, { data: tags }] = await Promise.all([
         stagesQ,
-        supabase.from("empreendimento").select("id, nome").in("id_empresa", allowed ?? []),
-        supabase.from("crm_users").select("id, nome, email").eq("active", true).in("id_empresa", allowed ?? []),
-        supabase.from("crm_tags").select("id, nome").in("id_empresa", allowed ?? []),
+        supabase.from("empreendimento").select("id, nome").eq("id_empresa", targetCompanyId!),
+        supabase.from("crm_users").select("id, nome, email, role, created_at").eq("active", true).eq("id_empresa", targetCompanyId!).order("created_at"),
+        supabase.from("crm_tags").select("id, nome").eq("id_empresa", targetCompanyId!),
       ]);
       return { stages: stages ?? [], emps: emps ?? [], users: users ?? [], tags: tags ?? [], defaultFunnelId: defaultFunnel?.id ?? null };
     },
   });
+
+  useEffect(() => {
+    setDefaultFunnel("");
+    setDefaultStage("");
+    setDefaultEmpreendimento("");
+  }, [targetCompany]);
 
   useEffect(() => {
     if (!defaultFunnel && funnels.length) {
@@ -266,7 +290,7 @@ function ImportLeadsPage() {
 
   /* ===== Import action ===== */
   async function runImport() {
-    if (!me?.id_empresa) { toast.error("Empresa não definida"); return; }
+    if (!targetCompanyId) { toast.error("Selecione a empresa"); return; }
     const hasMappedEmpreendimento = mapping.includes("empreendimento");
     if (!hasMappedEmpreendimento && (meta?.emps ?? []).length > 1 && !defaultEmpreendimento) {
       toast.error("Selecione o empreendimento de interesse para esta importação");
@@ -310,7 +334,7 @@ function ImportLeadsPage() {
 
         if (skipDup) {
           const { data: existing } = await supabase
-            .from("crm_leads").select("id").eq("id_empresa", me.id_empresa).eq("telefone", numero).limit(1).maybeSingle();
+            .from("crm_leads").select("id").eq("id_empresa", targetCompanyId).eq("telefone", numero).limit(1).maybeSingle();
           if (existing) { dup += 1; setProgress({ done: i + 1, total }); continue; }
         }
 
@@ -325,11 +349,12 @@ function ImportLeadsPage() {
         const id_empreendimento = empRaw ? empByName.get(norm(empRaw)) ?? null : defaultEmpreendimentoId;
         const stageId = stageRaw ? stageByName.get(norm(stageRaw)) ?? null : null;
         const respId = respRaw ? userByKey.get(norm(respRaw)) ?? null : null;
-        const assignedTo = me.role === "agent" ? me.id : respId ?? (assignMe ? me.id : null);
+        const defaultManager = (meta?.users ?? []).find((user) => user.role === "manager");
+        const assignedTo = respId ?? (assignMe ? defaultManager?.id ?? null : null);
         const finalStage = stageId ?? (defaultStage ? Number(defaultStage) : null);
 
         const insert = {
-          id_empresa: me.id_empresa,
+          id_empresa: targetCompanyId,
           nome,
           telefone: numero,
           email,
@@ -390,6 +415,18 @@ function ImportLeadsPage() {
       </div>
 
       <Card className="rounded-2xl">
+        <CardContent className="pt-6">
+          <div className="max-w-md space-y-2">
+            <Label>Empresa que receberá os leads *</Label>
+            <Select value={targetCompany} onValueChange={setTargetCompany}>
+              <SelectTrigger><SelectValue placeholder="Selecione a empresa" /></SelectTrigger>
+              <SelectContent>{companies.map((company) => <SelectItem key={company.id} value={String(company.id)}>{company.nome}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="rounded-2xl">
         <CardContent className="pt-6 pb-4">
           <Stepper step={step} />
         </CardContent>
@@ -406,7 +443,7 @@ function ImportLeadsPage() {
           loadFile={loadFile}
           clearFile={clearFile}
           inputRef={inputRef}
-          onNext={() => setStep(2)}
+          onNext={() => { if (!targetCompanyId) { toast.error("Selecione a empresa"); return; } setStep(2); }}
           onCancel={() => navigate({ to: "/leads" })}
         />
       )}

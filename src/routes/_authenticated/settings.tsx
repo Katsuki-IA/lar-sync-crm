@@ -19,8 +19,6 @@ export const Route = createFileRoute("/_authenticated/settings")({
 });
 
 const tabs = [
-  { to: "/settings/empreendimentos", label: "Empreendimentos" },
-  { to: "/settings/custom-fields", label: "Campos do lead" },
   { to: "/settings/users", label: "Usuários" },
 ] as const;
 

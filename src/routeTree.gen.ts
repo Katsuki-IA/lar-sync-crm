@@ -43,6 +43,7 @@ import { Route as AuthenticatedAdminTagsRouteImport } from './routes/_authentica
 import { Route as AuthenticatedAdminNotificationsRouteImport } from './routes/_authenticated/admin.notifications'
 import { Route as AuthenticatedAdminFunnelRouteImport } from './routes/_authenticated/admin.funnel'
 import { Route as AuthenticatedAdminEmpresasRouteImport } from './routes/_authenticated/admin.empresas'
+import { Route as AuthenticatedAdminCustomFieldsRouteImport } from './routes/_authenticated/admin.custom-fields'
 
 const SetupRoute = SetupRouteImport.update({
   id: '/setup',
@@ -226,6 +227,12 @@ const AuthenticatedAdminEmpresasRoute =
     path: '/empresas',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminCustomFieldsRoute =
+  AuthenticatedAdminCustomFieldsRouteImport.update({
+    id: '/custom-fields',
+    path: '/custom-fields',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -243,6 +250,7 @@ export interface FileRoutesByFullPath {
   '/historico/$leadId': typeof HistoricoLeadIdRoute
   '/integracoes/rd': typeof IntegracoesRdRoute
   '/privacidade/exclusao-de-dados': typeof PrivacidadeExclusaoDeDadosRoute
+  '/admin/custom-fields': typeof AuthenticatedAdminCustomFieldsRoute
   '/admin/empresas': typeof AuthenticatedAdminEmpresasRoute
   '/admin/funnel': typeof AuthenticatedAdminFunnelRoute
   '/admin/notifications': typeof AuthenticatedAdminNotificationsRoute
@@ -276,6 +284,7 @@ export interface FileRoutesByTo {
   '/historico/$leadId': typeof HistoricoLeadIdRoute
   '/integracoes/rd': typeof IntegracoesRdRoute
   '/privacidade/exclusao-de-dados': typeof PrivacidadeExclusaoDeDadosRoute
+  '/admin/custom-fields': typeof AuthenticatedAdminCustomFieldsRoute
   '/admin/empresas': typeof AuthenticatedAdminEmpresasRoute
   '/admin/funnel': typeof AuthenticatedAdminFunnelRoute
   '/admin/notifications': typeof AuthenticatedAdminNotificationsRoute
@@ -313,6 +322,7 @@ export interface FileRoutesById {
   '/historico/$leadId': typeof HistoricoLeadIdRoute
   '/integracoes_/rd': typeof IntegracoesRdRoute
   '/privacidade/exclusao-de-dados': typeof PrivacidadeExclusaoDeDadosRoute
+  '/_authenticated/admin/custom-fields': typeof AuthenticatedAdminCustomFieldsRoute
   '/_authenticated/admin/empresas': typeof AuthenticatedAdminEmpresasRoute
   '/_authenticated/admin/funnel': typeof AuthenticatedAdminFunnelRoute
   '/_authenticated/admin/notifications': typeof AuthenticatedAdminNotificationsRoute
@@ -350,6 +360,7 @@ export interface FileRouteTypes {
     | '/historico/$leadId'
     | '/integracoes/rd'
     | '/privacidade/exclusao-de-dados'
+    | '/admin/custom-fields'
     | '/admin/empresas'
     | '/admin/funnel'
     | '/admin/notifications'
@@ -383,6 +394,7 @@ export interface FileRouteTypes {
     | '/historico/$leadId'
     | '/integracoes/rd'
     | '/privacidade/exclusao-de-dados'
+    | '/admin/custom-fields'
     | '/admin/empresas'
     | '/admin/funnel'
     | '/admin/notifications'
@@ -419,6 +431,7 @@ export interface FileRouteTypes {
     | '/historico/$leadId'
     | '/integracoes_/rd'
     | '/privacidade/exclusao-de-dados'
+    | '/_authenticated/admin/custom-fields'
     | '/_authenticated/admin/empresas'
     | '/_authenticated/admin/funnel'
     | '/_authenticated/admin/notifications'
@@ -691,10 +704,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminEmpresasRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/custom-fields': {
+      id: '/_authenticated/admin/custom-fields'
+      path: '/custom-fields'
+      fullPath: '/admin/custom-fields'
+      preLoaderRoute: typeof AuthenticatedAdminCustomFieldsRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
   }
 }
 
 interface AuthenticatedAdminRouteChildren {
+  AuthenticatedAdminCustomFieldsRoute: typeof AuthenticatedAdminCustomFieldsRoute
   AuthenticatedAdminEmpresasRoute: typeof AuthenticatedAdminEmpresasRoute
   AuthenticatedAdminFunnelRoute: typeof AuthenticatedAdminFunnelRoute
   AuthenticatedAdminNotificationsRoute: typeof AuthenticatedAdminNotificationsRoute
@@ -704,6 +725,7 @@ interface AuthenticatedAdminRouteChildren {
 }
 
 const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
+  AuthenticatedAdminCustomFieldsRoute: AuthenticatedAdminCustomFieldsRoute,
   AuthenticatedAdminEmpresasRoute: AuthenticatedAdminEmpresasRoute,
   AuthenticatedAdminFunnelRoute: AuthenticatedAdminFunnelRoute,
   AuthenticatedAdminNotificationsRoute: AuthenticatedAdminNotificationsRoute,

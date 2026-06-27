@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -27,6 +27,12 @@ import {
 } from "@/lib/lead-origin";
 
 export const Route = createFileRoute("/_authenticated/leads/new")({
+  beforeLoad: async () => {
+    const { data } = await supabase.auth.getUser();
+    if (!data.user) throw redirect({ to: "/auth" });
+    const { data: me } = await supabase.from("crm_users").select("role").eq("auth_user_id", data.user.id).maybeSingle();
+    if (me?.role !== "super_admin") throw redirect({ to: "/leads" });
+  },
   component: NewLead,
 });
 
@@ -71,8 +77,10 @@ function maskPhoneGeneric(value: string) {
 function NewLead() {
   const { data: me } = useCrmUser();
   const { data: allowed } = useAllowedEmpresas();
-  const { data: customFields = [] } = useLeadCustomFields(me?.id_empresa);
-  const { data: funnels = [] } = useFunnels(me?.id_empresa);
+  const [targetCompany, setTargetCompany] = useState<string>("");
+  const targetCompanyId = targetCompany ? Number(targetCompany) : null;
+  const { data: customFields = [] } = useLeadCustomFields(targetCompanyId);
+  const { data: funnels = [] } = useFunnels(targetCompanyId);
   const navigate = useNavigate();
   const [countryCode, setCountryCode] = useState("BR");
   const country = COUNTRIES.find((c) => c.code === countryCode) ?? COUNTRIES[0];
@@ -89,6 +97,16 @@ function NewLead() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [customValues, setCustomValues] = useState<LeadCustomFieldValues>({});
   const [customErrors, setCustomErrors] = useState<Record<number, string>>({});
+
+  const { data: companies = [] } = useQuery({
+    enabled: Boolean(allowed?.length),
+    queryKey: ["new-lead-companies", allowed],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("empresa_dados").select("id,nome").in("id", allowed ?? []).order("nome");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
 
   function validate() {
     const next: Record<string, string> = {};
@@ -123,13 +141,13 @@ function NewLead() {
   }
 
   const { data: meta } = useQuery({
-    enabled: !!me && !!allowed,
-    queryKey: ["new-lead-meta", me?.id_empresa, allowed],
+    enabled: !!me && !!targetCompanyId,
+    queryKey: ["new-lead-meta", targetCompanyId],
     queryFn: async () => {
       const [{ data: stages }, { data: emps }, { data: users }] = await Promise.all([
-        supabase.from("crm_stages").select("id, nome, ordem, id_funnel").eq("ativo", true).order("ordem"),
-        supabase.from("empreendimento").select("id, nome").in("id_empresa", allowed ?? []),
-        supabase.from("crm_users").select("id, nome, role, created_at").eq("active", true).in("id_empresa", allowed ?? []).order("created_at", { ascending: true }),
+        supabase.from("crm_stages").select("id, nome, ordem, id_funnel").eq("id_empresa", targetCompanyId!).eq("ativo", true).order("ordem"),
+        supabase.from("empreendimento").select("id, nome").eq("id_empresa", targetCompanyId!),
+        supabase.from("crm_users").select("id, nome, role, created_at").eq("active", true).eq("id_empresa", targetCompanyId!).order("created_at", { ascending: true }),
       ]);
       return { stages: stages ?? [], emps: emps ?? [], users: users ?? [] };
     },
@@ -147,7 +165,7 @@ function NewLead() {
   const createMut = useMutation({
     mutationFn: async () => {
       if (!validate()) throw new Error("Corrija os campos indicados");
-      if (!me?.id_empresa) throw new Error("Empresa não definida");
+      if (!targetCompanyId) throw new Error("Selecione a empresa");
       const fullNumero = form.numero
         ? `${country.ddi}${form.numero.replace(/\D/g, "")}`
         : "";
@@ -159,7 +177,7 @@ function NewLead() {
         const { data: dup, error: dupErr } = await supabase
           .from("crm_leads")
           .select("id, nome, telefone, email")
-          .eq("id_empresa", me.id_empresa)
+          .eq("id_empresa", targetCompanyId)
           .or(orFilters.join(","))
           .limit(1)
           .maybeSingle();
@@ -179,15 +197,15 @@ function NewLead() {
       const defaultStageId = visibleStages[0]?.id ?? null;
       // Default assignee = oldest manager
       const oldestManager = (meta?.users ?? []).find((user) => user.role === "manager");
-      const defaultAssignee = me.role === "agent" ? me.id : oldestManager?.id ?? me.id;
+      const defaultAssignee = oldestManager?.id ?? null;
       const insert = {
-        id_empresa: me.id_empresa,
+        id_empresa: targetCompanyId,
         nome: form.nome,
         telefone: fullNumero,
         email: form.email || null,
         origem: form.origem,
         id_empreendimento: form.id_empreendimento ? Number(form.id_empreendimento) : null,
-        crm_assigned_to: me.role === "agent" ? me.id : form.crm_assigned_to || defaultAssignee,
+        crm_assigned_to: form.crm_assigned_to || defaultAssignee,
         crm_stage_id: form.crm_stage_id ? Number(form.crm_stage_id) : defaultStageId,
       };
       const { data: lead, error } = await supabase.from("crm_leads").insert(insert).select("id").single();
@@ -226,6 +244,12 @@ function NewLead() {
             className="space-y-4"
             onSubmit={(e) => { e.preventDefault(); createMut.mutate(); }}
           >
+            <Field label="Empresa *" error={!targetCompany && errors.empresa ? errors.empresa : undefined}>
+              <Select value={targetCompany} onValueChange={(value) => { setTargetCompany(value); setForm((current) => ({ ...current, id_empreendimento: "", crm_assigned_to: "", id_funnel: "", crm_stage_id: "" })); }}>
+                <SelectTrigger><SelectValue placeholder="Selecione a empresa" /></SelectTrigger>
+                <SelectContent>{companies.map((company) => <SelectItem key={company.id} value={String(company.id)}>{company.nome}</SelectItem>)}</SelectContent>
+              </Select>
+            </Field>
             <div className="grid gap-4 md:grid-cols-2">
               <Field label="Nome *" error={errors.nome}>
                 <Input
@@ -348,7 +372,7 @@ function NewLead() {
 
             <div className="flex justify-end gap-2 pt-2">
               <Button type="button" variant="outline" className="rounded-xl" onClick={() => navigate({ to: "/leads" })}>Cancelar</Button>
-              <Button type="submit" className="rounded-xl" disabled={createMut.isPending}>
+              <Button type="submit" className="rounded-xl" disabled={createMut.isPending || !targetCompanyId}>
                 {createMut.isPending ? "Salvando…" : "Criar lead"}
               </Button>
             </div>

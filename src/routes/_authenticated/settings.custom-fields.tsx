@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowDown, ArrowUp, Pencil, Plus, Trash2 } from "lucide-react";
@@ -33,7 +33,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { useCrmUser } from "@/hooks/use-crm-user";
 import { supabase } from "@/integrations/supabase/client";
 import {
   parseCustomFieldOptions,
@@ -42,7 +41,7 @@ import {
 } from "@/lib/lead-custom-fields";
 
 export const Route = createFileRoute("/_authenticated/settings/custom-fields")({
-  component: CustomFieldsPage,
+  beforeLoad: () => { throw redirect({ to: "/settings/users" }); },
 });
 
 type FieldForm = {
@@ -65,28 +64,28 @@ const TYPE_LABELS: Record<LeadCustomFieldType, string> = {
   checkbox: "Múltipla escolha",
 };
 
-function CustomFieldsPage() {
+const db = supabase as any;
+
+export function GlobalCustomFieldsPage() {
   const qc = useQueryClient();
-  const { data: me } = useCrmUser();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<LeadCustomField | null>(null);
   const [deleting, setDeleting] = useState<LeadCustomField | null>(null);
   const [form, setForm] = useState<FieldForm>(EMPTY_FORM);
 
   const { data: fields = [], isLoading } = useQuery({
-    enabled: Boolean(me?.id_empresa),
-    queryKey: ["lead-custom-fields-settings", me?.id_empresa],
+    queryKey: ["global-lead-custom-fields-settings"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("crm_lead_custom_fields")
-        .select("id,id_empresa,nome,tipo,obrigatorio,opcoes,ordem,ativo")
-        .eq("id_empresa", me!.id_empresa!)
+      const { data, error } = await db
+        .from("crm_global_custom_fields")
+        .select("id,nome,tipo,obrigatorio,opcoes,ordem,ativo")
         .eq("ativo", true)
         .order("ordem", { ascending: true })
         .order("id", { ascending: true });
       if (error) throw error;
       return (data ?? []).map((field) => ({
         ...field,
+        id_empresa: 0,
         tipo: field.tipo as LeadCustomFieldType,
         opcoes: parseCustomFieldOptions(field.opcoes),
       })) as LeadCustomField[];
@@ -112,7 +111,6 @@ function CustomFieldsPage() {
 
   const save = useMutation({
     mutationFn: async () => {
-      if (!me?.id_empresa) throw new Error("Empresa não encontrada");
       const nome = form.nome.trim();
       if (!nome) throw new Error("Informe o nome do campo");
 
@@ -131,28 +129,21 @@ function CustomFieldsPage() {
       }
 
       if (editing) {
-        const { error } = await supabase
-          .from("crm_lead_custom_fields")
-          .update({ nome, obrigatorio: form.obrigatorio, opcoes: options })
-          .eq("id", editing.id);
+        const { error } = await db.rpc("crm_global_custom_field_update", {
+          p_id: editing.id, p_nome: nome, p_obrigatorio: form.obrigatorio, p_opcoes: options,
+        });
         if (error) throw error;
         return;
       }
 
-      const maxOrder = Math.max(0, ...fields.map((field) => field.ordem));
-      const { error } = await supabase.from("crm_lead_custom_fields").insert({
-        id_empresa: me.id_empresa,
-        nome,
-        tipo: form.tipo,
-        obrigatorio: form.obrigatorio,
-        opcoes: options,
-        ordem: maxOrder + 1,
+      const { error } = await db.rpc("crm_global_custom_field_create", {
+        p_nome: nome, p_tipo: form.tipo, p_obrigatorio: form.obrigatorio, p_opcoes: options,
       });
       if (error) throw error;
     },
     onSuccess: () => {
       toast.success(editing ? "Campo atualizado" : "Campo criado");
-      qc.invalidateQueries({ queryKey: ["lead-custom-fields-settings"] });
+      qc.invalidateQueries({ queryKey: ["global-lead-custom-fields-settings"] });
       qc.invalidateQueries({ queryKey: ["lead-custom-fields"] });
       setOpen(false);
       setEditing(null);
@@ -163,15 +154,12 @@ function CustomFieldsPage() {
 
   const archive = useMutation({
     mutationFn: async (field: LeadCustomField) => {
-      const { error } = await supabase
-        .from("crm_lead_custom_fields")
-        .update({ ativo: false })
-        .eq("id", field.id);
+      const { error } = await db.rpc("crm_global_custom_field_archive", { p_id: field.id });
       if (error) throw error;
     },
     onSuccess: () => {
       toast.success("Campo removido do cadastro");
-      qc.invalidateQueries({ queryKey: ["lead-custom-fields-settings"] });
+      qc.invalidateQueries({ queryKey: ["global-lead-custom-fields-settings"] });
       qc.invalidateQueries({ queryKey: ["lead-custom-fields"] });
       setDeleting(null);
     },
@@ -183,21 +171,15 @@ function CustomFieldsPage() {
       const current = fields[index];
       const neighbor = fields[index + direction];
       if (!current || !neighbor) return;
-      const [{ error: currentError }, { error: neighborError }] = await Promise.all([
-        supabase
-          .from("crm_lead_custom_fields")
-          .update({ ordem: neighbor.ordem })
-          .eq("id", current.id),
-        supabase
-          .from("crm_lead_custom_fields")
-          .update({ ordem: current.ordem })
-          .eq("id", neighbor.id),
-      ]);
-      if (currentError) throw currentError;
-      if (neighborError) throw neighborError;
+      const next = [...fields];
+      [next[index], next[index + direction]] = [neighbor, current];
+      const { error } = await db.rpc("crm_global_custom_fields_reorder", {
+        p_ids: next.map((field) => field.id),
+      });
+      if (error) throw error;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["lead-custom-fields-settings"] });
+      qc.invalidateQueries({ queryKey: ["global-lead-custom-fields-settings"] });
       qc.invalidateQueries({ queryKey: ["lead-custom-fields"] });
     },
     onError: (error: Error) => toast.error(error.message),
@@ -215,7 +197,7 @@ function CustomFieldsPage() {
     <>
       <Card className="p-4">
         <div className="flex items-center justify-between gap-3 mb-4">
-          <h2 className="text-lg font-medium">Campos do lead</h2>
+          <div><h2 className="text-lg font-medium">Campos globais do lead</h2><p className="text-sm text-muted-foreground">Aplicados a todas as empresas e ao cadastro de novas empresas.</p></div>
           <Button onClick={openNew}>
             <Plus className="h-4 w-4 mr-2" />
             Novo campo

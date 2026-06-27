@@ -24,7 +24,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { LeadTasksCard } from "@/components/lead-tasks-card";
 import {
   buildCustomFieldValueRows,
   isCustomFieldValueValid,
@@ -305,7 +304,7 @@ function LeadDetail() {
   const stage = meta?.stages.find((s) => s.id === lead.crm_stage_id);
   const currentStageColor = stageColor(stage?.nome, stage?.cor);
   const userMap = new Map((meta?.users ?? []).map((u) => [u.id, u.nome]));
-  const isManager = me?.role !== "agent";
+  const canManage = me?.role === "super_admin";
   const aiPaused = aiStatus?.paused ?? false;
 
   return (
@@ -329,7 +328,7 @@ function LeadDetail() {
           </div>
           <p className="text-sm text-muted-foreground">{lead.telefone} · {lead.email ?? "sem email"}</p>
         </div>
-        <Button
+        {canManage && <Button
           variant="ghost"
           size="icon"
           className="text-destructive hover:text-destructive hover:bg-destructive/10"
@@ -337,16 +336,15 @@ function LeadDetail() {
           title="Excluir lead"
         >
           <Trash2 className="h-4 w-4" />
-        </Button>
+        </Button>}
       </div>
 
       <div className="grid gap-6 md:grid-cols-3">
         <div className="md:col-span-2 space-y-4">
-          <LeadTasksCard leadId={leadId} users={meta?.users ?? []} />
           <Card className="rounded-2xl">
             <CardHeader><CardTitle className="text-base">Atividade</CardTitle></CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex gap-2">
+              {canManage && <div className="flex gap-2">
                 <Textarea
                   placeholder="Adicionar nota..."
                   value={note}
@@ -360,7 +358,7 @@ function LeadDetail() {
                 >
                   <Send className="h-4 w-4" />
                 </Button>
-              </div>
+              </div>}
               <div className="space-y-3 pt-2">
                 {(activities ?? []).map((a) => (
                   <div key={a.id} className="flex gap-3 pb-3 border-b border-border last:border-0">
@@ -403,7 +401,7 @@ function LeadDetail() {
               )}
               <div>
                 <label className="text-xs text-muted-foreground">Estágio</label>
-                <Select value={lead.crm_stage_id ? String(lead.crm_stage_id) : ""} onValueChange={(v) => stageMut.mutate(Number(v))}>
+                {canManage ? <Select value={lead.crm_stage_id ? String(lead.crm_stage_id) : ""} onValueChange={(v) => stageMut.mutate(Number(v))}>
                   <SelectTrigger
                     className="mt-1"
                     style={stage ? { borderColor: `${currentStageColor}66` } : undefined}
@@ -437,11 +435,13 @@ function LeadDetail() {
                       );
                     })}
                   </SelectContent>
-                </Select>
+                </Select> : stage ? (
+                  <div className="mt-1"><span className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium" style={{ backgroundColor: `${currentStageColor}1F`, borderColor: `${currentStageColor}40`, color: currentStageColor }}><span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: currentStageColor }} />{stage.nome}</span></div>
+                ) : <p className="mt-1">—</p>}
               </div>
               <div>
                 <label className="text-xs text-muted-foreground">Responsável</label>
-                {isManager ? (
+                {canManage ? (
                   <Select value={lead.crm_assigned_to ?? ""} onValueChange={(v) => assignMut.mutate(v)}>
                     <SelectTrigger className="mt-1"><SelectValue placeholder="Atribuir" /></SelectTrigger>
                     <SelectContent>
@@ -456,7 +456,7 @@ function LeadDetail() {
               <div>
                 <div className="flex items-center justify-between">
                   <label className="text-xs text-muted-foreground">Tags</label>
-                  <Popover>
+                  {canManage && <Popover>
                     <PopoverTrigger asChild>
                       <Button variant="ghost" size="sm" className="h-6 px-2"><Plus className="h-3 w-3" /></Button>
                     </PopoverTrigger>
@@ -478,7 +478,7 @@ function LeadDetail() {
                         {!meta?.tags.length && <p className="text-xs text-muted-foreground px-2 py-1">Nenhuma tag</p>}
                       </div>
                     </PopoverContent>
-                  </Popover>
+                  </Popover>}
                 </div>
                 <div className="flex flex-wrap gap-1 mt-2">
                   {(tagLinks ?? []).map((tid) => {
@@ -487,9 +487,7 @@ function LeadDetail() {
                     return (
                       <Badge key={tid} variant="secondary" className="gap-1" style={{ backgroundColor: `${t.cor ?? "#C14F21"}26`, color: t.cor ?? "#C14F21" }}>
                         {t.nome}
-                        <button onClick={() => toggleTagMut.mutate({ tagId: tid, add: false })}>
-                          <X className="h-3 w-3" />
-                        </button>
+                        {canManage && <button onClick={() => toggleTagMut.mutate({ tagId: tid, add: false })}><X className="h-3 w-3" /></button>}
                       </Badge>
                     );
                   })}
@@ -505,9 +503,9 @@ function LeadDetail() {
             <Card className="rounded-2xl">
               <CardHeader className="flex-row items-center justify-between space-y-0">
                 <CardTitle className="text-base">Campos personalizados</CardTitle>
-                <Button size="icon" variant="ghost" title="Editar campos" onClick={openCustomFields}>
+                {canManage && <Button size="icon" variant="ghost" title="Editar campos" onClick={openCustomFields}>
                   <Pencil className="h-4 w-4" />
-                </Button>
+                </Button>}
               </CardHeader>
               <CardContent className="space-y-4 text-sm">
                 {customFields.map((field) => {

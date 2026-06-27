@@ -21,6 +21,7 @@ const tabs = [
   { to: "/admin/users", label: "Usuários" },
   { to: "/admin/funnel", label: "Funil e etapas" },
   { to: "/admin/tags", label: "Tags" },
+  { to: "/admin/custom-fields", label: "Campos do lead" },
   { to: "/admin/notifications", label: "Notificações" },
 ] as const;
 

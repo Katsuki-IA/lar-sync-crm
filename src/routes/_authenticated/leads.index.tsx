@@ -57,7 +57,7 @@ type LeadListRow = {
   ai_active?: boolean;
 };
 
-type AiStatusFilter = "all" | "active" | "paused" | "inactive";
+type AiStatusFilter = "all" | "active" | "paused";
 
 function LeadsList() {
   const navigate = useNavigate();
@@ -168,8 +168,6 @@ function LeadsList() {
         } else if (aiStatus === "active") {
           aiLeadIds = Array.from(activeIds).filter((id) => !pausedIds.has(id));
           if (!aiLeadIds.length) return { rows: [], count: 0 };
-        } else if (aiStatus === "inactive" && activeIds.size > 0) {
-          aiLeadIds = Array.from(activeIds);
         }
       }
 
@@ -194,9 +192,7 @@ function LeadsList() {
       if (dateTo) q = q.lte("created_at", `${dateTo}T23:59:59`);
       if (search) q = q.or(`nome.ilike.%${search}%,telefone.ilike.%${search}%`);
       if (leadIdsByTag) q = q.in("id", leadIdsByTag);
-      if (aiStatus === "inactive" && aiLeadIds?.length) {
-        q = q.not("id", "in", `(${aiLeadIds.join(",")})`);
-      } else if (aiLeadIds) {
+      if (aiLeadIds) {
         q = q.in("id", aiLeadIds);
       }
 
@@ -284,7 +280,6 @@ function LeadsList() {
       all: "Todos",
       active: "Em atendimento",
       paused: "Atendimento pausado",
-      inactive: "Sem atendimento",
     };
     activeChips.push({ key: "ai-status", label: `Status: ${labels[aiStatus]}`, onClear: () => { setAiStatus("all"); setPage(0); } });
   }
@@ -576,23 +571,12 @@ function LeadsList() {
                 </SelectContent>
               </Select>
             )}
-            <Button
-              asChild
-              variant="outline"
-              className="rounded-lg"
-            >
-              <Link to="/leads/importar">
-                <Upload className="h-4 w-4 mr-1" /> Importar leads
-              </Link>
-            </Button>
-            <Button
-            asChild
-            className="rounded-lg shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] hover:shadow-primary/40"
-          >
-            <Link to="/leads/new">
-              <Plus className="h-4 w-4 mr-1" /> Novo Lead
-            </Link>
-          </Button>
+            {me?.role === "super_admin" && (
+              <Button asChild variant="outline" className="rounded-lg">
+                <Link to="/leads/importar"><Upload className="h-4 w-4 mr-1" /> Importar leads</Link>
+              </Button>
+            )}
+            {me?.role === "super_admin" && <Button asChild className="rounded-lg shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] hover:shadow-primary/40"><Link to="/leads/new"><Plus className="h-4 w-4 mr-1" /> Novo Lead</Link></Button>}
           </div>
         </div>
 
@@ -667,7 +651,6 @@ function LeadsList() {
                   { value: "all", label: "Todos" },
                   { value: "active", label: "Em atendimento" },
                   { value: "paused", label: "Atendimento pausado" },
-                  { value: "inactive", label: "Sem atendimento" },
                 ]}
               />
             </LabeledFilter>
@@ -752,18 +735,16 @@ function LeadsList() {
                 <span className="text-sm font-medium text-foreground mr-2">
                   {selected.size} {selected.size === 1 ? "lead selecionado" : "leads selecionados"}
                 </span>
-                <Button size="sm" variant="outline" onClick={() => { setPickStage(""); setBulkStageOpen(true); }}>
-                  <ArrowRightLeft className="h-3.5 w-3.5 mr-1" /> Alterar estágio
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => { setPickUser(""); setBulkUserOpen(true); }}>
-                  <UserCog className="h-3.5 w-3.5 mr-1" /> Redistribuir
-                </Button>
+                {me?.role === "super_admin" && (
+                  <>
+                    <Button size="sm" variant="outline" onClick={() => { setPickStage(""); setBulkStageOpen(true); }}><ArrowRightLeft className="h-3.5 w-3.5 mr-1" /> Alterar estágio</Button>
+                    <Button size="sm" variant="outline" onClick={() => { setPickUser(""); setBulkUserOpen(true); }}><UserCog className="h-3.5 w-3.5 mr-1" /> Redistribuir</Button>
+                  </>
+                )}
                 <Button size="sm" variant="outline" onClick={() => exportCsv(Array.from(selected))}>
                   <Download className="h-3.5 w-3.5 mr-1" /> Exportar selecionados
                 </Button>
-                <Button size="sm" variant="outline" className="text-destructive hover:text-destructive border-destructive/40" onClick={() => setBulkDeleteOpen(true)}>
-                  <Trash2 className="h-3.5 w-3.5 mr-1" /> Excluir selecionados
-                </Button>
+                {me?.role === "super_admin" && <Button size="sm" variant="outline" className="text-destructive hover:text-destructive border-destructive/40" onClick={() => setBulkDeleteOpen(true)}><Trash2 className="h-3.5 w-3.5 mr-1" /> Excluir selecionados</Button>}
                 <Button size="sm" variant="ghost" className="ml-auto" onClick={() => setSelected(new Set())}>
                   <X className="h-3.5 w-3.5 mr-1" /> Cancelar seleção
                 </Button>
@@ -820,9 +801,7 @@ function LeadsList() {
                             {(activeChips.length > 0 || search) && (
                               <Button variant="outline" size="sm" onClick={clearAll}>Limpar filtros</Button>
                             )}
-                            <Button asChild size="sm">
-                              <Link to="/leads/new"><Plus className="h-4 w-4 mr-1" /> Novo lead</Link>
-                            </Button>
+                            {me?.role === "super_admin" && <Button asChild size="sm"><Link to="/leads/new"><Plus className="h-4 w-4 mr-1" /> Novo lead</Link></Button>}
                           </div>
                         </div>
                       </td>
@@ -833,14 +812,12 @@ function LeadsList() {
                     const sColor = stageColor(s?.nome, s?.cor);
                     const responsavel = l.crm_assigned_to ? userMap.get(l.crm_assigned_to) : null;
                     const isChecked = selected.has(l.id);
-                    const aiNotStarted = !l.ai_active && !l.ai_paused;
                     return (
                       <tr
                         key={l.id}
                         className={cn(
                           "group/row border-b transition-colors hover:bg-[var(--primary-50)]",
                           l.ai_paused && "bg-amber-50/70 hover:bg-amber-50",
-                          aiNotStarted && "bg-slate-50/70 hover:bg-slate-50",
                           isChecked && "bg-[var(--primary-50)]",
                         )}
                         style={{ borderColor: "var(--border)" }}
@@ -861,11 +838,6 @@ function LeadsList() {
                                 {l.ai_paused && (
                                   <span className="shrink-0 rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
                                     Pausado
-                                  </span>
-                                )}
-                                {aiNotStarted && (
-                                  <span className="shrink-0 rounded-full border border-slate-300 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600">
-                                    Sem atendimento IA
                                   </span>
                                 )}
                               </div>
@@ -929,18 +901,13 @@ function LeadsList() {
                                 <DropdownMenuItem onClick={() => navigate({ to: "/leads/$id", params: { id: String(l.id) } })}>
                                   <Eye className="h-4 w-4 mr-2" /> Ver detalhes
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => navigate({ to: "/leads/$id", params: { id: String(l.id) } })}>
-                                  <Pencil className="h-4 w-4 mr-2" /> Editar
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => { setPickStage(""); setRowStageLead(l.id); }}>
-                                  <ArrowRightLeft className="h-4 w-4 mr-2" /> Alterar estágio
-                                </DropdownMenuItem>
-                                {me?.role !== "agent" && (
+                                {me?.role === "super_admin" && (<>
+                                  <DropdownMenuItem onClick={() => navigate({ to: "/leads/$id", params: { id: String(l.id) } })}><Pencil className="h-4 w-4 mr-2" /> Editar</DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => { setPickStage(""); setRowStageLead(l.id); }}><ArrowRightLeft className="h-4 w-4 mr-2" /> Alterar estágio</DropdownMenuItem>
                                   <DropdownMenuItem onClick={() => { setPickUser(""); setRowUserLead(l.id); }}>
                                     <UserCog className="h-4 w-4 mr-2" /> Redistribuir responsável
                                   </DropdownMenuItem>
-                                )}
-                                {l.ai_paused ? (
+                                  {l.ai_paused ? (
                                   <DropdownMenuItem disabled>
                                     <PauseCircle className="h-4 w-4 mr-2" /> Atendimento da IA pausado
                                   </DropdownMenuItem>
@@ -952,14 +919,10 @@ function LeadsList() {
                                   <DropdownMenuItem onClick={() => setRowStartAiLead(l.id)}>
                                     <Bot className="h-4 w-4 mr-2" /> Enviar para Atendimento IA
                                   </DropdownMenuItem>
-                                )}
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                  className="text-destructive focus:text-destructive"
-                                  onClick={() => setRowDeleteLead(l.id)}
-                                >
-                                  <Trash2 className="h-4 w-4 mr-2" /> Excluir
-                                </DropdownMenuItem>
+                                  )}
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setRowDeleteLead(l.id)}><Trash2 className="h-4 w-4 mr-2" /> Excluir</DropdownMenuItem>
+                                </>)}
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </div>
