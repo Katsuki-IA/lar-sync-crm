@@ -65,32 +65,34 @@ function AuthPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <Card className="w-full max-w-md rounded-2xl shadow-sm">
+    <div className="login-shell flex min-h-screen items-center justify-center px-4 py-10">
+      <Card className="login-card w-full max-w-md rounded-2xl border-white/70 bg-white/90 shadow-sm">
         <CardHeader className="text-center">
           <img
             src="/katsuki-logo.svg"
             alt="Katsuki"
-            className="mx-auto mb-4 object-contain"
+            className="login-logo mx-auto mb-4 object-contain"
             style={{ height: 110, width: "auto" }}
           />
-          <CardDescription>Entre na sua conta para continuar</CardDescription>
+          <CardDescription className="login-fade-up login-delay-1">
+            Entre na sua conta para continuar
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4">
-            <div className="space-y-2">
+            <div className="login-fade-up login-delay-2 space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="voce@empresa.com" />
             </div>
-            <div className="space-y-2">
+            <div className="login-fade-up login-delay-3 space-y-2">
               <Label htmlFor="password">Senha</Label>
               <Input id="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
             </div>
-            <Button type="submit" className="w-full rounded-xl" disabled={loading}>
+            <Button type="submit" className="login-fade-up login-delay-4 w-full rounded-xl" disabled={loading}>
               {loading ? "Entrando..." : "Entrar"}
             </Button>
           </form>
-          <div className="mt-4 flex flex-col items-center gap-2">
+          <div className="login-fade-up login-delay-4 mt-4 flex flex-col items-center gap-2">
             <button
               type="button"
               className="text-sm text-primary hover:underline"
