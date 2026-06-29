@@ -1,6 +1,7 @@
 import { createFileRoute, Link, Outlet, useRouterState, redirect } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import { useCrmUser } from "@/hooks/use-crm-user";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   beforeLoad: async () => {
@@ -18,12 +19,20 @@ export const Route = createFileRoute("/_authenticated/settings")({
   component: SettingsLayout,
 });
 
-const tabs = [
-  { to: "/settings/users", label: "Usuários" },
-] as const;
-
 function SettingsLayout() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const { data: me } = useCrmUser();
+  const tabs = me?.role === "super_admin"
+    ? [
+        { to: "/admin/funnel", label: "Funil e etapas" },
+        { to: "/admin/tags", label: "Tags" },
+        { to: "/admin/custom-fields", label: "Campos do lead" },
+        { to: "/settings/users", label: "Usuários" },
+      ]
+    : [
+        { to: "/settings/users", label: "Usuários" },
+      ];
+
   return (
     <div className="space-y-6">
       <div>
@@ -34,7 +43,7 @@ function SettingsLayout() {
       </div>
       <div className="flex gap-1 border-b border-border">
         {tabs.map((t) => {
-          const active = pathname === t.to;
+          const active = pathname === t.to || pathname.startsWith(`${t.to}/`);
           return (
             <Link
               key={t.to}
