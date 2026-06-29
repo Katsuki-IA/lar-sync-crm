@@ -550,20 +550,6 @@ function LeadsList() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            {funnels.length > 0 && (
-              <Select value={funnelId ? String(funnelId) : ""} onValueChange={(v) => { setFunnelId(Number(v)); setPage(0); setStage("all"); }}>
-                <SelectTrigger className="h-9 w-[200px] bg-white">
-                  <SelectValue placeholder="Funil" />
-                </SelectTrigger>
-                <SelectContent>
-                  {funnels.map((f) => (
-                    <SelectItem key={f.id} value={String(f.id)}>
-                      {f.nome}{f.is_default ? " (padrão)" : ""}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
             {me?.role === "super_admin" && (
               <Button asChild variant="outline" className="rounded-lg">
                 <Link to="/leads/importar"><Upload className="h-4 w-4 mr-1" /> Importar leads</Link>
