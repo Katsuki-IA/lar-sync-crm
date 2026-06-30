@@ -194,7 +194,7 @@ function LeadDetail() {
     queryKey: ["lead-meta", lead?.id_empresa, lead?.crm_stage_id],
     queryFn: async () => {
       const [{ data: stages }, { data: tags }, { data: emps }, { data: users }] = await Promise.all([
-        supabase.from("crm_stages").select("id, nome, cor, ativo").eq("id_empresa", lead!.id_empresa).order("ordem"),
+        supabase.from("crm_stages").select("id, nome, cor, ativo, global_stage_id").eq("id_empresa", lead!.id_empresa).order("ordem"),
         supabase.from("crm_tags").select("id, nome, cor").eq("id_empresa", lead!.id_empresa),
         supabase.from("empreendimento").select("id, nome").eq("id_empresa", lead!.id_empresa),
         supabase.from("crm_users").select("id, nome").eq("id_empresa", lead!.id_empresa).eq("active", true),
@@ -233,7 +233,7 @@ function LeadDetail() {
 
   const stageMut = useMutation({
     mutationFn: async (newStageId: number) => {
-      const fromName = meta?.stages.find((s) => s.id === lead?.crm_stage_id)?.nome ?? "—";
+      const fromName = currentStage?.nome ?? "—";
       const toName = meta?.stages.find((s) => s.id === newStageId)?.nome ?? "—";
       const { error } = await supabase.from("crm_leads").update({ crm_stage_id: newStageId }).eq("id", leadId);
       if (error) throw error;
@@ -304,7 +304,8 @@ function LeadDetail() {
   if (isLoading || !lead) return <p className="text-muted-foreground">Carregando…</p>;
 
   const empNome = lead.id_empreendimento ? meta?.emps.find((e) => e.id === lead.id_empreendimento)?.nome : null;
-  const stage = meta?.stages.find((s) => s.id === lead.crm_stage_id);
+  const currentStage = meta?.stages.find((s) => s.id === lead.crm_stage_id || s.global_stage_id === lead.crm_stage_id);
+  const stage = currentStage;
   const currentStageColor = stageColor(stage?.nome, stage?.cor);
   const userMap = new Map((meta?.users ?? []).map((u) => [u.id, u.nome]));
   const canManage = me?.role === "super_admin";
@@ -404,7 +405,7 @@ function LeadDetail() {
               )}
               <div>
                 <label className="text-xs text-muted-foreground">Estágio</label>
-                {canManage ? <Select value={lead.crm_stage_id ? String(lead.crm_stage_id) : ""} onValueChange={(v) => stageMut.mutate(Number(v))}>
+                {canManage ? <Select value={currentStage?.id ? String(currentStage.id) : ""} onValueChange={(v) => stageMut.mutate(Number(v))}>
                   <SelectTrigger
                     className="mt-1"
                     style={stage ? { borderColor: `${currentStageColor}66` } : undefined}

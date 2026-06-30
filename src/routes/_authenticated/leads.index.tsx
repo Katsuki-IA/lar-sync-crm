@@ -94,7 +94,6 @@ function LeadsList() {
       setFunnelId(def.id);
     }
   }, [funnels, funnelId]);
-  const currentFunnel = funnels.find((f) => f.id === funnelId) ?? null;
   const [search, setSearch] = useState("");
   const [view, setView] = useState<"list" | "kanban">("list");
   const [stage, setStage] = useState<string>("all");
@@ -140,7 +139,7 @@ function LeadsList() {
     queryKey: ["leads-meta", companyId, funnelId],
     queryFn: async () => {
       const [{ data: stages }, { data: tags }, { data: emps }, { data: users }] = await Promise.all([
-        supabase.from("crm_stages").select("id, nome, cor").eq("id_empresa", companyId!).eq("ativo", true).eq("id_funnel", funnelId!).order("ordem"),
+        supabase.from("crm_stages").select("id, nome, cor, global_stage_id").eq("id_empresa", companyId!).eq("ativo", true).order("ordem"),
         supabase.from("crm_tags").select("id, nome, cor").eq("id_empresa", companyId!),
         supabase.from("empreendimento").select("id, nome").eq("id_empresa", companyId!),
         supabase.from("crm_users").select("id, nome").eq("id_empresa", companyId!).eq("active", true),
@@ -206,14 +205,6 @@ function LeadsList() {
         .eq("id_empresa", companyId!);
 
       if (me?.role === "agent") q = q.eq("crm_assigned_to", me.id);
-      // Restringe ao funil selecionado (estágios desse funil). Funil padrão também inclui leads sem estágio.
-      const stageIds = (meta?.stages ?? []).map((s) => s.id);
-      if (!stageIds.length && !currentFunnel?.is_default) return { rows: [], count: 0 };
-      if (currentFunnel?.is_default) {
-        if (stageIds.length) q = q.or(`crm_stage_id.in.(${stageIds.join(",")}),crm_stage_id.is.null`);
-      } else {
-        q = q.in("crm_stage_id", stageIds);
-      }
       if (stage !== "all") q = q.eq("crm_stage_id", Number(stage));
       if (empId !== "all") q = q.eq("id_empreendimento", Number(empId));
       if (userId !== "all") q = q.eq("crm_assigned_to", userId);
@@ -273,7 +264,11 @@ function LeadsList() {
     },
   });
 
-  const stageMap = new Map((meta?.stages ?? []).map((s) => [s.id, s]));
+  const stageMap = new Map((meta?.stages ?? []).flatMap((s) => {
+    const entries: [number, typeof s][] = [[s.id, s]];
+    if (s.global_stage_id != null) entries.push([s.global_stage_id, s]);
+    return entries;
+  }));
   const userMap = new Map((meta?.users ?? []).map((u) => [u.id, u.nome]));
   const empMap = new Map((meta?.emps ?? []).map((e) => [e.id, e.nome]));
 
