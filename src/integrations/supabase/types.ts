@@ -303,27 +303,34 @@ export type Database = {
           atendimento_ativo: boolean
           created_at: string
           id: number
-          id_empresa: number
           id_empreendimento: number
+          id_empresa: number
           updated_at: string
         }
         Insert: {
           atendimento_ativo?: boolean
           created_at?: string
           id?: number
-          id_empresa: number
           id_empreendimento: number
+          id_empresa: number
           updated_at?: string
         }
         Update: {
           atendimento_ativo?: boolean
           created_at?: string
           id?: number
-          id_empresa?: number
           id_empreendimento?: number
+          id_empresa?: number
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "crm_empreendimento_atendimento_id_empreendimento_fkey"
+            columns: ["id_empreendimento"]
+            isOneToOne: false
+            referencedRelation: "empreendimento"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "crm_empreendimento_atendimento_id_empresa_fkey"
             columns: ["id_empresa"]
@@ -331,11 +338,130 @@ export type Database = {
             referencedRelation: "empresa_dados"
             referencedColumns: ["id"]
           },
+        ]
+      }
+      crm_external_crm_connections: {
+        Row: {
+          access_token: string | null
+          account_id: string | null
+          account_name: string | null
+          active: boolean
+          connected_at: string | null
+          created_at: string
+          id: string
+          id_empresa: number
+          last_error: string | null
+          provider: string
+          provider_label: string
+          refresh_token: string | null
+          settings: Json
+          token_expires_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          access_token?: string | null
+          account_id?: string | null
+          account_name?: string | null
+          active?: boolean
+          connected_at?: string | null
+          created_at?: string
+          id?: string
+          id_empresa: number
+          last_error?: string | null
+          provider: string
+          provider_label: string
+          refresh_token?: string | null
+          settings?: Json
+          token_expires_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          access_token?: string | null
+          account_id?: string | null
+          account_name?: string | null
+          active?: boolean
+          connected_at?: string | null
+          created_at?: string
+          id?: string
+          id_empresa?: number
+          last_error?: string | null
+          provider?: string
+          provider_label?: string
+          refresh_token?: string | null
+          settings?: Json
+          token_expires_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
           {
-            foreignKeyName: "crm_empreendimento_atendimento_id_empreendimento_fkey"
-            columns: ["id_empreendimento"]
+            foreignKeyName: "crm_external_crm_connections_id_empresa_fkey"
+            columns: ["id_empresa"]
             isOneToOne: false
-            referencedRelation: "empreendimento"
+            referencedRelation: "empresa_dados"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_external_crm_send_logs: {
+        Row: {
+          connection_id: string | null
+          created_at: string
+          error_message: string | null
+          external_id: string | null
+          id: string
+          id_empresa: number
+          lead_id: number | null
+          provider: string
+          request_payload: Json | null
+          response_payload: Json | null
+          status: string
+        }
+        Insert: {
+          connection_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          external_id?: string | null
+          id?: string
+          id_empresa: number
+          lead_id?: number | null
+          provider: string
+          request_payload?: Json | null
+          response_payload?: Json | null
+          status?: string
+        }
+        Update: {
+          connection_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          external_id?: string | null
+          id?: string
+          id_empresa?: number
+          lead_id?: number | null
+          provider?: string
+          request_payload?: Json | null
+          response_payload?: Json | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_external_crm_send_logs_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "crm_external_crm_connections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_external_crm_send_logs_id_empresa_fkey"
+            columns: ["id_empresa"]
+            isOneToOne: false
+            referencedRelation: "empresa_dados"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_external_crm_send_logs_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "crm_leads"
             referencedColumns: ["id"]
           },
         ]
@@ -344,6 +470,7 @@ export type Database = {
         Row: {
           ativo: boolean
           created_at: string
+          global_funnel_id: number | null
           id: number
           id_empresa: number
           is_default: boolean
@@ -354,6 +481,7 @@ export type Database = {
         Insert: {
           ativo?: boolean
           created_at?: string
+          global_funnel_id?: number | null
           id?: number
           id_empresa: number
           is_default?: boolean
@@ -364,11 +492,128 @@ export type Database = {
         Update: {
           ativo?: boolean
           created_at?: string
+          global_funnel_id?: number | null
           id?: number
           id_empresa?: number
           is_default?: boolean
           nome?: string
           ordem?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_funnels_global_funnel_id_fkey"
+            columns: ["global_funnel_id"]
+            isOneToOne: false
+            referencedRelation: "crm_global_funnel"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_global_custom_fields: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          id: number
+          nome: string
+          obrigatorio: boolean
+          opcoes: string[]
+          ordem: number
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          id?: number
+          nome: string
+          obrigatorio?: boolean
+          opcoes?: string[]
+          ordem?: number
+          tipo: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          id?: number
+          nome?: string
+          obrigatorio?: boolean
+          opcoes?: string[]
+          ordem?: number
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      crm_global_funnel: {
+        Row: {
+          id: number
+          nome: string
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          nome: string
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          nome?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      crm_global_stages: {
+        Row: {
+          ativo: boolean
+          cor: string
+          created_at: string
+          id: number
+          nome: string
+          ordem: number
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          cor?: string
+          created_at?: string
+          id?: number
+          nome: string
+          ordem: number
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          cor?: string
+          created_at?: string
+          id?: number
+          nome?: string
+          ordem?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      crm_global_tags: {
+        Row: {
+          cor: string
+          created_at: string
+          id: number
+          nome: string
+          updated_at: string
+        }
+        Insert: {
+          cor?: string
+          created_at?: string
+          id?: number
+          nome: string
+          updated_at?: string
+        }
+        Update: {
+          cor?: string
+          created_at?: string
+          id?: number
+          nome?: string
           updated_at?: string
         }
         Relationships: []
@@ -422,6 +667,7 @@ export type Database = {
         Row: {
           ativo: boolean
           created_at: string
+          global_field_id: number | null
           id: number
           id_empresa: number
           nome: string
@@ -434,6 +680,7 @@ export type Database = {
         Insert: {
           ativo?: boolean
           created_at?: string
+          global_field_id?: number | null
           id?: number
           id_empresa: number
           nome: string
@@ -446,6 +693,7 @@ export type Database = {
         Update: {
           ativo?: boolean
           created_at?: string
+          global_field_id?: number | null
           id?: number
           id_empresa?: number
           nome?: string
@@ -456,6 +704,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "crm_lead_custom_fields_global_field_id_fkey"
+            columns: ["global_field_id"]
+            isOneToOne: false
+            referencedRelation: "crm_global_custom_fields"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "crm_lead_custom_fields_id_empresa_fkey"
             columns: ["id_empresa"]
@@ -620,10 +875,10 @@ export type Database = {
           crm_stage_id: number | null
           email: string | null
           feedback: string | null
+          historico_token: string
           id: number
           id_empreendimento: number | null
           id_empresa: number
-          historico_token: string
           lead_id: number | null
           lead_quente: boolean | null
           loft_id_negociacao: string | null
@@ -644,10 +899,10 @@ export type Database = {
           crm_stage_id?: number | null
           email?: string | null
           feedback?: string | null
+          historico_token?: string
           id?: number
           id_empreendimento?: number | null
           id_empresa: number
-          historico_token?: string
           lead_id?: number | null
           lead_quente?: boolean | null
           loft_id_negociacao?: string | null
@@ -668,10 +923,10 @@ export type Database = {
           crm_stage_id?: number | null
           email?: string | null
           feedback?: string | null
+          historico_token?: string
           id?: number
           id_empreendimento?: number | null
           id_empresa?: number
-          historico_token?: string
           lead_id?: number | null
           lead_quente?: boolean | null
           loft_id_negociacao?: string | null
@@ -985,259 +1240,6 @@ export type Database = {
           },
         ]
       }
-      crm_rd_connections: {
-        Row: {
-          access_token: string | null
-          active: boolean
-          connected_at: string
-          created_at: string
-          default_id_empreendimento: number | null
-          default_id_funnel: number | null
-          id: string
-          id_empresa: number
-          last_error: string | null
-          last_event_at: string | null
-          platform_account_id: string | null
-          refresh_token: string | null
-          token_expires_at: string | null
-          updated_at: string
-          webhook_secret_hash: string | null
-          webhook_uuid: string | null
-        }
-        Insert: {
-          access_token?: string | null
-          active?: boolean
-          connected_at?: string
-          created_at?: string
-          default_id_empreendimento?: number | null
-          default_id_funnel?: number | null
-          id?: string
-          id_empresa: number
-          last_error?: string | null
-          last_event_at?: string | null
-          platform_account_id?: string | null
-          refresh_token?: string | null
-          token_expires_at?: string | null
-          updated_at?: string
-          webhook_secret_hash?: string | null
-          webhook_uuid?: string | null
-        }
-        Update: {
-          access_token?: string | null
-          active?: boolean
-          connected_at?: string
-          created_at?: string
-          default_id_empreendimento?: number | null
-          default_id_funnel?: number | null
-          id?: string
-          id_empresa?: number
-          last_error?: string | null
-          last_event_at?: string | null
-          platform_account_id?: string | null
-          refresh_token?: string | null
-          token_expires_at?: string | null
-          updated_at?: string
-          webhook_secret_hash?: string | null
-          webhook_uuid?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "crm_rd_connections_default_id_empreendimento_fkey"
-            columns: ["default_id_empreendimento"]
-            isOneToOne: false
-            referencedRelation: "empreendimento"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "crm_rd_connections_id_empresa_fkey"
-            columns: ["id_empresa"]
-            isOneToOne: true
-            referencedRelation: "empresa_dados"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "crm_rd_connections_default_id_funnel_fkey"
-            columns: ["default_id_funnel"]
-            isOneToOne: false
-            referencedRelation: "crm_funnels"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      crm_rd_source_mappings: {
-        Row: {
-          active: boolean
-          connection_id: string
-          created_at: string
-          event_identifier: string
-          id: string
-          id_empresa: number
-          id_empreendimento: number | null
-          id_funnel: number | null
-          last_seen_at: string | null
-          updated_at: string
-        }
-        Insert: {
-          active?: boolean
-          connection_id: string
-          created_at?: string
-          event_identifier: string
-          id?: string
-          id_empresa: number
-          id_empreendimento?: number | null
-          id_funnel?: number | null
-          last_seen_at?: string | null
-          updated_at?: string
-        }
-        Update: {
-          active?: boolean
-          connection_id?: string
-          created_at?: string
-          event_identifier?: string
-          id?: string
-          id_empresa?: number
-          id_empreendimento?: number | null
-          id_funnel?: number | null
-          last_seen_at?: string | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "crm_rd_source_mappings_connection_id_fkey"
-            columns: ["connection_id"]
-            isOneToOne: false
-            referencedRelation: "crm_rd_connections"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "crm_rd_source_mappings_id_empresa_fkey"
-            columns: ["id_empresa"]
-            isOneToOne: false
-            referencedRelation: "empresa_dados"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "crm_rd_source_mappings_id_empreendimento_fkey"
-            columns: ["id_empreendimento"]
-            isOneToOne: false
-            referencedRelation: "empreendimento"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "crm_rd_source_mappings_id_funnel_fkey"
-            columns: ["id_funnel"]
-            isOneToOne: false
-            referencedRelation: "crm_funnels"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      crm_rd_events: {
-        Row: {
-          connection_id: string | null
-          contact_email: string | null
-          contact_uuid: string | null
-          crm_lead_id: number | null
-          error: string | null
-          event_identifier: string | null
-          event_key: string
-          event_timestamp: string | null
-          event_type: string
-          id: string
-          id_empresa: number
-          id_empreendimento: number | null
-          id_funnel: number | null
-          processed_at: string | null
-          raw_data: Json
-          received_at: string
-          source_mapping_id: string | null
-          status: string
-        }
-        Insert: {
-          connection_id?: string | null
-          contact_email?: string | null
-          contact_uuid?: string | null
-          crm_lead_id?: number | null
-          error?: string | null
-          event_identifier?: string | null
-          event_key: string
-          event_timestamp?: string | null
-          event_type: string
-          id?: string
-          id_empresa: number
-          id_empreendimento?: number | null
-          id_funnel?: number | null
-          processed_at?: string | null
-          raw_data: Json
-          received_at?: string
-          source_mapping_id?: string | null
-          status?: string
-        }
-        Update: {
-          connection_id?: string | null
-          contact_email?: string | null
-          contact_uuid?: string | null
-          crm_lead_id?: number | null
-          error?: string | null
-          event_identifier?: string | null
-          event_key?: string
-          event_timestamp?: string | null
-          event_type?: string
-          id?: string
-          id_empresa?: number
-          id_empreendimento?: number | null
-          id_funnel?: number | null
-          processed_at?: string | null
-          raw_data?: Json
-          received_at?: string
-          source_mapping_id?: string | null
-          status?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "crm_rd_events_connection_id_fkey"
-            columns: ["connection_id"]
-            isOneToOne: false
-            referencedRelation: "crm_rd_connections"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "crm_rd_events_crm_lead_id_fkey"
-            columns: ["crm_lead_id"]
-            isOneToOne: false
-            referencedRelation: "crm_leads"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "crm_rd_events_id_empresa_fkey"
-            columns: ["id_empresa"]
-            isOneToOne: false
-            referencedRelation: "empresa_dados"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "crm_rd_events_id_empreendimento_fkey"
-            columns: ["id_empreendimento"]
-            isOneToOne: false
-            referencedRelation: "empreendimento"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "crm_rd_events_id_funnel_fkey"
-            columns: ["id_funnel"]
-            isOneToOne: false
-            referencedRelation: "crm_funnels"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "crm_rd_events_source_mapping_id_fkey"
-            columns: ["source_mapping_id"]
-            isOneToOne: false
-            referencedRelation: "crm_rd_source_mappings"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       crm_metricas_sync_control: {
         Row: {
           atendimento_ia: number
@@ -1398,11 +1400,265 @@ export type Database = {
           },
         ]
       }
+      crm_rd_connections: {
+        Row: {
+          access_token: string | null
+          active: boolean
+          connected_at: string
+          created_at: string
+          default_id_empreendimento: number | null
+          default_id_funnel: number | null
+          id: string
+          id_empresa: number
+          last_error: string | null
+          last_event_at: string | null
+          platform_account_id: string | null
+          refresh_token: string | null
+          token_expires_at: string | null
+          updated_at: string
+          webhook_secret_hash: string | null
+          webhook_uuid: string | null
+        }
+        Insert: {
+          access_token?: string | null
+          active?: boolean
+          connected_at?: string
+          created_at?: string
+          default_id_empreendimento?: number | null
+          default_id_funnel?: number | null
+          id?: string
+          id_empresa: number
+          last_error?: string | null
+          last_event_at?: string | null
+          platform_account_id?: string | null
+          refresh_token?: string | null
+          token_expires_at?: string | null
+          updated_at?: string
+          webhook_secret_hash?: string | null
+          webhook_uuid?: string | null
+        }
+        Update: {
+          access_token?: string | null
+          active?: boolean
+          connected_at?: string
+          created_at?: string
+          default_id_empreendimento?: number | null
+          default_id_funnel?: number | null
+          id?: string
+          id_empresa?: number
+          last_error?: string | null
+          last_event_at?: string | null
+          platform_account_id?: string | null
+          refresh_token?: string | null
+          token_expires_at?: string | null
+          updated_at?: string
+          webhook_secret_hash?: string | null
+          webhook_uuid?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_rd_connections_default_id_empreendimento_fkey"
+            columns: ["default_id_empreendimento"]
+            isOneToOne: false
+            referencedRelation: "empreendimento"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_rd_connections_default_id_funnel_fkey"
+            columns: ["default_id_funnel"]
+            isOneToOne: false
+            referencedRelation: "crm_funnels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_rd_connections_id_empresa_fkey"
+            columns: ["id_empresa"]
+            isOneToOne: true
+            referencedRelation: "empresa_dados"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_rd_events: {
+        Row: {
+          connection_id: string | null
+          contact_email: string | null
+          contact_uuid: string | null
+          crm_lead_id: number | null
+          error: string | null
+          event_identifier: string | null
+          event_key: string
+          event_timestamp: string | null
+          event_type: string
+          id: string
+          id_empreendimento: number | null
+          id_empresa: number
+          id_funnel: number | null
+          processed_at: string | null
+          raw_data: Json
+          received_at: string
+          source_mapping_id: string | null
+          status: string
+        }
+        Insert: {
+          connection_id?: string | null
+          contact_email?: string | null
+          contact_uuid?: string | null
+          crm_lead_id?: number | null
+          error?: string | null
+          event_identifier?: string | null
+          event_key: string
+          event_timestamp?: string | null
+          event_type: string
+          id?: string
+          id_empreendimento?: number | null
+          id_empresa: number
+          id_funnel?: number | null
+          processed_at?: string | null
+          raw_data: Json
+          received_at?: string
+          source_mapping_id?: string | null
+          status?: string
+        }
+        Update: {
+          connection_id?: string | null
+          contact_email?: string | null
+          contact_uuid?: string | null
+          crm_lead_id?: number | null
+          error?: string | null
+          event_identifier?: string | null
+          event_key?: string
+          event_timestamp?: string | null
+          event_type?: string
+          id?: string
+          id_empreendimento?: number | null
+          id_empresa?: number
+          id_funnel?: number | null
+          processed_at?: string | null
+          raw_data?: Json
+          received_at?: string
+          source_mapping_id?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_rd_events_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "crm_rd_connections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_rd_events_crm_lead_id_fkey"
+            columns: ["crm_lead_id"]
+            isOneToOne: false
+            referencedRelation: "crm_leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_rd_events_id_empreendimento_fkey"
+            columns: ["id_empreendimento"]
+            isOneToOne: false
+            referencedRelation: "empreendimento"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_rd_events_id_empresa_fkey"
+            columns: ["id_empresa"]
+            isOneToOne: false
+            referencedRelation: "empresa_dados"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_rd_events_id_funnel_fkey"
+            columns: ["id_funnel"]
+            isOneToOne: false
+            referencedRelation: "crm_funnels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_rd_events_source_mapping_id_fkey"
+            columns: ["source_mapping_id"]
+            isOneToOne: false
+            referencedRelation: "crm_rd_source_mappings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_rd_source_mappings: {
+        Row: {
+          active: boolean
+          connection_id: string
+          created_at: string
+          event_identifier: string
+          id: string
+          id_empreendimento: number | null
+          id_empresa: number
+          id_funnel: number | null
+          last_seen_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          connection_id: string
+          created_at?: string
+          event_identifier: string
+          id?: string
+          id_empreendimento?: number | null
+          id_empresa: number
+          id_funnel?: number | null
+          last_seen_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          connection_id?: string
+          created_at?: string
+          event_identifier?: string
+          id?: string
+          id_empreendimento?: number | null
+          id_empresa?: number
+          id_funnel?: number | null
+          last_seen_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_rd_source_mappings_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "crm_rd_connections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_rd_source_mappings_id_empreendimento_fkey"
+            columns: ["id_empreendimento"]
+            isOneToOne: false
+            referencedRelation: "empreendimento"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_rd_source_mappings_id_empresa_fkey"
+            columns: ["id_empresa"]
+            isOneToOne: false
+            referencedRelation: "empresa_dados"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_rd_source_mappings_id_funnel_fkey"
+            columns: ["id_funnel"]
+            isOneToOne: false
+            referencedRelation: "crm_funnels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       crm_stages: {
         Row: {
           ativo: boolean | null
           cor: string | null
           created_at: string | null
+          global_stage_id: number | null
           id: number
           id_empresa: number
           id_funnel: number | null
@@ -1413,6 +1669,7 @@ export type Database = {
           ativo?: boolean | null
           cor?: string | null
           created_at?: string | null
+          global_stage_id?: number | null
           id?: number
           id_empresa: number
           id_funnel?: number | null
@@ -1423,6 +1680,7 @@ export type Database = {
           ativo?: boolean | null
           cor?: string | null
           created_at?: string | null
+          global_stage_id?: number | null
           id?: number
           id_empresa?: number
           id_funnel?: number | null
@@ -1430,6 +1688,13 @@ export type Database = {
           ordem?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "crm_stages_global_stage_id_fkey"
+            columns: ["global_stage_id"]
+            isOneToOne: false
+            referencedRelation: "crm_global_stages"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "crm_stages_id_empresa_fkey"
             columns: ["id_empresa"]
@@ -1450,6 +1715,7 @@ export type Database = {
         Row: {
           cor: string | null
           created_at: string | null
+          global_tag_id: number | null
           id: number
           id_empresa: number
           nome: string
@@ -1457,6 +1723,7 @@ export type Database = {
         Insert: {
           cor?: string | null
           created_at?: string | null
+          global_tag_id?: number | null
           id?: number
           id_empresa: number
           nome: string
@@ -1464,11 +1731,19 @@ export type Database = {
         Update: {
           cor?: string | null
           created_at?: string | null
+          global_tag_id?: number | null
           id?: number
           id_empresa?: number
           nome?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "crm_tags_global_tag_id_fkey"
+            columns: ["global_tag_id"]
+            isOneToOne: false
+            referencedRelation: "crm_global_tags"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "crm_tags_id_empresa_fkey"
             columns: ["id_empresa"]
@@ -1651,6 +1926,7 @@ export type Database = {
           id_meta_account: string | null
           id_phone_number: string | null
           nome: string
+          nome_atendente_ia: string | null
           numero: string | null
           numero_superior: string | null
           redes_sociais: string | null
@@ -1675,6 +1951,7 @@ export type Database = {
           id_meta_account?: string | null
           id_phone_number?: string | null
           nome: string
+          nome_atendente_ia?: string | null
           numero?: string | null
           numero_superior?: string | null
           redes_sociais?: string | null
@@ -1699,6 +1976,7 @@ export type Database = {
           id_meta_account?: string | null
           id_phone_number?: string | null
           nome?: string
+          nome_atendente_ia?: string | null
           numero?: string | null
           numero_superior?: string | null
           redes_sociais?: string | null
@@ -2451,6 +2729,7 @@ export type Database = {
           duplicado: string | null
           empresa_id: number
           id: number
+          id_empreendimento: number | null
           lead_quente: string | null
           motivo_perda_sem_interesse: string | null
           perdido_ia: string | null
@@ -2463,6 +2742,7 @@ export type Database = {
           duplicado?: string | null
           empresa_id: number
           id?: number
+          id_empreendimento?: number | null
           lead_quente?: string | null
           motivo_perda_sem_interesse?: string | null
           perdido_ia?: string | null
@@ -2475,6 +2755,7 @@ export type Database = {
           duplicado?: string | null
           empresa_id?: number
           id?: number
+          id_empreendimento?: number | null
           lead_quente?: string | null
           motivo_perda_sem_interesse?: string | null
           perdido_ia?: string | null
@@ -2488,6 +2769,13 @@ export type Database = {
             columns: ["empresa_id"]
             isOneToOne: false
             referencedRelation: "empresa_dados"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rd_steps_id_empreendimento_fkey"
+            columns: ["id_empreendimento"]
+            isOneToOne: false
+            referencedRelation: "empreendimento"
             referencedColumns: ["id"]
           },
         ]
@@ -2742,16 +3030,84 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      crm_assert_super_admin: { Args: never; Returns: undefined }
+      crm_assignee_belongs_to_empresa: {
+        Args: { p_crm_user_id: string; p_id_empresa: number }
+        Returns: boolean
+      }
+      crm_can_access_lead: { Args: { p_lead_id: number }; Returns: boolean }
+      crm_can_manage_empresa: {
+        Args: { p_id_empresa: number }
+        Returns: boolean
+      }
+      crm_current_empresa_id: { Args: never; Returns: number }
+      crm_current_role: { Args: never; Returns: string }
+      crm_current_user_id: { Args: never; Returns: string }
+      crm_empreendimento_belongs_to_empresa: {
+        Args: { p_id_empreendimento: number; p_id_empresa: number }
+        Returns: boolean
+      }
+      crm_enqueue_fila_lead_if_enabled: {
+        Args: {
+          p_crm_lead_id: number
+          p_id_empreendimento: number
+          p_id_empresa: number
+        }
+        Returns: undefined
+      }
+      crm_generate_hub_access_code: { Args: never; Returns: string }
       crm_get_my_empresa: { Args: never; Returns: number }
       crm_get_my_id: { Args: never; Returns: string }
       crm_get_my_role: { Args: never; Returns: string }
-      crm_public_lead_history: {
-        Args: { p_codigo: string; p_lead_ref: string }
-        Returns: Json
-      }
-      crm_normalize_lead_origin: {
-        Args: { p_modulo?: string | null; p_origem: string | null }
+      crm_get_or_create_ai_user: {
+        Args: { p_id_empresa: number }
         Returns: string
+      }
+      crm_global_custom_field_archive: {
+        Args: { p_id: number }
+        Returns: undefined
+      }
+      crm_global_custom_field_create: {
+        Args: {
+          p_nome: string
+          p_obrigatorio: boolean
+          p_opcoes: string[]
+          p_tipo: string
+        }
+        Returns: number
+      }
+      crm_global_custom_field_update: {
+        Args: {
+          p_id: number
+          p_nome: string
+          p_obrigatorio: boolean
+          p_opcoes: string[]
+        }
+        Returns: undefined
+      }
+      crm_global_custom_fields_reorder: {
+        Args: { p_ids: number[] }
+        Returns: undefined
+      }
+      crm_global_funnel_rename: { Args: { p_nome: string }; Returns: undefined }
+      crm_global_stage_create: { Args: { p_nome: string }; Returns: number }
+      crm_global_stage_delete: { Args: { p_id: number }; Returns: undefined }
+      crm_global_stage_update: {
+        Args: { p_id: number; p_nome: string }
+        Returns: undefined
+      }
+      crm_global_stages_reorder: {
+        Args: { p_ids: number[] }
+        Returns: undefined
+      }
+      crm_global_tag_create: {
+        Args: { p_cor?: string; p_nome: string }
+        Returns: number
+      }
+      crm_global_tag_delete: { Args: { p_id: number }; Returns: undefined }
+      crm_global_tag_update: {
+        Args: { p_cor: string; p_id: number; p_nome: string }
+        Returns: undefined
       }
       crm_ingest_meta_lead: {
         Args: {
@@ -2773,7 +3129,35 @@ export type Database = {
           was_inserted: boolean
         }[]
       }
+      crm_normalize_lead_origin: {
+        Args: { p_modulo?: string; p_origem: string }
+        Returns: string
+      }
+      crm_pause_ai_attendance: {
+        Args: { p_lead_id: number }
+        Returns: undefined
+      }
+      crm_public_lead_history: {
+        Args: { p_codigo: string; p_lead_ref: string }
+        Returns: Json
+      }
       crm_seed_default_stages: {
+        Args: { p_id_empresa: number }
+        Returns: undefined
+      }
+      crm_seed_default_tags: {
+        Args: { p_id_empresa: number }
+        Returns: undefined
+      }
+      crm_stage_belongs_to_empresa: {
+        Args: { p_id_empresa: number; p_stage_id: number }
+        Returns: boolean
+      }
+      crm_sync_company_global_config: {
+        Args: { p_id_empresa: number }
+        Returns: undefined
+      }
+      crm_sync_company_global_custom_fields: {
         Args: { p_id_empresa: number }
         Returns: undefined
       }
