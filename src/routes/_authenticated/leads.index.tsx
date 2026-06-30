@@ -138,12 +138,20 @@ function LeadsList() {
     enabled: !!me && companyId != null && funnelId != null,
     queryKey: ["leads-meta", companyId, funnelId],
     queryFn: async () => {
-      const [{ data: stages }, { data: tags }, { data: emps }, { data: users }] = await Promise.all([
+      const [stagesResult, tagsResult, empsResult, usersResult] = await Promise.all([
         supabase.from("crm_stages").select("id, nome, cor, global_stage_id").eq("id_empresa", companyId!).eq("ativo", true).order("ordem"),
         supabase.from("crm_tags").select("id, nome, cor").eq("id_empresa", companyId!),
         supabase.from("empreendimento").select("id, nome").eq("id_empresa", companyId!),
         supabase.from("crm_users").select("id, nome").eq("id_empresa", companyId!).eq("active", true),
       ]);
+      if (stagesResult.error) throw stagesResult.error;
+      if (tagsResult.error) throw tagsResult.error;
+      if (empsResult.error) throw empsResult.error;
+      if (usersResult.error) throw usersResult.error;
+      const { data: stages } = stagesResult;
+      const { data: tags } = tagsResult;
+      const { data: emps } = empsResult;
+      const { data: users } = usersResult;
       return { stages: stages ?? [], tags: tags ?? [], emps: emps ?? [], users: users ?? [] };
     },
   });

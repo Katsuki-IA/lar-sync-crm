@@ -193,12 +193,20 @@ function LeadDetail() {
     enabled: !!me && !!lead?.id_empresa,
     queryKey: ["lead-meta", lead?.id_empresa, lead?.crm_stage_id],
     queryFn: async () => {
-      const [{ data: stages }, { data: tags }, { data: emps }, { data: users }] = await Promise.all([
+      const [stagesResult, tagsResult, empsResult, usersResult] = await Promise.all([
         supabase.from("crm_stages").select("id, nome, cor, ativo, global_stage_id").eq("id_empresa", lead!.id_empresa).order("ordem"),
         supabase.from("crm_tags").select("id, nome, cor").eq("id_empresa", lead!.id_empresa),
         supabase.from("empreendimento").select("id, nome").eq("id_empresa", lead!.id_empresa),
         supabase.from("crm_users").select("id, nome").eq("id_empresa", lead!.id_empresa).eq("active", true),
       ]);
+      if (stagesResult.error) throw stagesResult.error;
+      if (tagsResult.error) throw tagsResult.error;
+      if (empsResult.error) throw empsResult.error;
+      if (usersResult.error) throw usersResult.error;
+      const { data: stages } = stagesResult;
+      const { data: tags } = tagsResult;
+      const { data: emps } = empsResult;
+      const { data: users } = usersResult;
       return {
         stages: (stages ?? []).filter((stage) => stage.ativo || stage.id === lead!.crm_stage_id),
         tags: tags ?? [],
