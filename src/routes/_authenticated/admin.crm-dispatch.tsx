@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { listEmpresas, getCrmDispatchSettings, saveCrmDispatchSettings } from "@/lib/admin.functions";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -36,6 +37,9 @@ function AdminCrmDispatchPage() {
   const [selectedCompanyId, setSelectedCompanyId] = useState("");
   const [withoutContactStageId, setWithoutContactStageId] = useState<string>(EMPTY_VALUE);
   const [withContactStageId, setWithContactStageId] = useState<string>(EMPTY_VALUE);
+  const [qualifiedExternalStageId, setQualifiedExternalStageId] = useState("");
+  const [visitScheduledExternalStageId, setVisitScheduledExternalStageId] = useState("");
+  const [lostExternalStageId, setLostExternalStageId] = useState("");
 
   const { data: companies = [], isLoading: companiesLoading } = useQuery({
     queryKey: ["admin_empresas"],
@@ -66,6 +70,9 @@ function AdminCrmDispatchPage() {
         ? String(configData.settings.stage_with_contact_id)
         : EMPTY_VALUE,
     );
+    setQualifiedExternalStageId(configData.settings.external_stage_qualified_id ?? "");
+    setVisitScheduledExternalStageId(configData.settings.external_stage_visit_scheduled_id ?? "");
+    setLostExternalStageId(configData.settings.external_stage_lost_id ?? "");
   }, [configData]);
 
   const selectedCompany = useMemo(
@@ -82,6 +89,9 @@ function AdminCrmDispatchPage() {
             withoutContactStageId === EMPTY_VALUE ? null : Number(withoutContactStageId),
           stage_with_contact_id:
             withContactStageId === EMPTY_VALUE ? null : Number(withContactStageId),
+          external_stage_qualified_id: qualifiedExternalStageId.trim() || null,
+          external_stage_visit_scheduled_id: visitScheduledExternalStageId.trim() || null,
+          external_stage_lost_id: lostExternalStageId.trim() || null,
         },
       }),
     onSuccess: async () => {
@@ -188,15 +198,58 @@ function AdminCrmDispatchPage() {
       </div>
 
       <div className="flex items-center justify-between gap-3 rounded-lg border border-dashed border-border p-4">
-        <div className="text-sm text-muted-foreground">
-          Etapas permitidas nesta configuração: Follow Up 1, Follow Up 2, Follow Up 3, Follow Up 4 e Visita Agendada.
+        <div className="w-full space-y-4">
+          <div className="text-sm text-muted-foreground">
+            Etapas permitidas nesta configuração: Follow Up 1, Follow Up 2, Follow Up 3, Follow Up 4 e Visita Agendada.
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="external-stage-qualified">ID da etapa no CRM: Qualificado</Label>
+              <Input
+                id="external-stage-qualified"
+                value={qualifiedExternalStageId}
+                onChange={(event) => setQualifiedExternalStageId(event.target.value)}
+                placeholder="Ex.: 12345"
+                disabled={isLoading}
+              />
+              <p className="text-xs text-muted-foreground">
+                Valor padrão. Se perdido ou visita agendada não estiverem preenchidos, este ID pode ser usado como fallback.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="external-stage-visit">ID da etapa no CRM: Visita agendada</Label>
+              <Input
+                id="external-stage-visit"
+                value={visitScheduledExternalStageId}
+                onChange={(event) => setVisitScheduledExternalStageId(event.target.value)}
+                placeholder="Ex.: 67890"
+                disabled={isLoading}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="external-stage-lost">ID da etapa no CRM: Perdido</Label>
+              <Input
+                id="external-stage-lost"
+                value={lostExternalStageId}
+                onChange={(event) => setLostExternalStageId(event.target.value)}
+                placeholder="Ex.: 99999"
+                disabled={isLoading}
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end">
+            <Button
+              onClick={() => saveMutation.mutate()}
+              disabled={!selectedCompanyId || saveMutation.isPending || isLoading}
+            >
+              {saveMutation.isPending ? "Salvando..." : "Salvar configuração"}
+            </Button>
+          </div>
         </div>
-        <Button
-          onClick={() => saveMutation.mutate()}
-          disabled={!selectedCompanyId || saveMutation.isPending || isLoading}
-        >
-          {saveMutation.isPending ? "Salvando..." : "Salvar configuração"}
-        </Button>
       </div>
     </Card>
   );
