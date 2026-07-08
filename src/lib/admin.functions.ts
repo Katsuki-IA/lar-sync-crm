@@ -7,6 +7,14 @@ import {
   PASSWORD_POLICY_MESSAGE,
 } from "@/lib/password-policy";
 
+const CRM_DISPATCH_STAGE_NAMES = [
+  "Follow Up 1",
+  "Follow Up 2",
+  "Follow Up 3",
+  "Follow Up 4",
+  "Visita Agendada",
+] as const;
+
 async function getMe(supabase: any, userId: string) {
   const { data, error } = await supabase
     .from("crm_users")
@@ -210,4 +218,90 @@ export const listAllCrmUsers = createServerFn({ method: "GET" })
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
     return data ?? [];
+  });
+
+// -------- Configuração de envio ao CRM por empresa (super admin) --------
+export const getCrmDispatchSettings = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id_empresa: z.number().int().positive() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const me = await getMe(context.supabase, context.userId);
+    if (me.role !== "super_admin") throw new Error("Sem permissão");
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const [{ data: stages, error: stagesError }, { data: settings, error: settingsError }] =
+      await Promise.all([
+        supabaseAdmin
+          .from("crm_stages")
+          .select("id,nome,ordem")
+          .eq("id_empresa", data.id_empresa)
+          .in("nome", [...CRM_DISPATCH_STAGE_NAMES])
+          .eq("ativo", true)
+          .order("ordem", { ascending: true }),
+        supabaseAdmin
+          .from("crm_lead_dispatch_settings")
+          .select("stage_without_contact_id,stage_with_contact_id,updated_at")
+          .eq("id_empresa", data.id_empresa)
+          .maybeSingle(),
+      ]);
+
+    if (stagesError) throw new Error(stagesError.message);
+    if (settingsError) throw new Error(settingsError.message);
+
+    return {
+      stages: (stages ?? []) as Array<{ id: number; nome: string; ordem: number }>,
+      settings: {
+        stage_without_contact_id: settings?.stage_without_contact_id ?? null,
+        stage_with_contact_id: settings?.stage_with_contact_id ?? null,
+        updated_at: settings?.updated_at ?? null,
+      },
+    };
+  });
+
+export const saveCrmDispatchSettings = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        id_empresa: z.number().int().positive(),
+        stage_without_contact_id: z.number().int().positive().nullable(),
+        stage_with_contact_id: z.number().int().positive().nullable(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const me = await getMe(context.supabase, context.userId);
+    if (me.role !== "super_admin") throw new Error("Sem permissão");
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: allowedStages, error: allowedStagesError } = await supabaseAdmin
+      .from("crm_stages")
+      .select("id,nome")
+      .eq("id_empresa", data.id_empresa)
+      .in("nome", [...CRM_DISPATCH_STAGE_NAMES])
+      .eq("ativo", true);
+
+    if (allowedStagesError) throw new Error(allowedStagesError.message);
+
+    const allowedIds = new Set<number>((allowedStages ?? []).map((stage: any) => stage.id as number));
+    if (data.stage_without_contact_id != null && !allowedIds.has(data.stage_without_contact_id)) {
+      throw new Error("A etapa selecionada para lead sem contato não pertence a esta empresa");
+    }
+    if (data.stage_with_contact_id != null && !allowedIds.has(data.stage_with_contact_id)) {
+      throw new Error("A etapa selecionada para lead com contato não pertence a esta empresa");
+    }
+
+    const { error } = await supabaseAdmin.from("crm_lead_dispatch_settings").upsert(
+      {
+        id_empresa: data.id_empresa,
+        stage_without_contact_id: data.stage_without_contact_id,
+        stage_with_contact_id: data.stage_with_contact_id,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "id_empresa" },
+    );
+
+    if (error) throw new Error(error.message);
+    return { ok: true };
   });
