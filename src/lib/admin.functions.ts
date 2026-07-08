@@ -118,6 +118,44 @@ export const setCrmUserActive = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+// -------- Renomear usuário técnico da IA (super admin) --------
+export const renameAiCrmUser = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z.object({ user_id: z.string().uuid(), nome: z.string().min(2).max(120) }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const me = await getMe(context.supabase, context.userId);
+    if (me.role !== "super_admin") throw new Error("Sem permissão");
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: target, error: targetError } = await supabaseAdmin
+      .from("crm_users")
+      .select("id, auth_user_id, email, role")
+      .eq("id", data.user_id)
+      .maybeSingle();
+
+    if (targetError || !target) throw new Error("Usuário não encontrado");
+
+    const isAiUser =
+      !target.auth_user_id &&
+      target.role === "agent" &&
+      typeof target.email === "string" &&
+      /^ia\+\d+@hub\.katsuki\.local$/i.test(target.email);
+
+    if (!isAiUser) {
+      throw new Error("Apenas o usuário técnico da IA pode ser renomeado aqui");
+    }
+
+    const { error } = await supabaseAdmin
+      .from("crm_users")
+      .update({ nome: data.nome.trim() })
+      .eq("id", data.user_id);
+
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
 // -------- Listar todas empresas (super admin) --------
 export const listEmpresas = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -167,7 +205,7 @@ export const listAllCrmUsers = createServerFn({ method: "GET" })
     if (!allowed.length) return [];
     const { data, error } = await supabaseAdmin
       .from("crm_users")
-      .select("id,nome,email,role,active,id_empresa,created_at")
+      .select("id,nome,email,role,active,id_empresa,created_at,auth_user_id")
       .in("id_empresa", allowed)
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
