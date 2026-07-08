@@ -15,6 +15,13 @@ const CRM_DISPATCH_STAGE_NAMES = [
   "Visita Agendada",
 ] as const;
 
+const CRM_DISPATCH_WITHOUT_CONTACT_STAGE_NAMES = [
+  "Follow Up 1",
+  "Follow Up 2",
+  "Follow Up 3",
+  "Follow Up 4",
+] as const;
+
 async function getMe(supabase: any, userId: string) {
   const { data, error } = await supabase
     .from("crm_users")
@@ -291,7 +298,16 @@ export const saveCrmDispatchSettings = createServerFn({ method: "POST" })
     if (allowedStagesError) throw new Error(allowedStagesError.message);
 
     const allowedIds = new Set<number>((allowedStages ?? []).map((stage: any) => stage.id as number));
-    if (data.stage_without_contact_id != null && !allowedIds.has(data.stage_without_contact_id)) {
+    const withoutContactAllowedIds = new Set<number>(
+      (allowedStages ?? [])
+        .filter((stage: any) => CRM_DISPATCH_WITHOUT_CONTACT_STAGE_NAMES.includes(stage.nome))
+        .map((stage: any) => stage.id as number),
+    );
+
+    if (
+      data.stage_without_contact_id != null &&
+      !withoutContactAllowedIds.has(data.stage_without_contact_id)
+    ) {
       throw new Error("A etapa selecionada para lead sem contato não pertence a esta empresa");
     }
     if (data.stage_with_contact_id != null && !allowedIds.has(data.stage_with_contact_id)) {

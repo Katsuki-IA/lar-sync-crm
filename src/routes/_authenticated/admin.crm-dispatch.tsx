@@ -27,6 +27,7 @@ type StageOption = {
 };
 
 const EMPTY_VALUE = "__none__";
+const WITHOUT_CONTACT_STAGE_NAMES = new Set(["Follow Up 1", "Follow Up 2", "Follow Up 3", "Follow Up 4"]);
 
 function AdminCrmDispatchPage() {
   const qc = useQueryClient();
@@ -104,6 +105,7 @@ function AdminCrmDispatchPage() {
   });
 
   const stages = (configData?.stages ?? []) as StageOption[];
+  const withoutContactStages = stages.filter((stage) => WITHOUT_CONTACT_STAGE_NAMES.has(stage.nome));
   const isLoading = companiesLoading || (!!selectedCompanyId && configLoading);
 
   return (
@@ -161,7 +163,7 @@ function AdminCrmDispatchPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value={EMPTY_VALUE}>Não configurado</SelectItem>
-                {stages.map((stage) => (
+                {withoutContactStages.map((stage) => (
                   <SelectItem key={stage.id} value={String(stage.id)}>
                     {stage.nome} (ID #{stage.id})
                   </SelectItem>
@@ -200,7 +202,7 @@ function AdminCrmDispatchPage() {
       <div className="flex items-center justify-between gap-3 rounded-lg border border-dashed border-border p-4">
         <div className="w-full space-y-4">
           <div className="text-sm text-muted-foreground">
-            Etapas permitidas nesta configuração: Follow Up 1, Follow Up 2, Follow Up 3, Follow Up 4 e Visita Agendada.
+            Para lead sem contato: Follow Up 1, Follow Up 2, Follow Up 3 e Follow Up 4. Para lead com contato: Follow Up 1, Follow Up 2, Follow Up 3, Follow Up 4 e Visita Agendada.
           </div>
 
           <div className="grid gap-4 lg:grid-cols-3">
