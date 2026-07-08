@@ -237,6 +237,11 @@ export const getCrmDispatchSettings = createServerFn({ method: "GET" })
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
+    const { error: syncError } = await supabaseAdmin.rpc("crm_sync_company_global_config", {
+      p_id_empresa: data.id_empresa,
+    });
+    if (syncError) throw new Error(syncError.message);
+
     const [{ data: stages, error: stagesError }, { data: settings, error: settingsError }] =
       await Promise.all([
         supabaseAdmin
@@ -288,6 +293,12 @@ export const saveCrmDispatchSettings = createServerFn({ method: "POST" })
     if (me.role !== "super_admin") throw new Error("Sem permissão");
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { error: syncError } = await supabaseAdmin.rpc("crm_sync_company_global_config", {
+      p_id_empresa: data.id_empresa,
+    });
+    if (syncError) throw new Error(syncError.message);
+
     const { data: allowedStages, error: allowedStagesError } = await supabaseAdmin
       .from("crm_stages")
       .select("id,nome")
