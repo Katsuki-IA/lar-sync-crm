@@ -1,7 +1,8 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Flame, ArrowLeft, Send, Plus, X, Trash2, Pencil } from "lucide-react";
+import { Flame, ArrowLeft, Send, Plus, X, Trash2, Pencil, SendToBack } from "lucide-react";
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -31,6 +32,7 @@ import {
 } from "@/lib/lead-custom-fields";
 import { formatLeadOrigin } from "@/lib/lead-origin";
 import { stageColor } from "@/lib/lead-visuals";
+import { sendLeadToExternalCrm } from "@/lib/external-crm.functions";
 
 export const Route = createFileRoute("/_authenticated/leads/$id")({
   component: LeadDetail,
@@ -42,6 +44,7 @@ type LeadActivity = {
   descricao: string | null;
   created_at: string | null;
   crm_user_id: string | null;
+  metadata?: any;
   crm_users?: { nome: string | null } | null;
 };
 
@@ -54,9 +57,11 @@ function LeadDetail() {
   const [note, setNote] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmText, setConfirmText] = useState("");
+  const [sendCrmConfirmOpen, setSendCrmConfirmOpen] = useState(false);
   const [customFieldsOpen, setCustomFieldsOpen] = useState(false);
   const [customDraft, setCustomDraft] = useState<LeadCustomFieldValues>({});
   const [customErrors, setCustomErrors] = useState<Record<number, string>>({});
+  const sendLeadToCrmFn = useServerFn(sendLeadToExternalCrm);
 
   const deleteMut = useMutation({
     mutationFn: async () => {
@@ -231,7 +236,7 @@ function LeadDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("crm_lead_activities")
-        .select("id, tipo, descricao, created_at, crm_user_id, crm_users(nome)")
+        .select("id, tipo, descricao, created_at, crm_user_id, metadata, crm_users(nome)")
         .eq("lead_id", leadId)
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -308,6 +313,19 @@ function LeadDetail() {
       toast.success("Nota adicionada");
     },
   });
+  const sendCrmMut = useMutation({
+    mutationFn: async () => {
+      return sendLeadToCrmFn({ data: { lead_id: leadId } });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["lead", leadId] });
+      qc.invalidateQueries({ queryKey: ["lead-activities", leadId] });
+      qc.invalidateQueries({ queryKey: ["leads-list"] });
+      setSendCrmConfirmOpen(false);
+      toast.success("Lead enviado ao CRM");
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
 
   if (isLoading || !lead) return <p className="text-muted-foreground">Carregando…</p>;
 
@@ -317,7 +335,16 @@ function LeadDetail() {
   const currentStageColor = stageColor(stage?.nome, stage?.cor);
   const userMap = new Map((meta?.users ?? []).map((u) => [u.id, u.nome]));
   const canManage = me?.role === "super_admin";
+  const canSendToCrm = me?.role === "super_admin" || me?.role === "manager";
   const aiPaused = aiStatus?.paused ?? false;
+  const crmSent = (activities ?? []).some(
+    (activity: any) =>
+      activity?.tipo === "crm_export" &&
+      (
+        activity?.metadata?.event === "external_crm_sent" ||
+        String(activity?.descricao ?? "").toLowerCase().includes("lead enviado ao crm cv com sucesso")
+      ),
+  );
 
   return (
     <div className="space-y-6 max-w-5xl">
@@ -337,9 +364,20 @@ function LeadDetail() {
                 IA pausada
               </Badge>
             )}
+            {crmSent && (
+              <Badge className="border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-50">
+                Enviado CRM
+              </Badge>
+            )}
           </div>
           <p className="text-sm text-muted-foreground">{lead.telefone} · {lead.email ?? "sem email"}</p>
         </div>
+        {canSendToCrm && !crmSent && (
+          <Button variant="outline" onClick={() => setSendCrmConfirmOpen(true)}>
+            <SendToBack className="mr-2 h-4 w-4" />
+            Enviar para CRM
+          </Button>
+        )}
         {canManage && <Button
           variant="ghost"
           size="icon"
@@ -407,6 +445,16 @@ function LeadDetail() {
                   <div className="mt-1">
                     <Badge className="border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-50">
                       Pausado
+                    </Badge>
+                  </div>
+                </div>
+              )}
+              {crmSent && (
+                <div>
+                  <label className="text-xs text-muted-foreground">Envio ao CRM</label>
+                  <div className="mt-1">
+                    <Badge className="border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-50">
+                      Enviado com sucesso
                     </Badge>
                   </div>
                 </div>
@@ -560,6 +608,28 @@ function LeadDetail() {
         </DialogContent>
       </Dialog>
 
+      <Dialog open={sendCrmConfirmOpen} onOpenChange={setSendCrmConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Enviar lead para o CRM?</DialogTitle>
+            <DialogDescription>
+              Ao confirmar, o HUB enviará este lead para o CRM principal configurado para a empresa.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-lg border border-primary/25 bg-primary/5 px-4 py-3 text-sm text-foreground">
+            O lead será criado no CRM externo e, em caso de sucesso, será marcado como <strong>Enviado ao CRM</strong> no HUB.
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setSendCrmConfirmOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={() => sendCrmMut.mutate()} disabled={sendCrmMut.isPending}>
+              {sendCrmMut.isPending ? "Enviando..." : "Confirmar envio"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent>
           <DialogHeader>
@@ -650,6 +720,7 @@ function labelTipo(t: string) {
     case "custom_fields": return "Campos";
     case "meta_resubmission": return "Meta Ads";
     case "rd_conversion": return "RD Station";
+    case "crm_export": return "Envio CRM";
     case "system": return "Sistema";
     default: return t;
   }

@@ -1,10 +1,11 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { useState, useMemo, useEffect } from "react";
 import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Search, Plus, X, Users as UsersIcon, List, LayoutGrid, MoreHorizontal, Pencil, Eye, ArrowRightLeft, UserCog, Trash2, Download, CalendarIcon, Upload, PauseCircle, Bot, MessagesSquare, Link2 } from "lucide-react";
+import { Search, Plus, X, Users as UsersIcon, List, LayoutGrid, MoreHorizontal, Pencil, Eye, ArrowRightLeft, UserCog, Trash2, Download, CalendarIcon, Upload, PauseCircle, Bot, MessagesSquare, Link2, SendToBack } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useCrmUser } from "@/hooks/use-crm-user";
@@ -36,6 +37,7 @@ import { toast } from "sonner";
 import { stageColor } from "@/lib/lead-visuals";
 import { KanbanView } from "@/components/kanban-view";
 import { cn } from "@/lib/utils";
+import { sendLeadToExternalCrm } from "@/lib/external-crm.functions";
 
 export const Route = createFileRoute("/_authenticated/leads/")({
   component: LeadsList,
@@ -55,6 +57,7 @@ type LeadListRow = {
   historico_token: string | null;
   ai_paused?: boolean;
   ai_active?: boolean;
+  crm_sent?: boolean;
 };
 
 type AiStatusFilter = "all" | "active" | "paused";
@@ -125,9 +128,11 @@ function LeadsList() {
   const [rowDeleteLead, setRowDeleteLead] = useState<number | null>(null);
   const [rowPauseAiLead, setRowPauseAiLead] = useState<number | null>(null);
   const [rowStartAiLead, setRowStartAiLead] = useState<number | null>(null);
+  const [rowSendCrmLead, setRowSendCrmLead] = useState<number | null>(null);
   const [pickStage, setPickStage] = useState<string>("");
   const [pickUser, setPickUser] = useState<string>("");
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const sendLeadToCrmFn = useServerFn(sendLeadToExternalCrm);
 
   const filters = useMemo(
     () => ({ search, stage, tagId, empId, userId, aiStatus, dateFrom, dateTo, page }),
@@ -247,6 +252,12 @@ function LeadsList() {
       ]);
       if (automationError) throw automationError;
       if (queueError) throw queueError;
+      const { data: exportActivities, error: exportActivitiesError } = await supabase
+        .from("crm_lead_activities")
+        .select("lead_id,tipo,descricao,metadata")
+        .eq("tipo", "crm_export")
+        .in("lead_id", baseRows.map((row) => row.id));
+      if (exportActivitiesError) throw exportActivitiesError;
 
       const activeIds = new Set(
         [
@@ -257,7 +268,16 @@ function LeadsList() {
       const pausedIds = new Set(
         (automationRows ?? [])
           .filter((row) => row.atendimento_humano || String(row.status ?? "").trim().toLowerCase() === "atendimento humano")
-          .map((row) => Number(row.id_crm))
+            .map((row) => Number(row.id_crm))
+            .filter(Number.isFinite),
+      );
+      const sentIds = new Set(
+        (exportActivities ?? [])
+          .filter((activity: any) =>
+            activity?.metadata?.event === "external_crm_sent" ||
+            String(activity?.descricao ?? "").toLowerCase().includes("lead enviado ao crm cv com sucesso"),
+          )
+          .map((activity: any) => Number(activity.lead_id))
           .filter(Number.isFinite),
       );
 
@@ -266,6 +286,7 @@ function LeadsList() {
           ...row,
           ai_active: activeIds.has(row.id),
           ai_paused: pausedIds.has(row.id),
+          crm_sent: sentIds.has(row.id),
         })),
         count: count ?? 0,
       };
@@ -503,6 +524,19 @@ function LeadsList() {
       qc.invalidateQueries({ queryKey: ["lead-activities"] });
       toast.success("Lead enviado para Atendimento IA");
       setRowStartAiLead(null);
+    },
+    onError: (e: Error) => toast.error("Erro", { description: e.message }),
+  });
+  const sendCrmMut = useMutation({
+    mutationFn: async (leadId: number) => {
+      return sendLeadToCrmFn({ data: { lead_id: leadId } });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["leads-list"] });
+      qc.invalidateQueries({ queryKey: ["lead"] });
+      qc.invalidateQueries({ queryKey: ["lead-activities"] });
+      toast.success("Lead enviado ao CRM");
+      setRowSendCrmLead(null);
     },
     onError: (e: Error) => toast.error("Erro", { description: e.message }),
   });
@@ -832,6 +866,11 @@ function LeadsList() {
                                     Pausado
                                   </span>
                                 )}
+                                {l.crm_sent && (
+                                  <span className="shrink-0 rounded-full border border-emerald-300 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
+                                    Enviado CRM
+                                  </span>
+                                )}
                               </div>
                               {l.email && <div className="text-xs text-muted-foreground truncate">{l.email}</div>}
                             </div>
@@ -913,6 +952,11 @@ function LeadsList() {
                                     <Bot className="h-4 w-4 mr-2" /> Enviar para Atendimento IA
                                   </DropdownMenuItem>
                                 ) : null)}
+                                {(me?.role === "super_admin" || me?.role === "manager") && !l.crm_sent && (
+                                  <DropdownMenuItem onClick={() => setRowSendCrmLead(l.id)}>
+                                    <SendToBack className="h-4 w-4 mr-2" /> Enviar para CRM
+                                  </DropdownMenuItem>
+                                )}
                                 {me?.role === "super_admin" && (<>
                                   <DropdownMenuSeparator />
                                   <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setRowDeleteLead(l.id)}><Trash2 className="h-4 w-4 mr-2" /> Excluir</DropdownMenuItem>
@@ -1066,6 +1110,38 @@ function LeadsList() {
                 }}
               >
                 {startAiMut.isPending ? "Enviando..." : "Confirmar envio"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog
+          open={rowSendCrmLead != null}
+          onOpenChange={(open) => {
+            if (!open) setRowSendCrmLead(null);
+          }}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Enviar lead para o CRM?</DialogTitle>
+              <DialogDescription>
+                Ao confirmar, o HUB enviará este lead para o CRM principal configurado para a empresa.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="rounded-lg border border-primary/25 bg-primary/5 px-4 py-3 text-sm text-foreground">
+              O lead será criado no CRM externo e, em caso de sucesso, será marcado como <strong>Enviado ao CRM</strong> no HUB.
+            </div>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setRowSendCrmLead(null)}>
+                Cancelar
+              </Button>
+              <Button
+                disabled={sendCrmMut.isPending || rowSendCrmLead == null}
+                onClick={() => {
+                  if (rowSendCrmLead != null) sendCrmMut.mutate(rowSendCrmLead);
+                }}
+              >
+                {sendCrmMut.isPending ? "Enviando..." : "Confirmar envio"}
               </Button>
             </DialogFooter>
           </DialogContent>
