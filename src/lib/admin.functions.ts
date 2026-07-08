@@ -22,6 +22,11 @@ const CRM_DISPATCH_WITHOUT_CONTACT_STAGE_NAMES = [
   "Follow Up 4",
 ] as const;
 
+const CRM_DISPATCH_STAGE_NAME_SET = new Set<string>(CRM_DISPATCH_STAGE_NAMES);
+const CRM_DISPATCH_WITHOUT_CONTACT_STAGE_NAME_SET = new Set<string>(
+  CRM_DISPATCH_WITHOUT_CONTACT_STAGE_NAMES,
+);
+
 async function getMe(supabase: any, userId: string) {
   const { data, error } = await supabase
     .from("crm_users")
@@ -237,32 +242,85 @@ export const getCrmDispatchSettings = createServerFn({ method: "GET" })
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const { error: syncError } = await supabaseAdmin.rpc("crm_sync_company_global_config", {
-      p_id_empresa: data.id_empresa,
-    });
-    if (syncError) throw new Error(syncError.message);
+    const loadStages = async () => {
+      const [{ data: globalStages, error: globalStagesError }, { data: localStages, error: localStagesError }] =
+        await Promise.all([
+          supabaseAdmin
+            .from("crm_global_stages")
+            .select("id,nome,ordem")
+            .eq("ativo", true)
+            .order("ordem", { ascending: true }),
+          supabaseAdmin
+            .from("crm_stages")
+            .select("id,nome,ordem,global_stage_id")
+            .eq("id_empresa", data.id_empresa)
+            .eq("ativo", true),
+        ]);
 
-    const [{ data: stages, error: stagesError }, { data: settings, error: settingsError }] =
-      await Promise.all([
-        supabaseAdmin
-          .from("crm_stages")
-          .select("id,nome,ordem")
-          .eq("id_empresa", data.id_empresa)
-          .in("nome", [...CRM_DISPATCH_STAGE_NAMES])
-          .eq("ativo", true)
-          .order("ordem", { ascending: true }),
-        supabaseAdmin
-          .from("crm_lead_dispatch_settings")
-          .select("stage_without_contact_id,stage_with_contact_id,external_stage_qualified_id,external_stage_visit_scheduled_id,external_stage_lost_id,updated_at")
-          .eq("id_empresa", data.id_empresa)
-          .maybeSingle(),
-      ]);
+      if (globalStagesError) throw new Error(globalStagesError.message);
+      if (localStagesError) throw new Error(localStagesError.message);
 
-    if (stagesError) throw new Error(stagesError.message);
+      const localByGlobalId = new Map<number, number>();
+      const localByName = new Map<string, { id: number; ordem: number }>();
+      for (const stage of localStages ?? []) {
+        if (stage.global_stage_id != null) {
+          localByGlobalId.set(stage.global_stage_id as number, stage.id as number);
+        }
+        if (typeof stage.nome === "string") {
+          localByName.set(stage.nome.trim().toLowerCase(), {
+            id: stage.id as number,
+            ordem: stage.ordem as number,
+          });
+        }
+      }
+
+      const stages = (globalStages ?? [])
+        .filter((stage: any) => CRM_DISPATCH_STAGE_NAME_SET.has(stage.nome))
+        .map((stage: any) => {
+          const fallbackLocal = localByName.get(String(stage.nome).trim().toLowerCase());
+          return {
+            id: localByGlobalId.get(stage.id as number) ?? fallbackLocal?.id,
+            nome: stage.nome as string,
+            ordem: fallbackLocal?.ordem ?? (stage.ordem as number),
+            global_stage_id: stage.id as number,
+          };
+        })
+        .filter((stage) => stage.id != null);
+
+      if (stages.length > 0) {
+        return stages as Array<{ id: number; nome: string; ordem: number; global_stage_id: number }>;
+      }
+
+      return (localStages ?? [])
+        .filter((stage: any) => CRM_DISPATCH_STAGE_NAME_SET.has(String(stage.nome ?? "").trim()))
+        .map((stage: any) => ({
+          id: stage.id as number,
+          nome: stage.nome as string,
+          ordem: stage.ordem as number,
+          global_stage_id: stage.global_stage_id as number | null,
+        }))
+        .sort((a, b) => a.ordem - b.ordem);
+    };
+
+    let stages = await loadStages();
+    if (stages.length === 0) {
+      const { error: syncError } = await supabaseAdmin.rpc("crm_sync_company_global_config", {
+        p_id_empresa: data.id_empresa,
+      });
+      if (syncError) throw new Error(syncError.message);
+      stages = await loadStages();
+    }
+
+    const { data: settings, error: settingsError } = await supabaseAdmin
+      .from("crm_lead_dispatch_settings")
+      .select("stage_without_contact_id,stage_with_contact_id,external_stage_qualified_id,external_stage_visit_scheduled_id,external_stage_lost_id,updated_at")
+      .eq("id_empresa", data.id_empresa)
+      .maybeSingle();
+
     if (settingsError) throw new Error(settingsError.message);
 
     return {
-      stages: (stages ?? []) as Array<{ id: number; nome: string; ordem: number }>,
+      stages: stages.map((stage) => ({ id: stage.id, nome: stage.nome, ordem: stage.ordem })),
       settings: {
         stage_without_contact_id: settings?.stage_without_contact_id ?? null,
         stage_with_contact_id: settings?.stage_with_contact_id ?? null,
@@ -299,21 +357,38 @@ export const saveCrmDispatchSettings = createServerFn({ method: "POST" })
     });
     if (syncError) throw new Error(syncError.message);
 
-    const { data: allowedStages, error: allowedStagesError } = await supabaseAdmin
-      .from("crm_stages")
-      .select("id,nome")
-      .eq("id_empresa", data.id_empresa)
-      .in("nome", [...CRM_DISPATCH_STAGE_NAMES])
-      .eq("ativo", true);
+    const [{ data: allowedGlobalStages, error: allowedGlobalStagesError }, { data: allowedLocalStages, error: allowedLocalStagesError }] =
+      await Promise.all([
+        supabaseAdmin.from("crm_global_stages").select("id,nome").eq("ativo", true),
+        supabaseAdmin
+          .from("crm_stages")
+          .select("id,nome,global_stage_id")
+          .eq("id_empresa", data.id_empresa)
+          .eq("ativo", true),
+      ]);
 
-    if (allowedStagesError) throw new Error(allowedStagesError.message);
+    if (allowedGlobalStagesError) throw new Error(allowedGlobalStagesError.message);
+    if (allowedLocalStagesError) throw new Error(allowedLocalStagesError.message);
 
-    const allowedIds = new Set<number>((allowedStages ?? []).map((stage: any) => stage.id as number));
-    const withoutContactAllowedIds = new Set<number>(
-      (allowedStages ?? [])
-        .filter((stage: any) => CRM_DISPATCH_WITHOUT_CONTACT_STAGE_NAMES.includes(stage.nome))
-        .map((stage: any) => stage.id as number),
-    );
+    const globalNameById = new Map<number, string>();
+    for (const stage of allowedGlobalStages ?? []) {
+      globalNameById.set(stage.id as number, stage.nome as string);
+    }
+
+    const allowedIds = new Set<number>();
+    const withoutContactAllowedIds = new Set<number>();
+
+    for (const stage of allowedLocalStages ?? []) {
+      const globalStageId = stage.global_stage_id as number | null;
+      const globalName = globalStageId != null ? globalNameById.get(globalStageId) : null;
+      const localName = typeof stage.nome === "string" ? stage.nome.trim() : "";
+      const stageName = globalName ?? localName;
+      if (!stageName || !CRM_DISPATCH_STAGE_NAME_SET.has(stageName)) continue;
+      allowedIds.add(stage.id as number);
+      if (CRM_DISPATCH_WITHOUT_CONTACT_STAGE_NAME_SET.has(stageName)) {
+        withoutContactAllowedIds.add(stage.id as number);
+      }
+    }
 
     if (
       data.stage_without_contact_id != null &&
