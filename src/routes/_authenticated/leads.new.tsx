@@ -223,7 +223,7 @@ function NewLead() {
       }
 
       await supabase.from("crm_lead_activities").insert({
-        lead_id: lead.id, crm_user_id: me.id, tipo: "system", descricao: "Lead criado via CRM",
+        lead_id: lead.id, crm_user_id: me!.id, tipo: "system", descricao: "Lead criado via CRM",
       });
       return lead.id;
     },

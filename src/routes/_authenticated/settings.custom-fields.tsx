@@ -83,7 +83,7 @@ export function GlobalCustomFieldsPage() {
         .order("ordem", { ascending: true })
         .order("id", { ascending: true });
       if (error) throw error;
-      return (data ?? []).map((field) => ({
+      return (data ?? []).map((field: any) => ({
         ...field,
         id_empresa: 0,
         tipo: field.tipo as LeadCustomFieldType,
