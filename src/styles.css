@@ -131,14 +131,14 @@
   /* shadcn aliases */
   --background: var(--bg);
   --foreground: var(--text);
-  --card: var(--surface);
+  --card: #FFFFFF;
   --card-foreground: var(--text);
   --popover: #FFFFFF;
   --popover-foreground: var(--text);
   --primary-foreground: var(--primary-fg);
-  --secondary: var(--surface);
+  --secondary: #FFFFFF;
   --secondary-foreground: var(--text);
-  --muted: var(--surface);
+  --muted: #F7F7F7;
   --muted-foreground: var(--text-secondary);
   --accent: var(--primary-50);
   --accent-foreground: var(--primary-700);
