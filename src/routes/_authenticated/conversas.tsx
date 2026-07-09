@@ -451,15 +451,7 @@ function ConversationsPage() {
                 ) : null}
               </header>
 
-              <div
-                className="flex-1 overflow-y-auto p-4"
-                style={{
-                  backgroundColor: "#F7F2EA",
-                  backgroundImage:
-                    "linear-gradient(45deg, rgba(193,79,33,0.035) 25%, transparent 25%), linear-gradient(-45deg, rgba(193,79,33,0.035) 25%, transparent 25%)",
-                  backgroundSize: "28px 28px",
-                }}
-              >
+              <div className="flex-1 overflow-y-auto bg-background p-4">
                 {messageQuery.isLoading ? (
                   <div className="rounded-lg bg-background/90 px-4 py-3 text-sm text-muted-foreground shadow-sm">
                     Carregando mensagens...
