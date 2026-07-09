@@ -22,6 +22,15 @@ type DispatchSettings = {
   external_stage_lost_id: string | null;
 };
 
+type CvSummaryResult = {
+  ok: boolean;
+  summary: string;
+  used_fallback?: boolean;
+  messages_count?: number;
+  conversation_url?: string | null;
+  whatsapp_url?: string | null;
+};
+
 async function getMe(supabase: any, userId: string) {
   const { data, error } = await supabase
     .from("crm_users")
@@ -60,6 +69,43 @@ async function parseResponsePayload(response: Response) {
   } catch {
     return { raw };
   }
+}
+
+async function invokeCvSummaryFunction(args: {
+  leadId: number;
+  idEmpresa: number;
+}) {
+  const supabaseUrl = String(process.env.SUPABASE_URL ?? "").trim();
+  const serviceRoleKey = String(
+    process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.APP_SUPABASE_SERVICE_ROLE_KEY ?? "",
+  ).trim();
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error("SUPABASE_URL ou SUPABASE_SERVICE_ROLE_KEY ausente para gerar resumo do CV.");
+  }
+
+  const response = await fetch(`${trimTrailingSlash(supabaseUrl)}/functions/v1/external-crms-cv-summary`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-internal-service-key": serviceRoleKey,
+    },
+    body: JSON.stringify({
+      leadId: args.leadId,
+      idEmpresa: args.idEmpresa,
+    }),
+  });
+
+  const payload = await parseResponsePayload(response);
+  if (!response.ok) {
+    const message =
+      (typeof payload?.error === "string" && payload.error) ||
+      (typeof payload?.message === "string" && payload.message) ||
+      `Resumo CV retornou ${response.status}`;
+    throw new Error(message);
+  }
+
+  return payload as CvSummaryResult;
 }
 
 function inferExternalId(payload: any): string | null {
@@ -312,6 +358,9 @@ export const sendLeadToExternalCrm = createServerFn({ method: "POST" })
     };
 
     let responsePayload: any = null;
+    let summaryPayload: CvSummaryResult | null = null;
+    let interactionResponsePayload: any = null;
+    let interactionErrorMessage: string | null = null;
 
     try {
       const response = await fetch(`${cvUrl}/api/v1/comercial/leads`, {
@@ -356,10 +405,60 @@ export const sendLeadToExternalCrm = createServerFn({ method: "POST" })
         throw new Error(errorMessage);
       }
 
+      try {
+        summaryPayload = await invokeCvSummaryFunction({
+          leadId: lead.id,
+          idEmpresa: lead.id_empresa,
+        });
+
+        const interactionPayload: Record<string, unknown> = {
+          telefone: String(lead.telefone ?? "").trim(),
+          nome: String(lead.nome ?? "").trim() || "Lead sem nome",
+          permitir_alteracao: true,
+          idsituacao: toScalarId(externalStageId),
+          interacoes: [
+            {
+              descricao: summaryPayload.summary,
+              tipo: "W",
+            },
+          ],
+        };
+
+        if (email) interactionPayload.email = email;
+
+        const interactionResponse = await fetch(`${cvUrl}/api/v1/comercial/leads`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            token: cvToken,
+            email: cvEmail,
+            origemcv: "true",
+          },
+          body: JSON.stringify(interactionPayload),
+        });
+
+        interactionResponsePayload = await parseResponsePayload(interactionResponse);
+        if (!interactionResponse.ok) {
+          interactionErrorMessage =
+            (typeof interactionResponsePayload?.message === "string" && interactionResponsePayload.message) ||
+            (typeof interactionResponsePayload?.error === "string" && interactionResponsePayload.error) ||
+            `CV CRM retornou ${interactionResponse.status} ao anexar o resumo da conversa`;
+        }
+      } catch (error) {
+        interactionErrorMessage = error instanceof Error
+          ? error.message
+          : "Falha ao gerar ou enviar o resumo da conversa para o CV.";
+      }
+
       await admin.from("crm_external_crm_send_logs").insert({
         ...sendLogBase,
         status: "sent",
-        response_payload: responsePayload,
+        response_payload: {
+          create_lead: responsePayload,
+          conversation_summary: summaryPayload,
+          interaction_response: interactionResponsePayload,
+          interaction_error: interactionErrorMessage,
+        },
         external_id: inferExternalId(responsePayload),
       });
 
@@ -394,13 +493,32 @@ export const sendLeadToExternalCrm = createServerFn({ method: "POST" })
           id_empreendimento_local: localEmpreendimentoId,
           cv_id_empreendimento: cvEmpreendimentoId,
           cv_stage_id: toScalarId(externalStageId),
+          conversation_summary_synced: !interactionErrorMessage,
+          conversation_summary_error: interactionErrorMessage,
+          conversation_summary_used_fallback: summaryPayload?.used_fallback ?? false,
         },
       });
+
+      if (interactionErrorMessage) {
+        await admin.from("crm_lead_activities").insert({
+          lead_id: lead.id,
+          crm_user_id: me.id,
+          tipo: "crm_export",
+          descricao: `Lead enviado ao CRM CV, mas o resumo da conversa não foi anexado: ${interactionErrorMessage}`,
+          metadata: {
+            source: "crm",
+            event: "external_crm_summary_failed",
+            provider: "cv_crm",
+            external_id: inferExternalId(responsePayload),
+          },
+        });
+      }
 
       return {
         ok: true,
         provider: "cv_crm",
         moved_to_stage: sentStage?.id ?? null,
+        conversation_summary_synced: !interactionErrorMessage,
       };
     } catch (error) {
       if (error instanceof Error) throw error;
