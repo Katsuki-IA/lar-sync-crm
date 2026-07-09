@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { getRequest } from "@tanstack/react-start/server";
 import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -252,8 +253,12 @@ export const sendLeadToExternalCrm = createServerFn({ method: "POST" })
       throw new Error("Sem permissão para enviar lead ao CRM.");
     }
 
-    const sessionResult = await context.supabase.auth.getSession();
-    const accessToken = sessionResult.data.session?.access_token ?? "";
+    const request = getRequest();
+    const authHeader = request?.headers.get("authorization") ?? "";
+    const accessToken = authHeader.startsWith("Bearer ")
+      ? authHeader.slice("Bearer ".length).trim()
+      : "";
+
     if (!accessToken) {
       throw new Error("Não foi possível validar a sessão atual para gerar o resumo da conversa.");
     }
