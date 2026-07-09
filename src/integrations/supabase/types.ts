@@ -765,6 +765,64 @@ export type Database = {
           },
         ]
       }
+      crm_lead_dispatch_settings: {
+        Row: {
+          created_at: string
+          external_stage_lost_id: string | null
+          external_stage_qualified_id: string | null
+          external_stage_visit_scheduled_id: string | null
+          id: string
+          id_empresa: number
+          stage_with_contact_id: number | null
+          stage_without_contact_id: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          external_stage_lost_id?: string | null
+          external_stage_qualified_id?: string | null
+          external_stage_visit_scheduled_id?: string | null
+          id?: string
+          id_empresa: number
+          stage_with_contact_id?: number | null
+          stage_without_contact_id?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          external_stage_lost_id?: string | null
+          external_stage_qualified_id?: string | null
+          external_stage_visit_scheduled_id?: string | null
+          id?: string
+          id_empresa?: number
+          stage_with_contact_id?: number | null
+          stage_without_contact_id?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_lead_dispatch_settings_id_empresa_fkey"
+            columns: ["id_empresa"]
+            isOneToOne: true
+            referencedRelation: "empresa_dados"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_lead_dispatch_settings_stage_with_contact_id_fkey"
+            columns: ["stage_with_contact_id"]
+            isOneToOne: false
+            referencedRelation: "crm_stages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_lead_dispatch_settings_stage_without_contact_id_fkey"
+            columns: ["stage_without_contact_id"]
+            isOneToOne: false
+            referencedRelation: "crm_stages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       crm_lead_tags: {
         Row: {
           created_at: string | null
@@ -2785,6 +2843,10 @@ export type Database = {
           atendimento_corretor: string | null
           base: number | null
           contacted: number | null
+          followup1: number | null
+          followup2: number | null
+          followup3: number | null
+          followup4: number | null
           ia_lost: number | null
           id: number
           id_empresa: number | null
@@ -2798,6 +2860,10 @@ export type Database = {
           atendimento_corretor?: string | null
           base?: number | null
           contacted?: number | null
+          followup1?: number | null
+          followup2?: number | null
+          followup3?: number | null
+          followup4?: number | null
           ia_lost?: number | null
           id?: number
           id_empresa?: number | null
@@ -2811,6 +2877,10 @@ export type Database = {
           atendimento_corretor?: string | null
           base?: number | null
           contacted?: number | null
+          followup1?: number | null
+          followup2?: number | null
+          followup3?: number | null
+          followup4?: number | null
           ia_lost?: number | null
           id?: number
           id_empresa?: number | null

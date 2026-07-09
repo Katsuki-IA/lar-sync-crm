@@ -59,70 +59,74 @@
 :root {
   --radius: 0.625rem;
 
+  /* Katsuki IA — brand palette (apenas 4 cores oficiais)
+     #C14F21 terracota • #F59958 laranja claro • #080705 preto • #FFFCF8 branco
+     Neutros derivados por mistura branco↔preto. */
+
   /* Backgrounds */
   --bg: #FFFCF8;
-  --surface: #F5F0EA;
-  --surface-2: #EAE3DA;
+  --surface: #F6F1EC;         /* branco misturado com toque de preto */
+  --surface-2: #ECE6DF;
 
   /* Borders */
-  --border: #D4C9BC;
-  --border-strong: #B0A396;
+  --border: #D8CFC5;
+  --border-strong: #A69C92;
 
-  /* Text */
-  --text: #2E2520;
-  --text-secondary: #6B5C50;
-  --text-muted: #8A7B6E;
-  --text-disabled: #B0A396;
+  /* Text (derivado do preto oficial) */
+  --text: #080705;
+  --text-secondary: #4A4744;
+  --text-muted: #7A7671;
+  --text-disabled: #B0ACA7;
 
-  /* Primary (Terracota) */
-  --primary-50:  #FDF2EE;
-  --primary-100: #F9DDD4;
-  --primary-200: #F2B9A3;
-  --primary-300: #E68F6A;
-  --primary-400: #D96D3E;
-  --primary-500: #C14F21;
-  --primary-600: #A3421C;
+  /* Primary (Terracota #C14F21) e Secundária (Laranja #F59958) */
+  --primary-50:  #FDF1EC;
+  --primary-100: #FADDD0;
+  --primary-200: #F59958;      /* laranja oficial */
+  --primary-300: #ED7A3D;
+  --primary-400: #D9612B;
+  --primary-500: #C14F21;      /* terracota oficial */
+  --primary-600: #9E401A;
   --primary-700: #7A3115;
   --primary-800: #52200D;
-  --primary-900: #2B1107;
+  --primary-900: #080705;      /* preto oficial */
 
   --primary: var(--primary-500);
   --primary-hover: var(--primary-400);
   --primary-pressed: var(--primary-600);
   --primary-fg: #FFFFFF;
   --primary-subtle: var(--primary-50);
-  --primary-subtle-border: var(--primary-200);
+  --primary-subtle-border: var(--primary-100);
 
   /* Focus */
   --focus-ring: #C14F21;
   --focus-ring-offset: #FFFCF8;
 
   /* Sidebar tokens */
-  --sidebar-bg: #F5F0EA;
-  --sidebar-active-bg: #FDF2EE;
+  --sidebar-bg: #F6F1EC;
+  --sidebar-active-bg: #FDF1EC;
   --sidebar-active-text: #C14F21;
-  --sidebar-text: #4A3D34;
+  --sidebar-text: #4A4744;
 
-  /* Semantic */
-  --success: #2D7D52;
-  --success-bg: #EDF7F2;
-  --warning: #B07D1A;
-  --warning-bg: #FDF6E3;
-  --danger: #C0392B;
-  --danger-bg: #FDECEA;
-  --info: #2471A3;
-  --info-bg: #EAF4FB;
+  /* Semantic — mapeados para as cores oficiais da marca */
+  --success: #080705;
+  --success-bg: #F6F1EC;
+  --warning: #F59958;
+  --warning-bg: #FDF1EC;
+  --danger: #C14F21;
+  --danger-bg: #FDF1EC;
+  --info: #080705;
+  --info-bg: #F6F1EC;
 
   /* Charts */
   --chart-primary: #C14F21;
-  --chart-secondary: #E68F6A;
-  --chart-tertiary: #F2B9A3;
-  --chart-grid: #EAE3DA;
-  --chart-label: #8A7B6E;
+  --chart-secondary: #F59958;
+  --chart-tertiary: #080705;
+  --chart-grid: #ECE6DF;
+  --chart-label: #7A7671;
 
   /* Shadows */
-  --shadow-sm: 0 1px 3px rgba(42, 21, 7, 0.08);
-  --shadow-md: 0 4px 12px rgba(42, 21, 7, 0.10);
+  --shadow-sm: 0 1px 3px rgba(8, 7, 5, 0.08);
+  --shadow-md: 0 4px 12px rgba(8, 7, 5, 0.10);
 
   /* shadcn aliases */
   --background: var(--bg);
