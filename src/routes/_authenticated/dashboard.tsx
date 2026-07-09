@@ -50,10 +50,9 @@ function DashboardPage() {
         return q;
       };
 
-      const [{ data: leads, count }, { data: stages }, { data: users }, { data: emps }] = await Promise.all([
+      const [{ data: leads, count }, { data: stages }, { data: emps }] = await Promise.all([
         baseLeads(),
         supabase.from("crm_stages").select("id, nome, cor, ordem").eq("ativo", true).order("ordem"),
-        supabase.from("crm_users").select("id, nome").in("id_empresa", empresaIds),
         supabase.from("empreendimento").select("id, nome").in("id_empresa", empresaIds),
       ]);
 
@@ -62,15 +61,6 @@ function DashboardPage() {
         cor: s.cor ?? "var(--primary)",
         total: (leads ?? []).filter((l) => l.crm_stage_id === s.id).length,
       }));
-
-      const userMap = new Map((users ?? []).map((u) => [u.id, u.nome]));
-      const byUser = Array.from(
-        (leads ?? []).reduce((acc, l) => {
-          const k = l.crm_assigned_to ?? "—";
-          acc.set(k, (acc.get(k) ?? 0) + 1);
-          return acc;
-        }, new Map<string, number>()),
-      ).map(([k, v]) => ({ name: userMap.get(k) ?? "Sem responsável", total: v }));
 
       const empMap = new Map((emps ?? []).map((e) => [e.id, e.nome]));
       const byEmp = Array.from(
@@ -83,7 +73,7 @@ function DashboardPage() {
 
       const quentes = (leads ?? []).filter((l) => l.lead_quente).length;
 
-      return { total: count ?? 0, quentes, byStage, byUser, byEmp, totalEmps: (emps ?? []).length };
+      return { total: count ?? 0, quentes, byStage, byEmp, totalEmps: (emps ?? []).length };
     },
   });
 
