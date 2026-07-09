@@ -5,11 +5,8 @@ import { format, subDays, startOfYear, startOfWeek, addWeeks, isAfter } from "da
 import { ptBR } from "date-fns/locale";
 import {
   CalendarIcon,
-  ChevronDown,
-  ChevronRight,
   Table as TableIcon,
   BarChart3,
-  Trophy,
 } from "lucide-react";
 import {
   Bar,
@@ -35,10 +32,8 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { getInitials, colorFromString } from "@/lib/lead-visuals";
 
 export const Route = createFileRoute("/_authenticated/relatorios")({
   component: ReportsPage,
@@ -160,7 +155,6 @@ function ReportsPage() {
           <FunnelPanel data={data} />
           <ChannelPanel data={data} />
           <ClosingTimePanel data={data} range={range} />
-          <BrokerPanel data={data} />
           <div className="lg:col-span-2">
             <EmpreendimentoPanel data={data} />
           </div>
@@ -507,228 +501,6 @@ function KpiMini({ label, value }: { label: string; value: string }) {
   );
 }
 
-/* -------------------- Panel 4: Brokers -------------------- */
-
-function BrokerPanel({ data }: { data: ReportData }) {
-  const stageById = new Map(data.stages.map((s) => [s.id, s]));
-  const [expanded, setExpanded] = useState<string | null>(null);
-
-  type BrokerAgg = {
-    atribuidos: number;
-    convertidos: number;
-    ativos: number;
-    closeTimes: number[];
-    weekly: number[];
-    convertedLeads: Array<{ id: number; nome: string }>;
-    stageDist: Map<number, number>;
-  };
-  const byBroker = new Map<string, BrokerAgg>();
-  // 8-week sparkline buckets ending today
-  const now = new Date();
-  const weekStart = (d: Date) => startOfWeek(d, { weekStartsOn: 1 });
-  const buckets: Date[] = [];
-  for (let i = 7; i >= 0; i--) buckets.push(weekStart(subDays(now, i * 7)));
-
-  for (const l of data.leads) {
-    const k = l.crm_assigned_to ?? "—";
-    const st = l.crm_stage_id ? stageById.get(l.crm_stage_id) : null;
-    const converted = isConvertedStage(st?.nome);
-    const lost = isLostStage(st?.nome);
-    const cur: BrokerAgg = byBroker.get(k) ?? {
-      atribuidos: 0,
-      convertidos: 0,
-      ativos: 0,
-      closeTimes: [],
-      weekly: new Array(8).fill(0) as number[],
-      convertedLeads: [],
-      stageDist: new Map<number, number>(),
-    };
-    cur.atribuidos += 1;
-    if (converted) {
-      cur.convertidos += 1;
-      cur.convertedLeads.push({ id: l.id, nome: l.nome });
-      const dt = daysBetween(l.created_at, l.updated_at);
-      if (dt != null) cur.closeTimes.push(dt);
-    }
-    if (!converted && !lost) {
-      cur.ativos += 1;
-      if (l.crm_stage_id != null) cur.stageDist.set(l.crm_stage_id, (cur.stageDist.get(l.crm_stage_id) ?? 0) + 1);
-    }
-    if (l.created_at) {
-      const w = weekStart(new Date(l.created_at));
-      const idx = buckets.findIndex((b) => b.getTime() === w.getTime());
-      if (idx >= 0) cur.weekly[idx] += 1;
-    }
-    byBroker.set(k, cur);
-  }
-
-  const userMap = new Map(data.users.map((u) => [u.id, u]));
-  const rows = Array.from(byBroker.entries())
-    .map(([id, v]) => {
-      const u = userMap.get(id);
-      const tempo = v.closeTimes.length ? v.closeTimes.reduce((a, b) => a + b, 0) / v.closeTimes.length : null;
-      return {
-        id,
-        nome: u?.nome ?? "Sem responsável",
-        taxa: v.atribuidos ? (v.convertidos / v.atribuidos) * 100 : 0,
-        tempo,
-        ...v,
-      };
-    })
-    .sort((a, b) => b.convertidos - a.convertidos || b.taxa - a.taxa);
-
-  const medals = ["🥇", "🥈", "🥉"];
-
-  return (
-    <Card className="rounded-2xl">
-      <CardHeader>
-        <CardTitle>Performance por Corretor</CardTitle>
-      </CardHeader>
-      <CardContent>
-        {rows.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Sem dados no período.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="text-xs text-muted-foreground border-b border-border">
-                <tr>
-                  <th className="text-left py-2 font-medium w-10">#</th>
-                  <th className="text-left py-2 font-medium">Corretor</th>
-                  <th className="text-right py-2 font-medium">Leads</th>
-                  <th className="text-right py-2 font-medium">Conv.</th>
-                  <th className="text-right py-2 font-medium">Taxa</th>
-                  <th className="text-right py-2 font-medium">T. médio</th>
-                  <th className="text-right py-2 font-medium">Ativos</th>
-                  <th className="text-right py-2 font-medium">8 sem.</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r, i) => {
-                  const open = expanded === r.id;
-                  return (
-                    <>
-                      <tr
-                        key={r.id}
-                        onClick={() => setExpanded(open ? null : r.id)}
-                        className={cn("border-b border-border/40 cursor-pointer hover:bg-white/[0.02]", open && "bg-white/[0.03]")}
-                      >
-                        <td className="py-2">
-                          <span className="inline-flex items-center gap-1">
-                            {medals[i] ? <span>{medals[i]}</span> : <span className="text-muted-foreground">{i + 1}</span>}
-                          </span>
-                        </td>
-                        <td className="py-2">
-                          <div className="flex items-center gap-2">
-                            <Avatar className="h-7 w-7">
-                              <AvatarFallback
-                                className="text-[10px] font-semibold text-white"
-                                style={{ backgroundColor: colorFromString(r.nome) }}
-                              >
-                                {getInitials(r.nome, "?")}
-                              </AvatarFallback>
-                            </Avatar>
-                            <span className="truncate">{r.nome}</span>
-                            {open ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
-                          </div>
-                        </td>
-                        <td className="py-2 text-right">{r.atribuidos}</td>
-                        <td className="py-2 text-right">{r.convertidos}</td>
-                        <td className="py-2 text-right">
-                          <span className={cn(r.taxa >= 30 ? "text-[var(--success)]" : r.taxa >= 10 ? "text-[var(--warning)]" : "text-[var(--danger)]")}>
-                            {r.taxa.toFixed(1)}%
-                          </span>
-                        </td>
-                        <td className="py-2 text-right text-muted-foreground">{r.tempo != null ? `${r.tempo.toFixed(1)} d` : "—"}</td>
-                        <td className="py-2 text-right">{r.ativos}</td>
-                        <td className="py-2 pl-2 w-[90px]">
-                          <Sparkline values={r.weekly} />
-                        </td>
-                      </tr>
-                      {open && (
-                        <tr className="border-b border-border/40 bg-black/20">
-                          <td colSpan={8} className="p-4">
-                            <div className="grid gap-4 md:grid-cols-2">
-                              <div>
-                                <div className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Convertidos no período</div>
-                                {r.convertedLeads.length === 0 ? (
-                                  <p className="text-xs text-muted-foreground">Nenhum.</p>
-                                ) : (
-                                  <ul className="space-y-1 max-h-40 overflow-y-auto text-xs">
-                                    {r.convertedLeads.map((cl) => (
-                                      <li key={cl.id} className="flex items-center justify-between">
-                                        <span>{cl.nome}</span>
-                                        <span className="text-muted-foreground">#{cl.id}</span>
-                                      </li>
-                                    ))}
-                                  </ul>
-                                )}
-                              </div>
-                              <div>
-                                <div className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Ativos por estágio</div>
-                                <StageStack stages={data.stages} dist={r.stageDist} />
-                              </div>
-                            </div>
-                          </td>
-                        </tr>
-                      )}
-                    </>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-function Sparkline({ values }: { values: number[] }) {
-  const max = Math.max(1, ...values);
-  const w = 80;
-  const h = 24;
-  const step = w / Math.max(1, values.length - 1);
-  const points = values.map((v, i) => `${i * step},${h - (v / max) * h}`).join(" ");
-  return (
-    <svg width={w} height={h} className="inline-block">
-      <polyline fill="none" stroke="var(--chart-primary)" strokeWidth={1.5} points={points} />
-    </svg>
-  );
-}
-
-function StageStack({ stages, dist }: { stages: ReportData["stages"]; dist: Map<number, number> }) {
-  const total = Array.from(dist.values()).reduce((a, b) => a + b, 0);
-  if (!total) return <p className="text-xs text-muted-foreground">Nenhum ativo.</p>;
-  return (
-    <div className="space-y-2">
-      <div className="flex h-3 w-full overflow-hidden rounded-full bg-border/30">
-        {stages.map((s, i) => {
-          const v = dist.get(s.id) ?? 0;
-          if (!v) return null;
-          return (
-            <div
-              key={s.id}
-              style={{ width: `${(v / total) * 100}%`, background: s.cor ?? STAGE_COLORS[i % STAGE_COLORS.length] }}
-              title={`${s.nome}: ${v}`}
-            />
-          );
-        })}
-      </div>
-      <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
-        {stages.map((s, i) => {
-          const v = dist.get(s.id) ?? 0;
-          if (!v) return null;
-          return (
-            <span key={s.id} className="inline-flex items-center gap-1">
-              <span className="h-2 w-2 rounded-sm" style={{ background: s.cor ?? STAGE_COLORS[i % STAGE_COLORS.length] }} />
-              {s.nome} ({v})
-            </span>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
 
 /* -------------------- Panel 5: Empreendimentos -------------------- */
 
