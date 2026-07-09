@@ -102,10 +102,7 @@ function sessionCandidates(args: { idEmpresa: number; phone?: string | null; ext
   const numbers = [...phoneVariants(args.phone), ...phoneVariants(args.externalPhone)];
   return Array.from(
     new Set(
-      numbers.flatMap((number) => [
-        `${number}${args.idEmpresa}`,
-        number,
-      ]),
+      numbers.map((number) => `${number}${args.idEmpresa}`),
     ),
   );
 }
@@ -454,15 +451,10 @@ Deno.serve(async (req) => {
 
     let messages: LeadMessage[] = [];
     if (candidates.length) {
-      const phoneFilters = phoneVariants(lead.telefone || externalLead?.numero)
-        .map((phone) => `numero.ilike.%${phone}%`);
-      const exactFilters = candidates.map((candidate) => `numero.eq.${candidate}`);
-      const filters = [...exactFilters, ...phoneFilters].join(",");
-
       const { data: chatRows, error: chatError } = await supabaseAdmin
         .from("n8n_chat_conversas")
         .select("id,numero,type,message,time,created_at")
-        .or(filters)
+        .in("numero", candidates)
         .order("time", { ascending: true });
       if (chatError) throw new Error(chatError.message);
 
