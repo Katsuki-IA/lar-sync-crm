@@ -378,7 +378,7 @@ function ImportLeadsPage() {
         // Activity with origem/obs
         const desc = [`Origem: ${formatLeadOrigin(origem)}`, obs && `Obs: ${obs}`].filter(Boolean).join(" · ");
         await supabase.from("crm_lead_activities").insert({
-          lead_id: created.id, crm_user_id: me.id, tipo: "system", descricao: desc,
+          lead_id: created.id, crm_user_id: me!.id, tipo: "system", descricao: desc,
         });
 
         success += 1;
