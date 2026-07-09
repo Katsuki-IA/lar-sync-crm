@@ -88,6 +88,10 @@ function onlyDigits(value?: string | null) {
   return (value ?? "").replace(/\D/g, "");
 }
 
+function stripDiacritics(value: string) {
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
 function phoneVariants(value?: string | null) {
   const digits = onlyDigits(value);
   if (!digits) return [];
@@ -258,8 +262,8 @@ function buildWhatsAppUrl(phone?: string | null, empreendimento?: string | null)
   if (!digits) return null;
 
   const text = empreendimento
-    ? `Posso te ajudar com mais informações sobre ${empreendimento}?`
-    : "Posso te ajudar com mais informações?";
+    ? `Posso te ajudar com mais informacoes sobre ${stripDiacritics(empreendimento)}?`
+    : "Posso te ajudar com mais informacoes?";
 
   return `https://wa.me/${digits}?text=${encodeURIComponent(text)}`;
 }
