@@ -138,6 +138,69 @@ export const setCrmUserActive = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+// -------- Atualizar usuário CRM (super admin) --------
+export const updateCrmUser = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        user_id: z.string().uuid(),
+        nome: z.string().min(2),
+        email: z.string().email(),
+        role: z.enum(["agent", "manager", "super_admin"]),
+        id_empresa: z.number().nullable().optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const me = await getMe(context.supabase, context.userId);
+    if (me.role !== "super_admin") throw new Error("Sem permissão");
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: target, error: targetError } = await supabaseAdmin
+      .from("crm_users")
+      .select("id,auth_user_id,email,role,id_empresa")
+      .eq("id", data.user_id)
+      .maybeSingle();
+
+    if (targetError || !target) throw new Error("Usuário não encontrado");
+
+    const isAiUser =
+      !target.auth_user_id &&
+      target.role === "agent" &&
+      typeof target.email === "string" &&
+      /^ia\+\d+@hub\.katsuki\.local$/i.test(target.email);
+
+    if (isAiUser) {
+      throw new Error("Use a edição específica para renomear o atendente IA");
+    }
+
+    if (data.role !== "super_admin" && !data.id_empresa) {
+      throw new Error("Empresa obrigatória para gestor ou corretor");
+    }
+
+    if (target.auth_user_id) {
+      const { error: authUpdateError } = await supabaseAdmin.auth.admin.updateUserById(target.auth_user_id, {
+        email: data.email,
+        user_metadata: { nome: data.nome },
+      });
+      if (authUpdateError) throw new Error(authUpdateError.message);
+    }
+
+    const { error: updateError } = await supabaseAdmin
+      .from("crm_users")
+      .update({
+        nome: data.nome.trim(),
+        email: data.email.trim().toLowerCase(),
+        role: data.role,
+        id_empresa: data.role === "super_admin" ? null : (data.id_empresa ?? null),
+      })
+      .eq("id", data.user_id);
+
+    if (updateError) throw new Error(updateError.message);
+    return { ok: true };
+  });
+
 // -------- Renomear usuário técnico da IA (super admin) --------
 export const renameAiCrmUser = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
