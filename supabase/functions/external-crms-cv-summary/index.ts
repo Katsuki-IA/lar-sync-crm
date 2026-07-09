@@ -2,7 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.48.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-internal-service-key",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
@@ -53,11 +53,34 @@ function createSupabaseAdmin() {
   });
 }
 
-function ensureInternalAccess(req: Request) {
-  const incoming = req.headers.get("x-internal-service-key")?.trim() ?? "";
-  const expected = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.trim() ?? "";
-  if (!incoming || !expected || incoming !== expected) {
+async function authenticateRequest(
+  supabaseAdmin: ReturnType<typeof createSupabaseAdmin>,
+  req: Request,
+  idEmpresa: number,
+) {
+  const authHeader = req.headers.get("authorization") ?? "";
+  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
+  if (!token) {
     throw new Error("Acesso interno inválido");
+  }
+
+  const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(token);
+  if (authError || !authData.user) {
+    throw new Error("Acesso interno inválido");
+  }
+
+  const { data: crmUser, error: crmUserError } = await supabaseAdmin
+    .from("crm_users")
+    .select("id,id_empresa,role")
+    .eq("auth_user_id", authData.user.id)
+    .maybeSingle();
+
+  if (crmUserError || !crmUser) {
+    throw new Error("Usuário do CRM não encontrado");
+  }
+
+  if (crmUser.role !== "super_admin" && !(crmUser.role === "manager" && crmUser.id_empresa === idEmpresa)) {
+    throw new Error("Sem permissão para gerar resumo desta empresa");
   }
 }
 
@@ -362,8 +385,6 @@ Deno.serve(async (req) => {
   }
 
   try {
-    ensureInternalAccess(req);
-
     if (req.method !== "POST") {
       return jsonResponse({ error: "Método não permitido" }, 405);
     }
@@ -377,6 +398,7 @@ Deno.serve(async (req) => {
     }
 
     const supabaseAdmin = createSupabaseAdmin();
+    await authenticateRequest(supabaseAdmin, req, idEmpresa);
 
     const { data: lead, error: leadError } = await supabaseAdmin
       .from("crm_leads")

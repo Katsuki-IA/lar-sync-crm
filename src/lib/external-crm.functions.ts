@@ -74,21 +74,19 @@ async function parseResponsePayload(response: Response) {
 async function invokeCvSummaryFunction(args: {
   leadId: number;
   idEmpresa: number;
+  accessToken: string;
 }) {
   const supabaseUrl = String(process.env.SUPABASE_URL ?? "").trim();
-  const serviceRoleKey = String(
-    process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.APP_SUPABASE_SERVICE_ROLE_KEY ?? "",
-  ).trim();
 
-  if (!supabaseUrl || !serviceRoleKey) {
-    throw new Error("SUPABASE_URL ou SUPABASE_SERVICE_ROLE_KEY ausente para gerar resumo do CV.");
+  if (!supabaseUrl || !args.accessToken.trim()) {
+    throw new Error("SUPABASE_URL ou token de acesso ausente para gerar resumo do CV.");
   }
 
   const response = await fetch(`${trimTrailingSlash(supabaseUrl)}/functions/v1/external-crms-cv-summary`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "x-internal-service-key": serviceRoleKey,
+      Authorization: `Bearer ${args.accessToken.trim()}`,
     },
     body: JSON.stringify({
       leadId: args.leadId,
@@ -254,6 +252,12 @@ export const sendLeadToExternalCrm = createServerFn({ method: "POST" })
       throw new Error("Sem permissão para enviar lead ao CRM.");
     }
 
+    const sessionResult = await context.supabase.auth.getSession();
+    const accessToken = sessionResult.data.session?.access_token ?? "";
+    if (!accessToken) {
+      throw new Error("Não foi possível validar a sessão atual para gerar o resumo da conversa.");
+    }
+
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const admin = supabaseAdmin as any;
 
@@ -366,6 +370,7 @@ export const sendLeadToExternalCrm = createServerFn({ method: "POST" })
         summaryPayload = await invokeCvSummaryFunction({
           leadId: lead.id,
           idEmpresa: lead.id_empresa,
+          accessToken,
         });
       } catch (error) {
         summaryErrorMessage = error instanceof Error
