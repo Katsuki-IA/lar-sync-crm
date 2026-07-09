@@ -359,6 +359,7 @@ export const sendLeadToExternalCrm = createServerFn({ method: "POST" })
 
     let responsePayload: any = null;
     let summaryPayload: CvSummaryResult | null = null;
+    let interactionRequestPayload: Record<string, unknown> | null = null;
     let interactionResponsePayload: any = null;
     let interactionErrorMessage: string | null = null;
 
@@ -411,9 +412,11 @@ export const sendLeadToExternalCrm = createServerFn({ method: "POST" })
           idEmpresa: lead.id_empresa,
         });
 
-        const interactionPayload: Record<string, unknown> = {
+        interactionRequestPayload = {
+          id: inferExternalId(responsePayload),
           telefone: String(lead.telefone ?? "").trim(),
           nome: String(lead.nome ?? "").trim() || "Lead sem nome",
+          origem: "WA",
           permitir_alteracao: true,
           idsituacao: toScalarId(externalStageId),
           interacoes: [
@@ -424,7 +427,8 @@ export const sendLeadToExternalCrm = createServerFn({ method: "POST" })
           ],
         };
 
-        if (email) interactionPayload.email = email;
+        if (email) interactionRequestPayload.email = email;
+        if (cvEmpreendimentoId != null) interactionRequestPayload.idempreendimento = cvEmpreendimentoId;
 
         const interactionResponse = await fetch(`${cvUrl}/api/v1/comercial/leads`, {
           method: "POST",
@@ -434,7 +438,7 @@ export const sendLeadToExternalCrm = createServerFn({ method: "POST" })
             email: cvEmail,
             origemcv: "true",
           },
-          body: JSON.stringify(interactionPayload),
+          body: JSON.stringify(interactionRequestPayload),
         });
 
         interactionResponsePayload = await parseResponsePayload(interactionResponse);
@@ -456,6 +460,7 @@ export const sendLeadToExternalCrm = createServerFn({ method: "POST" })
         response_payload: {
           create_lead: responsePayload,
           conversation_summary: summaryPayload,
+          interaction_request: interactionRequestPayload,
           interaction_response: interactionResponsePayload,
           interaction_error: interactionErrorMessage,
         },
