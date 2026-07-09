@@ -96,7 +96,7 @@ function sessionCandidates(conversation: ConversationItem) {
   );
 }
 
-function messageToText(message: Json | null) {
+function messageToText(message: Json | null): string {
   if (message == null) return "";
   if (typeof message === "string") return message;
   if (typeof message === "number" || typeof message === "boolean") return String(message);
