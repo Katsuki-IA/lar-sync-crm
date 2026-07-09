@@ -108,36 +108,20 @@ function DashboardPage() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card className="rounded-2xl">
-          <CardHeader>
-            <CardTitle>Leads por corretor</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {(data?.byUser ?? []).map((u) => (
-              <div key={u.name} className="flex justify-between text-sm">
-                <span>{u.name}</span>
-                <span className="font-semibold">{u.total}</span>
-              </div>
-            ))}
-            {!data?.byUser.length && <p className="text-sm text-muted-foreground">Sem dados</p>}
-          </CardContent>
-        </Card>
-        <Card className="rounded-2xl">
-          <CardHeader>
-            <CardTitle>Leads por empreendimento</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {(data?.byEmp ?? []).map((e) => (
-              <div key={e.name} className="flex justify-between text-sm">
-                <span>{e.name}</span>
-                <span className="font-semibold">{e.total}</span>
-              </div>
-            ))}
-            {!data?.byEmp.length && <p className="text-sm text-muted-foreground">Sem dados</p>}
-          </CardContent>
-        </Card>
-      </div>
+      <Card className="rounded-2xl">
+        <CardHeader>
+          <CardTitle>Leads por empreendimento</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {(data?.byEmp ?? []).map((e) => (
+            <div key={e.name} className="flex justify-between text-sm">
+              <span>{e.name}</span>
+              <span className="font-semibold">{e.total}</span>
+            </div>
+          ))}
+          {!data?.byEmp.length && <p className="text-sm text-muted-foreground">Sem dados</p>}
+        </CardContent>
+      </Card>
     </div>
   );
 }
