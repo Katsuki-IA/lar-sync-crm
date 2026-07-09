@@ -445,6 +445,25 @@ export const sendLeadToExternalCrm = createServerFn({ method: "POST" })
         external_id: inferExternalId(responsePayload),
       });
 
+      let externalLeadStatusErrorMessage: string | null = null;
+      const externalLeadStatusUpdate = await admin
+        .from("lead")
+        .update({
+          status: "Enviado  CRM",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id_empresa", lead.id_empresa)
+        .eq("id_crm", String(lead.id))
+        .select("id")
+        .limit(1);
+
+      if (externalLeadStatusUpdate.error) {
+        externalLeadStatusErrorMessage = externalLeadStatusUpdate.error.message;
+      } else if (!externalLeadStatusUpdate.data?.length) {
+        externalLeadStatusErrorMessage =
+          "Nenhum registro correspondente foi encontrado na tabela lead para marcar status como Enviado  CRM.";
+      }
+
       const sentStage = await moveLeadToSentStage(admin, lead.id, lead.id_empresa);
 
       if (sentStage?.oldStageId != null && sentStage.oldStageId !== sentStage.id) {
@@ -479,6 +498,8 @@ export const sendLeadToExternalCrm = createServerFn({ method: "POST" })
           conversation_summary_synced: Boolean(summaryPayload?.summary),
           conversation_summary_error: summaryErrorMessage,
           conversation_summary_used_fallback: summaryPayload?.used_fallback ?? false,
+          external_lead_status_updated: !externalLeadStatusErrorMessage,
+          external_lead_status_error: externalLeadStatusErrorMessage,
         },
       });
 
@@ -497,11 +518,27 @@ export const sendLeadToExternalCrm = createServerFn({ method: "POST" })
         });
       }
 
+      if (externalLeadStatusErrorMessage) {
+        await admin.from("crm_lead_activities").insert({
+          lead_id: lead.id,
+          crm_user_id: me.id,
+          tipo: "crm_export",
+          descricao: `Lead enviado ao CRM CV, mas não foi possível atualizar o status externo para Enviado  CRM: ${externalLeadStatusErrorMessage}`,
+          metadata: {
+            source: "crm",
+            event: "external_crm_external_lead_status_update_failed",
+            provider: "cv_crm",
+            external_id: inferExternalId(responsePayload),
+          },
+        });
+      }
+
       return {
         ok: true,
         provider: "cv_crm",
         moved_to_stage: sentStage?.id ?? null,
         conversation_summary_synced: Boolean(summaryPayload?.summary),
+        external_lead_status_updated: !externalLeadStatusErrorMessage,
       };
     } catch (error) {
       if (error instanceof Error) throw error;
