@@ -18,6 +18,8 @@ type DispatchPayload = {
   leadId: number;
   idEmpresa: number;
   additionalTags?: string[];
+  conversationSummary?: string;
+  enforceScheduledRule?: boolean;
 };
 
 type CrmUser = {
@@ -34,6 +36,7 @@ type CvCredentials = {
 };
 
 type DispatchSettings = {
+  stage_with_contact_id: number | null;
   external_stage_qualified_id: string | null;
   external_stage_unqualified_id: string | null;
   external_stage_visit_scheduled_id: string | null;
@@ -442,11 +445,12 @@ Deno.serve(async (req) => {
 
     const dispatchSettingsResult = await admin
       .from("crm_lead_dispatch_settings")
-      .select("external_stage_qualified_id,external_stage_unqualified_id,external_stage_visit_scheduled_id,external_stage_lost_id")
+      .select("stage_with_contact_id,external_stage_qualified_id,external_stage_unqualified_id,external_stage_visit_scheduled_id,external_stage_lost_id")
       .eq("id_empresa", lead.id_empresa)
       .maybeSingle();
     if (dispatchSettingsResult.error) throw new Error(dispatchSettingsResult.error.message);
     const dispatchSettings = (dispatchSettingsResult.data ?? {
+      stage_with_contact_id: null,
       external_stage_qualified_id: null,
       external_stage_unqualified_id: null,
       external_stage_visit_scheduled_id: null,
@@ -462,6 +466,20 @@ Deno.serve(async (req) => {
       : { data: [], error: null };
     if (stageResult.error) throw new Error(stageResult.error.message);
     const currentStageName = stageResult.data?.[0]?.nome ?? null;
+
+    if (body.enforceScheduledRule === true) {
+      const scheduledStageId = Number(dispatchSettings.stage_with_contact_id);
+      if (!Number.isFinite(scheduledStageId) || scheduledStageId !== Number(lead.crm_stage_id)) {
+        return jsonResponse({
+          ok: true,
+          skipped: true,
+          reason: "visit_scheduled_rule_not_enabled",
+          configured_stage_id: Number.isFinite(scheduledStageId) ? scheduledStageId : null,
+          current_stage_id: lead.crm_stage_id,
+        });
+      }
+    }
+
     const externalStageId = resolveExternalStageId(currentStageName, dispatchSettings);
 
     const { localEmpreendimentoId, cvEmpreendimentoId } = await resolveLeadDestination(admin, lead);
@@ -489,17 +507,26 @@ Deno.serve(async (req) => {
     let responsePayload: Json | Record<string, unknown> | null = null;
     let summaryPayload: CvSummaryResult | null = null;
     let summaryErrorMessage: string | null = null;
+    const suppliedSummary = String(body.conversationSummary ?? "").trim();
 
     try {
-      try {
-        summaryPayload = await invokeCvSummaryFunction({
-          leadId: lead.id,
-          idEmpresa: lead.id_empresa,
-        });
-      } catch (error) {
-        summaryErrorMessage = error instanceof Error
-          ? error.message
-          : "Falha ao gerar resumo da conversa para envio ao CV.";
+      if (suppliedSummary) {
+        summaryPayload = {
+          ok: true,
+          summary: suppliedSummary,
+          used_fallback: false,
+        };
+      } else {
+        try {
+          summaryPayload = await invokeCvSummaryFunction({
+            leadId: lead.id,
+            idEmpresa: lead.id_empresa,
+          });
+        } catch (error) {
+          summaryErrorMessage = error instanceof Error
+            ? error.message
+            : "Falha ao gerar resumo da conversa para envio ao CV.";
+        }
       }
 
       if (summaryPayload?.summary) {
