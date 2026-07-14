@@ -1,8 +1,24 @@
-import { createServerFn } from "@tanstack/react-start";
-import { getRequest } from "@tanstack/react-start/server";
-import { z } from "zod";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.48.1";
 
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-internal-secret, x-crm-dispatch-token",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
+type Json =
+  | null
+  | string
+  | number
+  | boolean
+  | { [key: string]: Json }
+  | Json[];
+
+type DispatchPayload = {
+  leadId: number;
+  idEmpresa: number;
+  additionalTags?: string[];
+};
 
 type CrmUser = {
   id: string;
@@ -33,15 +49,30 @@ type CvSummaryResult = {
   whatsapp_url?: string | null;
 };
 
-async function getMe(supabase: any, userId: string) {
-  const { data, error } = await supabase
-    .from("crm_users")
-    .select("id,id_empresa,role")
-    .eq("auth_user_id", userId)
-    .maybeSingle();
-  if (error) throw new Error(error.message);
-  if (!data) throw new Error("Usuário não cadastrado no CRM");
-  return data as CrmUser;
+function jsonResponse(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      ...corsHeaders,
+      "Content-Type": "application/json",
+    },
+  });
+}
+
+function createSupabaseAdmin() {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error("SUPABASE_URL ou SUPABASE_SERVICE_ROLE_KEY ausente");
+  }
+
+  return createClient(supabaseUrl, serviceRoleKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  });
 }
 
 function normalizeCrmKey(value?: string | null) {
@@ -52,60 +83,17 @@ function trimTrailingSlash(value: string) {
   return value.replace(/\/+$/, "");
 }
 
+function normalizeDispatchTags(value: unknown) {
+  const supplied = Array.isArray(value)
+    ? value.map((tag) => String(tag ?? "").trim()).filter(Boolean)
+    : [];
+  return Array.from(new Set(["Atendimento IA", ...supplied])).slice(0, 10);
+}
+
 function toScalarId(value?: string | null) {
   const normalized = String(value ?? "").trim();
   if (!normalized) return null;
   return /^\d+$/.test(normalized) ? Number(normalized) : normalized;
-}
-
-function isSuccessfulExportActivity(activity: { descricao?: string | null; metadata?: any }) {
-  if (activity?.metadata?.event === "external_crm_sent") return true;
-  return String(activity?.descricao ?? "").toLowerCase().includes("lead enviado ao crm cv com sucesso");
-}
-
-async function parseResponsePayload(response: Response) {
-  const raw = await response.text();
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return { raw };
-  }
-}
-
-async function invokeCvSummaryFunction(args: {
-  leadId: number;
-  idEmpresa: number;
-  accessToken: string;
-}) {
-  const supabaseUrl = String(process.env.SUPABASE_URL ?? "").trim();
-
-  if (!supabaseUrl || !args.accessToken.trim()) {
-    throw new Error("SUPABASE_URL ou token de acesso ausente para gerar resumo do CV.");
-  }
-
-  const response = await fetch(`${trimTrailingSlash(supabaseUrl)}/functions/v1/external-crms-cv-summary`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${args.accessToken.trim()}`,
-    },
-    body: JSON.stringify({
-      leadId: args.leadId,
-      idEmpresa: args.idEmpresa,
-    }),
-  });
-
-  const payload = await parseResponsePayload(response);
-  if (!response.ok) {
-    const message =
-      (typeof payload?.error === "string" && payload.error) ||
-      (typeof payload?.message === "string" && payload.message) ||
-      `Resumo CV retornou ${response.status}`;
-    throw new Error(message);
-  }
-
-  return payload as CvSummaryResult;
 }
 
 function inferExternalId(payload: any): string | null {
@@ -128,12 +116,136 @@ function inferExternalId(payload: any): string | null {
   return null;
 }
 
-async function resolveLeadDestination(admin: any, lead: {
-  id: number;
-  id_empresa: number;
-  id_empreendimento: number | null;
-  crm_stage_id: number | null;
+function isSuccessfulExportActivity(activity: { descricao?: string | null; metadata?: any }) {
+  if (activity?.metadata?.event === "external_crm_sent") return true;
+  return String(activity?.descricao ?? "").toLowerCase().includes("lead enviado ao crm cv com sucesso");
+}
+
+async function parseResponsePayload(response: Response) {
+  const raw = await response.text();
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return { raw };
+  }
+}
+
+async function authenticateDispatchRequest(
+  supabaseAdmin: ReturnType<typeof createSupabaseAdmin>,
+  req: Request,
+  idEmpresa: number,
+) {
+  const authHeader = req.headers.get("authorization") ?? "";
+  const bearerToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
+  const apiKey = req.headers.get("apikey")?.trim() ?? "";
+  const internalSecretHeader = req.headers.get("x-internal-secret")?.trim() ?? "";
+  const crmDispatchToken = req.headers.get("x-crm-dispatch-token")?.trim() ?? "";
+  const internalSecret = Deno.env.get("EXTERNAL_CRMS_INTERNAL_SECRET")?.trim() ?? "";
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.trim() ?? "";
+
+  const isInternalRequest =
+    (internalSecret && (internalSecretHeader === internalSecret || bearerToken === internalSecret)) ||
+    (serviceRoleKey && (apiKey === serviceRoleKey || bearerToken === serviceRoleKey));
+
+  if (isInternalRequest) {
+    return { crmUserId: null as string | null, internal: true };
+  }
+
+  if (crmDispatchToken) {
+    const { data: credentials, error: credentialsError } = await supabaseAdmin
+      .from("credentials")
+      .select("cv_crm_token")
+      .eq("id_empresa", idEmpresa)
+      .maybeSingle();
+    if (credentialsError) throw new Error(credentialsError.message);
+    if (String(credentials?.cv_crm_token ?? "").trim() === crmDispatchToken) {
+      return { crmUserId: null as string | null, internal: true };
+    }
+  }
+
+  if (!bearerToken) {
+    throw new Error("Acesso interno inválido");
+  }
+
+  const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(bearerToken);
+  if (authError || !authData.user) {
+    throw new Error("Acesso interno inválido");
+  }
+
+  const { data: crmUser, error: crmUserError } = await supabaseAdmin
+    .from("crm_users")
+    .select("id,id_empresa,role")
+    .eq("auth_user_id", authData.user.id)
+    .maybeSingle();
+
+  if (crmUserError || !crmUser) {
+    throw new Error("Usuário do CRM não encontrado");
+  }
+
+  if (crmUser.role !== "super_admin" && !(crmUser.role === "manager" && crmUser.id_empresa === idEmpresa)) {
+    throw new Error("Sem permissão para enviar lead desta empresa");
+  }
+
+  return { crmUserId: (crmUser as CrmUser).id, internal: false };
+}
+
+async function invokeCvSummaryFunction(args: {
+  leadId: number;
+  idEmpresa: number;
 }) {
+  const supabaseUrl = String(Deno.env.get("SUPABASE_URL") ?? "").trim();
+  const internalSecret = Deno.env.get("EXTERNAL_CRMS_INTERNAL_SECRET")?.trim() ?? "";
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.trim() ?? "";
+
+  if (!supabaseUrl) {
+    throw new Error("SUPABASE_URL ausente para gerar resumo do CV.");
+  }
+
+  if (!internalSecret && !serviceRoleKey) {
+    throw new Error("Nenhuma credencial interna disponível para gerar resumo do CV.");
+  }
+
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+
+  if (internalSecret) {
+    headers["x-internal-secret"] = internalSecret;
+  } else if (serviceRoleKey) {
+    headers.apikey = serviceRoleKey;
+    headers.Authorization = `Bearer ${serviceRoleKey}`;
+  }
+
+  const response = await fetch(`${trimTrailingSlash(supabaseUrl)}/functions/v1/external-crms-cv-summary`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      leadId: args.leadId,
+      idEmpresa: args.idEmpresa,
+    }),
+  });
+
+  const payload = await parseResponsePayload(response);
+  if (!response.ok) {
+    const message =
+      (typeof payload?.error === "string" && payload.error) ||
+      (typeof payload?.message === "string" && payload.message) ||
+      `Resumo CV retornou ${response.status}`;
+    throw new Error(message);
+  }
+
+  return payload as CvSummaryResult;
+}
+
+async function resolveLeadDestination(
+  admin: ReturnType<typeof createSupabaseAdmin>,
+  lead: {
+    id: number;
+    id_empresa: number;
+    id_empreendimento: number | null;
+  },
+) {
   let localEmpreendimentoId = lead.id_empreendimento;
 
   if (!localEmpreendimentoId) {
@@ -182,7 +294,11 @@ function resolveExternalStageId(stageName: string | null, settings: DispatchSett
   return unqualified || qualified;
 }
 
-async function moveLeadToSentStage(admin: any, leadId: number, idEmpresa: number) {
+async function moveLeadToSentStage(
+  admin: ReturnType<typeof createSupabaseAdmin>,
+  leadId: number,
+  idEmpresa: number,
+) {
   let sentStage =
     (await admin
       .from("crm_stages")
@@ -247,39 +363,38 @@ async function moveLeadToSentStage(admin: any, leadId: number, idEmpresa: number
   };
 }
 
-export const sendLeadToExternalCrm = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ lead_id: z.number().int().positive() }).parse(d))
-  .handler(async ({ data, context }) => {
-    const me = await getMe(context.supabase, context.userId);
-    if (me.role !== "super_admin" && me.role !== "manager") {
-      throw new Error("Sem permissão para enviar lead ao CRM.");
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
+  try {
+    if (req.method !== "POST") {
+      return jsonResponse({ error: "Método não permitido" }, 405);
     }
 
-    const request = getRequest();
-    const authHeader = request?.headers.get("authorization") ?? "";
-    const accessToken = authHeader.startsWith("Bearer ")
-      ? authHeader.slice("Bearer ".length).trim()
-      : "";
+    const body = (await req.json()) as Partial<DispatchPayload>;
+    const leadId = Number(body.leadId);
+    const idEmpresa = Number(body.idEmpresa);
 
-    if (!accessToken) {
-      throw new Error("Não foi possível validar a sessão atual para gerar o resumo da conversa.");
+    if (!Number.isFinite(leadId) || !Number.isFinite(idEmpresa)) {
+      throw new Error("leadId e idEmpresa são obrigatórios");
     }
 
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const admin = supabaseAdmin as any;
+    const admin = createSupabaseAdmin();
+    const authContext = await authenticateDispatchRequest(admin, req, idEmpresa);
+    const aiUserIdResult = await admin.rpc("crm_get_or_create_ai_user", { p_id_empresa: idEmpresa });
+    if (aiUserIdResult.error) throw new Error(aiUserIdResult.error.message);
+    const activityUserId = authContext.crmUserId ?? (aiUserIdResult.data as string | null);
 
     const { data: lead, error: leadError } = await admin
       .from("crm_leads")
-      .select("id,id_empresa,nome,telefone,email,crm_stage_id,id_empreendimento,crm_assigned_to")
-      .eq("id", data.lead_id)
+      .select("id,id_empresa,nome,telefone,email,crm_stage_id,id_empreendimento")
+      .eq("id", leadId)
+      .eq("id_empresa", idEmpresa)
       .maybeSingle();
     if (leadError) throw new Error(leadError.message);
     if (!lead) throw new Error("Lead não encontrado.");
-
-    if (me.role === "manager" && me.id_empresa !== lead.id_empresa) {
-      throw new Error("Sem permissão para enviar lead de outra empresa.");
-    }
 
     const { data: previousExportActivities, error: previousExportActivitiesError } = await admin
       .from("crm_lead_activities")
@@ -310,7 +425,8 @@ export const sendLeadToExternalCrm = createServerFn({ method: "POST" })
     if (credentialsError) throw new Error(credentialsError.message);
     if (!empresa) throw new Error("Empresa do lead não encontrada.");
 
-    const crmKey = normalizeCrmKey(empresa.default_crm) || normalizeCrmKey((credentials as CvCredentials | null)?.default_crm);
+    const crmKey = normalizeCrmKey(empresa.default_crm) ||
+      normalizeCrmKey((credentials as CvCredentials | null)?.default_crm);
     if (!["cv", "cv_crm"].includes(crmKey)) {
       throw new Error("O CRM padrão desta empresa não está configurado como CV.");
     }
@@ -356,7 +472,7 @@ export const sendLeadToExternalCrm = createServerFn({ method: "POST" })
       origem: "WA",
       idsituacao: toScalarId(externalStageId),
       permitir_alteracao: true,
-      tags: ["Atendimento IA"],
+      tags: normalizeDispatchTags(body.additionalTags),
     };
 
     const email = String(lead.email ?? "").trim();
@@ -370,7 +486,7 @@ export const sendLeadToExternalCrm = createServerFn({ method: "POST" })
       request_payload: requestPayload,
     };
 
-    let responsePayload: any = null;
+    let responsePayload: Json | Record<string, unknown> | null = null;
     let summaryPayload: CvSummaryResult | null = null;
     let summaryErrorMessage: string | null = null;
 
@@ -379,7 +495,6 @@ export const sendLeadToExternalCrm = createServerFn({ method: "POST" })
         summaryPayload = await invokeCvSummaryFunction({
           leadId: lead.id,
           idEmpresa: lead.id_empresa,
-          accessToken,
         });
       } catch (error) {
         summaryErrorMessage = error instanceof Error
@@ -411,8 +526,8 @@ export const sendLeadToExternalCrm = createServerFn({ method: "POST" })
 
       if (!response.ok) {
         const errorMessage =
-          (typeof responsePayload?.message === "string" && responsePayload.message) ||
-          (typeof responsePayload?.error === "string" && responsePayload.error) ||
+          (typeof (responsePayload as any)?.message === "string" && (responsePayload as any).message) ||
+          (typeof (responsePayload as any)?.error === "string" && (responsePayload as any).error) ||
           `CV CRM retornou ${response.status}`;
 
         await admin.from("crm_external_crm_send_logs").insert({
@@ -424,11 +539,11 @@ export const sendLeadToExternalCrm = createServerFn({ method: "POST" })
 
         await admin.from("crm_lead_activities").insert({
           lead_id: lead.id,
-          crm_user_id: me.id,
+          crm_user_id: activityUserId,
           tipo: "crm_export",
           descricao: `Falha ao enviar lead ao CRM CV: ${errorMessage}`,
           metadata: {
-            source: "crm",
+            source: authContext.internal ? "n8n" : "crm",
             event: "external_crm_failed",
             provider: "cv_crm",
             response: responsePayload,
@@ -473,11 +588,11 @@ export const sendLeadToExternalCrm = createServerFn({ method: "POST" })
       if (sentStage?.oldStageId != null && sentStage.oldStageId !== sentStage.id) {
         await admin.from("crm_lead_activities").insert({
           lead_id: lead.id,
-          crm_user_id: me.id,
+          crm_user_id: activityUserId,
           tipo: "stage_change",
           descricao: `De ${sentStage.oldStageName ?? "—"} para ${sentStage.nome}`,
           metadata: {
-            source: "crm",
+            source: authContext.internal ? "n8n" : "crm",
             event: "lead_sent_to_external_crm_stage_change",
             provider: "cv_crm",
             old_stage_id: sentStage.oldStageId,
@@ -488,11 +603,11 @@ export const sendLeadToExternalCrm = createServerFn({ method: "POST" })
 
       await admin.from("crm_lead_activities").insert({
         lead_id: lead.id,
-        crm_user_id: me.id,
+        crm_user_id: activityUserId,
         tipo: "crm_export",
         descricao: "Lead enviado ao CRM CV com sucesso",
         metadata: {
-          source: "crm",
+          source: authContext.internal ? "n8n" : "crm",
           event: "external_crm_sent",
           provider: "cv_crm",
           external_id: inferExternalId(responsePayload),
@@ -510,11 +625,11 @@ export const sendLeadToExternalCrm = createServerFn({ method: "POST" })
       if (summaryErrorMessage) {
         await admin.from("crm_lead_activities").insert({
           lead_id: lead.id,
-          crm_user_id: me.id,
+          crm_user_id: activityUserId,
           tipo: "crm_export",
           descricao: `Lead enviado ao CRM CV sem resumo de conversa: ${summaryErrorMessage}`,
           metadata: {
-            source: "crm",
+            source: authContext.internal ? "n8n" : "crm",
             event: "external_crm_summary_generation_failed",
             provider: "cv_crm",
             external_id: inferExternalId(responsePayload),
@@ -525,11 +640,11 @@ export const sendLeadToExternalCrm = createServerFn({ method: "POST" })
       if (externalLeadStatusErrorMessage) {
         await admin.from("crm_lead_activities").insert({
           lead_id: lead.id,
-          crm_user_id: me.id,
+          crm_user_id: activityUserId,
           tipo: "crm_export",
           descricao: `Lead enviado ao CRM CV, mas não foi possível atualizar o status externo para Enviado  CRM: ${externalLeadStatusErrorMessage}`,
           metadata: {
-            source: "crm",
+            source: authContext.internal ? "n8n" : "crm",
             event: "external_crm_external_lead_status_update_failed",
             provider: "cv_crm",
             external_id: inferExternalId(responsePayload),
@@ -537,15 +652,22 @@ export const sendLeadToExternalCrm = createServerFn({ method: "POST" })
         });
       }
 
-      return {
+      return jsonResponse({
         ok: true,
         provider: "cv_crm",
         moved_to_stage: sentStage?.id ?? null,
         conversation_summary_synced: Boolean(summaryPayload?.summary),
         external_lead_status_updated: !externalLeadStatusErrorMessage,
-      };
+        summary_error: summaryErrorMessage,
+      });
     } catch (error) {
-      if (error instanceof Error) throw error;
-      throw new Error("Falha ao enviar lead para o CRM externo.");
+      throw error instanceof Error ? error : new Error("Falha ao enviar lead para o CRM externo.");
     }
-  });
+  } catch (error) {
+    console.error(error);
+    return jsonResponse(
+      { error: error instanceof Error ? error.message : "Erro interno" },
+      400,
+    );
+  }
+});

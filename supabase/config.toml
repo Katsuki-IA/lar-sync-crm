@@ -5,3 +5,9 @@ verify_jwt = false
 
 [functions.rd-webhook]
 verify_jwt = false
+
+[functions.external-crms-cv-summary]
+verify_jwt = false
+
+[functions.external-crms-dispatch]
+verify_jwt = false

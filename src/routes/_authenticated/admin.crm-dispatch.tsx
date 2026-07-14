@@ -39,6 +39,7 @@ function AdminCrmDispatchPage() {
   const [withoutContactStageId, setWithoutContactStageId] = useState<string>(EMPTY_VALUE);
   const [withContactStageId, setWithContactStageId] = useState<string>(EMPTY_VALUE);
   const [qualifiedExternalStageId, setQualifiedExternalStageId] = useState("");
+  const [unqualifiedExternalStageId, setUnqualifiedExternalStageId] = useState("");
   const [visitScheduledExternalStageId, setVisitScheduledExternalStageId] = useState("");
   const [lostExternalStageId, setLostExternalStageId] = useState("");
 
@@ -72,6 +73,7 @@ function AdminCrmDispatchPage() {
         : EMPTY_VALUE,
     );
     setQualifiedExternalStageId(configData.settings.external_stage_qualified_id ?? "");
+    setUnqualifiedExternalStageId(configData.settings.external_stage_unqualified_id ?? "");
     setVisitScheduledExternalStageId(configData.settings.external_stage_visit_scheduled_id ?? "");
     setLostExternalStageId(configData.settings.external_stage_lost_id ?? "");
   }, [configData]);
@@ -91,6 +93,7 @@ function AdminCrmDispatchPage() {
           stage_with_contact_id:
             withContactStageId === EMPTY_VALUE ? null : Number(withContactStageId),
           external_stage_qualified_id: qualifiedExternalStageId.trim() || null,
+          external_stage_unqualified_id: unqualifiedExternalStageId.trim() || null,
           external_stage_visit_scheduled_id: visitScheduledExternalStageId.trim() || null,
           external_stage_lost_id: lostExternalStageId.trim() || null,
         },
@@ -205,7 +208,7 @@ function AdminCrmDispatchPage() {
             Para lead sem contato: Follow Up 1, Follow Up 2, Follow Up 3 e Follow Up 4. Para lead com contato: Follow Up 1, Follow Up 2, Follow Up 3, Follow Up 4 e Visita Agendada.
           </div>
 
-          <div className="grid gap-4 lg:grid-cols-3">
+          <div className="grid gap-4 lg:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="external-stage-qualified">ID da etapa no CRM: Qualificado</Label>
               <Input
@@ -217,6 +220,20 @@ function AdminCrmDispatchPage() {
               />
               <p className="text-xs text-muted-foreground">
                 Valor padrão. Se perdido ou visita agendada não estiverem preenchidos, este ID pode ser usado como fallback.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="external-stage-unqualified">ID da etapa no CRM: Não qualificado</Label>
+              <Input
+                id="external-stage-unqualified"
+                value={unqualifiedExternalStageId}
+                onChange={(event) => setUnqualifiedExternalStageId(event.target.value)}
+                placeholder="Ex.: 23456"
+                disabled={isLoading}
+              />
+              <p className="text-xs text-muted-foreground">
+                Usado quando o lead ainda não está em Qualificado, Visita Agendada ou Perdido. Se vazio, usa Qualificado.
               </p>
             </div>
 

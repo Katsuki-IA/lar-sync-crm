@@ -2,7 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.48.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-internal-secret",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
@@ -60,6 +60,19 @@ async function authenticateRequest(
 ) {
   const authHeader = req.headers.get("authorization") ?? "";
   const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
+  const apiKey = req.headers.get("apikey")?.trim() ?? "";
+  const internalSecretHeader = req.headers.get("x-internal-secret")?.trim() ?? "";
+  const internalSecret = Deno.env.get("EXTERNAL_CRMS_INTERNAL_SECRET")?.trim() ?? "";
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.trim() ?? "";
+
+  const isInternalRequest =
+    (internalSecret && (internalSecretHeader === internalSecret || token === internalSecret)) ||
+    (serviceRoleKey && (apiKey === serviceRoleKey || token === serviceRoleKey));
+
+  if (isInternalRequest) {
+    return;
+  }
+
   if (!token) {
     throw new Error("Acesso interno inválido");
   }
