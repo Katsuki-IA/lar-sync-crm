@@ -513,12 +513,12 @@ function ConversationsPage() {
 }
 
 function MessageContent({ text }: { text: string }) {
-  const parts = text.split(/(\[IMG:[^\]\s]+\])/g);
+  const parts = text.split(/(\[IMG\s*:\s*[^\]\s]+\s*\])/gi);
 
   return (
     <div className="space-y-2 leading-relaxed">
       {parts.map((part, index) => {
-        const match = part.match(/^\[IMG:([^\]\s]+)\]$/);
+        const match = part.match(/^\[IMG\s*:\s*([^\]\s]+)\s*\]$/i);
         if (match) {
           const fileId = match[1];
           return (

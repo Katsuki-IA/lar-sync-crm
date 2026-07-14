@@ -673,12 +673,12 @@ function Field({ label, value }: { label: string; value: string }) {
 function ActivityDescription({ text }: { text?: string | null }) {
   if (!text) return null;
 
-  const parts = text.split(/(\[IMG:[^\]\s]+\])/g);
+  const parts = text.split(/(\[IMG\s*:\s*[^\]\s]+\s*\])/gi);
 
   return (
     <div className="mt-0.5 space-y-2 text-sm">
       {parts.map((part, index) => {
-        const match = part.match(/^\[IMG:([^\]\s]+)\]$/);
+        const match = part.match(/^\[IMG\s*:\s*([^\]\s]+)\s*\]$/i);
         if (match) {
           const fileId = match[1];
           return (
