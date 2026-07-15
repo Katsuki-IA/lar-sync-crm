@@ -11,3 +11,9 @@ verify_jwt = false
 
 [functions.external-crms-dispatch]
 verify_jwt = false
+
+[functions.external-crms-dispatch-enqueue]
+verify_jwt = false
+
+[functions.external-crms-dispatch-worker]
+verify_jwt = false
