@@ -40,6 +40,7 @@ import { Route as AuthenticatedLeadsIdRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedConfiguracoesIntegracoesRouteImport } from './routes/_authenticated/configuracoes.integracoes'
 import { Route as AuthenticatedAdminUsersRouteImport } from './routes/_authenticated/admin.users'
 import { Route as AuthenticatedAdminTagsRouteImport } from './routes/_authenticated/admin.tags'
+import { Route as AuthenticatedAdminSiteFormsRouteImport } from './routes/_authenticated/admin.site-forms'
 import { Route as AuthenticatedAdminNotificationsRouteImport } from './routes/_authenticated/admin.notifications'
 import { Route as AuthenticatedAdminFunnelRouteImport } from './routes/_authenticated/admin.funnel'
 import { Route as AuthenticatedAdminEmpresasRouteImport } from './routes/_authenticated/admin.empresas'
@@ -210,6 +211,12 @@ const AuthenticatedAdminTagsRoute = AuthenticatedAdminTagsRouteImport.update({
   path: '/tags',
   getParentRoute: () => AuthenticatedAdminRoute,
 } as any)
+const AuthenticatedAdminSiteFormsRoute =
+  AuthenticatedAdminSiteFormsRouteImport.update({
+    id: '/site-forms',
+    path: '/site-forms',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 const AuthenticatedAdminNotificationsRoute =
   AuthenticatedAdminNotificationsRouteImport.update({
     id: '/notifications',
@@ -262,6 +269,7 @@ export interface FileRoutesByFullPath {
   '/admin/empresas': typeof AuthenticatedAdminEmpresasRoute
   '/admin/funnel': typeof AuthenticatedAdminFunnelRoute
   '/admin/notifications': typeof AuthenticatedAdminNotificationsRoute
+  '/admin/site-forms': typeof AuthenticatedAdminSiteFormsRoute
   '/admin/tags': typeof AuthenticatedAdminTagsRoute
   '/admin/users': typeof AuthenticatedAdminUsersRoute
   '/configuracoes/integracoes': typeof AuthenticatedConfiguracoesIntegracoesRoute
@@ -297,6 +305,7 @@ export interface FileRoutesByTo {
   '/admin/empresas': typeof AuthenticatedAdminEmpresasRoute
   '/admin/funnel': typeof AuthenticatedAdminFunnelRoute
   '/admin/notifications': typeof AuthenticatedAdminNotificationsRoute
+  '/admin/site-forms': typeof AuthenticatedAdminSiteFormsRoute
   '/admin/tags': typeof AuthenticatedAdminTagsRoute
   '/admin/users': typeof AuthenticatedAdminUsersRoute
   '/configuracoes/integracoes': typeof AuthenticatedConfiguracoesIntegracoesRoute
@@ -336,6 +345,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/empresas': typeof AuthenticatedAdminEmpresasRoute
   '/_authenticated/admin/funnel': typeof AuthenticatedAdminFunnelRoute
   '/_authenticated/admin/notifications': typeof AuthenticatedAdminNotificationsRoute
+  '/_authenticated/admin/site-forms': typeof AuthenticatedAdminSiteFormsRoute
   '/_authenticated/admin/tags': typeof AuthenticatedAdminTagsRoute
   '/_authenticated/admin/users': typeof AuthenticatedAdminUsersRoute
   '/_authenticated/configuracoes/integracoes': typeof AuthenticatedConfiguracoesIntegracoesRoute
@@ -375,6 +385,7 @@ export interface FileRouteTypes {
     | '/admin/empresas'
     | '/admin/funnel'
     | '/admin/notifications'
+    | '/admin/site-forms'
     | '/admin/tags'
     | '/admin/users'
     | '/configuracoes/integracoes'
@@ -410,6 +421,7 @@ export interface FileRouteTypes {
     | '/admin/empresas'
     | '/admin/funnel'
     | '/admin/notifications'
+    | '/admin/site-forms'
     | '/admin/tags'
     | '/admin/users'
     | '/configuracoes/integracoes'
@@ -448,6 +460,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/empresas'
     | '/_authenticated/admin/funnel'
     | '/_authenticated/admin/notifications'
+    | '/_authenticated/admin/site-forms'
     | '/_authenticated/admin/tags'
     | '/_authenticated/admin/users'
     | '/_authenticated/configuracoes/integracoes'
@@ -696,6 +709,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminTagsRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/site-forms': {
+      id: '/_authenticated/admin/site-forms'
+      path: '/site-forms'
+      fullPath: '/admin/site-forms'
+      preLoaderRoute: typeof AuthenticatedAdminSiteFormsRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/admin/notifications': {
       id: '/_authenticated/admin/notifications'
       path: '/notifications'
@@ -740,6 +760,7 @@ interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminEmpresasRoute: typeof AuthenticatedAdminEmpresasRoute
   AuthenticatedAdminFunnelRoute: typeof AuthenticatedAdminFunnelRoute
   AuthenticatedAdminNotificationsRoute: typeof AuthenticatedAdminNotificationsRoute
+  AuthenticatedAdminSiteFormsRoute: typeof AuthenticatedAdminSiteFormsRoute
   AuthenticatedAdminTagsRoute: typeof AuthenticatedAdminTagsRoute
   AuthenticatedAdminUsersRoute: typeof AuthenticatedAdminUsersRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
@@ -751,6 +772,7 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminEmpresasRoute: AuthenticatedAdminEmpresasRoute,
   AuthenticatedAdminFunnelRoute: AuthenticatedAdminFunnelRoute,
   AuthenticatedAdminNotificationsRoute: AuthenticatedAdminNotificationsRoute,
+  AuthenticatedAdminSiteFormsRoute: AuthenticatedAdminSiteFormsRoute,
   AuthenticatedAdminTagsRoute: AuthenticatedAdminTagsRoute,
   AuthenticatedAdminUsersRoute: AuthenticatedAdminUsersRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,

@@ -23,6 +23,7 @@ const tabs = [
   { to: "/admin/tags", label: "Tags" },
   { to: "/admin/custom-fields", label: "Campos do lead" },
   { to: "/admin/crm-dispatch", label: "Envio ao CRM" },
+  { to: "/admin/site-forms", label: "Formulários externos" },
   { to: "/admin/notifications", label: "Notificações" },
 ] as const;
 

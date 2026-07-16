@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.external-crms-dispatch-worker]
 verify_jwt = false
+
+[functions.site-lead-capture]
+verify_jwt = false

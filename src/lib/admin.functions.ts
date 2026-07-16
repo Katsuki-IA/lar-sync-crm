@@ -482,3 +482,216 @@ export const saveCrmDispatchSettings = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+function normalizeSiteLeadDomains(domains: string[]) {
+  return Array.from(
+    new Set(
+      domains
+        .map((domain) =>
+          domain
+            .trim()
+            .toLowerCase()
+            .replace(/^https?:\/\//, "")
+            .replace(/\/.*$/, "")
+            .replace(/^www\./, ""),
+        )
+        .filter(Boolean),
+    ),
+  );
+}
+
+function createSiteLeadToken() {
+  return `${crypto.randomUUID()}${crypto.randomUUID()}`.replace(/-/g, "");
+}
+
+async function listHubCompanyIds(supabaseAdmin: any) {
+  const { data: creds, error } = await supabaseAdmin
+    .from("credentials")
+    .select("id_empresa")
+    .eq("default_crm", "hub");
+  if (error) throw new Error(error.message);
+  return (creds ?? [])
+    .map((credential: any) => credential.id_empresa as number | null)
+    .filter((value: number | null): value is number => value != null);
+}
+
+async function assertSuperAdmin(context: { supabase: any; userId: string }) {
+  const me = await getMe(context.supabase, context.userId);
+  if (me.role !== "super_admin") throw new Error("Sem permissão");
+}
+
+async function assertSiteSourceCompany(
+  supabaseAdmin: any,
+  sourceId: string,
+  allowedCompanyIds: number[],
+) {
+  const { data, error } = await (supabaseAdmin as any)
+    .from("crm_site_lead_sources")
+    .select("id,id_empresa")
+    .eq("id", sourceId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error("Fonte não encontrada");
+  if (!allowedCompanyIds.includes(data.id_empresa)) throw new Error("Empresa sem CRM Hub");
+  return data as { id: string; id_empresa: number };
+}
+
+async function assertEmpreendimentoBelongsToCompany(
+  supabaseAdmin: any,
+  idEmpresa: number,
+  idEmpreendimento: number,
+) {
+  const { data, error } = await supabaseAdmin
+    .from("empreendimento")
+    .select("id")
+    .eq("id", idEmpreendimento)
+    .eq("id_empresa", idEmpresa)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error("Empreendimento inválido para a empresa");
+}
+
+export const listSiteLeadSources = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertSuperAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const admin = supabaseAdmin as any;
+    const allowedCompanyIds = await listHubCompanyIds(supabaseAdmin);
+    if (!allowedCompanyIds.length) {
+      return { empresas: [], empreendimentos: [], sources: [] };
+    }
+
+    const [{ data: empresas, error: empresasError }, { data: empreendimentos, error: empError }, { data: sources, error: sourcesError }] =
+      await Promise.all([
+        supabaseAdmin
+          .from("empresa_dados")
+          .select("id,nome")
+          .in("id", allowedCompanyIds)
+          .order("nome", { ascending: true }),
+        supabaseAdmin
+          .from("empreendimento")
+          .select("id,id_empresa,nome")
+          .in("id_empresa", allowedCompanyIds)
+          .order("nome", { ascending: true }),
+        admin
+          .from("crm_site_lead_sources")
+          .select(
+            "id,id_empresa,id_empreendimento,nome,token,allowed_domains,origem,active,leads_count,last_lead_at,last_error,created_at,updated_at",
+          )
+          .in("id_empresa", allowedCompanyIds)
+          .order("created_at", { ascending: false }),
+      ]);
+
+    if (empresasError) throw new Error(empresasError.message);
+    if (empError) throw new Error(empError.message);
+    if (sourcesError) throw new Error(sourcesError.message);
+
+    return {
+      empresas: empresas ?? [],
+      empreendimentos: empreendimentos ?? [],
+      sources: sources ?? [],
+    };
+  });
+
+export const createSiteLeadSource = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        id_empresa: z.number().int().positive(),
+        id_empreendimento: z.number().int().positive(),
+        nome: z.string().min(2).max(160),
+        allowed_domains: z.array(z.string()).default([]),
+        origem: z.string().min(2).max(8).default("SI"),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertSuperAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const allowedCompanyIds = await listHubCompanyIds(supabaseAdmin);
+    if (!allowedCompanyIds.includes(data.id_empresa)) throw new Error("Empresa sem CRM Hub");
+    await assertEmpreendimentoBelongsToCompany(supabaseAdmin, data.id_empresa, data.id_empreendimento);
+
+    const { error } = await (supabaseAdmin as any).from("crm_site_lead_sources").insert({
+      id_empresa: data.id_empresa,
+      id_empreendimento: data.id_empreendimento,
+      nome: data.nome.trim(),
+      token: createSiteLeadToken(),
+      allowed_domains: normalizeSiteLeadDomains(data.allowed_domains),
+      origem: data.origem.trim().toUpperCase() || "SI",
+      active: true,
+    });
+
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const updateSiteLeadSource = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        nome: z.string().min(2).max(160),
+        allowed_domains: z.array(z.string()).default([]),
+        origem: z.string().min(2).max(8).default("SI"),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertSuperAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const allowedCompanyIds = await listHubCompanyIds(supabaseAdmin);
+    await assertSiteSourceCompany(supabaseAdmin, data.id, allowedCompanyIds);
+
+    const { error } = await (supabaseAdmin as any)
+      .from("crm_site_lead_sources")
+      .update({
+        nome: data.nome.trim(),
+        allowed_domains: normalizeSiteLeadDomains(data.allowed_domains),
+        origem: data.origem.trim().toUpperCase() || "SI",
+      })
+      .eq("id", data.id);
+
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const setSiteLeadSourceActive = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid(), active: z.boolean() }).parse(d))
+  .handler(async ({ data, context }) => {
+    await assertSuperAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const allowedCompanyIds = await listHubCompanyIds(supabaseAdmin);
+    await assertSiteSourceCompany(supabaseAdmin, data.id, allowedCompanyIds);
+
+    const { error } = await (supabaseAdmin as any)
+      .from("crm_site_lead_sources")
+      .update({ active: data.active })
+      .eq("id", data.id);
+
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const rotateSiteLeadSourceToken = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    await assertSuperAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const allowedCompanyIds = await listHubCompanyIds(supabaseAdmin);
+    await assertSiteSourceCompany(supabaseAdmin, data.id, allowedCompanyIds);
+
+    const token = createSiteLeadToken();
+    const { error } = await (supabaseAdmin as any)
+      .from("crm_site_lead_sources")
+      .update({ token })
+      .eq("id", data.id);
+
+    if (error) throw new Error(error.message);
+    return { ok: true, token };
+  });
