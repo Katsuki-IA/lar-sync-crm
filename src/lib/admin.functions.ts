@@ -149,6 +149,10 @@ export const updateCrmUser = createServerFn({ method: "POST" })
         email: z.string().email(),
         role: z.enum(["agent", "manager", "super_admin"]),
         id_empresa: z.number().nullable().optional(),
+        password: z
+          .string()
+          .refine((password) => !getPasswordPolicyError(password), PASSWORD_POLICY_MESSAGE)
+          .optional(),
       })
       .parse(d),
   )
@@ -182,6 +186,7 @@ export const updateCrmUser = createServerFn({ method: "POST" })
     if (target.auth_user_id) {
       const { error: authUpdateError } = await supabaseAdmin.auth.admin.updateUserById(target.auth_user_id, {
         email: data.email,
+        ...(data.password ? { password: data.password } : {}),
         user_metadata: { nome: data.nome },
       });
       if (authUpdateError) throw new Error(authUpdateError.message);

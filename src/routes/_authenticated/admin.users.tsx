@@ -76,6 +76,8 @@ function AdminUsersPage() {
     email: "",
     role: "agent" as "agent" | "manager" | "super_admin",
     id_empresa: "",
+    password: "",
+    confirmPassword: "",
   });
   const [editingAiUser, setEditingAiUser] = useState<AdminUserRow | null>(null);
   const [aiName, setAiName] = useState("");
@@ -116,6 +118,11 @@ function AdminUsersPage() {
   }, [data, selectedEmpresa]);
 
   const createPasswordError = createForm.password ? getPasswordPolicyError(createForm.password) : null;
+  const editPasswordError = editForm.password ? getPasswordPolicyError(editForm.password) : null;
+  const editPasswordMismatch =
+    editForm.password && editForm.confirmPassword && editForm.password !== editForm.confirmPassword
+      ? "As senhas não coincidem"
+      : null;
 
   const isAiUser = (user: AdminUserRow) =>
     !user.auth_user_id &&
@@ -153,6 +160,7 @@ function AdminUsersPage() {
           email: editForm.email,
           role: editForm.role,
           id_empresa: editForm.role === "super_admin" ? null : Number(editForm.id_empresa),
+          password: editForm.password || undefined,
         },
       });
     },
@@ -160,6 +168,7 @@ function AdminUsersPage() {
       toast.success("Usuário atualizado");
       setEditOpen(false);
       setEditingUser(null);
+      setEditForm((prev) => ({ ...prev, password: "", confirmPassword: "" }));
       await qc.invalidateQueries({ queryKey: ["admin_all_users"] });
     },
     onError: (error: Error) => toast.error(error.message),
@@ -443,6 +452,8 @@ function AdminUsersPage() {
                                     | "manager"
                                     | "super_admin",
                                   id_empresa: user.id_empresa != null ? String(user.id_empresa) : "",
+                                  password: "",
+                                  confirmPassword: "",
                                 });
                                 setEditOpen(true);
                               }}
@@ -475,7 +486,10 @@ function AdminUsersPage() {
         open={editOpen}
         onOpenChange={(open) => {
           setEditOpen(open);
-          if (!open) setEditingUser(null);
+          if (!open) {
+            setEditingUser(null);
+            setEditForm((prev) => ({ ...prev, password: "", confirmPassword: "" }));
+          }
         }}
       >
         <DialogContent>
@@ -533,6 +547,31 @@ function AdminUsersPage() {
                 </Select>
               </div>
             ) : null}
+            <div className="space-y-1.5">
+              <Label>Nova senha (opcional)</Label>
+              <Input
+                type="password"
+                minLength={PASSWORD_MIN_LENGTH}
+                placeholder="Deixe em branco para manter a senha atual"
+                value={editForm.password}
+                onChange={(event) => setEditForm((prev) => ({ ...prev, password: event.target.value }))}
+              />
+              <p className={editPasswordError ? "text-xs text-destructive" : "text-xs text-muted-foreground"}>
+                {editPasswordError ?? "Se informada, use pelo menos 8 caracteres e um caractere especial."}
+              </p>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Confirmar nova senha</Label>
+              <Input
+                type="password"
+                minLength={PASSWORD_MIN_LENGTH}
+                placeholder="Repita a nova senha"
+                value={editForm.confirmPassword}
+                onChange={(event) => setEditForm((prev) => ({ ...prev, confirmPassword: event.target.value }))}
+                disabled={!editForm.password}
+              />
+              {editPasswordMismatch ? <p className="text-xs text-destructive">{editPasswordMismatch}</p> : null}
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" className="cursor-pointer" onClick={() => setEditOpen(false)}>
@@ -545,6 +584,9 @@ function AdminUsersPage() {
                 !editForm.nome ||
                 !editForm.email ||
                 (editForm.role !== "super_admin" && !editForm.id_empresa) ||
+                !!editPasswordError ||
+                !!editPasswordMismatch ||
+                (!!editForm.password && !editForm.confirmPassword) ||
                 updateMutation.isPending
               }
             >
