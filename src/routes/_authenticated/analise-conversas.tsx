@@ -1,9 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   BarChart3,
   Download,
+  Loader2,
   MessageCircle,
   Send,
   Sparkles,
@@ -22,6 +23,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/analise-conversas")({
   component: ConversationAnalysisPage,
@@ -51,6 +53,18 @@ type LeadRow = Pick<
 >;
 type ChatRow = Pick<Database["public"]["Tables"]["n8n_chat_conversas"]["Row"], "id" | "numero" | "type" | "message" | "time" | "created_at">;
 type AgendamentoRow = Pick<Database["public"]["Tables"]["agendamento"]["Row"], "id_lead" | "id_empresa" | "id_empreendimento" | "deleted_at">;
+type ClassificationRow = Pick<
+  Database["public"]["Tables"]["crm_conversation_classifications"]["Row"],
+  | "lead_id"
+  | "cliente_respondeu"
+  | "nao_respondeu_mais"
+  | "lead_desqualificado"
+  | "qualificado"
+  | "visita_agendada"
+  | "temperatura"
+  | "resumo"
+  | "classified_at"
+>;
 
 type ConversationAnalysis = {
   lead: LeadRow;
@@ -63,10 +77,12 @@ type ConversationAnalysis = {
   firstAt: string | null;
   lastAt: string | null;
   hasHuman: boolean;
+  noResponse: boolean;
   qualified: boolean;
   disqualified: boolean;
   visitScheduled: boolean;
   hasLabel: boolean;
+  classification: ClassificationRow | null;
 };
 
 const ALL = "all";
@@ -166,6 +182,7 @@ async function fetchMessages(sessionIds: string[]) {
 function ConversationAnalysisPage() {
   const { data: me } = useCrmUser();
   const { data: allowed } = useAllowedEmpresas();
+  const queryClient = useQueryClient();
   const isSuperAdmin = me?.role === "super_admin";
   const canView = me?.role === "manager" || me?.role === "super_admin";
   const [companyId, setCompanyId] = useState<number | null>(null);
@@ -279,6 +296,30 @@ function ConversationAnalysisPage() {
         scheduledLeadIds = new Set(appointments.map((appointment) => appointment.id_lead).filter((id): id is number => id != null));
       }
 
+      const classificationsByLead = new Map<number, ClassificationRow>();
+      if (leadIds.length) {
+        for (const group of chunk(leadIds, 100)) {
+          const { data: classificationRows, error: classificationError } = await supabase
+            .from("crm_conversation_classifications")
+            .select(
+              "lead_id,cliente_respondeu,nao_respondeu_mais,lead_desqualificado,qualificado,visita_agendada,temperatura,resumo,classified_at",
+            )
+            .eq("id_empresa", companyId)
+            .in("lead_id", group);
+
+          if (classificationError) {
+            const errorCode = (classificationError as { code?: string }).code;
+            const message = classificationError.message ?? "";
+            if (errorCode === "42P01" || errorCode === "PGRST205" || message.includes("crm_conversation_classifications")) {
+              break;
+            }
+            throw classificationError;
+          }
+
+          for (const row of classificationRows ?? []) classificationsByLead.set(row.lead_id, row as ClassificationRow);
+        }
+      }
+
       return leadsWithSession
         .map(({ lead, sessionId }) => {
           const leadMessages = messagesBySession.get(sessionId) ?? [];
@@ -290,10 +331,23 @@ function ConversationAnalysisPage() {
           const messageCount = leadMessages.length || storedInteractionCount;
           const humanCount = leadMessages.filter((message) => message.type === "human").length;
           const aiCount = leadMessages.filter((message) => message.type === "ai").length;
-          const qualified = lead.qualificado === 1 || (historyIncludes(lead, "Qualificado") && !historyIncludes(lead, "Desqualificado"));
-          const disqualified = historyIncludes(lead, "Desqualificado") || historyIncludes(lead, "Perdido");
-          const visitScheduled = scheduledLeadIds.has(lead.id) || historyIncludes(lead, "Visita Agendada");
-          const hasLabel = Boolean(lead.status_history || qualified || disqualified || visitScheduled);
+          const classification = classificationsByLead.get(lead.id) ?? null;
+          const fallbackHasHuman = humanCount > 0 || storedInteractionCount >= 2;
+          const qualified =
+            Boolean(classification?.qualificado) ||
+            lead.qualificado === 1 ||
+            (historyIncludes(lead, "Qualificado") && !historyIncludes(lead, "Desqualificado"));
+          const disqualified =
+            Boolean(classification?.lead_desqualificado) ||
+            historyIncludes(lead, "Desqualificado") ||
+            historyIncludes(lead, "Perdido");
+          const visitScheduled =
+            Boolean(classification?.visita_agendada) ||
+            scheduledLeadIds.has(lead.id) ||
+            historyIncludes(lead, "Visita Agendada");
+          const hasHuman = classification ? classification.cliente_respondeu : fallbackHasHuman;
+          const noResponse = classification ? classification.nao_respondeu_mais : !fallbackHasHuman;
+          const hasLabel = Boolean(classification || lead.status_history || qualified || disqualified || visitScheduled);
           const empreendimentoName =
             (lead.id_empreendimento ? empreendimentoNameById.get(lead.id_empreendimento) : null) ??
             (lead.empreendimento_em_foco_id ? empreendimentoNameById.get(lead.empreendimento_em_foco_id) : null) ??
@@ -310,11 +364,13 @@ function ConversationAnalysisPage() {
             aiCount,
             firstAt,
             lastAt,
-            hasHuman: humanCount > 0 || storedInteractionCount >= 2,
+            hasHuman,
+            noResponse,
             qualified,
             disqualified,
             visitScheduled,
             hasLabel,
+            classification,
           };
         })
         .filter((item) => withinDateRange(item.lastAt, dateFrom, dateTo))
@@ -328,7 +384,7 @@ function ConversationAnalysisPage() {
     const messages = conversations.reduce((sum, item) => sum + item.messageCount, 0);
     const withLabel = conversations.filter((item) => item.hasLabel).length;
     const responded = conversations.filter((item) => item.hasHuman).length;
-    const noResponse = conversations.filter((item) => !item.hasHuman).length;
+    const noResponse = conversations.filter((item) => item.noResponse).length;
     const disqualified = conversations.filter((item) => item.disqualified).length;
     const qualified = conversations.filter((item) => item.qualified).length;
     const scheduled = conversations.filter((item) => item.visitScheduled).length;
@@ -351,6 +407,51 @@ function ConversationAnalysisPage() {
     empreendimentoId === ALL
       ? "todos os empreendimentos"
       : empreendimentos.find((item) => String(item.id) === empreendimentoId)?.nome ?? "empreendimento";
+  const classifyLimit = Math.min(30, totals.withoutLabel || totals.total);
+
+  const classifyMutation = useMutation({
+    mutationFn: async () => {
+      if (!companyId) throw new Error("Selecione uma empresa antes de classificar.");
+
+      const { data, error } = await supabase.functions.invoke("conversation-analysis-classify", {
+        body: {
+          idEmpresa: companyId,
+          empreendimentoId: empreendimentoId === ALL ? null : Number(empreendimentoId),
+          typeFilter,
+          dateFrom,
+          dateTo,
+          limit: 30,
+        },
+      });
+
+      if (error) {
+        let message = error.message || "Falha ao classificar conversas.";
+        const context = (error as { context?: Response }).context;
+        if (context) {
+          try {
+            const payload = await context.clone().json();
+            if (payload?.error) message = payload.error;
+          } catch {
+            // Keep the original Supabase Functions error message.
+          }
+        }
+        throw new Error(message);
+      }
+
+      return data as { processed?: number; classified?: number; errors?: string[] };
+    },
+    onSuccess: async (result) => {
+      const count = result.classified ?? result.processed ?? 0;
+      toast.success(`${formatInteger(count)} conversa(s) classificada(s).`);
+      if (result.errors?.length) {
+        toast.warning(`Algumas conversas usaram regras locais: ${result.errors.slice(0, 2).join(" | ")}`);
+      }
+      await queryClient.invalidateQueries({ queryKey: ["conversation-analysis"] });
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Falha ao classificar conversas.");
+    },
+  });
 
   if (me && !canView) {
     return (
@@ -435,9 +536,22 @@ function ConversationAnalysisPage() {
           </div>
 
           <div className="flex flex-wrap gap-2">
-            <Button type="button" variant="outline" disabled>
-              <Sparkles className="mr-2 h-4 w-4" />
-              Classificar 30 conversa(s) com IA
+            <Button
+              type="button"
+              variant="outline"
+              disabled={!companyId || analysisQuery.isLoading || classifyMutation.isPending || classifyLimit === 0}
+              onClick={() => classifyMutation.mutate()}
+            >
+              {classifyMutation.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Sparkles className="mr-2 h-4 w-4" />
+              )}
+              {classifyMutation.isPending
+                ? "Classificando..."
+                : classifyLimit
+                  ? `Classificar ${formatInteger(classifyLimit)} conversa(s) com IA`
+                  : "Conversas classificadas"}
             </Button>
             <Button type="button" variant="outline" disabled>
               <Download className="mr-2 h-4 w-4" />

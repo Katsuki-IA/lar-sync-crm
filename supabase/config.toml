@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.site-lead-capture]
 verify_jwt = false
+
+[functions.conversation-analysis-classify]
+verify_jwt = false

@@ -340,6 +340,97 @@ export type Database = {
           },
         ]
       }
+      crm_conversation_classifications: {
+        Row: {
+          ai_count: number
+          classified_at: string
+          cliente_respondeu: boolean
+          created_at: string
+          human_count: number
+          id: string
+          id_empresa: number
+          id_empreendimento: number | null
+          lead_desqualificado: boolean
+          lead_id: number
+          message_count: number
+          model: string | null
+          motivos: string[]
+          nao_respondeu_mais: boolean
+          qualificado: boolean
+          raw_response: Json | null
+          resumo: string | null
+          temperatura: string
+          updated_at: string
+          visita_agendada: boolean
+        }
+        Insert: {
+          ai_count?: number
+          classified_at?: string
+          cliente_respondeu?: boolean
+          created_at?: string
+          human_count?: number
+          id?: string
+          id_empresa: number
+          id_empreendimento?: number | null
+          lead_desqualificado?: boolean
+          lead_id: number
+          message_count?: number
+          model?: string | null
+          motivos?: string[]
+          nao_respondeu_mais?: boolean
+          qualificado?: boolean
+          raw_response?: Json | null
+          resumo?: string | null
+          temperatura?: string
+          updated_at?: string
+          visita_agendada?: boolean
+        }
+        Update: {
+          ai_count?: number
+          classified_at?: string
+          cliente_respondeu?: boolean
+          created_at?: string
+          human_count?: number
+          id?: string
+          id_empresa?: number
+          id_empreendimento?: number | null
+          lead_desqualificado?: boolean
+          lead_id?: number
+          message_count?: number
+          model?: string | null
+          motivos?: string[]
+          nao_respondeu_mais?: boolean
+          qualificado?: boolean
+          raw_response?: Json | null
+          resumo?: string | null
+          temperatura?: string
+          updated_at?: string
+          visita_agendada?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_conversation_classifications_id_empresa_fkey"
+            columns: ["id_empresa"]
+            isOneToOne: false
+            referencedRelation: "empresa_dados"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_conversation_classifications_id_empreendimento_fkey"
+            columns: ["id_empreendimento"]
+            isOneToOne: false
+            referencedRelation: "empreendimento"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_conversation_classifications_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "lead"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       crm_external_crm_connections: {
         Row: {
           access_token: string | null
