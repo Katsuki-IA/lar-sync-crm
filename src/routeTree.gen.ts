@@ -24,6 +24,7 @@ import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedKanbanRouteImport } from './routes/_authenticated/kanban'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedConversasRouteImport } from './routes/_authenticated/conversas'
+import { Route as AuthenticatedAnaliseConversasRouteImport } from './routes/_authenticated/analise-conversas'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedSettingsIndexRouteImport } from './routes/_authenticated/settings.index'
 import { Route as AuthenticatedLeadsIndexRouteImport } from './routes/_authenticated/leads.index'
@@ -122,6 +123,12 @@ const AuthenticatedConversasRoute = AuthenticatedConversasRouteImport.update({
   path: '/conversas',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAnaliseConversasRoute =
+  AuthenticatedAnaliseConversasRouteImport.update({
+    id: '/analise-conversas',
+    path: '/analise-conversas',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   id: '/admin',
   path: '/admin',
@@ -255,6 +262,7 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/setup': typeof SetupRoute
   '/admin': typeof AuthenticatedAdminRouteWithChildren
+  '/analise-conversas': typeof AuthenticatedAnaliseConversasRoute
   '/conversas': typeof AuthenticatedConversasRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/kanban': typeof AuthenticatedKanbanRoute
@@ -292,6 +300,7 @@ export interface FileRoutesByTo {
   '/integracoes': typeof IntegracoesRoute
   '/reset-password': typeof ResetPasswordRoute
   '/setup': typeof SetupRoute
+  '/analise-conversas': typeof AuthenticatedAnaliseConversasRoute
   '/conversas': typeof AuthenticatedConversasRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/kanban': typeof AuthenticatedKanbanRoute
@@ -331,6 +340,7 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/setup': typeof SetupRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
+  '/_authenticated/analise-conversas': typeof AuthenticatedAnaliseConversasRoute
   '/_authenticated/conversas': typeof AuthenticatedConversasRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/kanban': typeof AuthenticatedKanbanRoute
@@ -371,6 +381,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/setup'
     | '/admin'
+    | '/analise-conversas'
     | '/conversas'
     | '/dashboard'
     | '/kanban'
@@ -408,6 +419,7 @@ export interface FileRouteTypes {
     | '/integracoes'
     | '/reset-password'
     | '/setup'
+    | '/analise-conversas'
     | '/conversas'
     | '/dashboard'
     | '/kanban'
@@ -446,6 +458,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/setup'
     | '/_authenticated/admin'
+    | '/_authenticated/analise-conversas'
     | '/_authenticated/conversas'
     | '/_authenticated/dashboard'
     | '/_authenticated/kanban'
@@ -595,6 +608,13 @@ declare module '@tanstack/react-router' {
       path: '/conversas'
       fullPath: '/conversas'
       preLoaderRoute: typeof AuthenticatedConversasRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/analise-conversas': {
+      id: '/_authenticated/analise-conversas'
+      path: '/analise-conversas'
+      fullPath: '/analise-conversas'
+      preLoaderRoute: typeof AuthenticatedAnaliseConversasRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/admin': {
@@ -810,6 +830,7 @@ const AuthenticatedSettingsRouteWithChildren =
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRouteWithChildren
+  AuthenticatedAnaliseConversasRoute: typeof AuthenticatedAnaliseConversasRoute
   AuthenticatedConversasRoute: typeof AuthenticatedConversasRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedKanbanRoute: typeof AuthenticatedKanbanRoute
@@ -825,6 +846,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRouteWithChildren,
+  AuthenticatedAnaliseConversasRoute: AuthenticatedAnaliseConversasRoute,
   AuthenticatedConversasRoute: AuthenticatedConversasRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedKanbanRoute: AuthenticatedKanbanRoute,

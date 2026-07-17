@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, Users, Settings, Shield, BarChart2, Plug, MessagesSquare } from "lucide-react";
+import { LayoutDashboard, Users, Settings, Shield, BarChart2, Plug, MessagesSquare, ChartNoAxesCombined } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCrmUser } from "@/hooks/use-crm-user";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -7,13 +7,6 @@ import { getInitials, colorFromString } from "@/lib/lead-visuals";
 
 
 type Item = { title: string; url: string; match: string; icon: typeof LayoutDashboard };
-
-const mainItems: Item[] = [
-  { title: "Dashboard", url: "/dashboard", match: "/dashboard", icon: LayoutDashboard },
-  { title: "Leads", url: "/leads", match: "/leads", icon: Users },
-  { title: "Conversas", url: "/conversas", match: "/conversas", icon: MessagesSquare },
-  { title: "Relatórios", url: "/relatorios", match: "/relatorios", icon: BarChart2 },
-];
 
 function roleLabel(role?: string | null) {
   if (role === "super_admin") return "Super Admin";
@@ -25,6 +18,16 @@ function roleLabel(role?: string | null) {
 export function AppSidebar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { data: me } = useCrmUser();
+
+  const mainItems: Item[] = [
+    { title: "Dashboard", url: "/dashboard", match: "/dashboard", icon: LayoutDashboard },
+    { title: "Leads", url: "/leads", match: "/leads", icon: Users },
+    { title: "Conversas", url: "/conversas", match: "/conversas", icon: MessagesSquare },
+    ...(me?.role === "manager" || me?.role === "super_admin"
+      ? [{ title: "Análise", url: "/analise-conversas", match: "/analise-conversas", icon: ChartNoAxesCombined }]
+      : []),
+    { title: "Relatórios", url: "/relatorios", match: "/relatorios", icon: BarChart2 },
+  ];
 
   const adminItems: Item[] = [];
   if (me?.role === "manager" || me?.role === "super_admin") {
