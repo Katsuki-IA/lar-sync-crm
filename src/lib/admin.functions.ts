@@ -285,14 +285,16 @@ export const listAllCrmUsers = createServerFn({ method: "GET" })
     const allowed = (creds ?? [])
       .map((c: any) => c.id_empresa as number | null)
       .filter((v: number | null): v is number => v != null);
-    if (!allowed.length) return [];
     const { data, error } = await supabaseAdmin
       .from("crm_users")
       .select("id,nome,email,role,active,id_empresa,created_at,auth_user_id")
-      .in("id_empresa", allowed)
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
-    return data ?? [];
+    return (data ?? []).filter((user: any) => {
+      if (user.role === "super_admin") return true;
+      if (user.id_empresa == null) return false;
+      return allowed.includes(user.id_empresa);
+    });
   });
 
 // -------- Configuração de envio ao CRM por empresa (super admin) --------
