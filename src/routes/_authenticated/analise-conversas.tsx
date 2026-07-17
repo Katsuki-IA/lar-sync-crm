@@ -286,6 +286,8 @@ function ConversationAnalysisPage() {
           const lastMessage = leadMessages.at(-1);
           const firstAt = firstMessage?.time ?? firstMessage?.created_at ?? null;
           const lastAt = lastMessage?.time ?? lastMessage?.created_at ?? lead.last_message_timestamp ?? lead.updated_at ?? lead.created_at;
+          const storedInteractionCount = Math.max(lead.qtd_interacoes ?? 0, 0);
+          const messageCount = leadMessages.length || storedInteractionCount;
           const humanCount = leadMessages.filter((message) => message.type === "human").length;
           const aiCount = leadMessages.filter((message) => message.type === "ai").length;
           const qualified = lead.qualificado === 1 || (historyIncludes(lead, "Qualificado") && !historyIncludes(lead, "Desqualificado"));
@@ -303,19 +305,18 @@ function ConversationAnalysisPage() {
             empreendimentoName,
             sessionId,
             messages: leadMessages,
-            messageCount: leadMessages.length,
+            messageCount,
             humanCount,
             aiCount,
             firstAt,
             lastAt,
-            hasHuman: humanCount > 0 || (lead.qtd_interacoes ?? 0) >= 2,
+            hasHuman: humanCount > 0 || storedInteractionCount >= 2,
             qualified,
             disqualified,
             visitScheduled,
             hasLabel,
           };
         })
-        .filter((item) => item.messageCount > 0)
         .filter((item) => withinDateRange(item.lastAt, dateFrom, dateTo))
         .sort((a, b) => (parseDateValue(b.lastAt)?.getTime() ?? 0) - (parseDateValue(a.lastAt)?.getTime() ?? 0));
     },
