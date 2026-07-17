@@ -408,6 +408,7 @@ function ConversationAnalysisPage() {
       ? "todos os empreendimentos"
       : empreendimentos.find((item) => String(item.id) === empreendimentoId)?.nome ?? "empreendimento";
   const classifyLimit = Math.min(30, totals.withoutLabel || totals.total);
+  const visitScheduledGoalMet = percentage(totals.scheduled, Math.max(totals.qualified, 1)) > 30;
 
   const classifyMutation = useMutation({
     mutationFn: async () => {
@@ -591,18 +592,42 @@ function ConversationAnalysisPage() {
             </div>
           ) : (
             <>
-              <BreakdownRow label="Cliente respondeu" value={totals.responded} total={totals.total} goalText="META >= 50%" tone="green" />
-              <BreakdownRow label="Não respondeu" value={totals.noResponse} total={totals.total} goalText="META < 30%" tone="green" />
-              <BreakdownRow label="Lead desqualificado" value={totals.disqualified} total={totals.total} goalText="META < 20%" tone="green" />
-              <BreakdownRow label="Qualificado" value={totals.qualified} total={totals.total} goalText="META > 50%" tone="red" />
-              <div className="border-l-2 border-green-500 pl-4">
+              <BreakdownRow
+                label="Cliente respondeu"
+                value={totals.responded}
+                total={totals.total}
+                goalText="META >= 50%"
+                goalMet={percentage(totals.responded, totals.total) >= 50}
+              />
+              <BreakdownRow
+                label="Não respondeu"
+                value={totals.noResponse}
+                total={totals.total}
+                goalText="META < 30%"
+                goalMet={percentage(totals.noResponse, totals.total) < 30}
+              />
+              <BreakdownRow
+                label="Lead desqualificado"
+                value={totals.disqualified}
+                total={totals.total}
+                goalText="META < 20%"
+                goalMet={percentage(totals.disqualified, totals.total) < 20}
+              />
+              <BreakdownRow
+                label="Qualificado"
+                value={totals.qualified}
+                total={totals.total}
+                goalText="META > 50%"
+                goalMet={percentage(totals.qualified, totals.total) > 50}
+              />
+              <div className={cn("border-l-2 pl-4", visitScheduledGoalMet ? "border-green-500" : "border-red-500")}>
                 <BreakdownRow
                   label="Visita agendada"
                   value={totals.scheduled}
                   total={Math.max(totals.qualified, 1)}
                   countText={`${totals.scheduled} — dos qualificados`}
                   goalText="META > 30%"
-                  tone="green"
+                  goalMet={visitScheduledGoalMet}
                 />
               </div>
             </>
@@ -644,18 +669,18 @@ function BreakdownRow({
   total,
   goalText,
   countText,
-  tone,
+  goalMet,
 }: {
   label: string;
   value: number;
   total: number;
   goalText: string;
   countText?: string;
-  tone: "green" | "red";
+  goalMet: boolean;
 }) {
   const pct = percentage(value, total);
-  const color = tone === "green" ? "bg-green-500" : "bg-red-500";
-  const textColor = tone === "green" ? "text-green-600" : "text-red-500";
+  const color = goalMet ? "bg-green-500" : "bg-red-500";
+  const textColor = goalMet ? "text-green-600" : "text-red-500";
 
   return (
     <div className="space-y-2">
