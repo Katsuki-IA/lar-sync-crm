@@ -349,7 +349,9 @@ function ConversationAnalysisPage() {
             scheduledLeadIds.has(lead.id) ||
             historyIncludes(lead, "Visita Agendada");
           const hasHuman = classification ? classification.cliente_respondeu : fallbackHasHuman;
-          const noResponse = classification ? classification.nao_respondeu_mais : !fallbackHasHuman;
+          const noResponse = classification
+            ? classification.nao_respondeu_mais
+            : fallbackHasHuman && !qualified && !disqualified && !visitScheduled;
           const hasLabel = Boolean(classification || lead.status_history || qualified || disqualified || visitScheduled);
           const empreendimentoName =
             (lead.id_empreendimento ? empreendimentoNameById.get(lead.id_empreendimento) : null) ??
@@ -651,7 +653,7 @@ function ConversationAnalysisPage() {
                 goalMet={percentage(totals.responded, totals.total) >= 50}
               />
               <BreakdownRow
-                label="Não respondeu"
+                label="Não respondeu mais"
                 value={totals.noResponse}
                 total={totals.total}
                 goalText="META < 30%"

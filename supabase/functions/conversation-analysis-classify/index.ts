@@ -202,6 +202,16 @@ function sortTimestamp(message: ChatRow) {
   return parseDateValue(message.time ?? message.created_at)?.getTime() ?? 0;
 }
 
+function isHumanMessage(message: ChatRow) {
+  return String(message.type ?? "").toLowerCase() === "human";
+}
+
+function lastMessageIsHuman(messages: ChatRow[]) {
+  const ordered = [...messages].sort((a, b) => sortTimestamp(a) - sortTimestamp(b));
+  const lastMessage = ordered.at(-1);
+  return lastMessage ? isHumanMessage(lastMessage) : false;
+}
+
 function buildTranscript(messages: ChatRow[]) {
   return messages
     .map((message) => {
@@ -253,7 +263,7 @@ function fallbackClassification(args: {
   transcript: string;
 }): Classification {
   const interactionCount = Math.max(args.lead.qtd_interacoes ?? 0, 0);
-  const humanCount = args.messages.filter((message) => message.type === "human").length;
+  const humanCount = args.messages.filter(isHumanMessage).length;
   const normalized = `${args.transcript}\n${args.lead.status_history ?? ""}`.toLowerCase();
   const hotSignals = [
     "valor",
@@ -279,10 +289,16 @@ function fallbackClassification(args: {
     visitaAgendada ||
     args.lead.qualificado === 1 ||
     (hotSignals.some((signal) => normalized.includes(signal)) && !leadDesqualificado);
+  const parouDeResponder =
+    clienteRespondeu &&
+    !lastMessageIsHuman(args.messages) &&
+    !leadDesqualificado &&
+    !visitaAgendada &&
+    !qualificado;
 
   return {
     cliente_respondeu: clienteRespondeu,
-    nao_respondeu_mais: !clienteRespondeu || normalized.includes("não respondeu") || normalized.includes("nao respondeu"),
+    nao_respondeu_mais: parouDeResponder,
     lead_desqualificado: leadDesqualificado,
     qualificado,
     visita_agendada: visitaAgendada,
@@ -312,6 +328,7 @@ async function classifyWithDeepSeek(args: {
     "temperatura deve ser frio, morno ou quente.",
     "Considere quente quando houver interesse em valores, pagamento, parcelamento, localização, metragem, quartos, lazer, unidade ou visita.",
     "Pouca interação ou nenhum retorno do lead tende a ser frio.",
+    "Marque nao_respondeu_mais somente quando o lead já respondeu pelo menos uma vez e depois parou de responder. Se o lead nunca respondeu, nao_respondeu_mais deve ser false.",
     "Lead desqualificado quando não tem interesse, número inválido, sem WhatsApp, perfil incompatível ou pediu para parar.",
   ].join(" ");
 
@@ -364,11 +381,15 @@ function applyDeterministicOverrides(args: {
   messages: ChatRow[];
 }) {
   const interactionCount = Math.max(args.lead.qtd_interacoes ?? 0, 0);
-  const humanCount = args.messages.filter((message) => message.type === "human").length;
+  const humanCount = args.messages.filter(isHumanMessage).length;
   const classification = { ...args.classification };
+  const hasHumanResponse = humanCount > 0 || interactionCount >= 2;
 
-  if (humanCount > 0 || interactionCount >= 2) classification.cliente_respondeu = true;
-  if (!classification.cliente_respondeu) classification.nao_respondeu_mais = true;
+  if (hasHumanResponse) classification.cliente_respondeu = true;
+  if (!hasHumanResponse) {
+    classification.cliente_respondeu = false;
+    classification.nao_respondeu_mais = false;
+  }
   if (args.hasAppointment || historyIncludes(args.lead, "Visita Agendada")) {
     classification.visita_agendada = true;
     classification.qualificado = true;
@@ -382,6 +403,15 @@ function applyDeterministicOverrides(args: {
   }
   if (classification.qualificado || classification.visita_agendada) {
     classification.temperatura = "quente";
+  }
+  if (
+    !classification.cliente_respondeu ||
+    lastMessageIsHuman(args.messages) ||
+    classification.qualificado ||
+    classification.visita_agendada ||
+    classification.lead_desqualificado
+  ) {
+    classification.nao_respondeu_mais = false;
   }
 
   return classification;
