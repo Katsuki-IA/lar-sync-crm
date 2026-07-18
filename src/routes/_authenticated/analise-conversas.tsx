@@ -334,6 +334,7 @@ function ConversationAnalysisPage() {
           const messageCount = leadMessages.length || storedInteractionCount;
           const humanCount = leadMessages.filter((message) => message.type === "human").length;
           const aiCount = leadMessages.filter((message) => message.type === "ai").length;
+          const lastMessageFromHuman = String(lastMessage?.type ?? "").toLowerCase() === "human";
           const classification = classificationsByLead.get(lead.id) ?? null;
           const fallbackHasHuman = humanCount > 0 || storedInteractionCount >= 2;
           const qualified =
@@ -348,10 +349,14 @@ function ConversationAnalysisPage() {
             Boolean(classification?.visita_agendada) ||
             scheduledLeadIds.has(lead.id) ||
             historyIncludes(lead, "Visita Agendada");
-          const hasHuman = classification ? classification.cliente_respondeu : fallbackHasHuman;
-          const noResponse = classification
-            ? classification.nao_respondeu_mais
-            : fallbackHasHuman && !qualified && !disqualified && !visitScheduled;
+          const hasHuman = Boolean(classification?.cliente_respondeu) || fallbackHasHuman;
+          const noResponse =
+            hasHuman &&
+            !lastMessageFromHuman &&
+            !qualified &&
+            !disqualified &&
+            !visitScheduled &&
+            (classification ? classification.nao_respondeu_mais : true);
           const hasLabel = Boolean(classification || lead.status_history || qualified || disqualified || visitScheduled);
           const empreendimentoName =
             (lead.id_empreendimento ? empreendimentoNameById.get(lead.id_empreendimento) : null) ??
