@@ -410,7 +410,7 @@ function ConversationAnalysisPage() {
     empreendimentoId === ALL
       ? "todos os empreendimentos"
       : empreendimentos.find((item) => String(item.id) === empreendimentoId)?.nome ?? "empreendimento";
-  const classifyLimit = Math.min(30, totals.withoutLabel || totals.total);
+  const classifyLimit = Math.min(30, totals.withoutLabel);
   const visitScheduledGoalMet = percentage(totals.scheduled, Math.max(totals.qualified, 1)) > 30;
 
   const classifyMutation = useMutation({
