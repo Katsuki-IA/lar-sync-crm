@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   BarChart3,
+  CalendarIcon,
   Download,
   Loader2,
   MessageCircle,
@@ -12,6 +13,7 @@ import {
   TrendingUp,
   type LucideIcon,
 } from "lucide-react";
+import { format } from "date-fns";
 
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
@@ -19,8 +21,9 @@ import { useAllowedEmpresas } from "@/hooks/use-allowed-empresas";
 import { useCrmUser } from "@/hooks/use-crm-user";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -527,12 +530,60 @@ function ConversationAnalysisPage() {
 
             <label className="space-y-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
               De
-              <Input type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} className="bg-white normal-case tracking-normal" />
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "h-9 w-full min-w-[150px] justify-start border-border bg-white text-left text-xs font-normal normal-case tracking-normal hover:bg-surface",
+                      !dateFrom && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
+                    {dateFrom ? format(new Date(dateFrom + "T12:00:00"), "dd/MM/yyyy") : <span>De:</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={dateFrom ? new Date(dateFrom + "T12:00:00") : undefined}
+                    onSelect={(date) => {
+                      if (date) setDateFrom(format(date, "yyyy-MM-dd"));
+                    }}
+                    initialFocus
+                    className="pointer-events-auto p-3"
+                  />
+                </PopoverContent>
+              </Popover>
             </label>
 
             <label className="space-y-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
               Até
-              <Input type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} className="bg-white normal-case tracking-normal" />
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "h-9 w-full min-w-[150px] justify-start border-border bg-white text-left text-xs font-normal normal-case tracking-normal hover:bg-surface",
+                      !dateTo && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
+                    {dateTo ? format(new Date(dateTo + "T12:00:00"), "dd/MM/yyyy") : <span>Até:</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={dateTo ? new Date(dateTo + "T12:00:00") : undefined}
+                    onSelect={(date) => {
+                      if (date) setDateTo(format(date, "yyyy-MM-dd"));
+                    }}
+                    initialFocus
+                    className="pointer-events-auto p-3"
+                  />
+                </PopoverContent>
+              </Popover>
             </label>
           </div>
 
