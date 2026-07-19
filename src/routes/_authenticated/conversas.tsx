@@ -195,6 +195,26 @@ function formatDateTime(value?: string | number | null) {
   });
 }
 
+function formatDateLabel(value?: string | number | null) {
+  const date = parseDateValue(value);
+  if (!date || date === "—") return "Data não informada";
+  return date.toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+}
+
+function dateKey(value?: string | number | null) {
+  const date = parseDateValue(value);
+  if (!date || date === "—") return "unknown";
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0"),
+  ].join("-");
+}
+
 function timestampMs(value?: string | null) {
   const date = parseDateValue(value);
   return !date || date === "—" ? 0 : date.getTime();
@@ -338,6 +358,21 @@ function ConversationsPage() {
 
   const selectedLeadName = selectedConversation?.crmLead?.nome ?? selectedConversation?.nome ?? "Conversa";
   const selectedLeadPhone = selectedConversation?.crmLead?.telefone ?? selectedConversation?.numero ?? "Sem telefone";
+  const messageRows = useMemo(() => {
+    const messages = messageQuery.data ?? [];
+
+    return messages.map((message, index) => {
+      const currentDateValue = message.time ?? message.created_at;
+      const previousMessage = messages[index - 1];
+      const previousDateValue = previousMessage ? previousMessage.time ?? previousMessage.created_at : null;
+
+      return {
+        message,
+        dateLabel: formatDateLabel(currentDateValue),
+        showDate: index === 0 || dateKey(currentDateValue) !== dateKey(previousDateValue),
+      };
+    });
+  }, [messageQuery.data]);
 
   return (
     <div className="space-y-4">
@@ -466,24 +501,34 @@ function ConversationsPage() {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {messageQuery.data.map((message) => {
+                    {messageRows.map(({ message, showDate, dateLabel }) => {
                       const isAi = message.type === "ai";
                       const text = messageToText(message.message);
 
                       return (
-                        <div key={message.id} className={cn("flex", isAi ? "justify-end" : "justify-start")}>
-                          <div
-                            className={cn(
-                              "max-w-[82%] rounded-2xl px-4 py-2 text-sm shadow-sm md:max-w-[68%]",
-                              isAi
-                                ? "rounded-br-md bg-primary/15 text-foreground"
-                                : "rounded-bl-md bg-white text-foreground",
-                            )}
-                          >
-                            <MessageContent text={text || "Mensagem sem conteúdo"} />
-                            <div className="mt-1 flex items-center justify-end gap-1 text-[10px] text-muted-foreground">
-                              {isAi ? <Bot className="h-3 w-3" /> : null}
-                              {formatTime(message.time ?? message.created_at)}
+                        <div key={message.id} className="space-y-3">
+                          {showDate ? (
+                            <div className="flex justify-center">
+                              <span className="rounded-full border bg-background/90 px-3 py-1 text-xs font-medium text-muted-foreground shadow-sm">
+                                {dateLabel}
+                              </span>
+                            </div>
+                          ) : null}
+
+                          <div className={cn("flex", isAi ? "justify-end" : "justify-start")}>
+                            <div
+                              className={cn(
+                                "max-w-[82%] rounded-2xl px-4 py-2 text-sm shadow-sm md:max-w-[68%]",
+                                isAi
+                                  ? "rounded-br-md bg-primary/15 text-foreground"
+                                  : "rounded-bl-md bg-white text-foreground",
+                              )}
+                            >
+                              <MessageContent text={text || "Mensagem sem conteúdo"} />
+                              <div className="mt-1 flex items-center justify-end gap-1 text-[10px] text-muted-foreground">
+                                {isAi ? <Bot className="h-3 w-3" /> : null}
+                                {formatTime(message.time ?? message.created_at)}
+                              </div>
                             </div>
                           </div>
                         </div>
