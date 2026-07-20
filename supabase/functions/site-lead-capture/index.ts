@@ -263,6 +263,10 @@ Deno.serve(async (req) => {
     source = sourceData as SiteLeadSource;
 
     const requestHost = getRequestHost(req);
+    const requestOrigin = req.headers.get("origin") ?? null;
+    const requestReferer =
+      req.headers.get("referer") ?? req.headers.get("referrer") ?? null;
+    const requestUserAgent = req.headers.get("user-agent") ?? null;
     if (!domainIsAllowed(requestHost, source.allowed_domains)) {
       return jsonResponse({ error: "Domínio não autorizado para esta fonte" }, 403);
     }
@@ -327,6 +331,9 @@ Deno.serve(async (req) => {
           payload,
           fields: Object.fromEntries(fields.entries()),
           request_host: requestHost || null,
+          request_origin: requestOrigin,
+          request_referer: requestReferer,
+          request_user_agent: requestUserAgent,
           telefone_original: telefoneOriginal || null,
         },
         p_external_id: externalId || null,
