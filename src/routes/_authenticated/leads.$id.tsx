@@ -335,6 +335,7 @@ function LeadDetail() {
   const currentStageColor = stageColor(stage?.nome, stage?.cor);
   const userMap = new Map((meta?.users ?? []).map((u) => [u.id, u.nome]));
   const canManage = me?.role === "super_admin";
+  const canDeleteLead = me?.role === "super_admin" || me?.role === "manager";
   const canSendToCrm = me?.role === "super_admin" || me?.role === "manager";
   const aiPaused = aiStatus?.paused ?? false;
   const crmSent = (activities ?? []).some(
@@ -378,7 +379,7 @@ function LeadDetail() {
             Enviar para CRM
           </Button>
         )}
-        {canManage && <Button
+        {canDeleteLead && <Button
           variant="ghost"
           size="icon"
           className="text-destructive hover:text-destructive hover:bg-destructive/10"

@@ -957,7 +957,7 @@ function LeadsList() {
                                     <SendToBack className="h-4 w-4 mr-2" /> Enviar para CRM
                                   </DropdownMenuItem>
                                 )}
-                                {me?.role === "super_admin" && (<>
+                                {(me?.role === "super_admin" || me?.role === "manager") && (<>
                                   <DropdownMenuSeparator />
                                   <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setRowDeleteLead(l.id)}><Trash2 className="h-4 w-4 mr-2" /> Excluir</DropdownMenuItem>
                                 </>)}
