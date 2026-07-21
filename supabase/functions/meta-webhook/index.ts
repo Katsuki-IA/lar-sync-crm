@@ -10,6 +10,7 @@ import {
   type MetaLeadFieldData,
 } from "../_shared/meta-lead.ts";
 import { resolveLeadOrigin } from "../_shared/lead-origin.ts";
+import { enrichMetaAttributionForCompany } from "../_shared/meta-attribution.ts";
 
 type LeadgenValue = {
   leadgen_id?: string;
@@ -281,11 +282,41 @@ async function processLeadgenEvent(args: {
   );
   if (ingestionError) throw new Error(ingestionError.message);
   const result = Array.isArray(ingestion) ? ingestion[0] : ingestion;
+  let attributionEnrichment: {
+    attempted: boolean;
+    checked: number;
+    enriched: number;
+    failed: number;
+  } = { attempted: false, checked: 0, enriched: 0, failed: 0 };
+
+  if (lead.ad_id || args.value.ad_id) {
+    try {
+      const enrichment = await enrichMetaAttributionForCompany({
+        supabaseAdmin,
+        idEmpresa: form.id_empresa,
+        accessToken,
+        graphVersion,
+        leadId: result?.created_lead_id ?? null,
+        metaLeadgenId: leadId,
+        limit: 1,
+      });
+      attributionEnrichment = {
+        attempted: true,
+        checked: enrichment.checked,
+        enriched: enrichment.enriched,
+        failed: enrichment.failed.length,
+      };
+    } catch (error) {
+      attributionEnrichment = { attempted: true, checked: 0, enriched: 0, failed: 1 };
+      console.warn("Falha ao enriquecer atribuicao Meta", error);
+    }
+  }
 
   return {
     ignored: false,
     inserted: Boolean(result?.was_inserted),
     leadId: result?.created_lead_id ?? null,
+    attributionEnrichment,
   };
 }
 

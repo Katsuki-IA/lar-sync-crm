@@ -10,6 +10,7 @@ const DEFAULT_META_REDIRECT_URI = "https://lar-sync-crm.lovable.app/";
 const DEFAULT_META_GRAPH_VERSION = "v21.0";
 const META_SCOPES = [
   "leads_retrieval",
+  "ads_read",
   "pages_show_list",
   "pages_read_engagement",
   "pages_manage_ads",
