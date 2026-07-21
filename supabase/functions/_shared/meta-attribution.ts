@@ -51,6 +51,21 @@ type MetaCampaignResponse = GraphError & {
   name?: string;
 };
 
+type MetaAdAccountsResponse = GraphError & {
+  data?: Array<{
+    id?: string;
+    account_id?: string;
+    name?: string;
+  }>;
+  paging?: {
+    next?: string;
+  };
+};
+
+type MetaAdsResponse = GraphError & {
+  data?: MetaAdResponse[];
+};
+
 type AttributionRow = {
   id: string;
   crm_lead_id: number | null;
@@ -135,6 +150,24 @@ async function fetchAdDetails(args: {
   graphVersion: string;
   adId: string;
 }) {
+  try {
+    return await fetchAdDetailsById(args);
+  } catch (directError) {
+    try {
+      return await fetchAdDetailsFromAdAccounts(args);
+    } catch (accountError) {
+      const directMessage = directError instanceof Error ? directError.message : "Falha na busca direta";
+      const accountMessage = accountError instanceof Error ? accountError.message : "Falha na busca por contas de anuncio";
+      throw new Error(`${directMessage} | fallback contas de anuncio: ${accountMessage}`);
+    }
+  }
+}
+
+async function fetchAdDetailsById(args: {
+  accessToken: string;
+  graphVersion: string;
+  adId: string;
+}) {
   const adUrl = new URL(`https://graph.facebook.com/${args.graphVersion}/${args.adId}`);
   adUrl.searchParams.set(
     "fields",
@@ -143,6 +176,68 @@ async function fetchAdDetails(args: {
   adUrl.searchParams.set("access_token", args.accessToken);
 
   const ad = await fetchGraphJson<MetaAdResponse>(adUrl);
+  return hydrateAdDetails({ ...args, ad });
+}
+
+async function fetchAdDetailsFromAdAccounts(args: {
+  accessToken: string;
+  graphVersion: string;
+  adId: string;
+}) {
+  const accountsUrl = new URL(`https://graph.facebook.com/${args.graphVersion}/me/adaccounts`);
+  accountsUrl.searchParams.set("fields", "id,account_id,name");
+  accountsUrl.searchParams.set("limit", "100");
+  accountsUrl.searchParams.set("access_token", args.accessToken);
+
+  let nextUrl: string | null = accountsUrl.toString();
+  while (nextUrl) {
+    const accounts = await fetchGraphJson<MetaAdAccountsResponse>(new URL(nextUrl));
+    for (const account of accounts.data ?? []) {
+      const accountId = account.id?.startsWith("act_")
+        ? account.id
+        : account.account_id
+          ? `act_${account.account_id}`
+          : account.id;
+      if (!accountId) continue;
+
+      const adsUrl = new URL(`https://graph.facebook.com/${args.graphVersion}/${accountId}/ads`);
+      adsUrl.searchParams.set(
+        "fields",
+        "id,name,account_id,adset_id,campaign_id,adset{id,name,campaign_id,campaign{id,name}},campaign{id,name}",
+      );
+      adsUrl.searchParams.set(
+        "filtering",
+        JSON.stringify([{ field: "id", operator: "EQUAL", value: args.adId }]),
+      );
+      adsUrl.searchParams.set("limit", "1");
+      adsUrl.searchParams.set("access_token", args.accessToken);
+
+      try {
+        const ads = await fetchGraphJson<MetaAdsResponse>(adsUrl);
+        const ad = ads.data?.[0] ?? null;
+        if (ad) {
+          return hydrateAdDetails({
+            accessToken: args.accessToken,
+            graphVersion: args.graphVersion,
+            ad,
+          });
+        }
+      } catch (error) {
+        console.warn(`Falha ao buscar anuncio Meta ${args.adId} na conta ${accountId}`, error);
+      }
+    }
+    nextUrl = accounts.paging?.next ?? null;
+  }
+
+  throw new Error(`Anuncio Meta ${args.adId} nao encontrado nas contas de anuncio acessiveis`);
+}
+
+async function hydrateAdDetails(args: {
+  accessToken: string;
+  graphVersion: string;
+  ad: MetaAdResponse;
+}) {
+  const { ad } = args;
   let adsetId = ad.adset?.id ?? ad.adset_id ?? null;
   let adsetName = ad.adset?.name ?? null;
   let campaignId = ad.campaign?.id ?? ad.adset?.campaign?.id ?? ad.campaign_id ?? ad.adset?.campaign_id ?? null;
