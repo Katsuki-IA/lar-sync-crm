@@ -17,6 +17,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   createMetaOAuthUrl,
   disconnectMetaConnection,
+  enrichMetaAttribution,
   exchangeMetaCode,
   type MetaFormsSyncResult,
   getMetaFormFields,
@@ -153,6 +154,7 @@ function IntegracoesPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [enrichingAttribution, setEnrichingAttribution] = useState(false);
   const [lastSync, setLastSync] = useState<MetaFormsSyncResult | null>(null);
   const [drawerView, setDrawerView] = useState<MetaDrawerView>("account");
   const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
@@ -371,6 +373,31 @@ function IntegracoesPage() {
     }
   };
 
+  const handleEnrichAttribution = async () => {
+    try {
+      setEnrichingAttribution(true);
+      const result = await enrichMetaAttribution({ limit: 50 });
+
+      if (result.failed.length > 0) {
+        toast.warning(
+          `${result.enriched} de ${result.checked} lead(s) atualizado(s). ${result.failed.length} falha(s) ao consultar anúncios.`,
+        );
+      } else if (result.enriched > 0) {
+        toast.success(`${result.enriched} lead(s) atualizado(s) com dados do anúncio.`);
+      } else {
+        toast.info("Nenhum lead Meta com anúncio pendente de atualização foi encontrado.");
+      }
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Falha ao atualizar os dados de anúncios da Meta",
+      );
+    } finally {
+      setEnrichingAttribution(false);
+    }
+  };
+
   const handleSelectPage = (pageId: string) => {
     setSelectedPageId(pageId);
     setSelectedFormId(null);
@@ -498,6 +525,20 @@ function IntegracoesPage() {
                     >
                       <Settings className="h-4 w-4" />
                       Acessar
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-2"
+                      disabled={enrichingAttribution}
+                      onClick={handleEnrichAttribution}
+                    >
+                      <RefreshCw
+                        className={
+                          enrichingAttribution ? "h-4 w-4 animate-spin" : "h-4 w-4"
+                        }
+                      />
+                      {enrichingAttribution ? "Atualizando..." : "Atualizar anúncios"}
                     </Button>
                     <DisconnectMetaButton
                       className="gap-2 text-destructive"

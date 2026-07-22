@@ -108,6 +108,17 @@ export type MetaTestLeadResult = {
   metaLeadId: string;
 };
 
+export type MetaAttributionEnrichmentResult = {
+  connected: boolean;
+  hasAdsRead: boolean;
+  checked: number;
+  enriched: number;
+  failed: Array<{
+    attributionId: string;
+    message: string;
+  }>;
+};
+
 async function getFunctionErrorMessage(error: unknown, fallback: string) {
   const context = (error as { context?: unknown } | null)?.context;
 
@@ -179,4 +190,8 @@ export async function saveMetaFieldMapping(data: MetaSaveFieldMappingInput) {
 
 export async function createMetaTestLead(data: MetaTestLeadInput) {
   return invokeMetaFunction<MetaTestLeadResult>("meta-test-lead", data);
+}
+
+export async function enrichMetaAttribution(data?: { leadId?: number; limit?: number }) {
+  return invokeMetaFunction<MetaAttributionEnrichmentResult>("meta-enrich-attribution", data);
 }
