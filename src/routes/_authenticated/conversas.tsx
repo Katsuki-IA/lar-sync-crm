@@ -72,7 +72,16 @@ function onlyDigits(value?: string | null) {
 function phoneVariants(value?: string | null) {
   const digits = onlyDigits(value);
   if (!digits) return [];
-  return Array.from(new Set([digits, digits.length > 11 ? digits.slice(-11) : digits]));
+
+  const variants = new Set<string>([digits]);
+  if (digits.length > 11) variants.add(digits.slice(-11));
+  if (digits.startsWith("55") && digits.length > 2) {
+    const withoutCountryCode = digits.slice(2);
+    variants.add(withoutCountryCode);
+    if (withoutCountryCode.length > 11) variants.add(withoutCountryCode.slice(-11));
+  }
+
+  return Array.from(variants);
 }
 
 function crmLeadId(value?: string | null) {
@@ -90,12 +99,13 @@ function conversationPhoneCandidates(conversation: ConversationItem) {
   return Array.from(
     new Set(
       rawNumbers.flatMap((rawNumber) => {
-        const phone =
-          rawNumber.length >= 14 && rawNumber.endsWith(companyId)
-            ? rawNumber.slice(0, -companyId.length)
-            : rawNumber;
+        const numbers = [rawNumber];
+        if (rawNumber.endsWith(companyId)) {
+          const withoutCompanyId = rawNumber.slice(0, -companyId.length);
+          if (withoutCompanyId) numbers.push(withoutCompanyId);
+        }
 
-        return phoneVariants(phone);
+        return numbers.flatMap((number) => phoneVariants(number));
       }),
     ),
   );
