@@ -81,18 +81,38 @@ function crmLeadId(value?: string | null) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-function sessionCandidates(conversation: ConversationItem) {
-  const numbers = [
-    ...phoneVariants(conversation.numero),
-    ...phoneVariants(conversation.crmLead?.telefone),
-  ];
+function conversationPhoneCandidates(conversation: ConversationItem) {
+  const companyId = String(conversation.id_empresa);
+  const rawNumbers = [conversation.numero, conversation.crmLead?.telefone]
+    .map(onlyDigits)
+    .filter(Boolean);
 
   return Array.from(
     new Set(
-      numbers.flatMap((number) => [
-        `${number}${conversation.id_empresa}`,
-        number,
-      ]),
+      rawNumbers.flatMap((rawNumber) => {
+        const phone =
+          rawNumber.length >= 14 && rawNumber.endsWith(companyId)
+            ? rawNumber.slice(0, -companyId.length)
+            : rawNumber;
+
+        return phoneVariants(phone);
+      }),
+    ),
+  );
+}
+
+function sessionCandidates(conversation: ConversationItem) {
+  const companyId = String(conversation.id_empresa);
+  const storedSession = onlyDigits(conversation.numero);
+
+  return Array.from(
+    new Set(
+      [
+        ...(storedSession ? [storedSession] : []),
+        ...conversationPhoneCandidates(conversation).map(
+          (phone) => `${phone}${companyId}`,
+        ),
+      ],
     ),
   );
 }
@@ -311,33 +331,81 @@ function ConversationsPage() {
     return filteredConversations.find((item) => item.id === selectedId) ?? filteredConversations[0];
   }, [filteredConversations, selectedId]);
 
-  const messageQuery = useQuery({
-    enabled: !!selectedConversation,
-    queryKey: ["conversation-messages", selectedConversation?.id, selectedConversation?.numero, selectedConversation?.id_empresa],
-    queryFn: async (): Promise<ConversationMessage[]> => {
-      if (!selectedConversation) return [];
-      const candidates = sessionCandidates(selectedConversation);
-      let chatMessages: ConversationMessage[] = [];
+const messageQuery = useQuery({
+  enabled: !!selectedConversation,
+  queryKey: [
+    "conversation-messages",
+    selectedConversation?.id,
+    selectedConversation?.numero,
+    selectedConversation?.id_empresa,
+  ],
+  staleTime: 0,
+  refetchOnMount: "always",
+  queryFn: async (): Promise<ConversationMessage[]> => {
+    if (!selectedConversation) return [];
 
-      if (candidates.length) {
-        const { data, error } = await supabase
-          .from("n8n_chat_conversas")
-          .select("id,numero,type,message,time,created_at")
-          .in("numero", candidates)
-          .order("time", { ascending: true });
+    const sortMessages = (messages: ConversationMessage[]) =>
+      [...messages].sort((a, b) => {
+        const timeDifference =
+          timestampMs(a.time ?? a.created_at) -
+          timestampMs(b.time ?? b.created_at);
 
-        if (error) throw error;
+        return (
+          timeDifference ||
+          a.id.localeCompare(b.id, undefined, { numeric: true })
+        );
+      });
 
-        chatMessages = ((data ?? []) as ChatConversationRow[]).map((message) => ({
-          id: `chat-${message.id}`,
-          type: message.type,
-          message: message.message,
-          time: message.time,
-          created_at: message.created_at,
-        }));
-      }
+    const fetchChatMessagesByNumber = async (number: string) => {
+      const { data, error } = await supabase
+        .from("n8n_chat_conversas")
+        .select("id,numero,type,message,time,created_at")
+        .eq("numero", number)
+        .order("time", { ascending: true })
+        .order("id", { ascending: true });
 
-      if (!selectedConversation.crmLead?.id) return chatMessages;
+      if (error) throw error;
+
+      return ((data ?? []) as ChatConversationRow[]).map((message) => ({
+        id: `chat-${message.id}`,
+        type: message.type,
+        message: message.message,
+        time: message.time,
+        created_at: message.created_at,
+      }));
+    };
+
+    const fetchChatMessages = async (numbers: string[]) => {
+      if (!numbers.length) return [];
+
+      const groups = await Promise.all(
+        numbers.map((number) => fetchChatMessagesByNumber(number)),
+      );
+
+      return Array.from(
+        new Map(
+          groups
+            .flat()
+            .map((message) => [message.id, message] as const),
+        ).values(),
+      );
+    };
+
+    // Cada conversa nova usa a chave telefone + id_empresa. Registros antigos
+    // podem existir apenas com o telefone e sao consultados somente como fallback.
+    let chatMessages = await fetchChatMessages(
+      sessionCandidates(selectedConversation),
+    );
+
+    if (!chatMessages.length) {
+      chatMessages = await fetchChatMessages(
+        conversationPhoneCandidates(selectedConversation),
+      );
+    }
+
+    if (chatMessages.length || !selectedConversation.crmLead?.id) {
+      return sortMessages(chatMessages);
+    }
 
       const { data: activityRows, error: activityError } = await supabase
         .from("crm_lead_activities")
@@ -351,11 +419,9 @@ function ConversationsPage() {
 
       const followupMessages = ((activityRows ?? []) as LeadActivityRow[]).flatMap(activityToConversationMessages);
 
-      return [...chatMessages, ...followupMessages].sort(
-        (a, b) => timestampMs(a.time ?? a.created_at) - timestampMs(b.time ?? b.created_at),
-      );
-    },
-  });
+    return sortMessages(followupMessages);
+  },
+});
 
   const selectedLeadName = selectedConversation?.crmLead?.nome ?? selectedConversation?.nome ?? "Conversa";
   const selectedLeadPhone = selectedConversation?.crmLead?.telefone ?? selectedConversation?.numero ?? "Sem telefone";
