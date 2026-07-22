@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Flame, ArrowLeft, Send, Plus, X, Trash2, Pencil, SendToBack } from "lucide-react";
+import { Flame, ArrowLeft, Send, Plus, X, Trash2, Pencil, SendToBack, Megaphone, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -48,6 +48,25 @@ type LeadActivity = {
   crm_users?: { nome: string | null } | null;
 };
 
+type LeadAttribution = {
+  source_type: string | null;
+  meta_form_id: string | null;
+  meta_page_id: string | null;
+  meta_campaign_name: string | null;
+  meta_adset_name: string | null;
+  meta_ad_name: string | null;
+  utm_source: string | null;
+  utm_medium: string | null;
+  utm_campaign: string | null;
+  utm_content: string | null;
+  utm_term: string | null;
+  gclid: string | null;
+  landing_page_url: string | null;
+  referrer_url: string | null;
+  created_at: string | null;
+  meta_enriched_at: string | null;
+};
+
 function LeadDetail() {
   const { id } = Route.useParams();
   const leadId = Number(id);
@@ -90,6 +109,18 @@ function LeadDetail() {
         .single();
       if (error) throw error;
       return data;
+    },
+  });
+
+  const { data: attribution } = useQuery({
+    enabled: Boolean(me && leadId),
+    queryKey: ["lead-attribution", leadId],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("crm_get_lead_attribution", {
+        p_lead_id: leadId,
+      });
+      if (error) throw error;
+      return (data?.[0] ?? null) as LeadAttribution | null;
     },
   });
 
@@ -338,6 +369,25 @@ function LeadDetail() {
   const canDeleteLead = me?.role === "super_admin" || me?.role === "manager";
   const canSendToCrm = me?.role === "super_admin" || me?.role === "manager";
   const aiPaused = aiStatus?.paused ?? false;
+  const hasAttribution = Boolean(attribution && [
+    attribution.source_type,
+    attribution.meta_campaign_name,
+    attribution.meta_adset_name,
+    attribution.meta_ad_name,
+    attribution.utm_source,
+    attribution.utm_medium,
+    attribution.utm_campaign,
+    attribution.utm_content,
+    attribution.utm_term,
+    attribution.gclid,
+    attribution.landing_page_url,
+    attribution.referrer_url,
+  ].some(Boolean));
+  const attributionSource = attribution?.source_type === "meta"
+    ? "Meta Ads"
+    : attribution?.source_type === "external"
+      ? "Formulário externo"
+      : attribution?.source_type ?? null;
   const crmSent = (activities ?? []).some(
     (activity: any) =>
       activity?.tipo === "crm_export" &&
@@ -559,6 +609,55 @@ function LeadDetail() {
               <Field label="Criado em" value={lead.created_at ? new Date(lead.created_at).toLocaleString("pt-BR") : "—"} />
             </CardContent>
           </Card>
+
+          {hasAttribution && attribution && (
+            <Card className="rounded-2xl">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Megaphone className="h-4 w-4 text-primary" />
+                  Origem do lead
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4 text-sm">
+                {attributionSource && <Field label="Canal" value={attributionSource} />}
+                {attribution.meta_campaign_name && <Field label="Campanha" value={attribution.meta_campaign_name} />}
+                {attribution.meta_adset_name && <Field label="Conjunto de anúncios" value={attribution.meta_adset_name} />}
+                {attribution.meta_ad_name && <Field label="Anúncio" value={attribution.meta_ad_name} />}
+                {attribution.utm_source && <Field label="UTM source" value={attribution.utm_source} />}
+                {attribution.utm_medium && <Field label="UTM medium" value={attribution.utm_medium} />}
+                {attribution.utm_campaign && <Field label="UTM campaign" value={attribution.utm_campaign} />}
+                {attribution.utm_content && <Field label="UTM content" value={attribution.utm_content} />}
+                {attribution.utm_term && <Field label="UTM term" value={attribution.utm_term} />}
+                {attribution.gclid && <Field label="Google Click ID" value={attribution.gclid} />}
+                {(attribution.landing_page_url || attribution.referrer_url) && (
+                  <div className="space-y-2">
+                    {attribution.landing_page_url && (
+                      <a
+                        href={attribution.landing_page_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-1 text-sm text-primary hover:underline"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" />
+                        Abrir página de origem
+                      </a>
+                    )}
+                    {attribution.referrer_url && (
+                      <a
+                        href={attribution.referrer_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-1 text-sm text-primary hover:underline"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" />
+                        Abrir página de referência
+                      </a>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {customFields.length > 0 && (
             <Card className="rounded-2xl">

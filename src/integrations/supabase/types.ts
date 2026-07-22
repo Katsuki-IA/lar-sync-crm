@@ -3200,6 +3200,27 @@ export type Database = {
         Returns: boolean
       }
       crm_can_access_lead: { Args: { p_lead_id: number }; Returns: boolean }
+      crm_get_lead_attribution: {
+        Args: { p_lead_id: number }
+        Returns: {
+          created_at: string | null
+          gclid: string | null
+          landing_page_url: string | null
+          meta_ad_name: string | null
+          meta_adset_name: string | null
+          meta_campaign_name: string | null
+          meta_enriched_at: string | null
+          meta_form_id: string | null
+          meta_page_id: string | null
+          referrer_url: string | null
+          source_type: string | null
+          utm_campaign: string | null
+          utm_content: string | null
+          utm_medium: string | null
+          utm_source: string | null
+          utm_term: string | null
+        }[]
+      }
       crm_can_manage_empresa: {
         Args: { p_id_empresa: number }
         Returns: boolean
