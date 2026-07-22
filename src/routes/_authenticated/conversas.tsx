@@ -62,6 +62,7 @@ const ACTIVITY_BLOCK_MARKERS = [
   "Mensagem enviada pela IA:",
   "Mensagem enviada ao lead:",
   "Mensagem enviada:",
+  "Followup enviado:",
 ];
 
 function onlyDigits(value?: string | null) {
@@ -137,7 +138,8 @@ function activityToConversationMessages(activity: LeadActivityRow): Conversation
     extractActivityBlock(description, "Resposta enviada pela IA:") ??
     extractActivityBlock(description, "Mensagem enviada pela IA:") ??
     extractActivityBlock(description, "Mensagem enviada ao lead:") ??
-    extractActivityBlock(description, "Mensagem enviada:");
+    extractActivityBlock(description, "Mensagem enviada:") ??
+    extractActivityBlock(description, "Followup enviado:");
 
   const messages: ConversationMessage[] = [];
   if (humanMessage) {
@@ -315,44 +317,43 @@ function ConversationsPage() {
     queryFn: async (): Promise<ConversationMessage[]> => {
       if (!selectedConversation) return [];
       const candidates = sessionCandidates(selectedConversation);
+      let chatMessages: ConversationMessage[] = [];
 
       if (candidates.length) {
-        const phoneFilters = phoneVariants(selectedConversation.numero || selectedConversation.crmLead?.telefone)
-          .map((phone) => `numero.ilike.%${phone}%`);
-        const exactFilters = candidates.map((candidate) => `numero.eq.${candidate}`);
-        const filters = [...exactFilters, ...phoneFilters].join(",");
-
         const { data, error } = await supabase
           .from("n8n_chat_conversas")
           .select("id,numero,type,message,time,created_at")
-          .or(filters)
+          .in("numero", candidates)
           .order("time", { ascending: true });
 
         if (error) throw error;
 
-        const messages = ((data ?? []) as ChatConversationRow[]).map((message) => ({
+        chatMessages = ((data ?? []) as ChatConversationRow[]).map((message) => ({
           id: `chat-${message.id}`,
           type: message.type,
           message: message.message,
           time: message.time,
           created_at: message.created_at,
         }));
-
-        if (messages.length) return messages;
       }
 
-      if (!selectedConversation.crmLead?.id) return [];
+      if (!selectedConversation.crmLead?.id) return chatMessages;
 
       const { data: activityRows, error: activityError } = await supabase
         .from("crm_lead_activities")
         .select("id,tipo,descricao,created_at")
         .eq("lead_id", selectedConversation.crmLead.id)
         .eq("tipo", "whatsapp_automation")
+        .ilike("descricao", "%Followup enviado:%")
         .order("created_at", { ascending: true });
 
       if (activityError) throw activityError;
 
-      return ((activityRows ?? []) as LeadActivityRow[]).flatMap(activityToConversationMessages);
+      const followupMessages = ((activityRows ?? []) as LeadActivityRow[]).flatMap(activityToConversationMessages);
+
+      return [...chatMessages, ...followupMessages].sort(
+        (a, b) => timestampMs(a.time ?? a.created_at) - timestampMs(b.time ?? b.created_at),
+      );
     },
   });
 
