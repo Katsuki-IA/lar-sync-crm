@@ -3241,6 +3241,17 @@ export type Database = {
         Returns: undefined
       }
       crm_generate_hub_access_code: { Args: never; Returns: string }
+      crm_hub_conversation_messages: {
+        Args: { p_lead_id: number }
+        Returns: {
+          created_at: string | null
+          id: number
+          message: Json | null
+          numero: string | null
+          time: string | null
+          type: string | null
+        }[]
+      }
       crm_get_my_empresa: { Args: never; Returns: number }
       crm_get_my_id: { Args: never; Returns: string }
       crm_get_my_role: { Args: never; Returns: string }

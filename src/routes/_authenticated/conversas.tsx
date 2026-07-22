@@ -29,7 +29,8 @@ export const Route = createFileRoute("/_authenticated/conversas")({
 });
 
 type LeadConversationRow = Database["public"]["Tables"]["lead"]["Row"];
-type ChatConversationRow = Database["public"]["Tables"]["n8n_chat_conversas"]["Row"];
+type HubConversationMessageRow =
+  Database["public"]["Functions"]["crm_hub_conversation_messages"]["Returns"][number];
 type LeadActivityRow = Pick<
   Database["public"]["Tables"]["crm_lead_activities"]["Row"],
   "id" | "descricao" | "created_at" | "tipo"
@@ -65,90 +66,10 @@ const ACTIVITY_BLOCK_MARKERS = [
   "Followup enviado:",
 ];
 
-function onlyDigits(value?: string | null) {
-  return (value ?? "").replace(/\D/g, "");
-}
-
-function phoneVariants(value?: string | null) {
-  const digits = onlyDigits(value);
-  if (!digits) return [];
-
-  const variants = new Set<string>([digits]);
-  if (digits.length > 11) variants.add(digits.slice(-11));
-  if (digits.startsWith("55") && digits.length > 2) {
-    const withoutCountryCode = digits.slice(2);
-    variants.add(withoutCountryCode);
-    if (withoutCountryCode.length > 11) variants.add(withoutCountryCode.slice(-11));
-  }
-
-  return Array.from(variants);
-}
-
 function crmLeadId(value?: string | null) {
   if (!value) return null;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
-}
-
-function conversationPhoneCandidates(conversation: ConversationItem) {
-  const companyId = String(conversation.id_empresa);
-  const rawNumbers = [conversation.numero, conversation.crmLead?.telefone]
-    .map(onlyDigits)
-    .filter(Boolean);
-
-  return Array.from(
-    new Set(
-      rawNumbers.flatMap((rawNumber) => {
-        const numbers = [rawNumber];
-        if (rawNumber.endsWith(companyId)) {
-          const withoutCompanyId = rawNumber.slice(0, -companyId.length);
-          if (withoutCompanyId) numbers.push(withoutCompanyId);
-        }
-
-        return numbers.flatMap((number) => phoneVariants(number));
-      }),
-    ),
-  );
-}
-
-function sessionCandidates(conversation: ConversationItem) {
-  const companyId = String(conversation.id_empresa);
-  const storedSession = onlyDigits(conversation.numero);
-
-  return Array.from(
-    new Set(
-      [
-        ...(storedSession ? [storedSession] : []),
-        ...conversationPhoneCandidates(conversation).map(
-          (phone) => `${phone}${companyId}`,
-        ),
-      ],
-    ),
-  );
-}
-
-function matchesConversationSession(
-  sessionNumber: string | null,
-  conversation: ConversationItem,
-) {
-  const sessionDigits = onlyDigits(sessionNumber);
-  if (!sessionDigits) return false;
-
-  const companyId = String(conversation.id_empresa);
-  const acceptedPhones = conversationPhoneCandidates(conversation);
-  const acceptedSessions = new Set([
-    ...acceptedPhones,
-    ...acceptedPhones.map((phone) => `${phone}${companyId}`),
-    ...sessionCandidates(conversation),
-  ]);
-
-  if (acceptedSessions.has(sessionDigits)) return true;
-
-  return acceptedPhones.some((phone) => {
-    if (!sessionDigits.startsWith(phone)) return false;
-    const suffix = sessionDigits.slice(phone.length);
-    return suffix === "" || suffix === companyId;
-  });
 }
 
 function messageToText(message: Json | null): string {
@@ -370,9 +291,6 @@ const messageQuery = useQuery({
   queryKey: [
     "conversation-messages",
     selectedConversation?.id,
-    selectedConversation?.numero,
-    selectedConversation?.crmLead?.telefone,
-    selectedConversation?.id_empresa,
   ],
   staleTime: 0,
   refetchOnMount: "always",
@@ -391,7 +309,7 @@ const messageQuery = useQuery({
         );
       });
 
-    const mapChatRows = (rows: ChatConversationRow[]) =>
+    const mapChatRows = (rows: HubConversationMessageRow[]) =>
       rows.map((message) => ({
         id: `chat-${message.id}`,
         type: message.type,
@@ -400,38 +318,14 @@ const messageQuery = useQuery({
         created_at: message.created_at,
       }));
 
-    const fetchChatMessagesByPrefix = async (phonePrefix: string) => {
-      const { data, error } = await supabase
-        .from("n8n_chat_conversas")
-        .select("id,numero,type,message,time,created_at")
-        .ilike("numero", `${phonePrefix}%`)
-        .order("time", { ascending: true })
-        .order("id", { ascending: true });
-
+    const fetchChatMessages = async () => {
+      const { data, error } = await supabase.rpc(
+        "crm_hub_conversation_messages",
+        { p_lead_id: selectedConversation.id },
+      );
       if (error) throw error;
 
-      return ((data ?? []) as ChatConversationRow[]).filter((message) =>
-        matchesConversationSession(message.numero, selectedConversation),
-      );
-    };
-
-    const fetchChatMessages = async () => {
-      const phoneCandidates = conversationPhoneCandidates(selectedConversation);
-      if (!phoneCandidates.length) return [];
-
-      const groups = await Promise.all(
-        phoneCandidates.map((phone) => fetchChatMessagesByPrefix(phone)),
-      );
-
-      const rows = Array.from(
-        new Map(
-          groups
-            .flat()
-            .map((message) => [message.id, message] as const),
-        ).values(),
-      );
-
-      return mapChatRows(rows);
+      return mapChatRows(data ?? []);
     };
 
     const chatMessages = await fetchChatMessages();
