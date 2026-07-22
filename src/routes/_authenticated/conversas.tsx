@@ -127,6 +127,30 @@ function sessionCandidates(conversation: ConversationItem) {
   );
 }
 
+function matchesConversationSession(
+  sessionNumber: string | null,
+  conversation: ConversationItem,
+) {
+  const sessionDigits = onlyDigits(sessionNumber);
+  if (!sessionDigits) return false;
+
+  const companyId = String(conversation.id_empresa);
+  const acceptedPhones = conversationPhoneCandidates(conversation);
+  const acceptedSessions = new Set([
+    ...acceptedPhones,
+    ...acceptedPhones.map((phone) => `${phone}${companyId}`),
+    ...sessionCandidates(conversation),
+  ]);
+
+  if (acceptedSessions.has(sessionDigits)) return true;
+
+  return acceptedPhones.some((phone) => {
+    if (!sessionDigits.startsWith(phone)) return false;
+    const suffix = sessionDigits.slice(phone.length);
+    return suffix === "" || suffix === companyId;
+  });
+}
+
 function messageToText(message: Json | null): string {
   if (message == null) return "";
   if (typeof message === "string") return message;
@@ -347,6 +371,7 @@ const messageQuery = useQuery({
     "conversation-messages",
     selectedConversation?.id,
     selectedConversation?.numero,
+    selectedConversation?.crmLead?.telefone,
     selectedConversation?.id_empresa,
   ],
   staleTime: 0,
@@ -366,52 +391,50 @@ const messageQuery = useQuery({
         );
       });
 
-    const fetchChatMessagesByNumber = async (number: string) => {
-      const { data, error } = await supabase
-        .from("n8n_chat_conversas")
-        .select("id,numero,type,message,time,created_at")
-        .eq("numero", number)
-        .order("time", { ascending: true })
-        .order("id", { ascending: true });
-
-      if (error) throw error;
-
-      return ((data ?? []) as ChatConversationRow[]).map((message) => ({
+    const mapChatRows = (rows: ChatConversationRow[]) =>
+      rows.map((message) => ({
         id: `chat-${message.id}`,
         type: message.type,
         message: message.message,
         time: message.time,
         created_at: message.created_at,
       }));
+
+    const fetchChatMessagesByPrefix = async (phonePrefix: string) => {
+      const { data, error } = await supabase
+        .from("n8n_chat_conversas")
+        .select("id,numero,type,message,time,created_at")
+        .ilike("numero", `${phonePrefix}%`)
+        .order("time", { ascending: true })
+        .order("id", { ascending: true });
+
+      if (error) throw error;
+
+      return ((data ?? []) as ChatConversationRow[]).filter((message) =>
+        matchesConversationSession(message.numero, selectedConversation),
+      );
     };
 
-    const fetchChatMessages = async (numbers: string[]) => {
-      if (!numbers.length) return [];
+    const fetchChatMessages = async () => {
+      const phoneCandidates = conversationPhoneCandidates(selectedConversation);
+      if (!phoneCandidates.length) return [];
 
       const groups = await Promise.all(
-        numbers.map((number) => fetchChatMessagesByNumber(number)),
+        phoneCandidates.map((phone) => fetchChatMessagesByPrefix(phone)),
       );
 
-      return Array.from(
+      const rows = Array.from(
         new Map(
           groups
             .flat()
             .map((message) => [message.id, message] as const),
         ).values(),
       );
+
+      return mapChatRows(rows);
     };
 
-    // Cada conversa nova usa a chave telefone + id_empresa. Registros antigos
-    // podem existir apenas com o telefone e sao consultados somente como fallback.
-    let chatMessages = await fetchChatMessages(
-      sessionCandidates(selectedConversation),
-    );
-
-    if (!chatMessages.length) {
-      chatMessages = await fetchChatMessages(
-        conversationPhoneCandidates(selectedConversation),
-      );
-    }
+    const chatMessages = await fetchChatMessages();
 
     if (chatMessages.length || !selectedConversation.crmLead?.id) {
       return sortMessages(chatMessages);
