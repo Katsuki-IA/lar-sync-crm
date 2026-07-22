@@ -86,6 +86,39 @@ function trimTrailingSlash(value: string) {
   return value.replace(/\/+$/, "");
 }
 
+function onlyDigits(value?: string | null) {
+  return (value ?? "").replace(/\D/g, "");
+}
+
+function stripDiacritics(value: string) {
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
+function buildWhatsAppUrl(phone?: string | null, empreendimento?: string | null) {
+  const digits = onlyDigits(phone);
+  if (!digits) return null;
+
+  const text = empreendimento
+    ? `Posso te ajudar com mais informacoes sobre ${stripDiacritics(empreendimento)}?`
+    : "Posso te ajudar com mais informacoes?";
+
+  return `https://wa.me/${digits}?text=${encodeURIComponent(text)}`;
+}
+
+function appendConversationLinks(summary: string, conversationUrl: string, whatsappUrl: string | null) {
+  const links = [summary.trim()];
+
+  if (!summary.includes("Você pode ler a conversa completa através do link:")) {
+    links.push(`Você pode ler a conversa completa através do link: ${conversationUrl}`);
+  }
+
+  if (!summary.includes("Você pode atender o usuário através do link:")) {
+    links.push(`Você pode atender o usuário através do link: ${whatsappUrl ?? "Não disponível"}`);
+  }
+
+  return links.filter(Boolean).join("\n\n");
+}
+
 function normalizeDispatchTags(value: unknown) {
   const supplied = Array.isArray(value)
     ? value.map((tag) => String(tag ?? "").trim()).filter(Boolean)
@@ -264,20 +297,23 @@ async function resolveLeadDestination(
   }
 
   let cvEmpreendimentoId: string | number | null = null;
+  let empreendimentoNome: string | null = null;
   if (localEmpreendimentoId) {
     const { data: empreendimento, error: empreendimentoError } = await admin
       .from("empreendimento")
-      .select("cv_id_empreendimento")
+      .select("cv_id_empreendimento,nome")
       .eq("id", localEmpreendimentoId)
       .eq("id_empresa", lead.id_empresa)
       .maybeSingle();
     if (empreendimentoError) throw new Error(empreendimentoError.message);
     cvEmpreendimentoId = toScalarId(empreendimento?.cv_id_empreendimento ?? null);
+    empreendimentoNome = empreendimento?.nome?.trim() || null;
   }
 
   return {
     localEmpreendimentoId,
     cvEmpreendimentoId,
+    empreendimentoNome,
   };
 }
 
@@ -392,7 +428,7 @@ Deno.serve(async (req) => {
 
     const { data: lead, error: leadError } = await admin
       .from("crm_leads")
-      .select("id,id_empresa,nome,telefone,email,crm_stage_id,id_empreendimento")
+      .select("id,id_empresa,nome,telefone,email,crm_stage_id,id_empreendimento,historico_token")
       .eq("id", leadId)
       .eq("id_empresa", idEmpresa)
       .maybeSingle();
@@ -482,7 +518,10 @@ Deno.serve(async (req) => {
 
     const externalStageId = resolveExternalStageId(currentStageName, dispatchSettings);
 
-    const { localEmpreendimentoId, cvEmpreendimentoId } = await resolveLeadDestination(admin, lead);
+    const { localEmpreendimentoId, cvEmpreendimentoId, empreendimentoNome } = await resolveLeadDestination(admin, lead);
+    const appBaseUrl = (Deno.env.get("APP_BASE_URL")?.trim() || "https://hub.katsuki.com.br").replace(/\/+$/, "");
+    const conversationUrl = `${appBaseUrl}/historico/${lead.historico_token ?? lead.id}`;
+    const whatsappUrl = buildWhatsAppUrl(lead.telefone, empreendimentoNome);
 
     const requestPayload: Record<string, unknown> = {
       telefone: String(lead.telefone ?? "").trim(),
@@ -513,8 +552,10 @@ Deno.serve(async (req) => {
       if (suppliedSummary) {
         summaryPayload = {
           ok: true,
-          summary: suppliedSummary,
+          summary: appendConversationLinks(suppliedSummary, conversationUrl, whatsappUrl),
           used_fallback: false,
+          conversation_url: conversationUrl,
+          whatsapp_url: whatsappUrl,
         };
       } else {
         try {
