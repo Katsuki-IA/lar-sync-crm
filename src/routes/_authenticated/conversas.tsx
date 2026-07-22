@@ -310,13 +310,15 @@ const messageQuery = useQuery({
       });
 
     const mapChatRows = (rows: HubConversationMessageRow[]) =>
-      rows.map((message) => ({
-        id: `chat-${message.id}`,
-        type: message.type,
-        message: message.message,
-        time: message.time,
-        created_at: message.created_at,
-      }));
+      rows
+        .filter((message) => message.type?.trim().toLowerCase() !== "tool")
+        .map((message) => ({
+          id: `chat-${message.id}`,
+          type: message.type,
+          message: message.message,
+          time: message.time,
+          created_at: message.created_at,
+        }));
 
     const fetchChatMessages = async () => {
       const { data, error } = await supabase.rpc(
