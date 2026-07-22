@@ -87,6 +87,12 @@ function messageToText(message: Json | null): string {
   return JSON.stringify(message);
 }
 
+function isToolMessage(type: string | null, message: Json | null) {
+  if (type?.trim().toLowerCase() === "tool") return true;
+
+  return /^calling\s+.+\s+with\s+input\s*:/i.test(messageToText(message).trim());
+}
+
 function extractActivityBlock(text: string, marker: string) {
   const start = text.indexOf(marker);
   if (start < 0) return null;
@@ -311,7 +317,7 @@ const messageQuery = useQuery({
 
     const mapChatRows = (rows: HubConversationMessageRow[]) =>
       rows
-        .filter((message) => message.type?.trim().toLowerCase() !== "tool")
+        .filter((message) => !isToolMessage(message.type, message.message))
         .map((message) => ({
           id: `chat-${message.id}`,
           type: message.type,
