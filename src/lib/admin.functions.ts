@@ -276,7 +276,7 @@ export const listEmpresas = createServerFn({ method: "GET" })
     return (data ?? []).map((e: any) => ({ ...e, total_usuarios: tally.get(e.id) ?? 0 }));
   });
 
-// -------- Empresas com CRM externo configurável (super admin) --------
+// -------- Empresas Hub com envio ao CRM configurável (super admin) --------
 export const listCrmDispatchEmpresas = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -287,7 +287,7 @@ export const listCrmDispatchEmpresas = createServerFn({ method: "GET" })
     const { data: credentials, error: credentialsError } = await supabaseAdmin
       .from("credentials")
       .select("id_empresa")
-      .in("default_crm", ["hub", "cv", "cv_crm", "rd", "rd_crm", "rdstation", "rd_station"]);
+      .eq("default_crm", "hub");
     if (credentialsError) throw new Error(credentialsError.message);
 
     const companyIds = (credentials ?? [])
