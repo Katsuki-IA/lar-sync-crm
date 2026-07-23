@@ -17,6 +17,7 @@ type Json =
 type DispatchPayload = {
   leadId: number;
   idEmpresa: number;
+  idEmpreendimento?: number;
   additionalTags?: string[];
   conversationSummary?: string;
   enforceScheduledRule?: boolean;
@@ -387,8 +388,9 @@ async function resolveLeadDestination(
     id_empresa: number;
     id_empreendimento: number | null;
   },
+  preferredEmpreendimentoId?: number | null,
 ) {
-  let localEmpreendimentoId = lead.id_empreendimento;
+  let localEmpreendimentoId = preferredEmpreendimentoId ?? lead.id_empreendimento;
 
   if (!localEmpreendimentoId) {
     const { data: leadContext, error: leadContextError } = await admin
@@ -628,7 +630,15 @@ Deno.serve(async (req) => {
       }
     }
 
-    const { localEmpreendimentoId, cvEmpreendimentoId, empreendimentoNome } = await resolveLeadDestination(admin, lead);
+    const requestedEmpreendimentoId = Number(body.idEmpreendimento);
+    const preferredEmpreendimentoId = authContext.internal && Number.isSafeInteger(requestedEmpreendimentoId) && requestedEmpreendimentoId > 0
+      ? requestedEmpreendimentoId
+      : null;
+    const { localEmpreendimentoId, cvEmpreendimentoId, empreendimentoNome } = await resolveLeadDestination(
+      admin,
+      lead,
+      preferredEmpreendimentoId,
+    );
     const stageOverrideResult = localEmpreendimentoId
       ? await admin
           .from("crm_lead_dispatch_stage_overrides")

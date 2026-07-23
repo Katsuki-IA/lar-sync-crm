@@ -10,6 +10,7 @@ const corsHeaders = {
 type EnqueuePayload = {
   leadId: number;
   idEmpresa: number;
+  idEmpreendimento?: number;
   additionalTags?: string[];
   triggerReference?: string;
 };
@@ -56,11 +57,14 @@ async function authenticate(
   if (crmToken) {
     const { data, error } = await admin
       .from("credentials")
-      .select("cv_crm_token")
+      .select("cv_crm_token,rd_crm_access_token")
       .eq("id_empresa", idEmpresa)
       .maybeSingle();
     if (error) throw new Error(error.message);
-    if (String(data?.cv_crm_token ?? "").trim() === crmToken) return;
+    const validTokens = [data?.cv_crm_token, data?.rd_crm_access_token]
+      .map((value) => String(value ?? "").trim())
+      .filter(Boolean);
+    if (validTokens.includes(crmToken)) return;
   }
 
   throw new Error("Acesso interno inválido");
@@ -81,6 +85,7 @@ Deno.serve(async (req) => {
     const payload = (await req.json()) as EnqueuePayload;
     const leadId = Number(payload?.leadId);
     const idEmpresa = Number(payload?.idEmpresa);
+    const idEmpreendimento = Number(payload?.idEmpreendimento);
     if (!Number.isSafeInteger(leadId) || leadId <= 0) {
       return jsonResponse({ error: "leadId inválido" }, 400);
     }
@@ -104,6 +109,7 @@ Deno.serve(async (req) => {
       p_payload: {
         leadId,
         idEmpresa,
+        ...(Number.isSafeInteger(idEmpreendimento) && idEmpreendimento > 0 ? { idEmpreendimento } : {}),
         additionalTags,
       },
       p_max_attempts: 3,
