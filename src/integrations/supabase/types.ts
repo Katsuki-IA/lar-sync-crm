@@ -298,6 +298,97 @@ export type Database = {
           },
         ]
       }
+      crm_conversation_classifications: {
+        Row: {
+          ai_count: number
+          classified_at: string
+          cliente_respondeu: boolean
+          created_at: string
+          human_count: number
+          id: string
+          id_empreendimento: number | null
+          id_empresa: number
+          lead_desqualificado: boolean
+          lead_id: number
+          message_count: number
+          model: string | null
+          motivos: string[]
+          nao_respondeu_mais: boolean
+          qualificado: boolean
+          raw_response: Json | null
+          resumo: string | null
+          temperatura: string
+          updated_at: string
+          visita_agendada: boolean
+        }
+        Insert: {
+          ai_count?: number
+          classified_at?: string
+          cliente_respondeu?: boolean
+          created_at?: string
+          human_count?: number
+          id?: string
+          id_empreendimento?: number | null
+          id_empresa: number
+          lead_desqualificado?: boolean
+          lead_id: number
+          message_count?: number
+          model?: string | null
+          motivos?: string[]
+          nao_respondeu_mais?: boolean
+          qualificado?: boolean
+          raw_response?: Json | null
+          resumo?: string | null
+          temperatura?: string
+          updated_at?: string
+          visita_agendada?: boolean
+        }
+        Update: {
+          ai_count?: number
+          classified_at?: string
+          cliente_respondeu?: boolean
+          created_at?: string
+          human_count?: number
+          id?: string
+          id_empreendimento?: number | null
+          id_empresa?: number
+          lead_desqualificado?: boolean
+          lead_id?: number
+          message_count?: number
+          model?: string | null
+          motivos?: string[]
+          nao_respondeu_mais?: boolean
+          qualificado?: boolean
+          raw_response?: Json | null
+          resumo?: string | null
+          temperatura?: string
+          updated_at?: string
+          visita_agendada?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_conversation_classifications_id_empreendimento_fkey"
+            columns: ["id_empreendimento"]
+            isOneToOne: false
+            referencedRelation: "empreendimento"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_conversation_classifications_id_empresa_fkey"
+            columns: ["id_empresa"]
+            isOneToOne: false
+            referencedRelation: "empresa_dados"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_conversation_classifications_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "lead"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       crm_empreendimento_atendimento: {
         Row: {
           atendimento_ativo: boolean
@@ -336,97 +427,6 @@ export type Database = {
             columns: ["id_empresa"]
             isOneToOne: false
             referencedRelation: "empresa_dados"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      crm_conversation_classifications: {
-        Row: {
-          ai_count: number
-          classified_at: string
-          cliente_respondeu: boolean
-          created_at: string
-          human_count: number
-          id: string
-          id_empresa: number
-          id_empreendimento: number | null
-          lead_desqualificado: boolean
-          lead_id: number
-          message_count: number
-          model: string | null
-          motivos: string[]
-          nao_respondeu_mais: boolean
-          qualificado: boolean
-          raw_response: Json | null
-          resumo: string | null
-          temperatura: string
-          updated_at: string
-          visita_agendada: boolean
-        }
-        Insert: {
-          ai_count?: number
-          classified_at?: string
-          cliente_respondeu?: boolean
-          created_at?: string
-          human_count?: number
-          id?: string
-          id_empresa: number
-          id_empreendimento?: number | null
-          lead_desqualificado?: boolean
-          lead_id: number
-          message_count?: number
-          model?: string | null
-          motivos?: string[]
-          nao_respondeu_mais?: boolean
-          qualificado?: boolean
-          raw_response?: Json | null
-          resumo?: string | null
-          temperatura?: string
-          updated_at?: string
-          visita_agendada?: boolean
-        }
-        Update: {
-          ai_count?: number
-          classified_at?: string
-          cliente_respondeu?: boolean
-          created_at?: string
-          human_count?: number
-          id?: string
-          id_empresa?: number
-          id_empreendimento?: number | null
-          lead_desqualificado?: boolean
-          lead_id?: number
-          message_count?: number
-          model?: string | null
-          motivos?: string[]
-          nao_respondeu_mais?: boolean
-          qualificado?: boolean
-          raw_response?: Json | null
-          resumo?: string | null
-          temperatura?: string
-          updated_at?: string
-          visita_agendada?: boolean
-        }
-        Relationships: [
-          {
-            foreignKeyName: "crm_conversation_classifications_id_empresa_fkey"
-            columns: ["id_empresa"]
-            isOneToOne: false
-            referencedRelation: "empresa_dados"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "crm_conversation_classifications_id_empreendimento_fkey"
-            columns: ["id_empreendimento"]
-            isOneToOne: false
-            referencedRelation: "empreendimento"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "crm_conversation_classifications_lead_id_fkey"
-            columns: ["lead_id"]
-            isOneToOne: false
-            referencedRelation: "lead"
             referencedColumns: ["id"]
           },
         ]
@@ -553,6 +553,75 @@ export type Database = {
             columns: ["lead_id"]
             isOneToOne: false
             referencedRelation: "crm_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_external_dispatch_queue: {
+        Row: {
+          attempts: number
+          created_at: string
+          crm_lead_id: number
+          id: string
+          id_empresa: number
+          last_error: string | null
+          locked_at: string | null
+          max_attempts: number
+          payload: Json
+          processed_at: string | null
+          scheduled_at: string
+          status: string
+          trigger_reference: string | null
+          trigger_type: string
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          crm_lead_id: number
+          id?: string
+          id_empresa: number
+          last_error?: string | null
+          locked_at?: string | null
+          max_attempts?: number
+          payload?: Json
+          processed_at?: string | null
+          scheduled_at: string
+          status?: string
+          trigger_reference?: string | null
+          trigger_type?: string
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          crm_lead_id?: number
+          id?: string
+          id_empresa?: number
+          last_error?: string | null
+          locked_at?: string | null
+          max_attempts?: number
+          payload?: Json
+          processed_at?: string | null
+          scheduled_at?: string
+          status?: string
+          trigger_reference?: string | null
+          trigger_type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_external_dispatch_queue_crm_lead_id_fkey"
+            columns: ["crm_lead_id"]
+            isOneToOne: false
+            referencedRelation: "crm_leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_external_dispatch_queue_id_empresa_fkey"
+            columns: ["id_empresa"]
+            isOneToOne: false
+            referencedRelation: "empresa_dados"
             referencedColumns: ["id"]
           },
         ]
@@ -754,6 +823,142 @@ export type Database = {
           },
         ]
       }
+      crm_lead_attribution: {
+        Row: {
+          created_at: string
+          crm_lead_id: number
+          fbclid: string | null
+          gbraid: string | null
+          gclid: string | null
+          id: string
+          id_empresa: number
+          landing_page_url: string | null
+          meta_account_id: string | null
+          meta_ad_id: string | null
+          meta_ad_name: string | null
+          meta_adset_id: string | null
+          meta_adset_name: string | null
+          meta_campaign_id: string | null
+          meta_campaign_name: string | null
+          meta_enriched_at: string | null
+          meta_enrichment_error: string | null
+          meta_form_id: string | null
+          meta_leadgen_id: string | null
+          meta_page_id: string | null
+          raw_data: Json
+          referrer_url: string | null
+          source_id: string | null
+          source_type: string
+          updated_at: string
+          user_agent: string | null
+          utm_ad: string | null
+          utm_adgroup: string | null
+          utm_campaign: string | null
+          utm_content: string | null
+          utm_id: string | null
+          utm_medium: string | null
+          utm_source: string | null
+          utm_term: string | null
+          wbraid: string | null
+        }
+        Insert: {
+          created_at?: string
+          crm_lead_id: number
+          fbclid?: string | null
+          gbraid?: string | null
+          gclid?: string | null
+          id?: string
+          id_empresa: number
+          landing_page_url?: string | null
+          meta_account_id?: string | null
+          meta_ad_id?: string | null
+          meta_ad_name?: string | null
+          meta_adset_id?: string | null
+          meta_adset_name?: string | null
+          meta_campaign_id?: string | null
+          meta_campaign_name?: string | null
+          meta_enriched_at?: string | null
+          meta_enrichment_error?: string | null
+          meta_form_id?: string | null
+          meta_leadgen_id?: string | null
+          meta_page_id?: string | null
+          raw_data?: Json
+          referrer_url?: string | null
+          source_id?: string | null
+          source_type: string
+          updated_at?: string
+          user_agent?: string | null
+          utm_ad?: string | null
+          utm_adgroup?: string | null
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_id?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
+          wbraid?: string | null
+        }
+        Update: {
+          created_at?: string
+          crm_lead_id?: number
+          fbclid?: string | null
+          gbraid?: string | null
+          gclid?: string | null
+          id?: string
+          id_empresa?: number
+          landing_page_url?: string | null
+          meta_account_id?: string | null
+          meta_ad_id?: string | null
+          meta_ad_name?: string | null
+          meta_adset_id?: string | null
+          meta_adset_name?: string | null
+          meta_campaign_id?: string | null
+          meta_campaign_name?: string | null
+          meta_enriched_at?: string | null
+          meta_enrichment_error?: string | null
+          meta_form_id?: string | null
+          meta_leadgen_id?: string | null
+          meta_page_id?: string | null
+          raw_data?: Json
+          referrer_url?: string | null
+          source_id?: string | null
+          source_type?: string
+          updated_at?: string
+          user_agent?: string | null
+          utm_ad?: string | null
+          utm_adgroup?: string | null
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_id?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
+          wbraid?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_lead_attribution_crm_lead_id_fkey"
+            columns: ["crm_lead_id"]
+            isOneToOne: false
+            referencedRelation: "crm_leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_lead_attribution_id_empresa_fkey"
+            columns: ["id_empresa"]
+            isOneToOne: false
+            referencedRelation: "empresa_dados"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_lead_attribution_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "crm_site_lead_sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       crm_lead_custom_fields: {
         Row: {
           ativo: boolean
@@ -925,8 +1130,8 @@ export type Database = {
           external_stage_unqualified_id: string | null
           external_stage_visit_scheduled_id: string | null
           id: string
-          id_empresa: number
           id_empreendimento: number
+          id_empresa: number
           updated_at: string
         }
         Insert: {
@@ -936,8 +1141,8 @@ export type Database = {
           external_stage_unqualified_id?: string | null
           external_stage_visit_scheduled_id?: string | null
           id?: string
-          id_empresa: number
           id_empreendimento: number
+          id_empresa: number
           updated_at?: string
         }
         Update: {
@@ -947,23 +1152,23 @@ export type Database = {
           external_stage_unqualified_id?: string | null
           external_stage_visit_scheduled_id?: string | null
           id?: string
-          id_empresa?: number
           id_empreendimento?: number
+          id_empresa?: number
           updated_at?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "crm_lead_dispatch_stage_overrides_id_empresa_fkey"
-            columns: ["id_empresa"]
-            isOneToOne: false
-            referencedRelation: "empresa_dados"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "crm_lead_dispatch_stage_overrides_id_empreendimento_fkey"
             columns: ["id_empreendimento"]
             isOneToOne: false
             referencedRelation: "empreendimento"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_lead_dispatch_stage_overrides_id_empresa_fkey"
+            columns: ["id_empresa"]
+            isOneToOne: false
+            referencedRelation: "empresa_dados"
             referencedColumns: ["id"]
           },
         ]
@@ -1603,6 +1808,82 @@ export type Database = {
           },
         ]
       }
+      crm_prospeccao_leads: {
+        Row: {
+          attempts: number
+          created_at: string
+          crm_lead_id: number | null
+          email: string | null
+          error: string | null
+          id: number
+          id_empreendimento: number
+          id_empresa: number
+          nome: string
+          origem_aba: string | null
+          origem_arquivo: string | null
+          processed_at: string | null
+          started_at: string | null
+          status: string
+          telefone: string
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          crm_lead_id?: number | null
+          email?: string | null
+          error?: string | null
+          id?: number
+          id_empreendimento: number
+          id_empresa: number
+          nome: string
+          origem_aba?: string | null
+          origem_arquivo?: string | null
+          processed_at?: string | null
+          started_at?: string | null
+          status?: string
+          telefone: string
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          crm_lead_id?: number | null
+          email?: string | null
+          error?: string | null
+          id?: number
+          id_empreendimento?: number
+          id_empresa?: number
+          nome?: string
+          origem_aba?: string | null
+          origem_arquivo?: string | null
+          processed_at?: string | null
+          started_at?: string | null
+          status?: string
+          telefone?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_prospeccao_leads_crm_lead_id_fkey"
+            columns: ["crm_lead_id"]
+            isOneToOne: false
+            referencedRelation: "crm_leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_prospeccao_leads_id_empreendimento_fkey"
+            columns: ["id_empreendimento"]
+            isOneToOne: false
+            referencedRelation: "empreendimento"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_prospeccao_leads_id_empresa_fkey"
+            columns: ["id_empresa"]
+            isOneToOne: false
+            referencedRelation: "empresa_dados"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       crm_rd_connections: {
         Row: {
           access_token: string | null
@@ -1852,6 +2133,140 @@ export type Database = {
             columns: ["id_funnel"]
             isOneToOne: false
             referencedRelation: "crm_funnels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_site_lead_events: {
+        Row: {
+          crm_lead_id: number | null
+          error: string | null
+          external_id: string | null
+          id: string
+          id_empreendimento: number | null
+          id_empresa: number
+          raw_data: Json
+          received_at: string
+          source_id: string | null
+          status: string
+        }
+        Insert: {
+          crm_lead_id?: number | null
+          error?: string | null
+          external_id?: string | null
+          id?: string
+          id_empreendimento?: number | null
+          id_empresa: number
+          raw_data?: Json
+          received_at?: string
+          source_id?: string | null
+          status?: string
+        }
+        Update: {
+          crm_lead_id?: number | null
+          error?: string | null
+          external_id?: string | null
+          id?: string
+          id_empreendimento?: number | null
+          id_empresa?: number
+          raw_data?: Json
+          received_at?: string
+          source_id?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_site_lead_events_crm_lead_id_fkey"
+            columns: ["crm_lead_id"]
+            isOneToOne: false
+            referencedRelation: "crm_leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_site_lead_events_id_empreendimento_fkey"
+            columns: ["id_empreendimento"]
+            isOneToOne: false
+            referencedRelation: "empreendimento"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_site_lead_events_id_empresa_fkey"
+            columns: ["id_empresa"]
+            isOneToOne: false
+            referencedRelation: "empresa_dados"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_site_lead_events_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "crm_site_lead_sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_site_lead_sources: {
+        Row: {
+          active: boolean
+          allowed_domains: string[]
+          created_at: string
+          field_mapping: Json
+          id: string
+          id_empreendimento: number
+          id_empresa: number
+          last_error: string | null
+          last_lead_at: string | null
+          leads_count: number
+          nome: string
+          origem: string
+          token: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          allowed_domains?: string[]
+          created_at?: string
+          field_mapping?: Json
+          id?: string
+          id_empreendimento: number
+          id_empresa: number
+          last_error?: string | null
+          last_lead_at?: string | null
+          leads_count?: number
+          nome: string
+          origem?: string
+          token: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          allowed_domains?: string[]
+          created_at?: string
+          field_mapping?: Json
+          id?: string
+          id_empreendimento?: number
+          id_empresa?: number
+          last_error?: string | null
+          last_lead_at?: string | null
+          leads_count?: number
+          nome?: string
+          origem?: string
+          token?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_site_lead_sources_id_empreendimento_fkey"
+            columns: ["id_empreendimento"]
+            isOneToOne: false
+            referencedRelation: "empreendimento"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_site_lead_sources_id_empresa_fkey"
+            columns: ["id_empresa"]
+            isOneToOne: false
+            referencedRelation: "empresa_dados"
             referencedColumns: ["id"]
           },
         ]
@@ -2926,6 +3341,50 @@ export type Database = {
           },
         ]
       }
+      prompt_especifico: {
+        Row: {
+          created_at: string | null
+          id: number
+          id_empresa: number
+          node: string
+          nome_empresa: string | null
+          prompt: string
+          prompt_user: string | null
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: number
+          id_empresa: number
+          node: string
+          nome_empresa?: string | null
+          prompt: string
+          prompt_user?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: number
+          id_empresa?: number
+          node?: string
+          nome_empresa?: string | null
+          prompt?: string
+          prompt_user?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prompt_especifico_id_empresa_fkey"
+            columns: ["id_empresa"]
+            isOneToOne: false
+            referencedRelation: "empresa_dados"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rd_steps: {
         Row: {
           contato_feito: string | null
@@ -3251,30 +3710,35 @@ export type Database = {
         Returns: boolean
       }
       crm_can_access_lead: { Args: { p_lead_id: number }; Returns: boolean }
-      crm_get_lead_attribution: {
-        Args: { p_lead_id: number }
-        Returns: {
-          created_at: string | null
-          gclid: string | null
-          landing_page_url: string | null
-          meta_ad_name: string | null
-          meta_adset_name: string | null
-          meta_campaign_name: string | null
-          meta_enriched_at: string | null
-          meta_form_id: string | null
-          meta_page_id: string | null
-          referrer_url: string | null
-          source_type: string | null
-          utm_campaign: string | null
-          utm_content: string | null
-          utm_medium: string | null
-          utm_source: string | null
-          utm_term: string | null
-        }[]
-      }
       crm_can_manage_empresa: {
         Args: { p_id_empresa: number }
         Returns: boolean
+      }
+      crm_claim_external_dispatch_jobs: {
+        Args: { p_limit?: number }
+        Returns: {
+          attempts: number
+          created_at: string
+          crm_lead_id: number
+          id: string
+          id_empresa: number
+          last_error: string | null
+          locked_at: string | null
+          max_attempts: number
+          payload: Json
+          processed_at: string | null
+          scheduled_at: string
+          status: string
+          trigger_reference: string | null
+          trigger_type: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "crm_external_dispatch_queue"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       crm_current_empresa_id: { Args: never; Returns: number }
       crm_current_role: { Args: never; Returns: string }
@@ -3282,6 +3746,40 @@ export type Database = {
       crm_empreendimento_belongs_to_empresa: {
         Args: { p_id_empreendimento: number; p_id_empresa: number }
         Returns: boolean
+      }
+      crm_enqueue_external_dispatch: {
+        Args: {
+          p_crm_lead_id: number
+          p_id_empresa: number
+          p_max_attempts?: number
+          p_payload?: Json
+          p_scheduled_at: string
+          p_trigger_reference?: string
+          p_trigger_type?: string
+        }
+        Returns: {
+          attempts: number
+          created_at: string
+          crm_lead_id: number
+          id: string
+          id_empresa: number
+          last_error: string | null
+          locked_at: string | null
+          max_attempts: number
+          payload: Json
+          processed_at: string | null
+          scheduled_at: string
+          status: string
+          trigger_reference: string | null
+          trigger_type: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "crm_external_dispatch_queue"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       crm_enqueue_fila_lead_if_enabled: {
         Args: {
@@ -3291,16 +3789,30 @@ export type Database = {
         }
         Returns: undefined
       }
+      crm_extract_attribution_value: {
+        Args: { p_keys: string[]; p_raw_data: Json }
+        Returns: string
+      }
       crm_generate_hub_access_code: { Args: never; Returns: string }
-      crm_hub_conversation_messages: {
+      crm_get_lead_attribution: {
         Args: { p_lead_id: number }
         Returns: {
-          created_at: string | null
-          id: number
-          message: Json | null
-          numero: string | null
-          time: string | null
-          type: string | null
+          created_at: string
+          gclid: string
+          landing_page_url: string
+          meta_ad_name: string
+          meta_adset_name: string
+          meta_campaign_name: string
+          meta_enriched_at: string
+          meta_form_id: string
+          meta_page_id: string
+          referrer_url: string
+          source_type: string
+          utm_campaign: string
+          utm_content: string
+          utm_medium: string
+          utm_source: string
+          utm_term: string
         }[]
       }
       crm_get_my_empresa: { Args: never; Returns: number }
@@ -3356,6 +3868,17 @@ export type Database = {
         Args: { p_cor: string; p_id: number; p_nome: string }
         Returns: undefined
       }
+      crm_hub_conversation_messages: {
+        Args: { p_lead_id: number }
+        Returns: {
+          created_at: string
+          id: number
+          message: Json
+          numero: string
+          time: string
+          type: string
+        }[]
+      }
       crm_ingest_meta_lead: {
         Args: {
           p_crm_assigned_to: string
@@ -3376,6 +3899,25 @@ export type Database = {
           was_inserted: boolean
         }[]
       }
+      crm_ingest_site_lead: {
+        Args: {
+          p_email?: string
+          p_external_id?: string
+          p_id_empreendimento: number
+          p_id_empresa: number
+          p_nome: string
+          p_observacoes?: string
+          p_origem?: string
+          p_raw_data?: Json
+          p_source_id: string
+          p_telefone: string
+        }
+        Returns: {
+          event_id: string
+          inserted: boolean
+          lead_id: number
+        }[]
+      }
       crm_normalize_lead_origin: {
         Args: { p_modulo?: string; p_origem: string }
         Returns: string
@@ -3384,9 +3926,49 @@ export type Database = {
         Args: { p_lead_id: number }
         Returns: undefined
       }
+      crm_process_next_prospeccao_leads: {
+        Args: { p_id_empresa?: number; p_limit?: number }
+        Returns: {
+          action: string
+          crm_lead_id: number
+          error: string
+          staging_id: number
+        }[]
+      }
       crm_public_lead_history: {
         Args: { p_codigo: string; p_lead_ref: string }
         Returns: Json
+      }
+      crm_record_lead_attribution: {
+        Args: {
+          p_crm_lead_id: number
+          p_fbclid?: string
+          p_gbraid?: string
+          p_gclid?: string
+          p_id_empresa: number
+          p_landing_page_url?: string
+          p_meta_ad_id?: string
+          p_meta_adset_id?: string
+          p_meta_campaign_id?: string
+          p_meta_form_id?: string
+          p_meta_leadgen_id?: string
+          p_meta_page_id?: string
+          p_raw_data?: Json
+          p_referrer_url?: string
+          p_source_id?: string
+          p_source_type: string
+          p_user_agent?: string
+          p_utm_ad?: string
+          p_utm_adgroup?: string
+          p_utm_campaign?: string
+          p_utm_content?: string
+          p_utm_id?: string
+          p_utm_medium?: string
+          p_utm_source?: string
+          p_utm_term?: string
+          p_wbraid?: string
+        }
+        Returns: string
       }
       crm_seed_default_stages: {
         Args: { p_id_empresa: number }
