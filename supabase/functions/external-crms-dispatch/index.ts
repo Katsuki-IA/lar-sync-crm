@@ -757,7 +757,7 @@ Deno.serve(async (req) => {
         if (summaryPayload?.summary && externalId) {
           const createDealNotePayload = {
             data: {
-              text: summaryPayload.summary,
+              description: summaryPayload.summary,
               user_id: requireRdCredential(rdCredentials.rd_user_id, "user_id"),
             },
           };
