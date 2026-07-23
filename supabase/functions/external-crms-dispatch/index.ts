@@ -298,11 +298,14 @@ async function authenticateDispatchRequest(
   if (crmDispatchToken) {
     const { data: credentials, error: credentialsError } = await supabaseAdmin
       .from("credentials")
-      .select("cv_crm_token")
+      .select("cv_crm_token,rd_crm_access_token")
       .eq("id_empresa", idEmpresa)
       .maybeSingle();
     if (credentialsError) throw new Error(credentialsError.message);
-    if (String(credentials?.cv_crm_token ?? "").trim() === crmDispatchToken) {
+    const validTokens = [credentials?.cv_crm_token, credentials?.rd_crm_access_token]
+      .map((value) => String(value ?? "").trim())
+      .filter(Boolean);
+    if (validTokens.includes(crmDispatchToken)) {
       return { crmUserId: null as string | null, internal: true };
     }
   }
