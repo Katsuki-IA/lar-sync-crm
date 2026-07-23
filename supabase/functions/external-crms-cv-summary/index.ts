@@ -302,8 +302,8 @@ function buildFallbackSummary(args: {
     "Imóveis que o cliente se interessou:",
     ...projects.map((name, index) => `${index + 1}. ${name}`),
     "",
-    `Você pode ler a conversa completa através do link: ${args.conversationUrl}`,
-    `Você pode atender o usuário através do link: ${args.whatsappUrl ?? "Não disponível"}`,
+    `Você pode ler a conversa completa através do link:\n${args.conversationUrl}`,
+    `Você pode atender o usuário através do link:\n${args.whatsappUrl ?? "Não disponível"}`,
   ].join("\n");
 }
 
@@ -388,8 +388,8 @@ async function buildDeepSeekSummary(args: {
     "Imóveis que o cliente se interessou:",
     ...projects.map((name, index) => `${index + 1}. ${name}`),
     "",
-    `Você pode ler a conversa completa através do link: ${args.conversationUrl}`,
-    `Você pode atender o usuário através do link: ${args.whatsappUrl ?? "Não disponível"}`,
+    `Você pode ler a conversa completa através do link:\n${args.conversationUrl}`,
+    `Você pode atender o usuário através do link:\n${args.whatsappUrl ?? "Não disponível"}`,
   ].join("\n");
 }
 

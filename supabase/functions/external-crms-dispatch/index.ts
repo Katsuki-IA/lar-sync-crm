@@ -120,14 +120,18 @@ function appendConversationLinks(summary: string, conversationUrl: string, whats
   const links = [summary.trim()];
 
   if (!summary.includes("Você pode ler a conversa completa através do link:")) {
-    links.push(`Você pode ler a conversa completa através do link: ${conversationUrl}`);
+    links.push(`Você pode ler a conversa completa através do link:\n${conversationUrl}`);
   }
 
   if (!summary.includes("Você pode atender o usuário através do link:")) {
-    links.push(`Você pode atender o usuário através do link: ${whatsappUrl ?? "Não disponível"}`);
+    links.push(`Você pode atender o usuário através do link:\n${whatsappUrl ?? "Não disponível"}`);
   }
 
-  return links.filter(Boolean).join("\n\n");
+  return links
+    .filter(Boolean)
+    .join("\n\n")
+    .replace(/(Você pode ler a conversa completa através do link:)\s*(https?:\/\/\S+)/g, "$1\n$2")
+    .replace(/(Você pode atender o usuário através do link:)\s*(https?:\/\/\S+)/g, "$1\n$2");
 }
 
 function normalizeDispatchTags(value: unknown) {
