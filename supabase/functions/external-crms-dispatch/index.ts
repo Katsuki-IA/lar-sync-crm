@@ -755,35 +755,34 @@ Deno.serve(async (req) => {
         externalId = inferExternalId(dealPayload);
 
         if (summaryPayload?.summary && externalId) {
-          const updateDealPayload = {
+          const createDealNotePayload = {
             data: {
-              description: summaryPayload.summary,
+              text: summaryPayload.summary,
               user_id: requireRdCredential(rdCredentials.rd_user_id, "user_id"),
             },
           };
           requestPayload = {
             create_contact: contactRequestPayload,
             create_deal: dealRequestPayload,
-            update_deal: updateDealPayload,
+            create_deal_note: createDealNotePayload,
           };
-          const updateDealResponse = await requestToRd(
+          const createDealNoteResponse = await requestToRd(
             admin,
             lead.id_empresa,
             rdCredentials,
-            `deals/${externalId}`,
-            updateDealPayload,
-            "PUT",
+            `deals/${externalId}/notes`,
+            createDealNotePayload,
           );
-          const updateDealResult = await parseResponsePayload(updateDealResponse);
+          const createDealNoteResult = await parseResponsePayload(createDealNoteResponse);
           responsePayload = {
             create_contact: contactPayload,
             create_deal: dealPayload,
-            update_deal: updateDealResult,
+            create_deal_note: createDealNoteResult,
           };
-          if (!updateDealResponse.ok) {
+          if (!createDealNoteResponse.ok) {
             summaryErrorMessage = externalApiError(
-              updateDealResult,
-              `RD Station retornou ${updateDealResponse.status} ao atualizar o resumo da negociação.`,
+              createDealNoteResult,
+              `RD Station retornou ${createDealNoteResponse.status} ao criar a anotação da negociação.`,
             );
           } else {
             conversationSummarySynced = true;
