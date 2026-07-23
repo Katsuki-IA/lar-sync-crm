@@ -35,6 +35,15 @@ type CvCredentials = {
   default_crm: string | null;
 };
 
+type RdCredentials = {
+  default_crm: string | null;
+  rd_crm_access_token: string | null;
+  rd_user_id: string | null;
+  rd_client_id: string | null;
+  rd_client_secret: string | null;
+  rd_refresh_token: string | null;
+};
+
 type DispatchSettings = {
   stage_with_contact_id: number | null;
   external_stage_qualified_id: string | null;
@@ -42,6 +51,8 @@ type DispatchSettings = {
   external_stage_visit_scheduled_id: string | null;
   external_stage_lost_id: string | null;
 };
+
+type DispatchStageOverride = Omit<DispatchSettings, "stage_with_contact_id">;
 
 type CvSummaryResult = {
   ok: boolean;
@@ -154,7 +165,8 @@ function inferExternalId(payload: any): string | null {
 
 function isSuccessfulExportActivity(activity: { descricao?: string | null; metadata?: any }) {
   if (activity?.metadata?.event === "external_crm_sent") return true;
-  return String(activity?.descricao ?? "").toLowerCase().includes("lead enviado ao crm cv com sucesso");
+  return String(activity?.descricao ?? "").toLowerCase().includes("lead enviado ao crm") &&
+    String(activity?.descricao ?? "").toLowerCase().includes("com sucesso");
 }
 
 async function parseResponsePayload(response: Response) {
@@ -165,6 +177,96 @@ async function parseResponsePayload(response: Response) {
   } catch {
     return { raw };
   }
+}
+
+function externalApiError(payload: any, fallback: string) {
+  const direct = [payload?.message, payload?.error, payload?.errors?.[0]?.message]
+    .find((value) => typeof value === "string" && value.trim());
+  return direct ? String(direct) : fallback;
+}
+
+function requireRdCredential(value: string | null | undefined, label: string) {
+  const normalized = String(value ?? "").trim();
+  if (!normalized) throw new Error(`A credencial RD ${label} não está configurada para esta empresa.`);
+  return normalized;
+}
+
+async function refreshRdCredentials(
+  admin: ReturnType<typeof createSupabaseAdmin>,
+  idEmpresa: number,
+  credentials: RdCredentials,
+) {
+  const clientId = requireRdCredential(credentials.rd_client_id, "client_id");
+  const clientSecret = requireRdCredential(credentials.rd_client_secret, "client_secret");
+  const refreshToken = requireRdCredential(credentials.rd_refresh_token, "refresh_token");
+
+  const response = await fetch("https://api.rd.services/oauth2/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      client_id: clientId,
+      client_secret: clientSecret,
+      refresh_token: refreshToken,
+      grant_type: "refresh_token",
+    }),
+  });
+  const payload = await parseResponsePayload(response);
+  if (!response.ok) {
+    throw new Error(externalApiError(payload, `RD Station retornou ${response.status} ao renovar o token.`));
+  }
+
+  const accessToken = requireRdCredential(payload?.access_token, "access_token retornado");
+  const nextRefreshToken = requireRdCredential(payload?.refresh_token, "refresh_token retornado");
+  const { data, error } = await admin
+    .from("credentials")
+    .update({
+      rd_crm_access_token: accessToken,
+      rd_refresh_token: nextRefreshToken,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id_empresa", idEmpresa)
+    .eq("rd_refresh_token", refreshToken)
+    .select("default_crm,rd_crm_access_token,rd_user_id,rd_client_id,rd_client_secret,rd_refresh_token")
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+
+  if (data) return data as RdCredentials;
+
+  const { data: latest, error: latestError } = await admin
+    .from("credentials")
+    .select("default_crm,rd_crm_access_token,rd_user_id,rd_client_id,rd_client_secret,rd_refresh_token")
+    .eq("id_empresa", idEmpresa)
+    .maybeSingle();
+  if (latestError) throw new Error(latestError.message);
+  if (!latest) throw new Error("As credenciais RD não foram encontradas após renovar o token.");
+  return latest as RdCredentials;
+}
+
+async function requestToRd(
+  admin: ReturnType<typeof createSupabaseAdmin>,
+  idEmpresa: number,
+  credentials: RdCredentials,
+  path: string,
+  body: Record<string, unknown>,
+  method: "POST" | "PUT" = "POST",
+) {
+  const send = (accessToken: string) =>
+    fetch(`https://api.rd.services/crm/v2/${path}`, {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify(body),
+    });
+
+  const accessToken = requireRdCredential(credentials.rd_crm_access_token, "access_token");
+  let response = await send(accessToken);
+  if (response.status !== 401) return response;
+
+  const refreshedCredentials = await refreshRdCredentials(admin, idEmpresa, credentials);
+  response = await send(requireRdCredential(refreshedCredentials.rd_crm_access_token, "access_token"));
+  return response;
 }
 
 async function authenticateDispatchRequest(
@@ -317,11 +419,17 @@ async function resolveLeadDestination(
   };
 }
 
-function resolveExternalStageId(stageName: string | null, settings: DispatchSettings) {
-  const qualified = String(settings.external_stage_qualified_id ?? "").trim();
-  const unqualified = String(settings.external_stage_unqualified_id ?? "").trim();
-  const visitScheduled = String(settings.external_stage_visit_scheduled_id ?? "").trim();
-  const lost = String(settings.external_stage_lost_id ?? "").trim();
+function resolveExternalStageId(
+  stageName: string | null,
+  settings: DispatchSettings,
+  override?: DispatchStageOverride | null,
+) {
+  const stageValue = (key: keyof DispatchStageOverride) =>
+    String(override?.[key] ?? settings[key] ?? "").trim() || String(settings[key] ?? "").trim();
+  const qualified = stageValue("external_stage_qualified_id");
+  const unqualified = stageValue("external_stage_unqualified_id");
+  const visitScheduled = stageValue("external_stage_visit_scheduled_id");
+  const lost = stageValue("external_stage_lost_id");
 
   if (!qualified) {
     throw new Error("O ID externo de Qualificado não está configurado para esta empresa.");
@@ -455,7 +563,7 @@ Deno.serve(async (req) => {
           .maybeSingle(),
         admin
           .from("credentials")
-          .select("default_crm,cv_crm_url,cv_crm_token,cv_crm_email")
+          .select("default_crm,cv_crm_url,cv_crm_token,cv_crm_email,rd_crm_access_token,rd_user_id,rd_client_id,rd_client_secret,rd_refresh_token")
           .eq("id_empresa", lead.id_empresa)
           .maybeSingle(),
       ]);
@@ -466,16 +574,16 @@ Deno.serve(async (req) => {
 
     const crmKey = normalizeCrmKey(empresa.default_crm) ||
       normalizeCrmKey((credentials as CvCredentials | null)?.default_crm);
-    if (!["cv", "cv_crm"].includes(crmKey)) {
-      throw new Error("O CRM padrão desta empresa não está configurado como CV.");
-    }
+    const isCvCrm = ["cv", "cv_crm"].includes(crmKey);
+    const isRdCrm = ["rd", "rd_crm", "rdstation", "rd_station"].includes(crmKey);
+    if (!isCvCrm && !isRdCrm) throw new Error("O CRM padrão desta empresa não é suportado para envio.");
 
     const cvCredentials = credentials as CvCredentials | null;
     const cvUrl = trimTrailingSlash(String(cvCredentials?.cv_crm_url ?? "").trim());
     const cvToken = String(cvCredentials?.cv_crm_token ?? "").trim();
     const cvEmail = String(cvCredentials?.cv_crm_email ?? "").trim();
 
-    if (!cvUrl || !cvToken || !cvEmail) {
+    if (isCvCrm && (!cvUrl || !cvToken || !cvEmail)) {
       throw new Error("As credenciais do CV CRM estão incompletas para esta empresa.");
     }
 
@@ -516,36 +624,36 @@ Deno.serve(async (req) => {
       }
     }
 
-    const externalStageId = resolveExternalStageId(currentStageName, dispatchSettings);
-
     const { localEmpreendimentoId, cvEmpreendimentoId, empreendimentoNome } = await resolveLeadDestination(admin, lead);
+    const stageOverrideResult = localEmpreendimentoId
+      ? await admin
+          .from("crm_lead_dispatch_stage_overrides")
+          .select("external_stage_qualified_id,external_stage_unqualified_id,external_stage_visit_scheduled_id,external_stage_lost_id")
+          .eq("id_empresa", lead.id_empresa)
+          .eq("id_empreendimento", localEmpreendimentoId)
+          .maybeSingle()
+      : { data: null, error: null };
+    if (stageOverrideResult.error) throw new Error(stageOverrideResult.error.message);
+    const externalStageId = resolveExternalStageId(
+      currentStageName,
+      dispatchSettings,
+      stageOverrideResult.data as DispatchStageOverride | null,
+    );
     const appBaseUrl = (Deno.env.get("APP_BASE_URL")?.trim() || "https://hub.katsuki.com.br").replace(/\/+$/, "");
     const conversationUrl = `${appBaseUrl}/historico/${lead.historico_token ?? lead.id}`;
     const whatsappUrl = buildWhatsAppUrl(lead.telefone, empreendimentoNome);
 
-    const requestPayload: Record<string, unknown> = {
-      telefone: String(lead.telefone ?? "").trim(),
-      nome: String(lead.nome ?? "").trim() || "Lead sem nome",
-      origem: "WA",
-      idsituacao: toScalarId(externalStageId),
-      permitir_alteracao: true,
-      tags: normalizeDispatchTags(body.additionalTags),
-    };
-
+    const provider = isCvCrm ? "cv_crm" : "rd_crm";
+    const providerLabel = isCvCrm ? "CV" : "RD";
     const email = String(lead.email ?? "").trim();
-    if (email) requestPayload.email = email;
-    if (cvEmpreendimentoId != null) requestPayload.idempreendimento = cvEmpreendimentoId;
-
-    const sendLogBase = {
-      id_empresa: lead.id_empresa,
-      lead_id: lead.id,
-      provider: "cv_crm",
-      request_payload: requestPayload,
-    };
-
+    const phone = String(lead.telefone ?? "").trim();
+    const tags = normalizeDispatchTags(body.additionalTags);
+    let requestPayload: Record<string, unknown> = {};
     let responsePayload: Json | Record<string, unknown> | null = null;
     let summaryPayload: CvSummaryResult | null = null;
     let summaryErrorMessage: string | null = null;
+    let conversationSummarySynced = false;
+    let externalId: string | null = null;
     const suppliedSummary = String(body.conversationSummary ?? "").trim();
 
     try {
@@ -566,71 +674,161 @@ Deno.serve(async (req) => {
         } catch (error) {
           summaryErrorMessage = error instanceof Error
             ? error.message
-            : "Falha ao gerar resumo da conversa para envio ao CV.";
+            : "Falha ao gerar resumo da conversa para envio ao CRM.";
         }
       }
 
-      if (summaryPayload?.summary) {
-        requestPayload.interacoes = [
-          {
-            descricao: summaryPayload.summary,
-            tipo: "W",
+      if (isCvCrm) {
+        requestPayload = {
+          telefone: phone,
+          nome: String(lead.nome ?? "").trim() || "Lead sem nome",
+          origem: "WA",
+          idsituacao: toScalarId(externalStageId),
+          permitir_alteracao: true,
+          tags,
+        };
+        if (email) requestPayload.email = email;
+        if (cvEmpreendimentoId != null) requestPayload.idempreendimento = cvEmpreendimentoId;
+
+        if (summaryPayload?.summary) {
+          requestPayload.interacoes = [{ descricao: summaryPayload.summary, tipo: "W" }];
+          conversationSummarySynced = true;
+        }
+
+        const response = await fetch(`${cvUrl}/api/v1/comercial/leads`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            token: cvToken,
+            email: cvEmail,
+            origemcv: "true",
           },
-        ];
-      }
-
-      const response = await fetch(`${cvUrl}/api/v1/comercial/leads`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          token: cvToken,
-          email: cvEmail,
-          origemcv: "true",
-        },
-        body: JSON.stringify(requestPayload),
-      });
-
-      responsePayload = await parseResponsePayload(response);
-
-      if (!response.ok) {
-        const errorMessage =
-          (typeof (responsePayload as any)?.message === "string" && (responsePayload as any).message) ||
-          (typeof (responsePayload as any)?.error === "string" && (responsePayload as any).error) ||
-          `CV CRM retornou ${response.status}`;
-
-        await admin.from("crm_external_crm_send_logs").insert({
-          ...sendLogBase,
-          status: "failed",
-          response_payload: responsePayload,
-          error_message: errorMessage,
+          body: JSON.stringify(requestPayload),
         });
+        responsePayload = await parseResponsePayload(response);
+        if (!response.ok) throw new Error(externalApiError(responsePayload, `CV CRM retornou ${response.status}`));
+        externalId = inferExternalId(responsePayload);
+      } else {
+        if (!phone && !email) throw new Error("O lead precisa ter telefone ou e-mail para ser enviado ao RD.");
 
-        await admin.from("crm_lead_activities").insert({
-          lead_id: lead.id,
-          crm_user_id: activityUserId,
-          tipo: "crm_export",
-          descricao: `Falha ao enviar lead ao CRM CV: ${errorMessage}`,
-          metadata: {
-            source: authContext.internal ? "n8n" : "crm",
-            event: "external_crm_failed",
-            provider: "cv_crm",
-            response: responsePayload,
+        const rdCredentials = credentials as RdCredentials;
+        const contactName = String(lead.nome ?? "").trim();
+        const contactData: Record<string, unknown> = {
+          name: contactName.length >= 3 ? contactName : "Cliente sem nome",
+        };
+        if (email) contactData.emails = [{ email }];
+        if (phone) contactData.phones = [{ phone }];
+
+        const contactRequestPayload = { data: contactData };
+        requestPayload = { create_contact: contactRequestPayload };
+        const contactResponse = await requestToRd(admin, lead.id_empresa, rdCredentials, "contacts", contactRequestPayload);
+        const contactPayload = await parseResponsePayload(contactResponse);
+        if (!contactResponse.ok) {
+          responsePayload = { create_contact: contactPayload };
+          throw new Error(externalApiError(contactPayload, `RD Station retornou ${contactResponse.status} ao criar o contato.`));
+        }
+
+        const contactId = inferExternalId(contactPayload);
+        if (!contactId) {
+          responsePayload = { create_contact: contactPayload };
+          throw new Error("A RD Station não retornou o ID do contato criado.");
+        }
+
+        const dealRequestPayload = {
+          data: {
+            owner_id: requireRdCredential(rdCredentials.rd_user_id, "user_id"),
+            name: String(contactData.name),
+            status: "ongoing",
+            stage_id: externalStageId,
+            expected_close_date: new Date().toISOString().slice(0, 10),
+            contact_ids: [contactId],
+            custom_fields: { tags },
           },
-        });
+        };
+        requestPayload = { create_contact: contactRequestPayload, create_deal: dealRequestPayload };
+        const dealResponse = await requestToRd(admin, lead.id_empresa, rdCredentials, "deals", dealRequestPayload);
+        const dealPayload = await parseResponsePayload(dealResponse);
+        responsePayload = { create_contact: contactPayload, create_deal: dealPayload };
+        if (!dealResponse.ok) {
+          throw new Error(externalApiError(dealPayload, `RD Station retornou ${dealResponse.status} ao criar a negociação.`));
+        }
+        externalId = inferExternalId(dealPayload);
 
-        throw new Error(errorMessage);
+        if (summaryPayload?.summary && externalId) {
+          const updateDealPayload = {
+            data: {
+              description: summaryPayload.summary,
+              user_id: requireRdCredential(rdCredentials.rd_user_id, "user_id"),
+            },
+          };
+          requestPayload = {
+            create_contact: contactRequestPayload,
+            create_deal: dealRequestPayload,
+            update_deal: updateDealPayload,
+          };
+          const updateDealResponse = await requestToRd(
+            admin,
+            lead.id_empresa,
+            rdCredentials,
+            `deals/${externalId}`,
+            updateDealPayload,
+            "PUT",
+          );
+          const updateDealResult = await parseResponsePayload(updateDealResponse);
+          responsePayload = {
+            create_contact: contactPayload,
+            create_deal: dealPayload,
+            update_deal: updateDealResult,
+          };
+          if (!updateDealResponse.ok) {
+            summaryErrorMessage = externalApiError(
+              updateDealResult,
+              `RD Station retornou ${updateDealResponse.status} ao atualizar o resumo da negociação.`,
+            );
+          } else {
+            conversationSummarySynced = true;
+          }
+        }
       }
 
       await admin.from("crm_external_crm_send_logs").insert({
-        ...sendLogBase,
+        id_empresa: lead.id_empresa,
+        lead_id: lead.id,
+        provider,
+        request_payload: requestPayload,
         status: "sent",
         response_payload: {
-          create_lead: responsePayload,
+          dispatch: responsePayload,
           conversation_summary: summaryPayload,
           summary_error: summaryErrorMessage,
         },
-        external_id: inferExternalId(responsePayload),
+        external_id: externalId,
       });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Falha ao enviar lead para o CRM externo.";
+      await admin.from("crm_external_crm_send_logs").insert({
+        id_empresa: lead.id_empresa,
+        lead_id: lead.id,
+        provider,
+        request_payload: requestPayload,
+        status: "failed",
+        response_payload: responsePayload,
+        error_message: errorMessage,
+      });
+      await admin.from("crm_lead_activities").insert({
+        lead_id: lead.id,
+        crm_user_id: activityUserId,
+        tipo: "crm_export",
+        descricao: `Falha ao enviar lead ao CRM ${providerLabel}: ${errorMessage}`,
+        metadata: {
+          source: authContext.internal ? "n8n" : "crm",
+          event: "external_crm_failed",
+          provider,
+          response: responsePayload,
+        },
+      });
+      throw error;
+    }
 
       let externalLeadStatusErrorMessage: string | null = null;
       const externalLeadStatusUpdate = await admin
@@ -662,7 +860,7 @@ Deno.serve(async (req) => {
           metadata: {
             source: authContext.internal ? "n8n" : "crm",
             event: "lead_sent_to_external_crm_stage_change",
-            provider: "cv_crm",
+            provider,
             old_stage_id: sentStage.oldStageId,
             new_stage_id: sentStage.id,
           },
@@ -673,16 +871,16 @@ Deno.serve(async (req) => {
         lead_id: lead.id,
         crm_user_id: activityUserId,
         tipo: "crm_export",
-        descricao: "Lead enviado ao CRM CV com sucesso",
+        descricao: `Lead enviado ao CRM ${providerLabel} com sucesso`,
         metadata: {
           source: authContext.internal ? "n8n" : "crm",
           event: "external_crm_sent",
-          provider: "cv_crm",
-          external_id: inferExternalId(responsePayload),
+          provider,
+          external_id: externalId,
           id_empreendimento_local: localEmpreendimentoId,
-          cv_id_empreendimento: cvEmpreendimentoId,
-          cv_stage_id: toScalarId(externalStageId),
-          conversation_summary_synced: Boolean(summaryPayload?.summary),
+          external_empreendimento_id: isCvCrm ? cvEmpreendimentoId : null,
+          external_stage_id: isCvCrm ? toScalarId(externalStageId) : externalStageId,
+          conversation_summary_synced: conversationSummarySynced,
           conversation_summary_error: summaryErrorMessage,
           conversation_summary_used_fallback: summaryPayload?.used_fallback ?? false,
           external_lead_status_updated: !externalLeadStatusErrorMessage,
@@ -695,12 +893,12 @@ Deno.serve(async (req) => {
           lead_id: lead.id,
           crm_user_id: activityUserId,
           tipo: "crm_export",
-          descricao: `Lead enviado ao CRM CV sem resumo de conversa: ${summaryErrorMessage}`,
+          descricao: `Lead enviado ao CRM ${providerLabel} sem resumo de conversa: ${summaryErrorMessage}`,
           metadata: {
             source: authContext.internal ? "n8n" : "crm",
             event: "external_crm_summary_generation_failed",
-            provider: "cv_crm",
-            external_id: inferExternalId(responsePayload),
+            provider,
+            external_id: externalId,
           },
         });
       }
@@ -710,27 +908,24 @@ Deno.serve(async (req) => {
           lead_id: lead.id,
           crm_user_id: activityUserId,
           tipo: "crm_export",
-          descricao: `Lead enviado ao CRM CV, mas não foi possível atualizar o status externo para Enviado  CRM: ${externalLeadStatusErrorMessage}`,
+          descricao: `Lead enviado ao CRM ${providerLabel}, mas não foi possível atualizar o status externo para Enviado  CRM: ${externalLeadStatusErrorMessage}`,
           metadata: {
             source: authContext.internal ? "n8n" : "crm",
             event: "external_crm_external_lead_status_update_failed",
-            provider: "cv_crm",
-            external_id: inferExternalId(responsePayload),
+            provider,
+            external_id: externalId,
           },
         });
       }
 
       return jsonResponse({
         ok: true,
-        provider: "cv_crm",
+        provider,
         moved_to_stage: sentStage?.id ?? null,
-        conversation_summary_synced: Boolean(summaryPayload?.summary),
+        conversation_summary_synced: conversationSummarySynced,
         external_lead_status_updated: !externalLeadStatusErrorMessage,
         summary_error: summaryErrorMessage,
       });
-    } catch (error) {
-      throw error instanceof Error ? error : new Error("Falha ao enviar lead para o CRM externo.");
-    }
   } catch (error) {
     console.error(error);
     return jsonResponse(

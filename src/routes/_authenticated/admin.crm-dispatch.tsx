@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 
-import { listEmpresas, getCrmDispatchSettings, saveCrmDispatchSettings } from "@/lib/admin.functions";
+import { listCrmDispatchEmpresas, getCrmDispatchSettings, saveCrmDispatchSettings } from "@/lib/admin.functions";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,12 +26,24 @@ type StageOption = {
   ordem: number;
 };
 
+type EmpreendimentoOption = {
+  id: number;
+  nome: string | null;
+};
+
+type ExternalStageOverride = {
+  external_stage_qualified_id: string;
+  external_stage_unqualified_id: string;
+  external_stage_visit_scheduled_id: string;
+  external_stage_lost_id: string;
+};
+
 const EMPTY_VALUE = "__none__";
 const WITHOUT_CONTACT_STAGE_NAMES = new Set(["Follow Up 1", "Follow Up 2", "Follow Up 3", "Follow Up 4"]);
 
 function AdminCrmDispatchPage() {
   const qc = useQueryClient();
-  const listEmpresasFn = useServerFn(listEmpresas);
+  const listCrmDispatchEmpresasFn = useServerFn(listCrmDispatchEmpresas);
   const getSettingsFn = useServerFn(getCrmDispatchSettings);
   const saveSettingsFn = useServerFn(saveCrmDispatchSettings);
 
@@ -42,10 +54,11 @@ function AdminCrmDispatchPage() {
   const [unqualifiedExternalStageId, setUnqualifiedExternalStageId] = useState("");
   const [visitScheduledExternalStageId, setVisitScheduledExternalStageId] = useState("");
   const [lostExternalStageId, setLostExternalStageId] = useState("");
+  const [stageOverrides, setStageOverrides] = useState<Record<number, ExternalStageOverride>>({});
 
   const { data: companies = [], isLoading: companiesLoading } = useQuery({
-    queryKey: ["admin_empresas"],
-    queryFn: () => listEmpresasFn(),
+    queryKey: ["admin_crm_dispatch_empresas"],
+    queryFn: () => listCrmDispatchEmpresasFn(),
   });
 
   useEffect(() => {
@@ -76,7 +89,38 @@ function AdminCrmDispatchPage() {
     setUnqualifiedExternalStageId(configData.settings.external_stage_unqualified_id ?? "");
     setVisitScheduledExternalStageId(configData.settings.external_stage_visit_scheduled_id ?? "");
     setLostExternalStageId(configData.settings.external_stage_lost_id ?? "");
+    setStageOverrides(
+      Object.fromEntries(
+        (configData.stage_overrides ?? []).map((override: any) => [
+          Number(override.id_empreendimento),
+          {
+            external_stage_qualified_id: override.external_stage_qualified_id ?? "",
+            external_stage_unqualified_id: override.external_stage_unqualified_id ?? "",
+            external_stage_visit_scheduled_id: override.external_stage_visit_scheduled_id ?? "",
+            external_stage_lost_id: override.external_stage_lost_id ?? "",
+          },
+        ]),
+      ),
+    );
   }, [configData]);
+
+  const updateStageOverride = (
+    idEmpreendimento: number,
+    field: keyof ExternalStageOverride,
+    value: string,
+  ) => {
+    setStageOverrides((current) => ({
+      ...current,
+      [idEmpreendimento]: {
+        external_stage_qualified_id: "",
+        external_stage_unqualified_id: "",
+        external_stage_visit_scheduled_id: "",
+        external_stage_lost_id: "",
+        ...current[idEmpreendimento],
+        [field]: value,
+      },
+    }));
+  };
 
   const selectedCompany = useMemo(
     () => companies.find((company: Empresa) => String(company.id) === selectedCompanyId) ?? null,
@@ -96,6 +140,16 @@ function AdminCrmDispatchPage() {
           external_stage_unqualified_id: unqualifiedExternalStageId.trim() || null,
           external_stage_visit_scheduled_id: visitScheduledExternalStageId.trim() || null,
           external_stage_lost_id: lostExternalStageId.trim() || null,
+          stage_overrides: ((configData?.empreendimentos ?? []) as EmpreendimentoOption[]).map((project) => {
+            const override = stageOverrides[project.id];
+            return {
+              id_empreendimento: project.id,
+              external_stage_qualified_id: override?.external_stage_qualified_id.trim() || null,
+              external_stage_unqualified_id: override?.external_stage_unqualified_id.trim() || null,
+              external_stage_visit_scheduled_id: override?.external_stage_visit_scheduled_id.trim() || null,
+              external_stage_lost_id: override?.external_stage_lost_id.trim() || null,
+            };
+          }),
         },
       }),
     onSuccess: async () => {
@@ -108,6 +162,7 @@ function AdminCrmDispatchPage() {
   });
 
   const stages = (configData?.stages ?? []) as StageOption[];
+  const empreendimentos = (configData?.empreendimentos ?? []) as EmpreendimentoOption[];
   const withoutContactStages = stages.filter((stage) => WITHOUT_CONTACT_STAGE_NAMES.has(stage.nome));
   const isLoading = companiesLoading || (!!selectedCompanyId && configLoading);
 
@@ -258,6 +313,72 @@ function AdminCrmDispatchPage() {
                 disabled={isLoading}
               />
             </div>
+          </div>
+
+          <div className="space-y-4 border-t border-dashed pt-4">
+            <div className="space-y-1">
+              <h3 className="font-medium">Etapas por empreendimento</h3>
+              <p className="text-sm text-muted-foreground">
+                Opcional. Preencha somente quando esse empreendimento usar IDs diferentes no CRM externo. Campos vazios mantêm o padrão da empresa acima.
+              </p>
+            </div>
+
+            {empreendimentos.length ? (
+              <div className="space-y-3">
+                {empreendimentos.map((project) => {
+                  const override = stageOverrides[project.id];
+                  return (
+                    <div key={project.id} className="space-y-3 rounded-lg border border-border p-4">
+                      <h4 className="font-medium">{project.nome ?? `Empreendimento ${project.id}`}</h4>
+                      <div className="grid gap-4 lg:grid-cols-2">
+                        <div className="space-y-1.5">
+                          <Label htmlFor={`project-${project.id}-qualified`}>ID: Qualificado</Label>
+                          <Input
+                            id={`project-${project.id}-qualified`}
+                            value={override?.external_stage_qualified_id ?? ""}
+                            onChange={(event) => updateStageOverride(project.id, "external_stage_qualified_id", event.target.value)}
+                            placeholder={qualifiedExternalStageId || "Usar padrão da empresa"}
+                            disabled={isLoading}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor={`project-${project.id}-unqualified`}>ID: Não qualificado</Label>
+                          <Input
+                            id={`project-${project.id}-unqualified`}
+                            value={override?.external_stage_unqualified_id ?? ""}
+                            onChange={(event) => updateStageOverride(project.id, "external_stage_unqualified_id", event.target.value)}
+                            placeholder={unqualifiedExternalStageId || "Usar padrão da empresa"}
+                            disabled={isLoading}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor={`project-${project.id}-visit`}>ID: Visita agendada</Label>
+                          <Input
+                            id={`project-${project.id}-visit`}
+                            value={override?.external_stage_visit_scheduled_id ?? ""}
+                            onChange={(event) => updateStageOverride(project.id, "external_stage_visit_scheduled_id", event.target.value)}
+                            placeholder={visitScheduledExternalStageId || "Usar padrão da empresa"}
+                            disabled={isLoading}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor={`project-${project.id}-lost`}>ID: Perdido</Label>
+                          <Input
+                            id={`project-${project.id}-lost`}
+                            value={override?.external_stage_lost_id ?? ""}
+                            onChange={(event) => updateStageOverride(project.id, "external_stage_lost_id", event.target.value)}
+                            placeholder={lostExternalStageId || "Usar padrão da empresa"}
+                            disabled={isLoading}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">Nenhum empreendimento cadastrado para esta empresa.</p>
+            )}
           </div>
 
           <div className="flex justify-end">

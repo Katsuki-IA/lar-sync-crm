@@ -276,6 +276,34 @@ export const listEmpresas = createServerFn({ method: "GET" })
     return (data ?? []).map((e: any) => ({ ...e, total_usuarios: tally.get(e.id) ?? 0 }));
   });
 
+// -------- Empresas com CRM externo configurável (super admin) --------
+export const listCrmDispatchEmpresas = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const me = await getMe(context.supabase, context.userId);
+    if (me.role !== "super_admin") throw new Error("Sem permissão");
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: credentials, error: credentialsError } = await supabaseAdmin
+      .from("credentials")
+      .select("id_empresa")
+      .in("default_crm", ["hub", "cv", "cv_crm", "rd", "rd_crm", "rdstation", "rd_station"]);
+    if (credentialsError) throw new Error(credentialsError.message);
+
+    const companyIds = (credentials ?? [])
+      .map((credential: any) => credential.id_empresa as number | null)
+      .filter((id: number | null): id is number => id != null);
+    if (!companyIds.length) return [];
+
+    const { data, error } = await supabaseAdmin
+      .from("empresa_dados")
+      .select("id,nome")
+      .in("id", companyIds)
+      .order("nome", { ascending: true });
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  });
+
 // -------- Listar todos usuários (super admin) --------
 export const listAllCrmUsers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -381,13 +409,28 @@ export const getCrmDispatchSettings = createServerFn({ method: "GET" })
       stages = await loadStages();
     }
 
-    const { data: settings, error: settingsError } = await supabaseAdmin
-      .from("crm_lead_dispatch_settings")
-      .select("stage_without_contact_id,stage_with_contact_id,external_stage_qualified_id,external_stage_unqualified_id,external_stage_visit_scheduled_id,external_stage_lost_id,updated_at")
-      .eq("id_empresa", data.id_empresa)
-      .maybeSingle();
+    const [settingsResult, empreendimentosResult, overridesResult] = await Promise.all([
+      supabaseAdmin
+        .from("crm_lead_dispatch_settings")
+        .select("stage_without_contact_id,stage_with_contact_id,external_stage_qualified_id,external_stage_unqualified_id,external_stage_visit_scheduled_id,external_stage_lost_id,updated_at")
+        .eq("id_empresa", data.id_empresa)
+        .maybeSingle(),
+      supabaseAdmin
+        .from("empreendimento")
+        .select("id,nome")
+        .eq("id_empresa", data.id_empresa)
+        .order("nome", { ascending: true }),
+      supabaseAdmin
+        .from("crm_lead_dispatch_stage_overrides")
+        .select("id_empreendimento,external_stage_qualified_id,external_stage_unqualified_id,external_stage_visit_scheduled_id,external_stage_lost_id")
+        .eq("id_empresa", data.id_empresa),
+    ]);
 
-    if (settingsError) throw new Error(settingsError.message);
+    if (settingsResult.error) throw new Error(settingsResult.error.message);
+    if (empreendimentosResult.error) throw new Error(empreendimentosResult.error.message);
+    if (overridesResult.error) throw new Error(overridesResult.error.message);
+
+    const settings = settingsResult.data;
 
     return {
       stages: stages.map((stage) => ({ id: stage.id, nome: stage.nome, ordem: stage.ordem })),
@@ -400,6 +443,8 @@ export const getCrmDispatchSettings = createServerFn({ method: "GET" })
         external_stage_lost_id: settings?.external_stage_lost_id ?? null,
         updated_at: settings?.updated_at ?? null,
       },
+      empreendimentos: empreendimentosResult.data ?? [],
+      stage_overrides: overridesResult.data ?? [],
     };
   });
 
@@ -415,6 +460,15 @@ export const saveCrmDispatchSettings = createServerFn({ method: "POST" })
         external_stage_unqualified_id: z.string().trim().max(120).nullable(),
         external_stage_visit_scheduled_id: z.string().trim().max(120).nullable(),
         external_stage_lost_id: z.string().trim().max(120).nullable(),
+        stage_overrides: z.array(
+          z.object({
+            id_empreendimento: z.number().int().positive(),
+            external_stage_qualified_id: z.string().trim().max(120).nullable(),
+            external_stage_unqualified_id: z.string().trim().max(120).nullable(),
+            external_stage_visit_scheduled_id: z.string().trim().max(120).nullable(),
+            external_stage_lost_id: z.string().trim().max(120).nullable(),
+          }),
+        ).default([]),
       })
       .parse(d),
   )
@@ -472,6 +526,17 @@ export const saveCrmDispatchSettings = createServerFn({ method: "POST" })
       throw new Error("A etapa selecionada para lead com contato não pertence a esta empresa");
     }
 
+    const { data: companyProjects, error: companyProjectsError } = await supabaseAdmin
+      .from("empreendimento")
+      .select("id")
+      .eq("id_empresa", data.id_empresa);
+    if (companyProjectsError) throw new Error(companyProjectsError.message);
+
+    const companyProjectIds = new Set((companyProjects ?? []).map((project: any) => project.id as number));
+    if (data.stage_overrides.some((override) => !companyProjectIds.has(override.id_empreendimento))) {
+      throw new Error("Um dos empreendimentos selecionados não pertence a esta empresa");
+    }
+
     const { error } = await supabaseAdmin.from("crm_lead_dispatch_settings").upsert(
       {
         id_empresa: data.id_empresa,
@@ -487,6 +552,42 @@ export const saveCrmDispatchSettings = createServerFn({ method: "POST" })
     );
 
     if (error) throw new Error(error.message);
+
+    const overridesWithValues = data.stage_overrides.filter((override) =>
+      [
+        override.external_stage_qualified_id,
+        override.external_stage_unqualified_id,
+        override.external_stage_visit_scheduled_id,
+        override.external_stage_lost_id,
+      ].some(Boolean),
+    );
+    const overridesToClear = data.stage_overrides
+      .filter((override) => !overridesWithValues.includes(override))
+      .map((override) => override.id_empreendimento);
+
+    if (overridesWithValues.length) {
+      const { error: overridesError } = await supabaseAdmin
+        .from("crm_lead_dispatch_stage_overrides")
+        .upsert(
+          overridesWithValues.map((override) => ({
+            id_empresa: data.id_empresa,
+            ...override,
+            updated_at: new Date().toISOString(),
+          })),
+          { onConflict: "id_empresa,id_empreendimento" },
+        );
+      if (overridesError) throw new Error(overridesError.message);
+    }
+
+    if (overridesToClear.length) {
+      const { error: clearOverridesError } = await supabaseAdmin
+        .from("crm_lead_dispatch_stage_overrides")
+        .delete()
+        .eq("id_empresa", data.id_empresa)
+        .in("id_empreendimento", overridesToClear);
+      if (clearOverridesError) throw new Error(clearOverridesError.message);
+    }
+
     return { ok: true };
   });
 

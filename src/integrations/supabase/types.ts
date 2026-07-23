@@ -917,6 +917,57 @@ export type Database = {
           },
         ]
       }
+      crm_lead_dispatch_stage_overrides: {
+        Row: {
+          created_at: string
+          external_stage_lost_id: string | null
+          external_stage_qualified_id: string | null
+          external_stage_unqualified_id: string | null
+          external_stage_visit_scheduled_id: string | null
+          id: string
+          id_empresa: number
+          id_empreendimento: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          external_stage_lost_id?: string | null
+          external_stage_qualified_id?: string | null
+          external_stage_unqualified_id?: string | null
+          external_stage_visit_scheduled_id?: string | null
+          id?: string
+          id_empresa: number
+          id_empreendimento: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          external_stage_lost_id?: string | null
+          external_stage_qualified_id?: string | null
+          external_stage_unqualified_id?: string | null
+          external_stage_visit_scheduled_id?: string | null
+          id?: string
+          id_empresa?: number
+          id_empreendimento?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_lead_dispatch_stage_overrides_id_empresa_fkey"
+            columns: ["id_empresa"]
+            isOneToOne: false
+            referencedRelation: "empresa_dados"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_lead_dispatch_stage_overrides_id_empreendimento_fkey"
+            columns: ["id_empreendimento"]
+            isOneToOne: false
+            referencedRelation: "empreendimento"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       crm_lead_tags: {
         Row: {
           created_at: string | null
