@@ -193,16 +193,11 @@ function AdminCrmDispatchPage() {
           </Select>
         </div>
 
-        <div className="rounded-lg border border-border bg-muted/20 p-3 text-sm text-muted-foreground">
-          {selectedCompany ? (
-            <>
-              Configuração atual para <span className="font-medium text-foreground">{selectedCompany.nome ?? `Empresa ${selectedCompany.id}`}</span>.
-              As opções abaixo usam os IDs locais das etapas desta empresa.
-            </>
-          ) : (
-            "Selecione uma empresa para configurar."
-          )}
-        </div>
+        {!selectedCompany && (
+          <div className="rounded-lg border border-border bg-muted/20 p-3 text-sm text-muted-foreground">
+            Selecione uma empresa para configurar.
+          </div>
+        )}
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -259,13 +254,11 @@ function AdminCrmDispatchPage() {
 
       <div className="flex items-center justify-between gap-3 rounded-lg border border-dashed border-border p-4">
         <div className="w-full space-y-4">
-          <div className="text-sm text-muted-foreground">
-            Para lead sem contato: Follow Up 1, Follow Up 2, Follow Up 3 e Follow Up 4. Para lead com contato: Follow Up 1, Follow Up 2, Follow Up 3, Follow Up 4 e Visita Agendada.
-          </div>
+          <h3 className="font-medium">Etapas Padrão</h3>
 
           <div className="grid gap-4 lg:grid-cols-2">
             <div className="space-y-1.5">
-              <Label htmlFor="external-stage-qualified">ID da etapa no CRM: Qualificado</Label>
+              <Label htmlFor="external-stage-qualified">Id Qualificado</Label>
               <Input
                 id="external-stage-qualified"
                 value={qualifiedExternalStageId}
@@ -279,7 +272,7 @@ function AdminCrmDispatchPage() {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="external-stage-unqualified">ID da etapa no CRM: Não qualificado</Label>
+              <Label htmlFor="external-stage-unqualified">Id Não qualificado</Label>
               <Input
                 id="external-stage-unqualified"
                 value={unqualifiedExternalStageId}
@@ -293,7 +286,7 @@ function AdminCrmDispatchPage() {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="external-stage-visit">ID da etapa no CRM: Visita agendada</Label>
+              <Label htmlFor="external-stage-visit">Id Visita agendada</Label>
               <Input
                 id="external-stage-visit"
                 value={visitScheduledExternalStageId}
@@ -304,7 +297,7 @@ function AdminCrmDispatchPage() {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="external-stage-lost">ID da etapa no CRM: Perdido</Label>
+              <Label htmlFor="external-stage-lost">Id Perdido</Label>
               <Input
                 id="external-stage-lost"
                 value={lostExternalStageId}
