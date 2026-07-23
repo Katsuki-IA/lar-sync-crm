@@ -737,8 +737,8 @@ function BreakdownRow({
   goalMet: boolean;
 }) {
   const pct = percentage(value, total);
-  const color = goalMet ? "bg-green-500" : "bg-red-500";
-  const textColor = goalMet ? "text-green-600" : "text-red-500";
+  const color = goalMet ? "bg-green-500" : "bg-purple-500";
+  const textColor = goalMet ? "text-green-600" : "text-purple-600";
 
   return (
     <div className="space-y-2">
