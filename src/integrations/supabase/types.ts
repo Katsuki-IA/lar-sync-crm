@@ -1064,8 +1064,8 @@ export type Database = {
       crm_lead_dispatch_settings: {
         Row: {
           created_at: string
+          external_stage_blocked_send_id: string | null
           external_stage_lost_id: string | null
-          external_stage_qualified_id: string | null
           external_stage_unqualified_id: string | null
           external_stage_visit_scheduled_id: string | null
           id: string
@@ -1076,8 +1076,8 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          external_stage_blocked_send_id?: string | null
           external_stage_lost_id?: string | null
-          external_stage_qualified_id?: string | null
           external_stage_unqualified_id?: string | null
           external_stage_visit_scheduled_id?: string | null
           id?: string
@@ -1088,8 +1088,8 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          external_stage_blocked_send_id?: string | null
           external_stage_lost_id?: string | null
-          external_stage_qualified_id?: string | null
           external_stage_unqualified_id?: string | null
           external_stage_visit_scheduled_id?: string | null
           id?: string
@@ -1125,8 +1125,8 @@ export type Database = {
       crm_lead_dispatch_stage_overrides: {
         Row: {
           created_at: string
+          external_stage_blocked_send_id: string | null
           external_stage_lost_id: string | null
-          external_stage_qualified_id: string | null
           external_stage_unqualified_id: string | null
           external_stage_visit_scheduled_id: string | null
           id: string
@@ -1136,8 +1136,8 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          external_stage_blocked_send_id?: string | null
           external_stage_lost_id?: string | null
-          external_stage_qualified_id?: string | null
           external_stage_unqualified_id?: string | null
           external_stage_visit_scheduled_id?: string | null
           id?: string
@@ -1147,8 +1147,8 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          external_stage_blocked_send_id?: string | null
           external_stage_lost_id?: string | null
-          external_stage_qualified_id?: string | null
           external_stage_unqualified_id?: string | null
           external_stage_visit_scheduled_id?: string | null
           id?: string

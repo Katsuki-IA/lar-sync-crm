@@ -47,7 +47,7 @@ type RdCredentials = {
 
 type DispatchSettings = {
   stage_with_contact_id: number | null;
-  external_stage_qualified_id: string | null;
+  external_stage_blocked_send_id: string | null;
   external_stage_unqualified_id: string | null;
   external_stage_visit_scheduled_id: string | null;
   external_stage_lost_id: string | null;
@@ -435,19 +435,19 @@ function resolveExternalStageId(
 ) {
   const stageValue = (key: keyof DispatchStageOverride) =>
     String(override?.[key] ?? settings[key] ?? "").trim() || String(settings[key] ?? "").trim();
-  const qualified = stageValue("external_stage_qualified_id");
+  const blockedSend = stageValue("external_stage_blocked_send_id");
   const unqualified = stageValue("external_stage_unqualified_id");
   const visitScheduled = stageValue("external_stage_visit_scheduled_id");
   const lost = stageValue("external_stage_lost_id");
 
-  if (!qualified) {
-    throw new Error("O ID externo de Qualificado não está configurado para esta empresa.");
+  if (!blockedSend) {
+    throw new Error("O ID externo de Bloqueio Envio não está configurado para esta empresa.");
   }
 
-  if (stageName === "Perdido") return lost || qualified;
-  if (stageName === "Visita Agendada") return visitScheduled || qualified;
-  if (stageName === "Qualificado") return qualified;
-  return unqualified || qualified;
+  if (stageName === "Perdido") return lost || blockedSend;
+  if (stageName === "Visita Agendada") return visitScheduled || blockedSend;
+  if (String(stageName ?? "").trim() === "Bloqueio Envio") return blockedSend;
+  return unqualified || blockedSend;
 }
 
 async function moveLeadToSentStage(
@@ -598,13 +598,13 @@ Deno.serve(async (req) => {
 
     const dispatchSettingsResult = await admin
       .from("crm_lead_dispatch_settings")
-      .select("stage_with_contact_id,external_stage_qualified_id,external_stage_unqualified_id,external_stage_visit_scheduled_id,external_stage_lost_id")
+      .select("stage_with_contact_id,external_stage_blocked_send_id,external_stage_unqualified_id,external_stage_visit_scheduled_id,external_stage_lost_id")
       .eq("id_empresa", lead.id_empresa)
       .maybeSingle();
     if (dispatchSettingsResult.error) throw new Error(dispatchSettingsResult.error.message);
     const dispatchSettings = (dispatchSettingsResult.data ?? {
       stage_with_contact_id: null,
-      external_stage_qualified_id: null,
+      external_stage_blocked_send_id: null,
       external_stage_unqualified_id: null,
       external_stage_visit_scheduled_id: null,
       external_stage_lost_id: null,
@@ -645,7 +645,7 @@ Deno.serve(async (req) => {
     const stageOverrideResult = localEmpreendimentoId
       ? await admin
           .from("crm_lead_dispatch_stage_overrides")
-          .select("external_stage_qualified_id,external_stage_unqualified_id,external_stage_visit_scheduled_id,external_stage_lost_id")
+          .select("external_stage_blocked_send_id,external_stage_unqualified_id,external_stage_visit_scheduled_id,external_stage_lost_id")
           .eq("id_empresa", lead.id_empresa)
           .eq("id_empreendimento", localEmpreendimentoId)
           .maybeSingle()

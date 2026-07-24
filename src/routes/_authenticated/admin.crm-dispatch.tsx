@@ -32,7 +32,7 @@ type EmpreendimentoOption = {
 };
 
 type ExternalStageOverride = {
-  external_stage_qualified_id: string;
+  external_stage_blocked_send_id: string;
   external_stage_unqualified_id: string;
   external_stage_visit_scheduled_id: string;
   external_stage_lost_id: string;
@@ -50,7 +50,7 @@ function AdminCrmDispatchPage() {
   const [selectedCompanyId, setSelectedCompanyId] = useState("");
   const [withoutContactStageId, setWithoutContactStageId] = useState<string>(EMPTY_VALUE);
   const [withContactStageId, setWithContactStageId] = useState<string>(EMPTY_VALUE);
-  const [qualifiedExternalStageId, setQualifiedExternalStageId] = useState("");
+  const [blockedSendExternalStageId, setBlockedSendExternalStageId] = useState("");
   const [unqualifiedExternalStageId, setUnqualifiedExternalStageId] = useState("");
   const [visitScheduledExternalStageId, setVisitScheduledExternalStageId] = useState("");
   const [lostExternalStageId, setLostExternalStageId] = useState("");
@@ -85,7 +85,7 @@ function AdminCrmDispatchPage() {
         ? String(configData.settings.stage_with_contact_id)
         : EMPTY_VALUE,
     );
-    setQualifiedExternalStageId(configData.settings.external_stage_qualified_id ?? "");
+    setBlockedSendExternalStageId(configData.settings.external_stage_blocked_send_id ?? "");
     setUnqualifiedExternalStageId(configData.settings.external_stage_unqualified_id ?? "");
     setVisitScheduledExternalStageId(configData.settings.external_stage_visit_scheduled_id ?? "");
     setLostExternalStageId(configData.settings.external_stage_lost_id ?? "");
@@ -94,7 +94,7 @@ function AdminCrmDispatchPage() {
         (configData.stage_overrides ?? []).map((override: any) => [
           Number(override.id_empreendimento),
           {
-            external_stage_qualified_id: override.external_stage_qualified_id ?? "",
+            external_stage_blocked_send_id: override.external_stage_blocked_send_id ?? "",
             external_stage_unqualified_id: override.external_stage_unqualified_id ?? "",
             external_stage_visit_scheduled_id: override.external_stage_visit_scheduled_id ?? "",
             external_stage_lost_id: override.external_stage_lost_id ?? "",
@@ -112,7 +112,7 @@ function AdminCrmDispatchPage() {
     setStageOverrides((current) => ({
       ...current,
       [idEmpreendimento]: {
-        external_stage_qualified_id: "",
+        external_stage_blocked_send_id: "",
         external_stage_unqualified_id: "",
         external_stage_visit_scheduled_id: "",
         external_stage_lost_id: "",
@@ -136,7 +136,7 @@ function AdminCrmDispatchPage() {
             withoutContactStageId === EMPTY_VALUE ? null : Number(withoutContactStageId),
           stage_with_contact_id:
             withContactStageId === EMPTY_VALUE ? null : Number(withContactStageId),
-          external_stage_qualified_id: qualifiedExternalStageId.trim() || null,
+          external_stage_blocked_send_id: blockedSendExternalStageId.trim() || null,
           external_stage_unqualified_id: unqualifiedExternalStageId.trim() || null,
           external_stage_visit_scheduled_id: visitScheduledExternalStageId.trim() || null,
           external_stage_lost_id: lostExternalStageId.trim() || null,
@@ -144,7 +144,7 @@ function AdminCrmDispatchPage() {
             const override = stageOverrides[project.id];
             return {
               id_empreendimento: project.id,
-              external_stage_qualified_id: override?.external_stage_qualified_id.trim() || null,
+              external_stage_blocked_send_id: override?.external_stage_blocked_send_id.trim() || null,
               external_stage_unqualified_id: override?.external_stage_unqualified_id.trim() || null,
               external_stage_visit_scheduled_id: override?.external_stage_visit_scheduled_id.trim() || null,
               external_stage_lost_id: override?.external_stage_lost_id.trim() || null,
@@ -258,16 +258,16 @@ function AdminCrmDispatchPage() {
 
           <div className="grid gap-4 lg:grid-cols-2">
             <div className="space-y-1.5">
-              <Label htmlFor="external-stage-qualified">Id Qualificado</Label>
+              <Label htmlFor="external-stage-blocked-send">ID Bloqueio Envio</Label>
               <Input
-                id="external-stage-qualified"
-                value={qualifiedExternalStageId}
-                onChange={(event) => setQualifiedExternalStageId(event.target.value)}
+                id="external-stage-blocked-send"
+                value={blockedSendExternalStageId}
+                onChange={(event) => setBlockedSendExternalStageId(event.target.value)}
                 placeholder="Ex.: 12345"
                 disabled={isLoading}
               />
               <p className="text-xs text-muted-foreground">
-                Valor padrão. Se perdido ou visita agendada não estiverem preenchidos, este ID pode ser usado como fallback.
+                Valor padrão usado para a etapa Bloqueio Envio e como fallback quando outros IDs externos estiverem vazios.
               </p>
             </div>
 
@@ -281,7 +281,7 @@ function AdminCrmDispatchPage() {
                 disabled={isLoading}
               />
               <p className="text-xs text-muted-foreground">
-                Usado quando o lead ainda não está em Qualificado, Visita Agendada ou Perdido. Se vazio, usa Qualificado.
+                Usado quando o lead ainda não está em Bloqueio Envio, Visita Agendada ou Perdido. Se vazio, usa Bloqueio Envio.
               </p>
             </div>
 
@@ -325,12 +325,12 @@ function AdminCrmDispatchPage() {
                       <h4 className="font-medium">{project.nome ?? `Empreendimento ${project.id}`}</h4>
                       <div className="grid gap-4 lg:grid-cols-2">
                         <div className="space-y-1.5">
-                          <Label htmlFor={`project-${project.id}-qualified`}>ID: Qualificado</Label>
+                          <Label htmlFor={`project-${project.id}-blocked-send`}>ID: Bloqueio Envio</Label>
                           <Input
-                            id={`project-${project.id}-qualified`}
-                            value={override?.external_stage_qualified_id ?? ""}
-                            onChange={(event) => updateStageOverride(project.id, "external_stage_qualified_id", event.target.value)}
-                            placeholder={qualifiedExternalStageId || "Usar padrão da empresa"}
+                            id={`project-${project.id}-blocked-send`}
+                            value={override?.external_stage_blocked_send_id ?? ""}
+                            onChange={(event) => updateStageOverride(project.id, "external_stage_blocked_send_id", event.target.value)}
+                            placeholder={blockedSendExternalStageId || "Usar padrão da empresa"}
                             disabled={isLoading}
                           />
                         </div>

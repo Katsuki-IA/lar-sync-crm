@@ -412,7 +412,7 @@ export const getCrmDispatchSettings = createServerFn({ method: "GET" })
     const [settingsResult, empreendimentosResult, overridesResult] = await Promise.all([
       supabaseAdmin
         .from("crm_lead_dispatch_settings")
-        .select("stage_without_contact_id,stage_with_contact_id,external_stage_qualified_id,external_stage_unqualified_id,external_stage_visit_scheduled_id,external_stage_lost_id,updated_at")
+        .select("stage_without_contact_id,stage_with_contact_id,external_stage_blocked_send_id,external_stage_unqualified_id,external_stage_visit_scheduled_id,external_stage_lost_id,updated_at")
         .eq("id_empresa", data.id_empresa)
         .maybeSingle(),
       supabaseAdmin
@@ -422,7 +422,7 @@ export const getCrmDispatchSettings = createServerFn({ method: "GET" })
         .order("nome", { ascending: true }),
       supabaseAdmin
         .from("crm_lead_dispatch_stage_overrides")
-        .select("id_empreendimento,external_stage_qualified_id,external_stage_unqualified_id,external_stage_visit_scheduled_id,external_stage_lost_id")
+        .select("id_empreendimento,external_stage_blocked_send_id,external_stage_unqualified_id,external_stage_visit_scheduled_id,external_stage_lost_id")
         .eq("id_empresa", data.id_empresa),
     ]);
 
@@ -437,7 +437,7 @@ export const getCrmDispatchSettings = createServerFn({ method: "GET" })
       settings: {
         stage_without_contact_id: settings?.stage_without_contact_id ?? null,
         stage_with_contact_id: settings?.stage_with_contact_id ?? null,
-        external_stage_qualified_id: settings?.external_stage_qualified_id ?? null,
+        external_stage_blocked_send_id: settings?.external_stage_blocked_send_id ?? null,
         external_stage_unqualified_id: settings?.external_stage_unqualified_id ?? null,
         external_stage_visit_scheduled_id: settings?.external_stage_visit_scheduled_id ?? null,
         external_stage_lost_id: settings?.external_stage_lost_id ?? null,
@@ -456,14 +456,14 @@ export const saveCrmDispatchSettings = createServerFn({ method: "POST" })
         id_empresa: z.number().int().positive(),
         stage_without_contact_id: z.number().int().positive().nullable(),
         stage_with_contact_id: z.number().int().positive().nullable(),
-        external_stage_qualified_id: z.string().trim().max(120).nullable(),
+        external_stage_blocked_send_id: z.string().trim().max(120).nullable(),
         external_stage_unqualified_id: z.string().trim().max(120).nullable(),
         external_stage_visit_scheduled_id: z.string().trim().max(120).nullable(),
         external_stage_lost_id: z.string().trim().max(120).nullable(),
         stage_overrides: z.array(
           z.object({
             id_empreendimento: z.number().int().positive(),
-            external_stage_qualified_id: z.string().trim().max(120).nullable(),
+            external_stage_blocked_send_id: z.string().trim().max(120).nullable(),
             external_stage_unqualified_id: z.string().trim().max(120).nullable(),
             external_stage_visit_scheduled_id: z.string().trim().max(120).nullable(),
             external_stage_lost_id: z.string().trim().max(120).nullable(),
@@ -542,7 +542,7 @@ export const saveCrmDispatchSettings = createServerFn({ method: "POST" })
         id_empresa: data.id_empresa,
         stage_without_contact_id: data.stage_without_contact_id,
         stage_with_contact_id: data.stage_with_contact_id,
-        external_stage_qualified_id: data.external_stage_qualified_id,
+        external_stage_blocked_send_id: data.external_stage_blocked_send_id,
         external_stage_unqualified_id: data.external_stage_unqualified_id,
         external_stage_visit_scheduled_id: data.external_stage_visit_scheduled_id,
         external_stage_lost_id: data.external_stage_lost_id,
@@ -555,7 +555,7 @@ export const saveCrmDispatchSettings = createServerFn({ method: "POST" })
 
     const overridesWithValues = data.stage_overrides.filter((override) =>
       [
-        override.external_stage_qualified_id,
+        override.external_stage_blocked_send_id,
         override.external_stage_unqualified_id,
         override.external_stage_visit_scheduled_id,
         override.external_stage_lost_id,
