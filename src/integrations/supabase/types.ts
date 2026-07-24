@@ -1066,6 +1066,7 @@ export type Database = {
           created_at: string
           external_stage_blocked_send_id: string | null
           external_stage_lost_id: string | null
+          external_stage_qualified_id: string | null
           external_stage_unqualified_id: string | null
           external_stage_visit_scheduled_id: string | null
           id: string
@@ -1078,6 +1079,7 @@ export type Database = {
           created_at?: string
           external_stage_blocked_send_id?: string | null
           external_stage_lost_id?: string | null
+          external_stage_qualified_id?: string | null
           external_stage_unqualified_id?: string | null
           external_stage_visit_scheduled_id?: string | null
           id?: string
@@ -1090,6 +1092,7 @@ export type Database = {
           created_at?: string
           external_stage_blocked_send_id?: string | null
           external_stage_lost_id?: string | null
+          external_stage_qualified_id?: string | null
           external_stage_unqualified_id?: string | null
           external_stage_visit_scheduled_id?: string | null
           id?: string
@@ -1127,6 +1130,7 @@ export type Database = {
           created_at: string
           external_stage_blocked_send_id: string | null
           external_stage_lost_id: string | null
+          external_stage_qualified_id: string | null
           external_stage_unqualified_id: string | null
           external_stage_visit_scheduled_id: string | null
           id: string
@@ -1138,6 +1142,7 @@ export type Database = {
           created_at?: string
           external_stage_blocked_send_id?: string | null
           external_stage_lost_id?: string | null
+          external_stage_qualified_id?: string | null
           external_stage_unqualified_id?: string | null
           external_stage_visit_scheduled_id?: string | null
           id?: string
@@ -1149,6 +1154,7 @@ export type Database = {
           created_at?: string
           external_stage_blocked_send_id?: string | null
           external_stage_lost_id?: string | null
+          external_stage_qualified_id?: string | null
           external_stage_unqualified_id?: string | null
           external_stage_visit_scheduled_id?: string | null
           id?: string

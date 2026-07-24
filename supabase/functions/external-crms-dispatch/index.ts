@@ -48,6 +48,7 @@ type RdCredentials = {
 type DispatchSettings = {
   stage_with_contact_id: number | null;
   external_stage_blocked_send_id: string | null;
+  external_stage_qualified_id: string | null;
   external_stage_unqualified_id: string | null;
   external_stage_visit_scheduled_id: string | null;
   external_stage_lost_id: string | null;
@@ -104,6 +105,10 @@ function onlyDigits(value?: string | null) {
 
 function stripDiacritics(value: string) {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
+function normalizeLabel(value?: string | null) {
+  return stripDiacritics(String(value ?? "").trim()).toLowerCase();
 }
 
 function buildWhatsAppUrl(phone?: string | null, empreendimento?: string | null) {
@@ -428,17 +433,48 @@ async function resolveLeadDestination(
   };
 }
 
+async function loadLeadTagNames(
+  admin: ReturnType<typeof createSupabaseAdmin>,
+  leadId: number,
+  idEmpresa: number,
+) {
+  const { data: tagLinks, error: tagLinksError } = await admin
+    .from("crm_lead_tags")
+    .select("tag_id")
+    .eq("lead_id", leadId);
+  if (tagLinksError) throw new Error(tagLinksError.message);
+
+  const tagIds = (tagLinks ?? [])
+    .map((link: any) => Number(link.tag_id))
+    .filter((tagId: number) => Number.isFinite(tagId));
+  if (!tagIds.length) return [];
+
+  const { data: tags, error: tagsError } = await admin
+    .from("crm_tags")
+    .select("nome")
+    .eq("id_empresa", idEmpresa)
+    .in("id", tagIds);
+  if (tagsError) throw new Error(tagsError.message);
+
+  return (tags ?? [])
+    .map((tag: any) => String(tag.nome ?? "").trim())
+    .filter(Boolean);
+}
+
 function resolveExternalStageId(
   stageName: string | null,
   settings: DispatchSettings,
   override?: DispatchStageOverride | null,
+  leadTagNames: string[] = [],
 ) {
   const stageValue = (key: keyof DispatchStageOverride) =>
     String(override?.[key] ?? settings[key] ?? "").trim() || String(settings[key] ?? "").trim();
   const blockedSend = stageValue("external_stage_blocked_send_id");
+  const qualified = stageValue("external_stage_qualified_id");
   const unqualified = stageValue("external_stage_unqualified_id");
   const visitScheduled = stageValue("external_stage_visit_scheduled_id");
   const lost = stageValue("external_stage_lost_id");
+  const hasQualifiedTag = leadTagNames.some((tagName) => normalizeLabel(tagName) === "qualificado");
 
   if (!blockedSend) {
     throw new Error("O ID externo de Bloqueio Envio não está configurado para esta empresa.");
@@ -446,7 +482,7 @@ function resolveExternalStageId(
 
   if (stageName === "Perdido") return lost || blockedSend;
   if (stageName === "Visita Agendada") return visitScheduled || blockedSend;
-  if (String(stageName ?? "").trim() === "Bloqueio Envio") return blockedSend;
+  if (hasQualifiedTag) return qualified || blockedSend;
   return unqualified || blockedSend;
 }
 
@@ -598,13 +634,14 @@ Deno.serve(async (req) => {
 
     const dispatchSettingsResult = await admin
       .from("crm_lead_dispatch_settings")
-      .select("stage_with_contact_id,external_stage_blocked_send_id,external_stage_unqualified_id,external_stage_visit_scheduled_id,external_stage_lost_id")
+      .select("stage_with_contact_id,external_stage_blocked_send_id,external_stage_qualified_id,external_stage_unqualified_id,external_stage_visit_scheduled_id,external_stage_lost_id")
       .eq("id_empresa", lead.id_empresa)
       .maybeSingle();
     if (dispatchSettingsResult.error) throw new Error(dispatchSettingsResult.error.message);
     const dispatchSettings = (dispatchSettingsResult.data ?? {
       stage_with_contact_id: null,
       external_stage_blocked_send_id: null,
+      external_stage_qualified_id: null,
       external_stage_unqualified_id: null,
       external_stage_visit_scheduled_id: null,
       external_stage_lost_id: null,
@@ -645,16 +682,18 @@ Deno.serve(async (req) => {
     const stageOverrideResult = localEmpreendimentoId
       ? await admin
           .from("crm_lead_dispatch_stage_overrides")
-          .select("external_stage_blocked_send_id,external_stage_unqualified_id,external_stage_visit_scheduled_id,external_stage_lost_id")
+          .select("external_stage_blocked_send_id,external_stage_qualified_id,external_stage_unqualified_id,external_stage_visit_scheduled_id,external_stage_lost_id")
           .eq("id_empresa", lead.id_empresa)
           .eq("id_empreendimento", localEmpreendimentoId)
           .maybeSingle()
       : { data: null, error: null };
     if (stageOverrideResult.error) throw new Error(stageOverrideResult.error.message);
+    const leadTagNames = await loadLeadTagNames(admin, lead.id, lead.id_empresa);
     const externalStageId = resolveExternalStageId(
       currentStageName,
       dispatchSettings,
       stageOverrideResult.data as DispatchStageOverride | null,
+      leadTagNames,
     );
     const appBaseUrl = (Deno.env.get("APP_BASE_URL")?.trim() || "https://hub.katsuki.com.br").replace(/\/+$/, "");
     const conversationUrl = `${appBaseUrl}/historico/${lead.historico_token ?? lead.id}`;
@@ -896,6 +935,7 @@ Deno.serve(async (req) => {
           id_empreendimento_local: localEmpreendimentoId,
           external_empreendimento_id: isCvCrm ? cvEmpreendimentoId : null,
           external_stage_id: isCvCrm ? toScalarId(externalStageId) : externalStageId,
+          qualified_by_tag: leadTagNames.some((tagName) => normalizeLabel(tagName) === "qualificado"),
           conversation_summary_synced: conversationSummarySynced,
           conversation_summary_error: summaryErrorMessage,
           conversation_summary_used_fallback: summaryPayload?.used_fallback ?? false,
