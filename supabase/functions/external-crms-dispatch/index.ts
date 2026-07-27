@@ -21,6 +21,7 @@ type DispatchPayload = {
   additionalTags?: string[];
   conversationSummary?: string;
   enforceScheduledRule?: boolean;
+  externalStageKind?: string;
 };
 
 type CrmUser = {
@@ -467,6 +468,7 @@ function resolveExternalStageId(
   settings: DispatchSettings,
   override?: DispatchStageOverride | null,
   leadTagNames: string[] = [],
+  externalStageKind?: string | null,
 ) {
   const stageValue = (key: keyof DispatchStageOverride) =>
     String(override?.[key] ?? settings[key] ?? "").trim() || String(settings[key] ?? "").trim();
@@ -475,12 +477,14 @@ function resolveExternalStageId(
   const unqualified = stageValue("external_stage_unqualified_id");
   const visitScheduled = stageValue("external_stage_visit_scheduled_id");
   const lost = stageValue("external_stage_lost_id");
+  const withoutWhatsapp = stageValue("external_stage_without_whatsapp_id");
   const hasQualifiedTag = leadTagNames.some((tagName) => normalizeLabel(tagName) === "qualificado");
 
   if (!unqualified) {
     throw new Error("O ID externo de Não qualificado não está configurado para esta empresa.");
   }
 
+  if (normalizeLabel(externalStageKind) === "without_whatsapp") return withoutWhatsapp || unqualified;
   if (stageName === "Perdido") return lost || unqualified;
   if (stageName === "Visita Agendada") return visitScheduled || unqualified;
   if (hasQualifiedTag) return qualified || unqualified;
@@ -697,6 +701,7 @@ Deno.serve(async (req) => {
       dispatchSettings,
       stageOverrideResult.data as DispatchStageOverride | null,
       leadTagNames,
+      body.externalStageKind,
     );
     const appBaseUrl = (Deno.env.get("APP_BASE_URL")?.trim() || "https://hub.katsuki.com.br").replace(/\/+$/, "");
     const conversationUrl = `${appBaseUrl}/historico/${lead.historico_token ?? lead.id}`;
