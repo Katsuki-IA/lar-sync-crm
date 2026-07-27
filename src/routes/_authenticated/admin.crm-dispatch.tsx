@@ -268,7 +268,12 @@ function AdminCrmDispatchPage() {
 
       <div className="flex items-center justify-between gap-3 rounded-lg border border-dashed border-border p-4">
         <div className="w-full space-y-4">
-          <h3 className="font-medium">Etapas Padrão</h3>
+          <div className="space-y-1">
+            <h3 className="font-medium">Etapas Padrão</h3>
+            <p className="text-sm text-muted-foreground">
+              Configure os IDs externos usados em cada situação; campos vazios usam o ID Não qualificado como fallback.
+            </p>
+          </div>
 
           <div className="grid gap-4 lg:grid-cols-2">
             <div className="space-y-1.5">
@@ -280,9 +285,6 @@ function AdminCrmDispatchPage() {
                 placeholder="Ex.: 23456"
                 disabled={isLoading}
               />
-              <p className="text-xs text-muted-foreground">
-                ID padrão usado quando o lead não tiver a tag Qualificado e como fallback quando outros IDs externos estiverem vazios.
-              </p>
             </div>
 
             <div className="space-y-1.5">
@@ -294,9 +296,6 @@ function AdminCrmDispatchPage() {
                 placeholder="Ex.: 34567"
                 disabled={isLoading}
               />
-              <p className="text-xs text-muted-foreground">
-                Usado quando o lead tiver a tag Qualificado. Se vazio, usa Não qualificado.
-              </p>
             </div>
 
             <div className="space-y-1.5">
@@ -341,9 +340,6 @@ function AdminCrmDispatchPage() {
                 placeholder="Ex.: 12345"
                 disabled={isLoading}
               />
-              <p className="text-xs text-muted-foreground">
-                Usado quando o lead estiver na etapa Bloqueio Envio. Se vazio, usa Não qualificado.
-              </p>
             </div>
           </div>
 
