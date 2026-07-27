@@ -14,6 +14,7 @@ type EnqueuePayload = {
   additionalTags?: string[];
   triggerReference?: string;
   externalStageKind?: string;
+  conversationSummary?: string;
 };
 
 function jsonResponse(body: unknown, status = 200) {
@@ -101,6 +102,7 @@ Deno.serve(async (req) => {
     const additionalTags = normalizeTags(payload.additionalTags);
     const triggerReference = String(payload.triggerReference ?? "").trim() || null;
     const externalStageKind = String(payload.externalStageKind ?? "").trim() || null;
+    const conversationSummary = String(payload.conversationSummary ?? "").trim() || null;
 
     const { data: job, error } = await admin.rpc("crm_enqueue_external_dispatch", {
       p_id_empresa: idEmpresa,
@@ -114,6 +116,7 @@ Deno.serve(async (req) => {
         ...(Number.isSafeInteger(idEmpreendimento) && idEmpreendimento > 0 ? { idEmpreendimento } : {}),
         additionalTags,
         ...(externalStageKind ? { externalStageKind } : {}),
+        ...(conversationSummary ? { conversationSummary } : {}),
       },
       p_max_attempts: 3,
     });

@@ -719,12 +719,15 @@ Deno.serve(async (req) => {
     let conversationSummarySynced = false;
     let externalId: string | null = null;
     const suppliedSummary = String(body.conversationSummary ?? "").trim();
+    const isWithoutWhatsappStage = normalizeLabel(body.externalStageKind) === "without_whatsapp";
 
     try {
-      if (suppliedSummary) {
+      if (suppliedSummary || isWithoutWhatsappStage) {
         summaryPayload = {
           ok: true,
-          summary: appendConversationLinks(suppliedSummary, conversationUrl, whatsappUrl),
+          summary: isWithoutWhatsappStage
+            ? suppliedSummary || "Lead sem WhatsApp ou telefone."
+            : appendConversationLinks(suppliedSummary, conversationUrl, whatsappUrl),
           used_fallback: false,
           conversation_url: conversationUrl,
           whatsapp_url: whatsappUrl,
