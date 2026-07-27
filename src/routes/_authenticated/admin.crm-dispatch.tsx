@@ -331,6 +331,20 @@ function AdminCrmDispatchPage() {
                 disabled={isLoading}
               />
             </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="external-stage-blocked-send">ID Bloqueio Envio</Label>
+              <Input
+                id="external-stage-blocked-send"
+                value={blockedSendExternalStageId}
+                onChange={(event) => setBlockedSendExternalStageId(event.target.value)}
+                placeholder="Ex.: 12345"
+                disabled={isLoading}
+              />
+              <p className="text-xs text-muted-foreground">
+                Usado quando o lead estiver na etapa Bloqueio Envio. Se vazio, usa Não qualificado.
+              </p>
+            </div>
           </div>
 
           <div className="space-y-4 border-t border-dashed pt-4">
@@ -396,6 +410,16 @@ function AdminCrmDispatchPage() {
                             value={override?.external_stage_without_whatsapp_id ?? ""}
                             onChange={(event) => updateStageOverride(project.id, "external_stage_without_whatsapp_id", event.target.value)}
                             placeholder={withoutWhatsappExternalStageId || "Usar padrão da empresa"}
+                            disabled={isLoading}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor={`project-${project.id}-blocked-send`}>ID: Bloqueio Envio</Label>
+                          <Input
+                            id={`project-${project.id}-blocked-send`}
+                            value={override?.external_stage_blocked_send_id ?? ""}
+                            onChange={(event) => updateStageOverride(project.id, "external_stage_blocked_send_id", event.target.value)}
+                            placeholder={blockedSendExternalStageId || "Usar padrão da empresa"}
                             disabled={isLoading}
                           />
                         </div>
