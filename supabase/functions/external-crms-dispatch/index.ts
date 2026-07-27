@@ -52,6 +52,7 @@ type DispatchSettings = {
   external_stage_unqualified_id: string | null;
   external_stage_visit_scheduled_id: string | null;
   external_stage_lost_id: string | null;
+  external_stage_without_whatsapp_id: string | null;
 };
 
 type DispatchStageOverride = Omit<DispatchSettings, "stage_with_contact_id">;
@@ -476,14 +477,15 @@ function resolveExternalStageId(
   const lost = stageValue("external_stage_lost_id");
   const hasQualifiedTag = leadTagNames.some((tagName) => normalizeLabel(tagName) === "qualificado");
 
-  if (!blockedSend) {
-    throw new Error("O ID externo de Bloqueio Envio não está configurado para esta empresa.");
+  if (!unqualified) {
+    throw new Error("O ID externo de Não qualificado não está configurado para esta empresa.");
   }
 
-  if (stageName === "Perdido") return lost || blockedSend;
-  if (stageName === "Visita Agendada") return visitScheduled || blockedSend;
-  if (hasQualifiedTag) return qualified || blockedSend;
-  return unqualified || blockedSend;
+  if (stageName === "Perdido") return lost || unqualified;
+  if (stageName === "Visita Agendada") return visitScheduled || unqualified;
+  if (hasQualifiedTag) return qualified || unqualified;
+  if (stageName === "Bloqueio Envio") return blockedSend || unqualified;
+  return unqualified;
 }
 
 async function moveLeadToSentStage(
@@ -634,7 +636,7 @@ Deno.serve(async (req) => {
 
     const dispatchSettingsResult = await admin
       .from("crm_lead_dispatch_settings")
-      .select("stage_with_contact_id,external_stage_blocked_send_id,external_stage_qualified_id,external_stage_unqualified_id,external_stage_visit_scheduled_id,external_stage_lost_id")
+      .select("stage_with_contact_id,external_stage_blocked_send_id,external_stage_qualified_id,external_stage_unqualified_id,external_stage_visit_scheduled_id,external_stage_lost_id,external_stage_without_whatsapp_id")
       .eq("id_empresa", lead.id_empresa)
       .maybeSingle();
     if (dispatchSettingsResult.error) throw new Error(dispatchSettingsResult.error.message);
@@ -645,6 +647,7 @@ Deno.serve(async (req) => {
       external_stage_unqualified_id: null,
       external_stage_visit_scheduled_id: null,
       external_stage_lost_id: null,
+      external_stage_without_whatsapp_id: null,
     }) as DispatchSettings;
 
     const stageResult = lead.crm_stage_id
@@ -682,7 +685,7 @@ Deno.serve(async (req) => {
     const stageOverrideResult = localEmpreendimentoId
       ? await admin
           .from("crm_lead_dispatch_stage_overrides")
-          .select("external_stage_blocked_send_id,external_stage_qualified_id,external_stage_unqualified_id,external_stage_visit_scheduled_id,external_stage_lost_id")
+          .select("external_stage_blocked_send_id,external_stage_qualified_id,external_stage_unqualified_id,external_stage_visit_scheduled_id,external_stage_lost_id,external_stage_without_whatsapp_id")
           .eq("id_empresa", lead.id_empresa)
           .eq("id_empreendimento", localEmpreendimentoId)
           .maybeSingle()

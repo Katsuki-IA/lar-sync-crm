@@ -37,6 +37,7 @@ type ExternalStageOverride = {
   external_stage_unqualified_id: string;
   external_stage_visit_scheduled_id: string;
   external_stage_lost_id: string;
+  external_stage_without_whatsapp_id: string;
 };
 
 const EMPTY_VALUE = "__none__";
@@ -56,6 +57,7 @@ function AdminCrmDispatchPage() {
   const [unqualifiedExternalStageId, setUnqualifiedExternalStageId] = useState("");
   const [visitScheduledExternalStageId, setVisitScheduledExternalStageId] = useState("");
   const [lostExternalStageId, setLostExternalStageId] = useState("");
+  const [withoutWhatsappExternalStageId, setWithoutWhatsappExternalStageId] = useState("");
   const [stageOverrides, setStageOverrides] = useState<Record<number, ExternalStageOverride>>({});
 
   const { data: companies = [], isLoading: companiesLoading } = useQuery({
@@ -92,6 +94,7 @@ function AdminCrmDispatchPage() {
     setUnqualifiedExternalStageId(configData.settings.external_stage_unqualified_id ?? "");
     setVisitScheduledExternalStageId(configData.settings.external_stage_visit_scheduled_id ?? "");
     setLostExternalStageId(configData.settings.external_stage_lost_id ?? "");
+    setWithoutWhatsappExternalStageId(configData.settings.external_stage_without_whatsapp_id ?? "");
     setStageOverrides(
       Object.fromEntries(
         (configData.stage_overrides ?? []).map((override: any) => [
@@ -102,6 +105,7 @@ function AdminCrmDispatchPage() {
             external_stage_unqualified_id: override.external_stage_unqualified_id ?? "",
             external_stage_visit_scheduled_id: override.external_stage_visit_scheduled_id ?? "",
             external_stage_lost_id: override.external_stage_lost_id ?? "",
+            external_stage_without_whatsapp_id: override.external_stage_without_whatsapp_id ?? "",
           },
         ]),
       ),
@@ -121,6 +125,7 @@ function AdminCrmDispatchPage() {
         external_stage_unqualified_id: "",
         external_stage_visit_scheduled_id: "",
         external_stage_lost_id: "",
+        external_stage_without_whatsapp_id: "",
         ...current[idEmpreendimento],
         [field]: value,
       },
@@ -146,6 +151,7 @@ function AdminCrmDispatchPage() {
           external_stage_unqualified_id: unqualifiedExternalStageId.trim() || null,
           external_stage_visit_scheduled_id: visitScheduledExternalStageId.trim() || null,
           external_stage_lost_id: lostExternalStageId.trim() || null,
+          external_stage_without_whatsapp_id: withoutWhatsappExternalStageId.trim() || null,
           stage_overrides: ((configData?.empreendimentos ?? []) as EmpreendimentoOption[]).map((project) => {
             const override = stageOverrides[project.id];
             return {
@@ -155,6 +161,7 @@ function AdminCrmDispatchPage() {
               external_stage_unqualified_id: override?.external_stage_unqualified_id.trim() || null,
               external_stage_visit_scheduled_id: override?.external_stage_visit_scheduled_id.trim() || null,
               external_stage_lost_id: override?.external_stage_lost_id.trim() || null,
+              external_stage_without_whatsapp_id: override?.external_stage_without_whatsapp_id.trim() || null,
             };
           }),
         },
@@ -265,16 +272,16 @@ function AdminCrmDispatchPage() {
 
           <div className="grid gap-4 lg:grid-cols-2">
             <div className="space-y-1.5">
-              <Label htmlFor="external-stage-blocked-send">ID Bloqueio Envio</Label>
+              <Label htmlFor="external-stage-unqualified">ID Não qualificado</Label>
               <Input
-                id="external-stage-blocked-send"
-                value={blockedSendExternalStageId}
-                onChange={(event) => setBlockedSendExternalStageId(event.target.value)}
-                placeholder="Ex.: 12345"
+                id="external-stage-unqualified"
+                value={unqualifiedExternalStageId}
+                onChange={(event) => setUnqualifiedExternalStageId(event.target.value)}
+                placeholder="Ex.: 23456"
                 disabled={isLoading}
               />
               <p className="text-xs text-muted-foreground">
-                Valor padrão usado para a etapa Bloqueio Envio e como fallback quando outros IDs externos estiverem vazios.
+                ID padrão usado quando o lead não tiver a tag Qualificado e como fallback quando outros IDs externos estiverem vazios.
               </p>
             </div>
 
@@ -288,26 +295,12 @@ function AdminCrmDispatchPage() {
                 disabled={isLoading}
               />
               <p className="text-xs text-muted-foreground">
-                Usado quando o lead tiver a tag Qualificado. Se vazio, usa Bloqueio Envio.
+                Usado quando o lead tiver a tag Qualificado. Se vazio, usa Não qualificado.
               </p>
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="external-stage-unqualified">Id Não qualificado</Label>
-              <Input
-                id="external-stage-unqualified"
-                value={unqualifiedExternalStageId}
-                onChange={(event) => setUnqualifiedExternalStageId(event.target.value)}
-                placeholder="Ex.: 23456"
-                disabled={isLoading}
-              />
-              <p className="text-xs text-muted-foreground">
-                Usado quando o lead não tiver a tag Qualificado. Se vazio, usa Bloqueio Envio.
-              </p>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="external-stage-visit">Id Visita agendada</Label>
+              <Label htmlFor="external-stage-visit">ID Visita agendada</Label>
               <Input
                 id="external-stage-visit"
                 value={visitScheduledExternalStageId}
@@ -318,12 +311,23 @@ function AdminCrmDispatchPage() {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="external-stage-lost">Id Perdido</Label>
+              <Label htmlFor="external-stage-lost">ID Perdido</Label>
               <Input
                 id="external-stage-lost"
                 value={lostExternalStageId}
                 onChange={(event) => setLostExternalStageId(event.target.value)}
                 placeholder="Ex.: 99999"
+                disabled={isLoading}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="external-stage-without-whatsapp">ID Sem WhatsApp</Label>
+              <Input
+                id="external-stage-without-whatsapp"
+                value={withoutWhatsappExternalStageId}
+                onChange={(event) => setWithoutWhatsappExternalStageId(event.target.value)}
+                placeholder="Ex.: 88888"
                 disabled={isLoading}
               />
             </div>
@@ -346,12 +350,12 @@ function AdminCrmDispatchPage() {
                       <h4 className="font-medium">{project.nome ?? `Empreendimento ${project.id}`}</h4>
                       <div className="grid gap-4 lg:grid-cols-2">
                         <div className="space-y-1.5">
-                          <Label htmlFor={`project-${project.id}-blocked-send`}>ID: Bloqueio Envio</Label>
+                          <Label htmlFor={`project-${project.id}-unqualified`}>ID: Não qualificado</Label>
                           <Input
-                            id={`project-${project.id}-blocked-send`}
-                            value={override?.external_stage_blocked_send_id ?? ""}
-                            onChange={(event) => updateStageOverride(project.id, "external_stage_blocked_send_id", event.target.value)}
-                            placeholder={blockedSendExternalStageId || "Usar padrão da empresa"}
+                            id={`project-${project.id}-unqualified`}
+                            value={override?.external_stage_unqualified_id ?? ""}
+                            onChange={(event) => updateStageOverride(project.id, "external_stage_unqualified_id", event.target.value)}
+                            placeholder={unqualifiedExternalStageId || "Usar padrão da empresa"}
                             disabled={isLoading}
                           />
                         </div>
@@ -362,16 +366,6 @@ function AdminCrmDispatchPage() {
                             value={override?.external_stage_qualified_id ?? ""}
                             onChange={(event) => updateStageOverride(project.id, "external_stage_qualified_id", event.target.value)}
                             placeholder={qualifiedExternalStageId || "Usar padrão da empresa"}
-                            disabled={isLoading}
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label htmlFor={`project-${project.id}-unqualified`}>ID: Não qualificado</Label>
-                          <Input
-                            id={`project-${project.id}-unqualified`}
-                            value={override?.external_stage_unqualified_id ?? ""}
-                            onChange={(event) => updateStageOverride(project.id, "external_stage_unqualified_id", event.target.value)}
-                            placeholder={unqualifiedExternalStageId || "Usar padrão da empresa"}
                             disabled={isLoading}
                           />
                         </div>
@@ -392,6 +386,16 @@ function AdminCrmDispatchPage() {
                             value={override?.external_stage_lost_id ?? ""}
                             onChange={(event) => updateStageOverride(project.id, "external_stage_lost_id", event.target.value)}
                             placeholder={lostExternalStageId || "Usar padrão da empresa"}
+                            disabled={isLoading}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor={`project-${project.id}-without-whatsapp`}>ID: Sem WhatsApp</Label>
+                          <Input
+                            id={`project-${project.id}-without-whatsapp`}
+                            value={override?.external_stage_without_whatsapp_id ?? ""}
+                            onChange={(event) => updateStageOverride(project.id, "external_stage_without_whatsapp_id", event.target.value)}
+                            placeholder={withoutWhatsappExternalStageId || "Usar padrão da empresa"}
                             disabled={isLoading}
                           />
                         </div>

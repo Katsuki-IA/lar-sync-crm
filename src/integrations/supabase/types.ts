@@ -1069,6 +1069,7 @@ export type Database = {
           external_stage_qualified_id: string | null
           external_stage_unqualified_id: string | null
           external_stage_visit_scheduled_id: string | null
+          external_stage_without_whatsapp_id: string | null
           id: string
           id_empresa: number
           stage_with_contact_id: number | null
@@ -1082,6 +1083,7 @@ export type Database = {
           external_stage_qualified_id?: string | null
           external_stage_unqualified_id?: string | null
           external_stage_visit_scheduled_id?: string | null
+          external_stage_without_whatsapp_id?: string | null
           id?: string
           id_empresa: number
           stage_with_contact_id?: number | null
@@ -1095,6 +1097,7 @@ export type Database = {
           external_stage_qualified_id?: string | null
           external_stage_unqualified_id?: string | null
           external_stage_visit_scheduled_id?: string | null
+          external_stage_without_whatsapp_id?: string | null
           id?: string
           id_empresa?: number
           stage_with_contact_id?: number | null
@@ -1133,6 +1136,7 @@ export type Database = {
           external_stage_qualified_id: string | null
           external_stage_unqualified_id: string | null
           external_stage_visit_scheduled_id: string | null
+          external_stage_without_whatsapp_id: string | null
           id: string
           id_empreendimento: number
           id_empresa: number
@@ -1145,6 +1149,7 @@ export type Database = {
           external_stage_qualified_id?: string | null
           external_stage_unqualified_id?: string | null
           external_stage_visit_scheduled_id?: string | null
+          external_stage_without_whatsapp_id?: string | null
           id?: string
           id_empreendimento: number
           id_empresa: number
@@ -1157,6 +1162,7 @@ export type Database = {
           external_stage_qualified_id?: string | null
           external_stage_unqualified_id?: string | null
           external_stage_visit_scheduled_id?: string | null
+          external_stage_without_whatsapp_id?: string | null
           id?: string
           id_empreendimento?: number
           id_empresa?: number
