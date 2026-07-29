@@ -69,6 +69,29 @@ function messageToText(message: Json | null): string {
   return JSON.stringify(message);
 }
 
+function isTechnicalAiMessage(text: string) {
+  const normalized = text.trim();
+  if (/^Calling\s+\S+\s+with input:/i.test(normalized)) return true;
+  if (!/^[{[]/.test(normalized)) return false;
+
+  try {
+    JSON.parse(normalized);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function isRenderableConversationMessage(message: ConversationMessage) {
+  const type = message.type?.trim().toLowerCase();
+  if (type !== "human" && type !== "ai") return false;
+
+  const text = messageToText(message.message).trim();
+  if (!text) return false;
+
+  return type !== "ai" || !isTechnicalAiMessage(text);
+}
+
 function extractActivityBlock(text: string, marker: string) {
   const start = text.indexOf(marker);
   if (start < 0) return null;
@@ -178,9 +201,11 @@ function PublicLeadHistoryPage() {
       ? payload.messages
       : (payload.activities ?? []).flatMap(activityToConversationMessages);
 
-    return [...source].sort(
-      (a, b) => timestampMs(a.time ?? a.created_at) - timestampMs(b.time ?? b.created_at),
-    );
+    return source
+      .filter(isRenderableConversationMessage)
+      .sort(
+        (a, b) => timestampMs(a.time ?? a.created_at) - timestampMs(b.time ?? b.created_at),
+      );
   }, [payload]);
 
   function updateDigit(index: number, value: string) {

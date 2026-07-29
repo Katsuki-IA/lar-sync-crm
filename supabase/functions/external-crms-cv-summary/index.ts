@@ -173,6 +173,36 @@ function sortTimestamp(message: LeadMessage) {
   return parseDateValue(message.time ?? message.created_at)?.getTime() ?? 0;
 }
 
+function isConversationMessageType(value: string | null): value is "human" | "ai" {
+  return value === "human" || value === "ai";
+}
+
+function isTechnicalMessage(text: string) {
+  const normalized = text.trim();
+  if (/^Calling\s+\S+\s+with input:/i.test(normalized)) return true;
+  if (!/^[{[]/.test(normalized)) return false;
+
+  try {
+    JSON.parse(normalized);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function isSummaryConversationMessage(message: LeadMessage) {
+  if (!isConversationMessageType(message.type)) return false;
+  return !isTechnicalMessage(messageToText(message.message));
+}
+
+function currentConversationStart(value?: string | null) {
+  const date = parseDateValue(value);
+  if (!date) return null;
+
+  // The first WhatsApp event can precede the CRM row by a few seconds.
+  return new Date(date.getTime() - 2 * 60 * 1000).toISOString();
+}
+
 function activityToConversationMessages(activity: { id: number; descricao: string | null; created_at: string | null }) {
   const description = activity.descricao ?? "";
   if (!description.trim()) return [] as LeadMessage[];
@@ -236,6 +266,7 @@ function activityToConversationMessages(activity: { id: number; descricao: strin
 function buildTranscript(messages: LeadMessage[]) {
   return messages
     .map((message) => {
+      if (!isSummaryConversationMessage(message)) return null;
       const speaker = message.type === "ai" ? "IA" : "Lead";
       const text = sanitizeMessageText(messageToText(message.message));
       if (!text) return null;
@@ -330,6 +361,9 @@ async function buildDeepSeekSummary(args: {
     "Classifique a temperatura somente como QUENTE ou FRIO.",
     "Considere QUENTE quando o lead perguntar ou demonstrar interesse em valores, formas de pagamento, parcelamento, localização, metragens, detalhes do imóvel ou visita.",
     "Pouca interação ou respostas vagas tendem a ser FRIO.",
+    "Use mensagens da IA somente como contexto.",
+    "Em empreendimentos, inclua somente o que o Lead selecionar, mencionar como interesse ou perguntar sobre no contexto imediato.",
+    "Nunca inclua um empreendimento citado apenas pela IA, por instruções ou pelo contexto de empreendimentos já identificados.",
     "Responda somente em JSON válido com as chaves: resumo, temperatura, empreendimentos.",
     "empreendimentos deve ser um array de strings sem duplicidade.",
   ].join(" ");
@@ -465,29 +499,38 @@ Deno.serve(async (req) => {
       phone: lead.telefone,
       externalPhone: externalLead?.numero ?? null,
     });
+    const conversationStart = currentConversationStart(externalLead?.created_at ?? lead.created_at);
 
     let messages: LeadMessage[] = [];
     if (candidates.length) {
-      const { data: chatRows, error: chatError } = await supabaseAdmin
+      const chatQuery = supabaseAdmin
         .from("n8n_chat_conversas")
         .select("id,numero,type,message,time,created_at")
         .in("numero", candidates)
+        .in("type", ["human", "ai"])
         .order("time", { ascending: true });
+
+      const { data: chatRows, error: chatError } = await (conversationStart
+        ? chatQuery.gte("time", conversationStart)
+        : chatQuery);
       if (chatError) throw new Error(chatError.message);
 
-      messages = (chatRows ?? []).map((message: {
-        id: number | string;
-        type: string | null;
-        message: Json | null;
-        time: string | null;
-        created_at: string | null;
-      }) => ({
-        id: `chat-${message.id}`,
-        type: message.type,
-        message: message.message,
-        time: message.time,
-        created_at: message.created_at,
-      }));
+      messages = (chatRows ?? [])
+        .filter((message: { type: string | null }) => isConversationMessageType(message.type))
+        .map((message: {
+          id: number | string;
+          type: "human" | "ai";
+          message: Json | null;
+          time: string | null;
+          created_at: string | null;
+        }) => ({
+          id: `chat-${message.id}`,
+          type: message.type,
+          message: message.message,
+          time: message.time,
+          created_at: message.created_at,
+        }))
+        .filter(isSummaryConversationMessage);
     }
 
     if (!messages.length) {
