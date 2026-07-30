@@ -3361,6 +3361,7 @@ export type Database = {
           node: string
           nome_empresa: string | null
           prompt: string
+          prompt_backup: string | null
           prompt_user: string | null
           updated_at: string | null
           updated_by: string | null
@@ -3372,6 +3373,7 @@ export type Database = {
           node: string
           nome_empresa?: string | null
           prompt: string
+          prompt_backup?: string | null
           prompt_user?: string | null
           updated_at?: string | null
           updated_by?: string | null
@@ -3383,6 +3385,7 @@ export type Database = {
           node?: string
           nome_empresa?: string | null
           prompt?: string
+          prompt_backup?: string | null
           prompt_user?: string | null
           updated_at?: string | null
           updated_by?: string | null
@@ -3402,6 +3405,10 @@ export type Database = {
           contato_feito: string | null
           duplicado: string | null
           empresa_id: number
+          followup1: string | null
+          followup2: string | null
+          followup3: string | null
+          followup4: string | null
           id: number
           id_empreendimento: number | null
           lead_quente: string | null
@@ -3415,6 +3422,10 @@ export type Database = {
           contato_feito?: string | null
           duplicado?: string | null
           empresa_id: number
+          followup1?: string | null
+          followup2?: string | null
+          followup3?: string | null
+          followup4?: string | null
           id?: number
           id_empreendimento?: number | null
           lead_quente?: string | null
@@ -3428,6 +3439,10 @@ export type Database = {
           contato_feito?: string | null
           duplicado?: string | null
           empresa_id?: number
+          followup1?: string | null
+          followup2?: string | null
+          followup3?: string | null
+          followup4?: string | null
           id?: number
           id_empreendimento?: number | null
           lead_quente?: string | null
