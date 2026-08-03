@@ -107,7 +107,7 @@ function ReportsPage() {
       const [{ data: leads }, { data: stages }, { data: users }, { data: emps }, { data: lt }, { data: tags }] =
         await Promise.all([
           lq,
-          supabase.from("crm_stages").select("id, nome, cor, ordem").eq("ativo", true).order("ordem"),
+          supabase.from("crm_stages").select("id, nome, cor, ordem").eq("id_empresa", activeEmpresaId!).eq("ativo", true).order("ordem"),
           supabase.from("crm_users").select("id, nome, email").in("id_empresa", empresaIds),
           supabase.from("empreendimento").select("id, nome").in("id_empresa", empresaIds),
           supabase.from("crm_lead_tags").select("lead_id, tag_id"),
