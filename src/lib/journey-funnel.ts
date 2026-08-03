@@ -50,6 +50,12 @@ export function calculateJourneyFunnel({
       .map((message) => message.sessionId),
   );
 
+  const aiConversationLeadIds = new Set(
+    activities
+      .filter((activity) => activity.event?.toLowerCase() === "ai_conversation_exchange")
+      .map((activity) => activity.leadId),
+  );
+
   const sentToCrmLeadIds = new Set(
     activities
       .filter((activity) => {
@@ -71,7 +77,9 @@ export function calculateJourneyFunnel({
     (counts, lead) => {
       const hasHumanMessage = lead.telefones
         .flatMap((telefone) => createJourneySessionIds(telefone, lead.idEmpresa))
-        .some((sessionId) => humanSessions.has(sessionId)) || Boolean(lead.legacyEngaged);
+        .some((sessionId) => humanSessions.has(sessionId)) ||
+        Boolean(lead.legacyEngaged) ||
+        aiConversationLeadIds.has(lead.id);
 
       counts.received += 1;
       if (hasHumanMessage) counts.engaged += 1;

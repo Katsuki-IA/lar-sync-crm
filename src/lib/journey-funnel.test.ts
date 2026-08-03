@@ -81,4 +81,23 @@ describe("journey funnel", () => {
 
     expect(result.engaged).toBe(1);
   });
+
+  it("counts the n8n conversation activity linked directly to the CRM lead", () => {
+    const result = calculateJourneyFunnel({
+      leads: [
+        {
+          id: 1,
+          leadId: null,
+          telefones: [],
+          idEmpresa: 9,
+          leadQuente: false,
+        },
+      ],
+      messages: [],
+      activities: [{ leadId: 1, event: "ai_conversation_exchange", descricao: null }],
+      appointments: [],
+    });
+
+    expect(result.engaged).toBe(1);
+  });
 });
