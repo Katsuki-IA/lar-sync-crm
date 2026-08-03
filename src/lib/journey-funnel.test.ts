@@ -15,10 +15,10 @@ describe("journey funnel", () => {
   it("counts each cohort lead once according to the journey criteria", () => {
     const result = calculateJourneyFunnel({
       leads: [
-        { id: 1, leadId: 101, telefone: "+55 (48) 99999-0000", idEmpresa: 9, leadQuente: true },
-        { id: 2, leadId: 102, telefone: "48988880000", idEmpresa: 9, leadQuente: false },
-        { id: 3, leadId: 103, telefone: "48977770000", idEmpresa: 9, leadQuente: true },
-        { id: 4, leadId: null, telefone: "48966660000", idEmpresa: 9, leadQuente: false },
+        { id: 1, leadId: 101, telefones: ["+55 (48) 99999-0000"], idEmpresa: 9, leadQuente: true },
+        { id: 2, leadId: 102, telefones: ["48988880000"], idEmpresa: 9, leadQuente: false },
+        { id: 3, leadId: 103, telefones: ["48977770000"], idEmpresa: 9, leadQuente: true },
+        { id: 4, leadId: null, telefones: ["48966660000"], idEmpresa: 9, leadQuente: false },
       ],
       messages: [
         { sessionId: "489999900009", type: "human" },
@@ -41,5 +41,24 @@ describe("journey funnel", () => {
       sentToCrm: 2,
       scheduled: 2,
     });
+  });
+
+  it("uses the linked legacy phone before the CRM fallback", () => {
+    const result = calculateJourneyFunnel({
+      leads: [
+        {
+          id: 1,
+          leadId: 101,
+          telefones: ["48999990000", "telefone-desatualizado"],
+          idEmpresa: 9,
+          leadQuente: false,
+        },
+      ],
+      messages: [{ sessionId: "489999900009", type: "human" }],
+      activities: [],
+      appointments: [],
+    });
+
+    expect(result.engaged).toBe(1);
   });
 });

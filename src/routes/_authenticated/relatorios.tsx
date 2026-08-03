@@ -112,9 +112,33 @@ function ReportsPage() {
       if (empsError) throw empsError;
 
       const cohort = leads ?? [];
-      const sessionIds = [...new Set(cohort.flatMap((lead) => createJourneySessionIds(lead.telefone, lead.id_empresa)))];
       const crmLeadIds = cohort.map((lead) => lead.id);
       const legacyLeadIds = cohort.flatMap((lead) => (lead.lead_id === null ? [] : [lead.lead_id]));
+      const legacyLeadsResult = legacyLeadIds.length
+        ? await supabase.from("lead").select("id,numero").in("id", legacyLeadIds)
+        : { data: [], error: null };
+      if (legacyLeadsResult.error) throw legacyLeadsResult.error;
+
+      const legacyPhoneByLeadId = new Map(
+        (legacyLeadsResult.data ?? []).map((lead) => [lead.id, lead.numero]),
+      );
+      const journeyLeads = cohort.map((lead) => ({
+        id: lead.id,
+        leadId: lead.lead_id,
+        telefones: [
+          lead.lead_id === null ? null : legacyPhoneByLeadId.get(lead.lead_id),
+          lead.telefone,
+        ],
+        idEmpresa: lead.id_empresa,
+        leadQuente: lead.lead_quente,
+      }));
+      const sessionIds = [
+        ...new Set(
+          journeyLeads.flatMap((lead) =>
+            lead.telefones.flatMap((telefone) => createJourneySessionIds(telefone, lead.idEmpresa)),
+          ),
+        ),
+      ];
 
       const [messageResults, activitiesResult, appointmentsResult] = await Promise.all([
         Promise.all(
@@ -140,13 +164,7 @@ function ReportsPage() {
       if (appointmentsResult.error) throw appointmentsResult.error;
 
       const journey = calculateJourneyFunnel({
-        leads: cohort.map((lead) => ({
-          id: lead.id,
-          leadId: lead.lead_id,
-          telefone: lead.telefone,
-          idEmpresa: lead.id_empresa,
-          leadQuente: lead.lead_quente,
-        })),
+        leads: journeyLeads,
         messages: messageResults.flatMap((result) =>
           (result.data ?? []).flatMap((message) =>
             message.numero ? [{ sessionId: message.numero, type: message.type }] : [],

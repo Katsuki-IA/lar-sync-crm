@@ -1,7 +1,7 @@
 export type JourneyFunnelLead = {
   id: number;
   leadId: number | null;
-  telefone: string | null;
+  telefones: Array<string | null | undefined>;
   idEmpresa: number;
   leadQuente: boolean | null;
 };
@@ -68,9 +68,9 @@ export function calculateJourneyFunnel({
 
   return leads.reduce<JourneyFunnelCounts>(
     (counts, lead) => {
-      const hasHumanMessage = createJourneySessionIds(lead.telefone, lead.idEmpresa).some(
-        (sessionId) => humanSessions.has(sessionId),
-      );
+      const hasHumanMessage = lead.telefones
+        .flatMap((telefone) => createJourneySessionIds(telefone, lead.idEmpresa))
+        .some((sessionId) => humanSessions.has(sessionId));
 
       counts.received += 1;
       if (hasHumanMessage) counts.engaged += 1;
