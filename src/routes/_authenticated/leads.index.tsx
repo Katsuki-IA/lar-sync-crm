@@ -9,7 +9,7 @@ import { Search, Plus, X, Users as UsersIcon, List, LayoutGrid, MoreHorizontal, 
 
 import { supabase } from "@/integrations/supabase/client";
 import { useCrmUser } from "@/hooks/use-crm-user";
-import { useAllowedEmpresas } from "@/hooks/use-allowed-empresas";
+import { useActiveEmpresa } from "@/hooks/use-active-empresa";
 import { useFunnels } from "@/hooks/use-funnels";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -66,31 +66,11 @@ function LeadsList() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { data: me } = useCrmUser();
-  const { data: allowed } = useAllowedEmpresas();
-  const [companyId, setCompanyId] = useState<number | null>(null);
-  const { data: companies = [] } = useQuery({
-    enabled: !!allowed?.length,
-    queryKey: ["leads-companies", allowed],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("empresa_dados")
-        .select("id, nome")
-        .in("id", allowed ?? [])
-        .order("nome");
-      if (error) throw error;
-      return data ?? [];
-    },
-  });
-  useEffect(() => {
-    if (!me || !allowed) return;
-    const nextCompanyId = me.role === "super_admin"
-      ? (companies.find((company) => company.id === companyId)?.id ?? companies[0]?.id ?? null)
-      : (me.id_empresa ?? null);
-    if (nextCompanyId !== companyId) setCompanyId(nextCompanyId);
-  }, [allowed, companies, companyId, me]);
+  const { activeEmpresaId: companyId, activeEmpresa, isSuperAdmin } = useActiveEmpresa();
 
   const { data: funnels = [] } = useFunnels(companyId);
   const [funnelId, setFunnelId] = useState<number | null>(null);
+  useEffect(() => { setFunnelId(null); }, [companyId]);
   useEffect(() => {
     if (funnels.length && !funnels.some((funnel) => funnel.id === funnelId)) {
       const def = funnels.find((f) => f.is_default) ?? funnels[0];
@@ -644,15 +624,8 @@ function LeadsList() {
           style={{ backgroundColor: "#FFFFFF", borderColor: "var(--border)" }}
         >
           <div className="flex flex-wrap items-end gap-3">
-            {me?.role === "super_admin" && (
-              <LabeledFilter label="Empresa">
-                <FilterSelect
-                  value={companyId == null ? "" : String(companyId)}
-                  onChange={(value) => setCompanyId(Number(value))}
-                  placeholder="Selecione a empresa"
-                  options={companies.map((company) => ({ value: String(company.id), label: company.nome }))}
-                />
-              </LabeledFilter>
+            {isSuperAdmin && activeEmpresa && (
+              <div className="self-center text-sm text-muted-foreground">Empresa ativa: <span className="font-medium text-foreground">{activeEmpresa.nome}</span></div>
             )}
             <LabeledFilter label="Estágio">
               <FilterSelect value={stage} onChange={(v) => { setStage(v); setPage(0); }} placeholder="Estágio" options={[{ value: "all", label: "Todos os estágios" }, ...(meta?.stages ?? []).map((s) => ({ value: String(s.id), label: s.nome }))]} />

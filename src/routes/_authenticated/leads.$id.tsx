@@ -7,6 +7,7 @@ import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useCrmUser } from "@/hooks/use-crm-user";
+import { useActiveEmpresa } from "@/hooks/use-active-empresa";
 import { useLeadCustomFields } from "@/hooks/use-lead-custom-fields";
 import { LeadCustomFieldsForm } from "@/components/lead-custom-fields-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -72,6 +73,7 @@ function LeadDetail() {
   const leadId = Number(id);
   const navigate = useNavigate();
   const { data: me } = useCrmUser();
+  const { activeEmpresaId } = useActiveEmpresa();
   const qc = useQueryClient();
   const [note, setNote] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -84,7 +86,7 @@ function LeadDetail() {
 
   const deleteMut = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("crm_leads").delete().eq("id", leadId);
+      const { error } = await supabase.from("crm_leads").delete().eq("id", leadId).eq("id_empresa", activeEmpresaId!);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -99,13 +101,14 @@ function LeadDetail() {
   });
 
   const { data: lead, isLoading } = useQuery({
-    enabled: !!me,
-    queryKey: ["lead", leadId],
+    enabled: !!me && !!activeEmpresaId,
+    queryKey: ["lead", leadId, activeEmpresaId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("crm_leads")
         .select("id, id_empresa, nome, telefone, email, origem, id_empreendimento, crm_stage_id, crm_assigned_to, lead_quente, qualificado, created_at")
         .eq("id", leadId)
+        .eq("id_empresa", activeEmpresaId!)
         .single();
       if (error) throw error;
       return data;
@@ -143,7 +146,7 @@ function LeadDetail() {
     },
   });
 
-  const { data: customFields = [] } = useLeadCustomFields(lead?.id_empresa ?? me?.id_empresa);
+  const { data: customFields = [] } = useLeadCustomFields(lead?.id_empresa ?? activeEmpresaId);
 
   const { data: customValueRows = [] } = useQuery({
     enabled: Boolean(leadId),

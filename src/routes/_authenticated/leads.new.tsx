@@ -5,7 +5,7 @@ import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useCrmUser } from "@/hooks/use-crm-user";
-import { useAllowedEmpresas } from "@/hooks/use-allowed-empresas";
+import { useActiveEmpresa } from "@/hooks/use-active-empresa";
 import { useLeadCustomFields } from "@/hooks/use-lead-custom-fields";
 import { LeadCustomFieldsForm } from "@/components/lead-custom-fields-form";
 import { useFunnels } from "@/hooks/use-funnels";
@@ -76,9 +76,7 @@ function maskPhoneGeneric(value: string) {
 
 function NewLead() {
   const { data: me } = useCrmUser();
-  const { data: allowed } = useAllowedEmpresas();
-  const [targetCompany, setTargetCompany] = useState<string>("");
-  const targetCompanyId = targetCompany ? Number(targetCompany) : null;
+  const { activeEmpresaId: targetCompanyId, activeEmpresa } = useActiveEmpresa();
   const { data: customFields = [] } = useLeadCustomFields(targetCompanyId);
   const { data: funnels = [] } = useFunnels(targetCompanyId);
   const navigate = useNavigate();
@@ -97,16 +95,6 @@ function NewLead() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [customValues, setCustomValues] = useState<LeadCustomFieldValues>({});
   const [customErrors, setCustomErrors] = useState<Record<number, string>>({});
-
-  const { data: companies = [] } = useQuery({
-    enabled: Boolean(allowed?.length),
-    queryKey: ["new-lead-companies", allowed],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("empresa_dados").select("id,nome").in("id", allowed ?? []).order("nome");
-      if (error) throw error;
-      return data ?? [];
-    },
-  });
 
   function validate() {
     const next: Record<string, string> = {};
@@ -244,12 +232,7 @@ function NewLead() {
             className="space-y-4"
             onSubmit={(e) => { e.preventDefault(); createMut.mutate(); }}
           >
-            <Field label="Empresa *" error={!targetCompany && errors.empresa ? errors.empresa : undefined}>
-              <Select value={targetCompany} onValueChange={(value) => { setTargetCompany(value); setForm((current) => ({ ...current, id_empreendimento: "", crm_assigned_to: "", id_funnel: "", crm_stage_id: "" })); }}>
-                <SelectTrigger><SelectValue placeholder="Selecione a empresa" /></SelectTrigger>
-                <SelectContent>{companies.map((company) => <SelectItem key={company.id} value={String(company.id)}>{company.nome}</SelectItem>)}</SelectContent>
-              </Select>
-            </Field>
+            <Field label="Empresa"><div className="h-10 rounded-md border bg-muted/30 px-3 flex items-center text-sm">{activeEmpresa?.nome ?? "Selecione uma empresa no topo"}</div></Field>
             <div className="grid gap-4 md:grid-cols-2">
               <Field label="Nome *" error={errors.nome}>
                 <Input

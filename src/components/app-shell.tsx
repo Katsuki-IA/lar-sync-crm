@@ -1,5 +1,5 @@
 import { useNavigate, useRouterState, Link } from "@tanstack/react-router";
-import { LogOut, ChevronRight, User } from "lucide-react";
+import { LogOut, ChevronRight, User, Building2 } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -15,9 +15,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { getInitials, colorFromString } from "@/lib/lead-visuals";
 import { NotificationsBell } from "@/components/notifications-bell";
+import { ActiveEmpresaProvider, useActiveEmpresa } from "@/hooks/use-active-empresa";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const ROUTE_LABELS: Record<string, string> = {
   dashboard: "Dashboard",
@@ -43,25 +46,21 @@ function useBreadcrumbs(pathname: string) {
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
+  return (
+    <ActiveEmpresaProvider>
+      <AppShellContent>{children}</AppShellContent>
+    </ActiveEmpresaProvider>
+  );
+}
+
+function AppShellContent({ children }: { children: ReactNode }) {
   const { data: me } = useCrmUser();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const crumbs = useBreadcrumbs(pathname);
 
-  const { data: empresa } = useQuery({
-    enabled: !!me?.id_empresa,
-    queryKey: ["empresa-name", me?.id_empresa],
-    staleTime: 5 * 60_000,
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("empresa_dados")
-        .select("nome")
-        .eq("id", me!.id_empresa!)
-        .maybeSingle();
-      return data?.nome ?? null;
-    },
-  });
+  const { activeEmpresaId, activeEmpresa, empresas, isSuperAdmin, requiresSelection, setActiveEmpresaId } = useActiveEmpresa();
 
   async function handleSignOut() {
     await qc.cancelQueries();
@@ -101,10 +100,18 @@ export function AppShell({ children }: { children: ReactNode }) {
           </nav>
 
           <div className="flex items-center gap-2">
-            {empresa && (
-              <span className="hidden sm:inline text-xs text-muted-foreground truncate max-w-[160px]">
-                {empresa}
-              </span>
+            {isSuperAdmin ? (
+              <Select value={activeEmpresaId ? String(activeEmpresaId) : ""} onValueChange={(value) => setActiveEmpresaId(Number(value))}>
+                <SelectTrigger className="hidden sm:flex h-9 w-[220px] text-xs">
+                  <Building2 className="mr-2 h-4 w-4 shrink-0" />
+                  <SelectValue placeholder="Selecionar empresa" />
+                </SelectTrigger>
+                <SelectContent>
+                  {empresas.map((empresa) => <SelectItem key={empresa.id} value={String(empresa.id)}>{empresa.nome ?? `Empresa ${empresa.id}`}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            ) : activeEmpresa && (
+              <span className="hidden sm:inline text-xs text-muted-foreground truncate max-w-[160px]">{activeEmpresa.nome}</span>
             )}
             <NotificationsBell />
             <DropdownMenu>
@@ -142,6 +149,20 @@ export function AppShell({ children }: { children: ReactNode }) {
         </header>
         <main className="flex-1 overflow-auto p-4 md:p-6">{children}</main>
       </div>
+      <Dialog open={requiresSelection}>
+        <DialogContent className="sm:max-w-md" onPointerDownOutside={(event) => event.preventDefault()} onEscapeKeyDown={(event) => event.preventDefault()}>
+          <DialogHeader>
+            <DialogTitle>Escolha a empresa para administrar</DialogTitle>
+            <DialogDescription>Você poderá trocar a empresa a qualquer momento pelo seletor no topo.</DialogDescription>
+          </DialogHeader>
+          <Select value="" onValueChange={(value) => setActiveEmpresaId(Number(value))}>
+            <SelectTrigger><SelectValue placeholder="Selecionar empresa" /></SelectTrigger>
+            <SelectContent>
+              {empresas.map((empresa) => <SelectItem key={empresa.id} value={String(empresa.id)}>{empresa.nome ?? `Empresa ${empresa.id}`}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

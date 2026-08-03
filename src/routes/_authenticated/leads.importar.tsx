@@ -6,7 +6,7 @@ import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useCrmUser } from "@/hooks/use-crm-user";
-import { useAllowedEmpresas } from "@/hooks/use-allowed-empresas";
+import { useActiveEmpresa } from "@/hooks/use-active-empresa";
 import { useFunnels } from "@/hooks/use-funnels";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -145,9 +145,7 @@ function Stepper({ step }: { step: 1 | 2 | 3 }) {
 function ImportLeadsPage() {
   const navigate = useNavigate();
   const { data: me } = useCrmUser();
-  const { data: allowed } = useAllowedEmpresas();
-  const [targetCompany, setTargetCompany] = useState<string>("");
-  const targetCompanyId = targetCompany ? Number(targetCompany) : null;
+  const { activeEmpresaId: targetCompanyId, activeEmpresa } = useActiveEmpresa();
   const { data: funnels = [] } = useFunnels(targetCompanyId);
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -181,16 +179,6 @@ function ImportLeadsPage() {
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [result, setResult] = useState<{ success: number; dup: number; errors: Array<{ row: string[]; motivo: string }> } | null>(null);
 
-  const { data: companies = [] } = useQuery({
-    enabled: Boolean(allowed?.length),
-    queryKey: ["import-companies", allowed],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("empresa_dados").select("id,nome").in("id", allowed ?? []).order("nome");
-      if (error) throw error;
-      return data ?? [];
-    },
-  });
-
   /* meta */
   const { data: meta } = useQuery({
     enabled: !!me && !!targetCompanyId,
@@ -213,7 +201,7 @@ function ImportLeadsPage() {
     setDefaultFunnel("");
     setDefaultStage("");
     setDefaultEmpreendimento("");
-  }, [targetCompany]);
+  }, [targetCompanyId]);
 
   useEffect(() => {
     if (!defaultFunnel && funnels.length) {
@@ -418,10 +406,7 @@ function ImportLeadsPage() {
         <CardContent className="pt-6">
           <div className="max-w-md space-y-2">
             <Label>Empresa que receberá os leads *</Label>
-            <Select value={targetCompany} onValueChange={setTargetCompany}>
-              <SelectTrigger><SelectValue placeholder="Selecione a empresa" /></SelectTrigger>
-              <SelectContent>{companies.map((company) => <SelectItem key={company.id} value={String(company.id)}>{company.nome}</SelectItem>)}</SelectContent>
-            </Select>
+            <div className="h-10 rounded-md border bg-muted/30 px-3 flex items-center text-sm">{activeEmpresa?.nome ?? "Selecione uma empresa no topo"}</div>
           </div>
         </CardContent>
       </Card>

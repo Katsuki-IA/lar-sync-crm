@@ -17,7 +17,7 @@ import { format } from "date-fns";
 
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
-import { useAllowedEmpresas } from "@/hooks/use-allowed-empresas";
+import { useActiveEmpresa } from "@/hooks/use-active-empresa";
 import { useCrmUser } from "@/hooks/use-crm-user";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -32,7 +32,6 @@ export const Route = createFileRoute("/_authenticated/analise-conversas")({
   component: ConversationAnalysisPage,
 });
 
-type EmpresaRow = Pick<Database["public"]["Tables"]["empresa_dados"]["Row"], "id" | "nome">;
 type EmpreendimentoRow = Pick<Database["public"]["Tables"]["empreendimento"]["Row"], "id" | "nome" | "id_empresa">;
 type LeadRow = Pick<
   Database["public"]["Tables"]["lead"]["Row"],
@@ -184,42 +183,15 @@ async function fetchMessages(sessionIds: string[]) {
 
 function ConversationAnalysisPage() {
   const { data: me } = useCrmUser();
-  const { data: allowed } = useAllowedEmpresas();
+  const { activeEmpresaId: companyId, activeEmpresa, isSuperAdmin } = useActiveEmpresa();
   const queryClient = useQueryClient();
-  const isSuperAdmin = me?.role === "super_admin";
   const canView = me?.role === "manager" || me?.role === "super_admin";
-  const [companyId, setCompanyId] = useState<number | null>(null);
   const [empreendimentoId, setEmpreendimentoId] = useState<string>(ALL);
   const [typeFilter, setTypeFilter] = useState<string>(TYPE_ALL);
   const [dateFrom, setDateFrom] = useState(defaultStartDate);
   const [dateTo, setDateTo] = useState(defaultEndDate);
 
-  const companiesQuery = useQuery({
-    enabled: !!allowed?.length && canView,
-    queryKey: ["analysis-companies", allowed],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("empresa_dados")
-        .select("id,nome")
-        .in("id", allowed ?? [])
-        .order("nome");
-      if (error) throw error;
-      return (data ?? []) as EmpresaRow[];
-    },
-  });
-
-  const companies = companiesQuery.data ?? [];
-
-  useEffect(() => {
-    if (!me || !allowed) return;
-    const nextCompanyId = isSuperAdmin
-      ? (companies.find((company) => company.id === companyId)?.id ?? companies[0]?.id ?? null)
-      : (me.id_empresa ?? null);
-    if (nextCompanyId !== companyId) {
-      setCompanyId(nextCompanyId);
-      setEmpreendimentoId(ALL);
-    }
-  }, [allowed, companies, companyId, isSuperAdmin, me]);
+  useEffect(() => { setEmpreendimentoId(ALL); }, [companyId]);
 
   const empreendimentosQuery = useQuery({
     enabled: !!companyId && canView,
@@ -412,7 +384,7 @@ function ConversationAnalysisPage() {
     };
   }, [conversations]);
 
-  const selectedCompanyName = companies.find((company) => company.id === companyId)?.nome ?? "empresa";
+  const selectedCompanyName = activeEmpresa?.nome ?? "empresa";
   const selectedEmpreendimentoName =
     empreendimentoId === ALL
       ? "todos os empreendimentos"
@@ -489,22 +461,7 @@ function ConversationAnalysisPage() {
       <Card className="rounded-xl">
         <CardContent className="space-y-4 p-4">
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-            {isSuperAdmin ? (
-              <LabeledSelect label="Empresa">
-                <Select value={companyId ? String(companyId) : ""} onValueChange={(value) => setCompanyId(Number(value))}>
-                  <SelectTrigger className="bg-white">
-                    <SelectValue placeholder="Selecione a empresa" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {companies.map((company) => (
-                      <SelectItem key={company.id} value={String(company.id)}>
-                        {company.nome}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </LabeledSelect>
-            ) : null}
+            {isSuperAdmin && <LabeledSelect label="Empresa"><div className="h-10 rounded-md border bg-muted/30 px-3 flex items-center text-sm">{selectedCompanyName}</div></LabeledSelect>}
 
             <LabeledSelect label="Empreendimento">
               <Select value={empreendimentoId} onValueChange={setEmpreendimentoId}>

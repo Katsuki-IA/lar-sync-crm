@@ -5,7 +5,7 @@ import { Users, Flame, KanbanSquare, Building2 } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useCrmUser } from "@/hooks/use-crm-user";
-import { useAllowedEmpresas } from "@/hooks/use-allowed-empresas";
+import { useActiveEmpresa } from "@/hooks/use-active-empresa";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
@@ -32,14 +32,14 @@ function MetricCard({ label, value, icon: Icon }: { label: string; value: number
 
 function DashboardPage() {
   const { data: me } = useCrmUser();
-  const { data: allowed } = useAllowedEmpresas();
+  const { activeEmpresaId } = useActiveEmpresa();
 
   const { data, isLoading } = useQuery({
-    enabled: !!me && !!allowed,
-    queryKey: ["dashboard", me?.id, me?.role, allowed],
+    enabled: !!me && !!activeEmpresaId,
+    queryKey: ["dashboard", me?.id, me?.role, activeEmpresaId],
     queryFn: async () => {
       const isAgent = me?.role === "agent";
-      const empresaIds = allowed ?? [];
+      const empresaIds = activeEmpresaId ? [activeEmpresaId] : [];
 
       const baseLeads = () => {
         let q = supabase

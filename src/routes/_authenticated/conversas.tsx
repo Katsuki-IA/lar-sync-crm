@@ -14,7 +14,7 @@ import {
 
 import { supabase } from "@/integrations/supabase/client";
 import type { Database, Json } from "@/integrations/supabase/types";
-import { useAllowedEmpresas } from "@/hooks/use-allowed-empresas";
+import { useActiveEmpresa } from "@/hooks/use-active-empresa";
 import { useCrmUser } from "@/hooks/use-crm-user";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -216,20 +216,20 @@ function previewText(row: ConversationItem) {
 function ConversationsPage() {
   const { lead } = Route.useSearch();
   const { data: me } = useCrmUser();
-  const { data: allowed } = useAllowedEmpresas();
+  const { activeEmpresaId } = useActiveEmpresa();
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<number | null>(null);
 
   const conversationsQuery = useQuery({
-    enabled: !!me && !!allowed?.length,
-    queryKey: ["conversations", allowed],
+    enabled: !!me && !!activeEmpresaId,
+    queryKey: ["conversations", activeEmpresaId],
     queryFn: async (): Promise<ConversationItem[]> => {
       const { data: leadRows, error } = await supabase
         .from("lead")
         .select(
           "id,id_empresa,nome,numero,email,id_crm,lead_quente,qtd_interacoes,ult_message,last_mesage,last_message_timestamp,crm_assigned_to,created_at,updated_at",
         )
-        .in("id_empresa", allowed ?? []);
+        .eq("id_empresa", activeEmpresaId!);
 
       if (error) throw error;
 
@@ -260,6 +260,7 @@ function ConversationsPage() {
   });
 
   const conversations = conversationsQuery.data ?? [];
+  useEffect(() => { setSelectedId(null); }, [activeEmpresaId]);
   useEffect(() => {
     if (!lead || !conversations.length) return;
     const leadId = Number(lead);

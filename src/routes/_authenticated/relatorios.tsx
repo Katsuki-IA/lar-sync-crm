@@ -26,7 +26,7 @@ import {
 
 import { supabase } from "@/integrations/supabase/client";
 import { useCrmUser } from "@/hooks/use-crm-user";
-import { useAllowedEmpresas } from "@/hooks/use-allowed-empresas";
+import { useActiveEmpresa } from "@/hooks/use-active-empresa";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -77,7 +77,7 @@ function daysBetween(a: string | null | undefined, b: string | null | undefined)
 
 function ReportsPage() {
   const { data: me } = useCrmUser();
-  const { data: allowed } = useAllowedEmpresas();
+  const { activeEmpresaId } = useActiveEmpresa();
 
   const [preset, setPreset] = useState<Preset>("30d");
   const [customFrom, setCustomFrom] = useState<Date | undefined>(subDays(new Date(), 29));
@@ -88,11 +88,11 @@ function ReportsPage() {
   );
 
   const { data, isLoading } = useQuery({
-    enabled: !!me && !!allowed,
-    queryKey: ["reports", me?.id, me?.role, allowed, range.from.toISOString(), range.to.toISOString()],
+    enabled: !!me && !!activeEmpresaId,
+    queryKey: ["reports", me?.id, me?.role, activeEmpresaId, range.from.toISOString(), range.to.toISOString()],
     queryFn: async () => {
       const isAgent = me?.role === "agent";
-      const empresaIds = allowed ?? [];
+      const empresaIds = activeEmpresaId ? [activeEmpresaId] : [];
       const fromIso = new Date(range.from.setHours(0, 0, 0, 0)).toISOString();
       const toIso = new Date(range.to.setHours(23, 59, 59, 999)).toISOString();
 

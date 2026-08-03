@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { KanbanView } from "@/components/kanban-view";
-import { useCrmUser } from "@/hooks/use-crm-user";
+import { useActiveEmpresa } from "@/hooks/use-active-empresa";
 import { useFunnels } from "@/hooks/use-funnels";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -10,9 +10,10 @@ export const Route = createFileRoute("/_authenticated/kanban")({
 });
 
 function KanbanPage() {
-  const { data: me } = useCrmUser();
-  const { data: funnels = [] } = useFunnels(me?.id_empresa);
+  const { activeEmpresaId } = useActiveEmpresa();
+  const { data: funnels = [] } = useFunnels(activeEmpresaId);
   const [funnelId, setFunnelId] = useState<number | null>(null);
+  useEffect(() => { setFunnelId(null); }, [activeEmpresaId]);
   useEffect(() => {
     if (funnelId == null && funnels.length) {
       const def = funnels.find((f) => f.is_default) ?? funnels[0];
@@ -39,7 +40,7 @@ function KanbanPage() {
           </Select>
         )}
       </div>
-      <KanbanView funnelId={funnelId} />
+      <KanbanView funnelId={funnelId} idEmpresa={activeEmpresaId} />
     </div>
   );
 }
