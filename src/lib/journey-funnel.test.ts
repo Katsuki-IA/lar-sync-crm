@@ -61,4 +61,24 @@ describe("journey funnel", () => {
 
     expect(result.engaged).toBe(1);
   });
+
+  it("counts the legacy response classification when messages are unavailable", () => {
+    const result = calculateJourneyFunnel({
+      leads: [
+        {
+          id: 1,
+          leadId: 101,
+          telefones: ["48999990000"],
+          idEmpresa: 9,
+          leadQuente: false,
+          legacyEngaged: true,
+        },
+      ],
+      messages: [],
+      activities: [],
+      appointments: [],
+    });
+
+    expect(result.engaged).toBe(1);
+  });
 });

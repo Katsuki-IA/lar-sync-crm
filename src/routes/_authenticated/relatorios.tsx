@@ -115,22 +115,45 @@ function ReportsPage() {
       const crmLeadIds = cohort.map((lead) => lead.id);
       const legacyLeadIds = cohort.flatMap((lead) => (lead.lead_id === null ? [] : [lead.lead_id]));
       const legacyLeadsResult = legacyLeadIds.length
-        ? await supabase.from("lead").select("id,numero").in("id", legacyLeadIds)
+        ? await supabase.from("lead").select("id,numero,qtd_interacoes").in("id", legacyLeadIds)
         : { data: [], error: null };
       if (legacyLeadsResult.error) throw legacyLeadsResult.error;
 
-      const legacyPhoneByLeadId = new Map(
-        (legacyLeadsResult.data ?? []).map((lead) => [lead.id, lead.numero]),
+      const classificationsResult = legacyLeadIds.length
+        ? await supabase
+            .from("crm_conversation_classifications")
+            .select("lead_id,cliente_respondeu")
+            .eq("id_empresa", activeEmpresaId!)
+            .in("lead_id", legacyLeadIds)
+        : { data: [], error: null };
+      if (classificationsResult.error) {
+        const code = (classificationsResult.error as { code?: string }).code;
+        const message = classificationsResult.error.message ?? "";
+        if (code !== "42P01" && code !== "PGRST205" && !message.includes("crm_conversation_classifications")) {
+          throw classificationsResult.error;
+        }
+      }
+
+      const legacyLeadById = new Map(
+        (legacyLeadsResult.data ?? []).map((lead) => [lead.id, lead]),
+      );
+      const classifiedResponseLeadIds = new Set(
+        (classificationsResult.data ?? [])
+          .filter((classification) => classification.cliente_respondeu)
+          .map((classification) => classification.lead_id),
       );
       const journeyLeads = cohort.map((lead) => ({
         id: lead.id,
         leadId: lead.lead_id,
         telefones: [
-          lead.lead_id === null ? null : legacyPhoneByLeadId.get(lead.lead_id),
+          lead.lead_id === null ? null : legacyLeadById.get(lead.lead_id)?.numero,
           lead.telefone,
         ],
         idEmpresa: lead.id_empresa,
         leadQuente: lead.lead_quente,
+        legacyEngaged:
+          (lead.lead_id !== null && classifiedResponseLeadIds.has(lead.lead_id)) ||
+          (lead.lead_id !== null && (legacyLeadById.get(lead.lead_id)?.qtd_interacoes ?? 0) >= 2),
       }));
       const sessionIds = [
         ...new Set(

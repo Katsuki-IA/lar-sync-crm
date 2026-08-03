@@ -4,6 +4,7 @@ export type JourneyFunnelLead = {
   telefones: Array<string | null | undefined>;
   idEmpresa: number;
   leadQuente: boolean | null;
+  legacyEngaged?: boolean;
 };
 
 export type JourneyFunnelInput = {
@@ -70,7 +71,7 @@ export function calculateJourneyFunnel({
     (counts, lead) => {
       const hasHumanMessage = lead.telefones
         .flatMap((telefone) => createJourneySessionIds(telefone, lead.idEmpresa))
-        .some((sessionId) => humanSessions.has(sessionId));
+        .some((sessionId) => humanSessions.has(sessionId)) || Boolean(lead.legacyEngaged);
 
       counts.received += 1;
       if (hasHumanMessage) counts.engaged += 1;
