@@ -1,20 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { format, subDays, startOfYear, startOfWeek, addWeeks, isAfter } from "date-fns";
+import { format, subDays, startOfYear } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { CalendarIcon } from "lucide-react";
 import {
-  CalendarIcon,
-  Table as TableIcon,
-  BarChart3,
-} from "lucide-react";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
   Cell,
-  Line,
-  LineChart,
   Pie,
   PieChart,
   ResponsiveContainer,
@@ -33,6 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
+import { calculateJourneyFunnel, createJourneySessionIds } from "@/lib/journey-funnel";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/relatorios")({
@@ -59,7 +51,6 @@ function presetToRange(p: Preset, customFrom?: Date, customTo?: Date): Range {
   return { from: customFrom ?? subDays(today, 29), to: customTo ?? today };
 }
 
-const STAGE_COLORS = ["#C14F21", "#E68F6A", "#F2B9A3", "#7A3115", "#B07D1A", "#2D7D52"];
 const DONUT_COLORS = ["#C14F21", "#E68F6A", "#F2B9A3", "#A3421C", "#D96D3E", "#7A3115", "#B07D1A", "#2471A3", "#2D7D52", "#52200D"];
 
 function isConvertedStage(name?: string | null) {
@@ -69,10 +60,16 @@ function isLostStage(name?: string | null) {
   return /perd|lost/i.test(name ?? "");
 }
 
-function daysBetween(a: string | null | undefined, b: string | null | undefined) {
-  if (!a || !b) return null;
-  const d = (new Date(b).getTime() - new Date(a).getTime()) / 86400000;
-  return d >= 0 ? d : null;
+function chunk<T>(items: T[], size: number) {
+  const chunks: T[][] = [];
+  for (let index = 0; index < items.length; index += size) chunks.push(items.slice(index, index + size));
+  return chunks;
+}
+
+function metadataEvent(metadata: unknown) {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return null;
+  const event = (metadata as { event?: unknown }).event;
+  return typeof event === "string" ? event : null;
 }
 
 function ReportsPage() {
@@ -98,29 +95,78 @@ function ReportsPage() {
 
       let lq = supabase
         .from("crm_leads")
-        .select("id, nome, crm_stage_id, crm_assigned_to, id_empreendimento, status, created_at, updated_at")
+        .select("id, lead_id, telefone, lead_quente, id_empresa, nome, crm_stage_id, crm_assigned_to, id_empreendimento, status, created_at, updated_at")
         .in("id_empresa", empresaIds)
         .gte("created_at", fromIso)
         .lte("created_at", toIso);
       if (isAgent && me) lq = lq.eq("crm_assigned_to", me.id);
 
-      const [{ data: leads }, { data: stages }, { data: users }, { data: emps }, { data: lt }, { data: tags }] =
+      const [{ data: leads, error: leadsError }, { data: stages, error: stagesError }, { data: emps, error: empsError }] =
         await Promise.all([
           lq,
           supabase.from("crm_stages").select("id, nome, cor, ordem").eq("id_empresa", activeEmpresaId!).eq("ativo", true).order("ordem"),
-          supabase.from("crm_users").select("id, nome, email").in("id_empresa", empresaIds),
           supabase.from("empreendimento").select("id, nome").in("id_empresa", empresaIds),
-          supabase.from("crm_lead_tags").select("lead_id, tag_id"),
-          supabase.from("crm_tags").select("id, nome").in("id_empresa", empresaIds),
         ]);
+      if (leadsError) throw leadsError;
+      if (stagesError) throw stagesError;
+      if (empsError) throw empsError;
+
+      const cohort = leads ?? [];
+      const sessionIds = [...new Set(cohort.flatMap((lead) => createJourneySessionIds(lead.telefone, lead.id_empresa)))];
+      const crmLeadIds = cohort.map((lead) => lead.id);
+      const legacyLeadIds = cohort.flatMap((lead) => (lead.lead_id === null ? [] : [lead.lead_id]));
+
+      const [messageResults, activitiesResult, appointmentsResult] = await Promise.all([
+        Promise.all(
+          chunk(sessionIds, 80).map((group) =>
+            supabase.from("n8n_chat_conversas").select("numero,type").in("numero", group),
+          ),
+        ),
+        crmLeadIds.length
+          ? supabase.from("crm_lead_activities").select("lead_id,metadata,descricao").in("lead_id", crmLeadIds)
+          : Promise.resolve({ data: [], error: null }),
+        legacyLeadIds.length
+          ? supabase
+              .from("agendamento")
+              .select("id_lead")
+              .eq("id_empresa", activeEmpresaId!)
+              .is("deleted_at", null)
+              .in("id_lead", legacyLeadIds)
+          : Promise.resolve({ data: [], error: null }),
+      ]);
+
+      for (const result of messageResults) if (result.error) throw result.error;
+      if (activitiesResult.error) throw activitiesResult.error;
+      if (appointmentsResult.error) throw appointmentsResult.error;
+
+      const journey = calculateJourneyFunnel({
+        leads: cohort.map((lead) => ({
+          id: lead.id,
+          leadId: lead.lead_id,
+          telefone: lead.telefone,
+          idEmpresa: lead.id_empresa,
+          leadQuente: lead.lead_quente,
+        })),
+        messages: messageResults.flatMap((result) =>
+          (result.data ?? []).flatMap((message) =>
+            message.numero ? [{ sessionId: message.numero, type: message.type }] : [],
+          ),
+        ),
+        activities: (activitiesResult.data ?? []).map((activity) => ({
+          leadId: activity.lead_id,
+          event: metadataEvent(activity.metadata),
+          descricao: activity.descricao,
+        })),
+        appointments: (appointmentsResult.data ?? []).flatMap((appointment) =>
+          appointment.id_lead === null ? [] : [{ legacyLeadId: appointment.id_lead }],
+        ),
+      });
 
       return {
-        leads: leads ?? [],
+        leads: cohort,
         stages: stages ?? [],
-        users: users ?? [],
         emps: emps ?? [],
-        leadTags: lt ?? [],
-        tags: tags ?? [],
+        journey,
       };
     },
   });
@@ -152,9 +198,7 @@ function ReportsPage() {
         </div>
       ) : (
         <div className="grid gap-4 lg:grid-cols-2">
-          <FunnelPanel data={data} />
-          <ChannelPanel data={data} />
-          <ClosingTimePanel data={data} range={range} />
+          <JourneyFunnelPanel counts={data.journey} />
           <div className="lg:col-span-2">
             <EmpreendimentoPanel data={data} />
           </div>
@@ -229,6 +273,10 @@ function DatePick({ value, onChange, placeholder }: { value?: Date; onChange: (d
 type ReportData = {
   leads: Array<{
     id: number;
+    lead_id: number | null;
+    telefone: string;
+    lead_quente: boolean | null;
+    id_empresa: number;
     nome: string;
     crm_stage_id: number | null;
     crm_assigned_to: string | null;
@@ -238,69 +286,56 @@ type ReportData = {
     updated_at: string | null;
   }>;
   stages: Array<{ id: number; nome: string; cor: string | null; ordem: number }>;
-  users: Array<{ id: string; nome: string; email: string }>;
   emps: Array<{ id: number; nome: string }>;
-  leadTags: Array<{ lead_id: number; tag_id: number }>;
-  tags: Array<{ id: number; nome: string }>;
+  journey: {
+    received: number;
+    engaged: number;
+    hot: number;
+    sentToCrm: number;
+    scheduled: number;
+  };
 };
 
-function FunnelPanel({ data }: { data: ReportData }) {
-  const orderedStages = [...data.stages].sort((a, b) => a.ordem - b.ordem);
-  const counts = orderedStages.map((s) => ({
-    stage: s,
-    total: data.leads.filter((l) => l.crm_stage_id === s.id).length,
-  }));
-  const max = Math.max(1, ...counts.map((c) => c.total));
+function JourneyFunnelPanel({ counts }: { counts: ReportData["journey"] }) {
+  const rows = [
+    { label: "Leads recebidos", value: counts.received, color: "bg-[#C14F21]" },
+    { label: "Engajaram com a IA", value: counts.engaged, color: "bg-[#C14F21]" },
+    { label: "Leads quentes", value: counts.hot, color: "bg-[#C14F21]" },
+    { label: "Enviados ao corretor / CRM", value: counts.sentToCrm, color: "bg-[#2D7D52]" },
+    { label: "Visitas agendadas", value: counts.scheduled, color: "bg-[#2D7D52]" },
+  ];
+  const percentage = (value: number) => (counts.received ? (value / counts.received) * 100 : 0);
 
   return (
     <Card className="rounded-2xl">
-      <CardHeader>
-        <CardTitle>Funil de Conversão entre Estágios</CardTitle>
+      <CardHeader className="pb-4">
+        <CardTitle>Funil da jornada</CardTitle>
+        <p className="text-sm text-muted-foreground">Consolidado do período</p>
       </CardHeader>
-      <CardContent className="space-y-2">
-        {counts.length === 0 && <p className="text-sm text-muted-foreground">Sem estágios cadastrados.</p>}
-        {counts.map((c, i) => {
-          const widthPct = 50 + ((c.total / max) * 50);
-          const next = counts[i + 1];
-          const advance = next ? (c.total ? (next.total / c.total) * 100 : 0) : null;
-          const lost = advance != null ? 100 - advance : null;
-          const color = STAGE_COLORS[Math.min(i, STAGE_COLORS.length - 1)];
-          const isLast = i === counts.length - 1;
-          const fill = isLast ? "#2D7D52" : color;
+      <CardContent className="space-y-4">
+        {rows.map((row) => {
+          const pct = percentage(row.value);
           return (
-            <div key={c.stage.id} className="flex flex-col items-center">
-              <div
-                title={`${c.stage.nome} · ${c.total} leads${advance != null ? ` · ${advance.toFixed(0)}% conversão · ${lost?.toFixed(0)}% perda` : ""}`}
-                className="rounded-lg px-4 py-3 text-center transition-all hover:brightness-110"
-                style={{
-                  width: `${widthPct}%`,
-                  background: `linear-gradient(135deg, ${fill}, ${fill}aa)`,
-                }}
-              >
-                <div className="text-sm font-semibold text-white">{c.stage.nome}</div>
-                <div className="text-xs text-white/90 mt-0.5">
-                  {c.total} leads
-                  {advance != null && (
-                    <span className="ml-2 opacity-90">
-                      · {advance.toFixed(0)}% avançaram · {lost?.toFixed(0)}% perdidos
-                    </span>
-                  )}
-                </div>
+            <div key={row.label} className="space-y-1.5">
+              <div className="flex items-center justify-between gap-3 text-sm font-medium">
+                <span>{row.label}</span>
+                <span className="text-muted-foreground">{row.value} · {pct.toFixed(1)}%</span>
               </div>
-              {next && (
-                <div className="my-1 text-[11px] font-semibold text-muted-foreground">
-                  ▼ {advance?.toFixed(0)}%
-                </div>
-              )}
+              <div className="h-2 overflow-hidden rounded-full bg-muted">
+                <div className={cn("h-full rounded-full transition-all", row.color)} style={{ width: `${pct}%` }} />
+              </div>
             </div>
           );
         })}
+        <p className="pt-1 text-xs text-muted-foreground">
+          Eventos posteriores são considerados para os leads recebidos neste período.
+        </p>
       </CardContent>
     </Card>
   );
 }
 
-/* -------------------- Panel 2: Channel -------------------- */
+/* Relatórios removidos: canal e tempo de fechamento.
 
 function ChannelPanel({ data }: { data: ReportData }) {
   const [mode, setMode] = useState<"table" | "chart">("table");
@@ -423,7 +458,7 @@ function ChannelPanel({ data }: { data: ReportData }) {
   );
 }
 
-/* -------------------- Panel 3: Closing Time -------------------- */
+// Panel 3: Closing Time
 
 function ClosingTimePanel({ data, range }: { data: ReportData; range: Range }) {
   const stageById = new Map(data.stages.map((s) => [s.id, s]));
@@ -500,6 +535,7 @@ function KpiMini({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
+*/
 
 
 /* -------------------- Panel 5: Empreendimentos -------------------- */
