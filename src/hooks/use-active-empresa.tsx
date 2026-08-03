@@ -34,15 +34,14 @@ export function ActiveEmpresaProvider({ children }: { children: ReactNode }) {
   const [activeEmpresaId, setActiveEmpresaIdState] = useState<number | null>(null);
 
   const { data: empresas = [], isLoading: loadingEmpresas } = useQuery({
-    enabled: !!me && (isSuperAdmin || !!allowed?.length),
+    enabled: !!allowed?.length,
     queryKey: ["active-empresa-options", me?.role, allowed],
     queryFn: async (): Promise<Empresa[]> => {
-      let query = supabase
+      const { data, error } = await supabase
         .from("empresa_dados")
         .select("id,nome")
+        .in("id", allowed ?? [])
         .order("nome");
-      if (!isSuperAdmin) query = query.in("id", allowed ?? []);
-      const { data, error } = await query;
       if (error) throw error;
       return (data ?? []) as Empresa[];
     },
@@ -50,7 +49,7 @@ export function ActiveEmpresaProvider({ children }: { children: ReactNode }) {
   });
 
   useEffect(() => {
-    if (!me || (!isSuperAdmin && !allowed)) return;
+    if (!me || !allowed) return;
 
     if (!isSuperAdmin) {
       setActiveEmpresaIdState(me.id_empresa ?? null);
