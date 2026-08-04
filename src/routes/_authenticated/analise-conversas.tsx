@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 
@@ -13,6 +13,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { calculateJourneyFunnel, createJourneySessionIds, type JourneyFunnelCounts } from "@/lib/journey-funnel";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/analise-conversas")({
@@ -23,89 +24,28 @@ type EmpreendimentoRow = Pick<Database["public"]["Tables"]["empreendimento"]["Ro
 type LeadRow = Pick<
   Database["public"]["Tables"]["lead"]["Row"],
   | "id"
-  | "id_empresa"
-  | "id_empreendimento"
-  | "empreendimento_em_foco_id"
-  | "empreendimento_em_foco_nome"
-  | "nome"
   | "numero"
-  | "email"
   | "qtd_interacoes"
   | "qualificado"
-  | "status"
   | "status_history"
   | "ativacao"
-  | "created_at"
-  | "updated_at"
-  | "last_message_timestamp"
-  | "ult_message"
 >;
-type ChatRow = Pick<Database["public"]["Tables"]["n8n_chat_conversas"]["Row"], "id" | "numero" | "type" | "message" | "time" | "created_at">;
-type AgendamentoRow = Pick<Database["public"]["Tables"]["agendamento"]["Row"], "id_lead" | "id_empresa" | "id_empreendimento" | "deleted_at">;
-type ClassificationRow = Pick<
-  Database["public"]["Tables"]["crm_conversation_classifications"]["Row"],
-  | "lead_id"
-  | "cliente_respondeu"
-  | "nao_respondeu_mais"
-  | "lead_desqualificado"
-  | "qualificado"
-  | "visita_agendada"
-  | "temperatura"
-  | "resumo"
-  | "classified_at"
+type CrmLeadRow = Pick<
+  Database["public"]["Tables"]["crm_leads"]["Row"],
+  "id" | "lead_id" | "telefone" | "lead_quente" | "id_empresa" | "id_empreendimento" | "created_at"
 >;
-
-type ConversationAnalysis = {
-  lead: LeadRow;
-  empreendimentoName: string;
-  sessionId: string;
-  messages: ChatRow[];
-  messageCount: number;
-  humanCount: number;
-  aiCount: number;
-  firstAt: string | null;
-  lastAt: string | null;
-  hasHuman: boolean;
-  noResponse: boolean;
-  qualified: boolean;
-  disqualified: boolean;
-  visitScheduled: boolean;
-  hasLabel: boolean;
-  classification: ClassificationRow | null;
-};
-
+type ChatRow = Pick<Database["public"]["Tables"]["n8n_chat_conversas"]["Row"], "numero" | "type">;
 const ALL = "all";
 const TYPE_ALL = "all";
 const TYPE_INBOUND = "inbound";
 const TYPE_ACTIVATION = "activation";
-
-function onlyDigits(value?: string | null) {
-  return (value ?? "").replace(/\D/g, "");
-}
-
-function phoneVariants(value?: string | null) {
-  const digits = onlyDigits(value);
-  if (!digits) return [];
-  const variants = new Set<string>([digits]);
-  if (digits.length > 11) variants.add(digits.slice(-11));
-  return [...variants];
-}
-
-function sessionIdForLead(lead: LeadRow) {
-  const phone = phoneVariants(lead.numero)[0];
-  return phone ? `${phone}${lead.id_empresa}` : "";
-}
-
-function parseDateValue(value?: string | null) {
-  if (!value) return null;
-  if (/^\d+$/.test(value)) {
-    const asNumber = Number(value);
-    const date = new Date(asNumber > 9_999_999_999 ? asNumber : asNumber * 1000);
-    return Number.isNaN(date.getTime()) ? null : date;
-  }
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date;
-}
+const emptyJourneyCounts: JourneyFunnelCounts = {
+  received: 0,
+  engaged: 0,
+  hot: 0,
+  sentToCrm: 0,
+  scheduled: 0,
+};
 
 function dateKey(date: Date) {
   const year = date.getFullYear();
@@ -133,10 +73,6 @@ function percentage(part: number, total: number) {
   return Math.round((part / total) * 100);
 }
 
-function historyIncludes(lead: LeadRow, term: string) {
-  return (lead.status_history ?? "").toLowerCase().includes(term.toLowerCase());
-}
-
 function chunk<T>(items: T[], size: number) {
   const chunks: T[][] = [];
   for (let index = 0; index < items.length; index += size) chunks.push(items.slice(index, index + size));
@@ -149,13 +85,19 @@ async function fetchMessages(sessionIds: string[]) {
   for (const group of chunk([...new Set(sessionIds)], 80)) {
     const { data, error } = await supabase
       .from("n8n_chat_conversas")
-      .select("id,numero,type,message,time,created_at")
+      .select("numero,type")
       .in("numero", group)
       .order("time", { ascending: true });
     if (error) throw error;
     rows.push(...((data ?? []) as ChatRow[]));
   }
   return rows;
+}
+
+function metadataEvent(metadata: unknown) {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return null;
+  const event = (metadata as { event?: unknown }).event;
+  return typeof event === "string" ? event : null;
 }
 
 function ConversationAnalysisPage() {
@@ -184,174 +126,138 @@ function ConversationAnalysisPage() {
   });
 
   const empreendimentos = empreendimentosQuery.data ?? [];
-  const empreendimentoNameById = useMemo(
-    () => new Map(empreendimentos.map((item) => [item.id, item.nome])),
-    [empreendimentos],
-  );
-
   const analysisQuery = useQuery({
     enabled: !!companyId && canView,
     queryKey: ["conversation-analysis", companyId, empreendimentoId, typeFilter, dateFrom, dateTo],
     queryFn: async () => {
-      if (!companyId) return [] as ConversationAnalysis[];
+      if (!companyId) return emptyJourneyCounts;
 
-      let leadQuery = supabase
-        .from("lead")
-        .select(
-          "id,id_empresa,id_empreendimento,empreendimento_em_foco_id,empreendimento_em_foco_nome,nome,numero,email,qtd_interacoes,qualificado,status,status_history,ativacao,created_at,updated_at,last_message_timestamp,ult_message",
-        )
+      let crmLeadQuery = supabase
+        .from("crm_leads")
+        .select("id,lead_id,telefone,lead_quente,id_empresa,id_empreendimento,created_at")
         .eq("id_empresa", companyId)
-        .order("updated_at", { ascending: false, nullsFirst: false })
+        .gte("created_at", `${dateFrom}T00:00:00`)
+        .lte("created_at", `${dateTo}T23:59:59.999`);
+      if (empreendimentoId !== ALL) crmLeadQuery = crmLeadQuery.eq("id_empreendimento", Number(empreendimentoId));
+
+      const { data: crmLeadRows, error: crmLeadError } = await crmLeadQuery;
+      if (crmLeadError) throw crmLeadError;
+
+      const cohort = (crmLeadRows ?? []) as CrmLeadRow[];
+      const legacyLeadsResult = await supabase
+        .from("lead")
+        .select("id,numero,qtd_interacoes,qualificado,status_history,ativacao")
+        .eq("id_empresa", companyId)
         .limit(1000);
+      if (legacyLeadsResult.error) throw legacyLeadsResult.error;
 
-      if (empreendimentoId !== ALL) {
-        leadQuery = leadQuery.or(
-          `id_empreendimento.eq.${empreendimentoId},empreendimento_em_foco_id.eq.${empreendimentoId}`,
-        );
-      }
-      if (typeFilter === TYPE_INBOUND) leadQuery = leadQuery.eq("ativacao", false);
-      if (typeFilter === TYPE_ACTIVATION) leadQuery = leadQuery.eq("ativacao", true);
-      if (dateFrom) leadQuery = leadQuery.gte("created_at", `${dateFrom}T00:00:00`);
-      if (dateTo) leadQuery = leadQuery.lte("created_at", `${dateTo}T23:59:59.999`);
-
-      const { data: leadRows, error: leadError } = await leadQuery;
-      if (leadError) throw leadError;
-
-      const leads = (leadRows ?? []) as LeadRow[];
-      const sessionIdByLeadId = new Map(
-        leads.map((lead) => [lead.id, sessionIdForLead(lead)]),
-      );
-      const sessionIds = [...sessionIdByLeadId.values()].filter(Boolean);
-      const messages = await fetchMessages(sessionIds);
-      const messagesBySession = new Map<string, ChatRow[]>();
-
-      for (const message of messages) {
-        if (!message.numero) continue;
-        const group = messagesBySession.get(message.numero) ?? [];
-        group.push(message);
-        messagesBySession.set(message.numero, group);
-      }
-
-      const leadIds = leads.map((lead) => lead.id);
-      let scheduledLeadIds = new Set<number>();
-      if (leadIds.length) {
-        const appointments: AgendamentoRow[] = [];
-        for (const group of chunk(leadIds, 100)) {
-          const { data: appointmentRows, error: appointmentError } = await supabase
-            .from("agendamento")
-            .select("id_lead,id_empresa,id_empreendimento,deleted_at")
-            .eq("id_empresa", companyId)
-            .is("deleted_at", null)
-            .in("id_lead", group);
-          if (appointmentError) throw appointmentError;
-          appointments.push(...((appointmentRows ?? []) as AgendamentoRow[]));
+      const legacyLeads = (legacyLeadsResult.data ?? []) as LeadRow[];
+      const legacyLeadById = new Map(legacyLeads.map((lead) => [lead.id, lead]));
+      const legacyLeadBySessionId = new Map<string, LeadRow>();
+      for (const legacyLead of legacyLeads) {
+        for (const sessionId of createJourneySessionIds(legacyLead.numero, companyId)) {
+          legacyLeadBySessionId.set(sessionId, legacyLead);
         }
-        scheduledLeadIds = new Set(appointments.map((appointment) => appointment.id_lead).filter((id): id is number => id != null));
       }
 
-      const classificationsByLead = new Map<number, ClassificationRow>();
-      if (leadIds.length) {
-        for (const group of chunk(leadIds, 100)) {
-          const { data: classificationRows, error: classificationError } = await supabase
+      const classificationsResult = legacyLeads.length
+        ? await supabase
             .from("crm_conversation_classifications")
-            .select(
-              "lead_id,cliente_respondeu,nao_respondeu_mais,lead_desqualificado,qualificado,visita_agendada,temperatura,resumo,classified_at",
-            )
+            .select("lead_id,cliente_respondeu,qualificado")
             .eq("id_empresa", companyId)
-            .in("lead_id", group);
-
-          if (classificationError) {
-            const errorCode = (classificationError as { code?: string }).code;
-            const message = classificationError.message ?? "";
-            if (errorCode === "42P01" || errorCode === "PGRST205" || message.includes("crm_conversation_classifications")) {
-              break;
-            }
-            throw classificationError;
-          }
-
-          for (const row of classificationRows ?? []) classificationsByLead.set(row.lead_id, row as ClassificationRow);
+            .in("lead_id", legacyLeads.map((lead) => lead.id))
+        : { data: [], error: null };
+      if (classificationsResult.error) {
+        const code = (classificationsResult.error as { code?: string }).code;
+        const message = classificationsResult.error.message ?? "";
+        if (code !== "42P01" && code !== "PGRST205" && !message.includes("crm_conversation_classifications")) {
+          throw classificationsResult.error;
         }
       }
 
-      return leads
-        .map((lead) => {
-          const sessionId = sessionIdByLeadId.get(lead.id) ?? "";
-          const leadMessages = messagesBySession.get(sessionId) ?? [];
-          const firstMessage = leadMessages[0];
-          const lastMessage = leadMessages.at(-1);
-          const firstAt = firstMessage?.time ?? firstMessage?.created_at ?? null;
-          const lastAt = lastMessage?.time ?? lastMessage?.created_at ?? lead.last_message_timestamp ?? lead.updated_at ?? lead.created_at;
-          const storedInteractionCount = Math.max(lead.qtd_interacoes ?? 0, 0);
-          const messageCount = leadMessages.length || storedInteractionCount;
-          const humanCount = leadMessages.filter((message) => message.type === "human").length;
-          const aiCount = leadMessages.filter((message) => message.type === "ai").length;
-          const lastMessageFromHuman = String(lastMessage?.type ?? "").toLowerCase() === "human";
-          const classification = classificationsByLead.get(lead.id) ?? null;
-          const fallbackHasHuman = humanCount > 0 || storedInteractionCount >= 2;
-          const qualified =
-            Boolean(classification?.qualificado) ||
-            lead.qualificado === 1 ||
-            (historyIncludes(lead, "Qualificado") && !historyIncludes(lead, "Desqualificado"));
-          const disqualified =
-            Boolean(classification?.lead_desqualificado) ||
-            historyIncludes(lead, "Desqualificado") ||
-            historyIncludes(lead, "Perdido");
-          const visitScheduled =
-            Boolean(classification?.visita_agendada) ||
-            scheduledLeadIds.has(lead.id) ||
-            historyIncludes(lead, "Visita Agendada");
-          const hasHuman = Boolean(classification?.cliente_respondeu) || fallbackHasHuman;
-          const noResponse =
-            hasHuman &&
-            !lastMessageFromHuman &&
-            !qualified &&
-            !disqualified &&
-            !visitScheduled &&
-            (classification ? classification.nao_respondeu_mais : true);
-          const hasLabel = Boolean(classification || lead.status_history || qualified || disqualified || visitScheduled);
-          const empreendimentoName =
-            (lead.id_empreendimento ? empreendimentoNameById.get(lead.id_empreendimento) : null) ??
-            (lead.empreendimento_em_foco_id ? empreendimentoNameById.get(lead.empreendimento_em_foco_id) : null) ??
-            lead.empreendimento_em_foco_nome ??
-            "Sem empreendimento";
+      const classifiedResponseLeadIds = new Set(
+        (classificationsResult.data ?? [])
+          .filter((classification) => classification.cliente_respondeu)
+          .map((classification) => classification.lead_id),
+      );
+      const classifiedQualifiedLeadIds = new Set(
+        (classificationsResult.data ?? [])
+          .filter((classification) => classification.qualificado)
+          .map((classification) => classification.lead_id),
+      );
+      const mappedLeads = cohort.map((lead) => {
+        const legacyLead =
+          (lead.lead_id === null ? null : legacyLeadById.get(lead.lead_id)) ??
+          createJourneySessionIds(lead.telefone, lead.id_empresa)
+            .map((sessionId) => legacyLeadBySessionId.get(sessionId))
+            .find(Boolean) ??
+          null;
+        const history = legacyLead?.status_history?.toLowerCase() ?? "";
 
-          return {
-            lead,
-            empreendimentoName,
-            sessionId,
-            messages: leadMessages,
-            messageCount,
-            humanCount,
-            aiCount,
-            firstAt,
-            lastAt,
-            hasHuman,
-            noResponse,
-            qualified,
-            disqualified,
-            visitScheduled,
-            hasLabel,
-            classification,
-          };
-        })
-        .sort((a, b) => (parseDateValue(b.lead.created_at)?.getTime() ?? 0) - (parseDateValue(a.lead.created_at)?.getTime() ?? 0));
+        return {
+          id: lead.id,
+          leadId: lead.lead_id,
+          telefones: [legacyLead?.numero, lead.telefone],
+          idEmpresa: lead.id_empresa,
+          leadQuente: lead.lead_quente,
+          legacyEngaged:
+            Boolean(legacyLead && classifiedResponseLeadIds.has(legacyLead.id)) ||
+            (legacyLead?.qtd_interacoes ?? 0) >= 2,
+          legacyQualified:
+            Boolean(legacyLead && classifiedQualifiedLeadIds.has(legacyLead.id)) ||
+            legacyLead?.qualificado === 1 ||
+            (history.includes("qualificado") && !history.includes("desqualificado")),
+          ativacao: legacyLead?.ativacao,
+        };
+      });
+      const journeyLeads = mappedLeads.filter((lead) =>
+        typeFilter === TYPE_ALL ||
+        (typeFilter === TYPE_INBOUND ? lead.ativacao === false : lead.ativacao === true),
+      );
+      const sessionIds = [
+        ...new Set(
+          journeyLeads.flatMap((lead) =>
+            lead.telefones.flatMap((telefone) => createJourneySessionIds(telefone, lead.idEmpresa)),
+          ),
+        ),
+      ];
+      const crmLeadIds = journeyLeads.map((lead) => lead.id);
+      const legacyLeadIds = journeyLeads.flatMap((lead) => lead.leadId === null ? [] : [lead.leadId]);
+      const [messages, activitiesResult, appointmentsResult] = await Promise.all([
+        fetchMessages(sessionIds),
+        crmLeadIds.length
+          ? supabase.from("crm_lead_activities").select("lead_id,metadata,descricao").in("lead_id", crmLeadIds)
+          : Promise.resolve({ data: [], error: null }),
+        legacyLeadIds.length
+          ? supabase
+              .from("agendamento")
+              .select("id_lead")
+              .eq("id_empresa", companyId)
+              .is("deleted_at", null)
+              .in("id_lead", legacyLeadIds)
+          : Promise.resolve({ data: [], error: null }),
+      ]);
+      if (activitiesResult.error) throw activitiesResult.error;
+      if (appointmentsResult.error) throw appointmentsResult.error;
+
+      return calculateJourneyFunnel({
+        leads: journeyLeads,
+        messages: messages.flatMap((message) =>
+          message.numero ? [{ sessionId: message.numero, type: message.type }] : [],
+        ),
+        activities: (activitiesResult.data ?? []).map((activity) => ({
+          leadId: activity.lead_id,
+          event: metadataEvent(activity.metadata),
+          descricao: activity.descricao,
+        })),
+        appointments: (appointmentsResult.data ?? []).flatMap((appointment) =>
+          appointment.id_lead === null ? [] : [{ legacyLeadId: appointment.id_lead }],
+        ),
+      });
     },
   });
 
-  const conversations = analysisQuery.data ?? [];
-  const totals = useMemo(() => {
-    const total = conversations.length;
-    const engaged = conversations.filter((item) => item.hasHuman).length;
-    const hot = conversations.filter((item) => item.qualified).length;
-    const scheduled = conversations.filter((item) => item.visitScheduled).length;
-
-    return {
-      total,
-      engaged,
-      hot,
-      scheduled,
-    };
-  }, [conversations]);
+  const totals = analysisQuery.data ?? emptyJourneyCounts;
 
   const selectedCompanyName = activeEmpresa?.nome ?? "empresa";
   const selectedEmpreendimentoName =
@@ -487,28 +393,40 @@ function ConversationAnalysisPage() {
             <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-8 text-center text-sm text-destructive">
               Erro ao carregar os dados da análise.
             </div>
-          ) : totals.total === 0 ? (
+          ) : totals.received === 0 ? (
             <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
               Nenhum lead encontrado para os filtros selecionados.
             </div>
           ) : (
             <>
               <FunnelMetricRow
+                label="Leads recebidos"
+                value={totals.received}
+                total={totals.received}
+                color="bg-[#C14F21]"
+              />
+              <FunnelMetricRow
                 label="Interagiram com a IA"
                 value={totals.engaged}
-                total={totals.total}
+                total={totals.received}
                 color="bg-[#C14F21]"
               />
               <FunnelMetricRow
                 label="Leads quentes"
                 value={totals.hot}
-                total={totals.total}
+                total={totals.received}
                 color="bg-[#C14F21]"
+              />
+              <FunnelMetricRow
+                label="Enviados ao corretor / CRM"
+                value={totals.sentToCrm}
+                total={totals.received}
+                color="bg-[#2D7D52]"
               />
               <FunnelMetricRow
                 label="Visitas agendadas"
                 value={totals.scheduled}
-                total={totals.total}
+                total={totals.received}
                 color="bg-[#2D7D52]"
               />
             </>
