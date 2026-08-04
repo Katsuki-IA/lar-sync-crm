@@ -143,16 +143,6 @@ function chunk<T>(items: T[], size: number) {
   return chunks;
 }
 
-function withinDateRange(value: string | null, from: string, to: string) {
-  const date = parseDateValue(value);
-  if (!date) return false;
-  const start = from ? new Date(`${from}T00:00:00`) : null;
-  const end = to ? new Date(`${to}T23:59:59.999`) : null;
-  if (start && date < start) return false;
-  if (end && date > end) return false;
-  return true;
-}
-
 async function fetchMessages(sessionIds: string[]) {
   if (!sessionIds.length) return [];
   const rows: ChatRow[] = [];
@@ -221,6 +211,8 @@ function ConversationAnalysisPage() {
       }
       if (typeFilter === TYPE_INBOUND) leadQuery = leadQuery.eq("ativacao", false);
       if (typeFilter === TYPE_ACTIVATION) leadQuery = leadQuery.eq("ativacao", true);
+      if (dateFrom) leadQuery = leadQuery.gte("created_at", `${dateFrom}T00:00:00`);
+      if (dateTo) leadQuery = leadQuery.lte("created_at", `${dateTo}T23:59:59.999`);
 
       const { data: leadRows, error: leadError } = await leadQuery;
       if (leadError) throw leadError;
@@ -342,8 +334,7 @@ function ConversationAnalysisPage() {
             classification,
           };
         })
-        .filter((item) => withinDateRange(item.lastAt, dateFrom, dateTo))
-        .sort((a, b) => (parseDateValue(b.lastAt)?.getTime() ?? 0) - (parseDateValue(a.lastAt)?.getTime() ?? 0));
+        .sort((a, b) => (parseDateValue(b.lead.created_at)?.getTime() ?? 0) - (parseDateValue(a.lead.created_at)?.getTime() ?? 0));
     },
   });
 
