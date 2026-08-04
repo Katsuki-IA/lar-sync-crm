@@ -24,7 +24,7 @@ export function AppSidebar() {
     { title: "Leads", url: "/leads", match: "/leads", icon: Users },
     { title: "Conversas", url: "/conversas", match: "/conversas", icon: MessagesSquare },
     ...(me?.role === "manager" || me?.role === "super_admin"
-      ? [{ title: "Análise", url: "/analise-conversas", match: "/analise-conversas", icon: ChartNoAxesCombined }]
+      ? [{ title: "Análise de Funil", url: "/analise-conversas", match: "/analise-conversas", icon: ChartNoAxesCombined }]
       : []),
     { title: "Relatórios", url: "/relatorios", match: "/relatorios", icon: BarChart2 },
   ];

@@ -1,32 +1,19 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import {
-  BarChart3,
-  CalendarIcon,
-  Download,
-  Loader2,
-  MessageCircle,
-  Send,
-  Sparkles,
-  Tags,
-  TrendingUp,
-  type LucideIcon,
-} from "lucide-react";
+import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { useActiveEmpresa } from "@/hooks/use-active-empresa";
 import { useCrmUser } from "@/hooks/use-crm-user";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/analise-conversas")({
   component: ConversationAnalysisPage,
@@ -184,7 +171,6 @@ async function fetchMessages(sessionIds: string[]) {
 function ConversationAnalysisPage() {
   const { data: me } = useCrmUser();
   const { activeEmpresaId: companyId, activeEmpresa, isSuperAdmin } = useActiveEmpresa();
-  const queryClient = useQueryClient();
   const canView = me?.role === "manager" || me?.role === "super_admin";
   const [empreendimentoId, setEmpreendimentoId] = useState<string>(ALL);
   const [typeFilter, setTypeFilter] = useState<string>(TYPE_ALL);
@@ -240,10 +226,10 @@ function ConversationAnalysisPage() {
       if (leadError) throw leadError;
 
       const leads = (leadRows ?? []) as LeadRow[];
-      const leadsWithSession = leads
-        .map((lead) => ({ lead, sessionId: sessionIdForLead(lead) }))
-        .filter((item) => item.sessionId);
-      const sessionIds = leadsWithSession.map((item) => item.sessionId);
+      const sessionIdByLeadId = new Map(
+        leads.map((lead) => [lead.id, sessionIdForLead(lead)]),
+      );
+      const sessionIds = [...sessionIdByLeadId.values()].filter(Boolean);
       const messages = await fetchMessages(sessionIds);
       const messagesBySession = new Map<string, ChatRow[]>();
 
@@ -295,8 +281,9 @@ function ConversationAnalysisPage() {
         }
       }
 
-      return leadsWithSession
-        .map(({ lead, sessionId }) => {
+      return leads
+        .map((lead) => {
+          const sessionId = sessionIdByLeadId.get(lead.id) ?? "";
           const leadMessages = messagesBySession.get(sessionId) ?? [];
           const firstMessage = leadMessages[0];
           const lastMessage = leadMessages.at(-1);
@@ -363,23 +350,14 @@ function ConversationAnalysisPage() {
   const conversations = analysisQuery.data ?? [];
   const totals = useMemo(() => {
     const total = conversations.length;
-    const messages = conversations.reduce((sum, item) => sum + item.messageCount, 0);
-    const withLabel = conversations.filter((item) => item.hasLabel).length;
-    const responded = conversations.filter((item) => item.hasHuman).length;
-    const noResponse = conversations.filter((item) => item.noResponse).length;
-    const disqualified = conversations.filter((item) => item.disqualified).length;
-    const qualified = conversations.filter((item) => item.qualified).length;
+    const engaged = conversations.filter((item) => item.hasHuman).length;
+    const hot = conversations.filter((item) => item.qualified).length;
     const scheduled = conversations.filter((item) => item.visitScheduled).length;
 
     return {
       total,
-      messages,
-      withLabel,
-      withoutLabel: Math.max(total - withLabel, 0),
-      responded,
-      noResponse,
-      disqualified,
-      qualified,
+      engaged,
+      hot,
       scheduled,
     };
   }, [conversations]);
@@ -389,52 +367,6 @@ function ConversationAnalysisPage() {
     empreendimentoId === ALL
       ? "todos os empreendimentos"
       : empreendimentos.find((item) => String(item.id) === empreendimentoId)?.nome ?? "empreendimento";
-  const classifyLimit = Math.min(30, totals.withoutLabel);
-  const visitScheduledGoalMet = percentage(totals.scheduled, Math.max(totals.qualified, 1)) > 30;
-
-  const classifyMutation = useMutation({
-    mutationFn: async () => {
-      if (!companyId) throw new Error("Selecione uma empresa antes de classificar.");
-
-      const { data, error } = await supabase.functions.invoke("conversation-analysis-classify", {
-        body: {
-          idEmpresa: companyId,
-          empreendimentoId: empreendimentoId === ALL ? null : Number(empreendimentoId),
-          typeFilter,
-          dateFrom,
-          dateTo,
-          limit: 30,
-        },
-      });
-
-      if (error) {
-        let message = error.message || "Falha ao classificar conversas.";
-        const context = (error as { context?: Response }).context;
-        if (context) {
-          try {
-            const payload = await context.clone().json();
-            if (payload?.error) message = payload.error;
-          } catch {
-            // Keep the original Supabase Functions error message.
-          }
-        }
-        throw new Error(message);
-      }
-
-      return data as { processed?: number; classified?: number; errors?: string[] };
-    },
-    onSuccess: async (result) => {
-      const count = result.classified ?? result.processed ?? 0;
-      toast.success(`${formatInteger(count)} conversa(s) classificada(s).`);
-      if (result.errors?.length) {
-        toast.warning(`Algumas conversas usaram regras locais: ${result.errors.slice(0, 2).join(" | ")}`);
-      }
-      await queryClient.invalidateQueries({ queryKey: ["conversation-analysis"] });
-    },
-    onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Falha ao classificar conversas.");
-    },
-  });
 
   if (me && !canView) {
     return (
@@ -448,14 +380,11 @@ function ConversationAnalysisPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Análise de Conversas</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Análise de Funil</h1>
           <p className="text-sm text-muted-foreground">
-            Análise de {selectedEmpreendimentoName} em {selectedCompanyName}.
+            Análise de leads de {selectedEmpreendimentoName} em {selectedCompanyName}.
           </p>
         </div>
-        <Badge variant="outline" className="w-fit bg-background">
-          {formatInteger(totals.total)} conversa{totals.total === 1 ? "" : "s"}
-        </Badge>
       </div>
 
       <Card className="rounded-xl">
@@ -551,46 +480,12 @@ function ConversationAnalysisPage() {
             </label>
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              disabled={!companyId || analysisQuery.isLoading || classifyMutation.isPending || classifyLimit === 0}
-              onClick={() => classifyMutation.mutate()}
-            >
-              {classifyMutation.isPending ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Sparkles className="mr-2 h-4 w-4" />
-              )}
-              {classifyMutation.isPending
-                ? "Classificando..."
-                : classifyLimit
-                  ? `Classificar ${formatInteger(classifyLimit)} conversa(s) com IA`
-                  : "Conversas classificadas"}
-            </Button>
-            <Button type="button" variant="outline" disabled>
-              <Download className="mr-2 h-4 w-4" />
-              Exportar relatório
-            </Button>
-            <Button type="button" variant="outline" disabled>
-              <Send className="mr-2 h-4 w-4" />
-              Enviar por WhatsApp
-            </Button>
-          </div>
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard icon={MessageCircle} label="Total Conversas" value={totals.total} />
-        <MetricCard icon={TrendingUp} label="Total Mensagens" value={totals.messages} />
-        <MetricCard icon={Tags} label="Com etiqueta" value={totals.withLabel} />
-        <MetricCard icon={BarChart3} label="Sem etiqueta" value={totals.withoutLabel} />
-      </div>
-
       <Card className="rounded-xl">
         <CardHeader>
-          <CardTitle className="text-base">Desdobramento de Conversas</CardTitle>
+          <CardTitle className="text-base">Desdobramento do Funil</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
           {analysisQuery.isLoading ? (
@@ -603,48 +498,28 @@ function ConversationAnalysisPage() {
             </div>
           ) : totals.total === 0 ? (
             <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
-              Nenhuma conversa encontrada para os filtros selecionados.
+              Nenhum lead encontrado para os filtros selecionados.
             </div>
           ) : (
             <>
-              <BreakdownRow
-                label="Cliente respondeu"
-                value={totals.responded}
+              <FunnelMetricRow
+                label="Interagiram com a IA"
+                value={totals.engaged}
                 total={totals.total}
-                goalText="META >= 50%"
-                goalMet={percentage(totals.responded, totals.total) >= 50}
+                color="bg-[#C14F21]"
               />
-              <BreakdownRow
-                label="Não respondeu mais"
-                value={totals.noResponse}
+              <FunnelMetricRow
+                label="Leads quentes"
+                value={totals.hot}
                 total={totals.total}
-                goalText="META < 30%"
-                goalMet={percentage(totals.noResponse, totals.total) < 30}
+                color="bg-[#C14F21]"
               />
-              <BreakdownRow
-                label="Lead desqualificado"
-                value={totals.disqualified}
+              <FunnelMetricRow
+                label="Visitas agendadas"
+                value={totals.scheduled}
                 total={totals.total}
-                goalText="META < 20%"
-                goalMet={percentage(totals.disqualified, totals.total) < 20}
+                color="bg-[#2D7D52]"
               />
-              <BreakdownRow
-                label="Qualificado"
-                value={totals.qualified}
-                total={totals.total}
-                goalText="META > 50%"
-                goalMet={percentage(totals.qualified, totals.total) > 50}
-              />
-              <div className={cn("border-l-2 pl-4", visitScheduledGoalMet ? "border-green-500" : "border-red-500")}>
-                <BreakdownRow
-                  label="Visita agendada"
-                  value={totals.scheduled}
-                  total={Math.max(totals.qualified, 1)}
-                  countText={`${totals.scheduled} — dos qualificados`}
-                  goalText="META > 30%"
-                  goalMet={visitScheduledGoalMet}
-                />
-              </div>
             </>
           )}
         </CardContent>
@@ -662,55 +537,30 @@ function LabeledSelect({ label, children }: { label: string; children: ReactNode
   );
 }
 
-function MetricCard({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: number }) {
-  return (
-    <Card className="rounded-xl">
-      <CardContent className="flex items-center gap-4 p-5">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-          <Icon className="h-5 w-5" />
-        </div>
-        <div>
-          <p className="text-sm text-muted-foreground">{label}</p>
-          <p className="text-2xl font-semibold">{formatInteger(value)}</p>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function BreakdownRow({
+function FunnelMetricRow({
   label,
   value,
   total,
-  goalText,
-  countText,
-  goalMet,
+  color,
 }: {
   label: string;
   value: number;
   total: number;
-  goalText: string;
-  countText?: string;
-  goalMet: boolean;
+  color: string;
 }) {
   const pct = percentage(value, total);
-  const color = goalMet ? "bg-green-500" : "bg-purple-500";
-  const textColor = goalMet ? "text-green-600" : "text-purple-600";
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <span className={cn("h-3 w-3 rounded-full", color)} />
-          <span className="font-medium">{label}</span>
-          <span className="text-xs text-muted-foreground">({goalText})</span>
-        </div>
+      <div className="flex items-center justify-between gap-4">
+        <span className="font-medium">{label}</span>
         <div className="text-sm text-muted-foreground">
-          <span className={cn("mr-2 text-lg font-semibold", textColor)}>{pct}%</span>
-          ({countText ?? `${value} de ${total}`})
+          <span className="text-lg font-semibold text-foreground">{formatInteger(value)}</span>
+          {" · "}
+          {pct}%
         </div>
       </div>
-      <div className="h-6 overflow-hidden rounded-full bg-muted">
+      <div className="h-2 overflow-hidden rounded-full bg-muted">
         <div className={cn("h-full rounded-full", color)} style={{ width: `${Math.min(pct, 100)}%` }} />
       </div>
     </div>
