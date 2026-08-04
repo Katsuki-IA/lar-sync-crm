@@ -5,6 +5,7 @@ export type JourneyFunnelLead = {
   idEmpresa: number;
   leadQuente: boolean | null;
   legacyEngaged?: boolean;
+  legacyQualified?: boolean;
 };
 
 export type JourneyFunnelInput = {
@@ -83,7 +84,7 @@ export function calculateJourneyFunnel({
 
       counts.received += 1;
       if (hasHumanMessage) counts.engaged += 1;
-      if (lead.leadQuente) counts.hot += 1;
+      if (lead.leadQuente || lead.legacyQualified) counts.hot += 1;
       if (sentToCrmLeadIds.has(lead.id)) counts.sentToCrm += 1;
       if (lead.leadId !== null && scheduledLegacyLeadIds.has(lead.leadId)) {
         counts.scheduled += 1;

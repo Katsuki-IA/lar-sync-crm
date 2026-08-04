@@ -115,14 +115,14 @@ function ReportsPage() {
       const crmLeadIds = cohort.map((lead) => lead.id);
       const legacyLeadIds = cohort.flatMap((lead) => (lead.lead_id === null ? [] : [lead.lead_id]));
       const legacyLeadsResult = legacyLeadIds.length
-        ? await supabase.from("lead").select("id,numero,qtd_interacoes").in("id", legacyLeadIds)
+        ? await supabase.from("lead").select("id,numero,qtd_interacoes,qualificado,status_history").in("id", legacyLeadIds)
         : { data: [], error: null };
       if (legacyLeadsResult.error) throw legacyLeadsResult.error;
 
       const classificationsResult = legacyLeadIds.length
         ? await supabase
-            .from("crm_conversation_classifications")
-            .select("lead_id,cliente_respondeu")
+          .from("crm_conversation_classifications")
+            .select("lead_id,cliente_respondeu,qualificado")
             .eq("id_empresa", activeEmpresaId!)
             .in("lead_id", legacyLeadIds)
         : { data: [], error: null };
@@ -142,19 +142,30 @@ function ReportsPage() {
           .filter((classification) => classification.cliente_respondeu)
           .map((classification) => classification.lead_id),
       );
-      const journeyLeads = cohort.map((lead) => ({
-        id: lead.id,
-        leadId: lead.lead_id,
-        telefones: [
-          lead.lead_id === null ? null : legacyLeadById.get(lead.lead_id)?.numero,
-          lead.telefone,
-        ],
-        idEmpresa: lead.id_empresa,
-        leadQuente: lead.lead_quente,
-        legacyEngaged:
-          (lead.lead_id !== null && classifiedResponseLeadIds.has(lead.lead_id)) ||
-          (lead.lead_id !== null && (legacyLeadById.get(lead.lead_id)?.qtd_interacoes ?? 0) >= 2),
-      }));
+      const classifiedQualifiedLeadIds = new Set(
+        (classificationsResult.data ?? [])
+          .filter((classification) => classification.qualificado)
+          .map((classification) => classification.lead_id),
+      );
+      const journeyLeads = cohort.map((lead) => {
+        const legacyLead = lead.lead_id === null ? null : legacyLeadById.get(lead.lead_id);
+        const history = legacyLead?.status_history?.toLowerCase() ?? "";
+
+        return {
+          id: lead.id,
+          leadId: lead.lead_id,
+          telefones: [legacyLead?.numero, lead.telefone],
+          idEmpresa: lead.id_empresa,
+          leadQuente: lead.lead_quente,
+          legacyEngaged:
+            (lead.lead_id !== null && classifiedResponseLeadIds.has(lead.lead_id)) ||
+            (legacyLead?.qtd_interacoes ?? 0) >= 2,
+          legacyQualified:
+            (lead.lead_id !== null && classifiedQualifiedLeadIds.has(lead.lead_id)) ||
+            legacyLead?.qualificado === 1 ||
+            (history.includes("qualificado") && !history.includes("desqualificado")),
+        };
+      });
       const sessionIds = [
         ...new Set(
           journeyLeads.flatMap((lead) =>

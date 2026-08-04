@@ -100,4 +100,24 @@ describe("journey funnel", () => {
 
     expect(result.engaged).toBe(1);
   });
+
+  it("counts a legacy qualified lead as hot even without the CRM flag", () => {
+    const result = calculateJourneyFunnel({
+      leads: [
+        {
+          id: 1,
+          leadId: 101,
+          telefones: [],
+          idEmpresa: 9,
+          leadQuente: false,
+          legacyQualified: true,
+        },
+      ],
+      messages: [],
+      activities: [],
+      appointments: [],
+    });
+
+    expect(result.hot).toBe(1);
+  });
 });
