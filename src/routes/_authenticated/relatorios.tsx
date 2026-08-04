@@ -113,11 +113,15 @@ function ReportsPage() {
 
       const cohort = leads ?? [];
       const crmLeadIds = cohort.map((lead) => lead.id);
-      const legacyLeadIds = cohort.flatMap((lead) => (lead.lead_id === null ? [] : [lead.lead_id]));
-      const legacyLeadsResult = legacyLeadIds.length
-        ? await supabase.from("lead").select("id,numero,qtd_interacoes,qualificado,status_history").in("id", legacyLeadIds)
-        : { data: [], error: null };
+      const cohortLegacyLeadIds = cohort.flatMap((lead) => (lead.lead_id === null ? [] : [lead.lead_id]));
+      const legacyLeadsResult = await supabase
+        .from("lead")
+        .select("id,numero,qtd_interacoes,qualificado,status_history")
+        .eq("id_empresa", activeEmpresaId!)
+        .limit(1000);
       if (legacyLeadsResult.error) throw legacyLeadsResult.error;
+
+      const legacyLeadIds = (legacyLeadsResult.data ?? []).map((lead) => lead.id);
 
       const classificationsResult = legacyLeadIds.length
         ? await supabase
@@ -137,6 +141,12 @@ function ReportsPage() {
       const legacyLeadById = new Map(
         (legacyLeadsResult.data ?? []).map((lead) => [lead.id, lead]),
       );
+      const legacyLeadBySessionId = new Map<string, NonNullable<typeof legacyLeadsResult.data>[number]>();
+      for (const legacyLead of legacyLeadsResult.data ?? []) {
+        for (const sessionId of createJourneySessionIds(legacyLead.numero, activeEmpresaId!)) {
+          legacyLeadBySessionId.set(sessionId, legacyLead);
+        }
+      }
       const classifiedResponseLeadIds = new Set(
         (classificationsResult.data ?? [])
           .filter((classification) => classification.cliente_respondeu)
@@ -148,7 +158,12 @@ function ReportsPage() {
           .map((classification) => classification.lead_id),
       );
       const journeyLeads = cohort.map((lead) => {
-        const legacyLead = lead.lead_id === null ? null : legacyLeadById.get(lead.lead_id);
+        const legacyLead =
+          (lead.lead_id === null ? null : legacyLeadById.get(lead.lead_id)) ??
+          createJourneySessionIds(lead.telefone, lead.id_empresa)
+            .map((sessionId) => legacyLeadBySessionId.get(sessionId))
+            .find(Boolean) ??
+          null;
         const history = legacyLead?.status_history?.toLowerCase() ?? "";
 
         return {
@@ -157,11 +172,11 @@ function ReportsPage() {
           telefones: [legacyLead?.numero, lead.telefone],
           idEmpresa: lead.id_empresa,
           leadQuente: lead.lead_quente,
-          legacyEngaged:
-            (lead.lead_id !== null && classifiedResponseLeadIds.has(lead.lead_id)) ||
-            (legacyLead?.qtd_interacoes ?? 0) >= 2,
-          legacyQualified:
-            (lead.lead_id !== null && classifiedQualifiedLeadIds.has(lead.lead_id)) ||
+        legacyEngaged:
+          Boolean(legacyLead && classifiedResponseLeadIds.has(legacyLead.id)) ||
+          (legacyLead?.qtd_interacoes ?? 0) >= 2,
+        legacyQualified:
+          Boolean(legacyLead && classifiedQualifiedLeadIds.has(legacyLead.id)) ||
             legacyLead?.qualificado === 1 ||
             (history.includes("qualificado") && !history.includes("desqualificado")),
         };
@@ -183,13 +198,13 @@ function ReportsPage() {
         crmLeadIds.length
           ? supabase.from("crm_lead_activities").select("lead_id,metadata,descricao").in("lead_id", crmLeadIds)
           : Promise.resolve({ data: [], error: null }),
-        legacyLeadIds.length
+        cohortLegacyLeadIds.length
           ? supabase
               .from("agendamento")
               .select("id_lead")
               .eq("id_empresa", activeEmpresaId!)
               .is("deleted_at", null)
-              .in("id_lead", legacyLeadIds)
+              .in("id_lead", cohortLegacyLeadIds)
           : Promise.resolve({ data: [], error: null }),
       ]);
 
