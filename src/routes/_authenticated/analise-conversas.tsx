@@ -1,8 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState, type ReactNode } from "react";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, MessageCircle } from "lucide-react";
 import { format } from "date-fns";
+import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
@@ -14,6 +16,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { calculateJourneyFunnel, createJourneySessionIds, type JourneyFunnelCounts } from "@/lib/journey-funnel";
+import { createJourneyFunnelReportImage } from "@/lib/journey-report-image";
+import { sendJourneyFunnelReport } from "@/lib/journey-report.functions";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/analise-conversas")({
@@ -103,6 +107,7 @@ function metadataEvent(metadata: unknown) {
 function ConversationAnalysisPage() {
   const { data: me } = useCrmUser();
   const { activeEmpresaId: companyId, activeEmpresa, isSuperAdmin } = useActiveEmpresa();
+  const sendReportFn = useServerFn(sendJourneyFunnelReport);
   const canView = me?.role === "manager" || me?.role === "super_admin";
   const [empreendimentoId, setEmpreendimentoId] = useState<string>(ALL);
   const [typeFilter, setTypeFilter] = useState<string>(TYPE_ALL);
@@ -115,6 +120,7 @@ function ConversationAnalysisPage() {
     enabled: !!companyId && canView,
     queryKey: ["analysis-empreendimentos", companyId],
     queryFn: async () => {
+      if (!companyId) return [] as EmpreendimentoRow[];
       const { data, error } = await supabase
         .from("empreendimento")
         .select("id,nome,id_empresa")
@@ -264,6 +270,34 @@ function ConversationAnalysisPage() {
     empreendimentoId === ALL
       ? "todos os empreendimentos"
       : empreendimentos.find((item) => String(item.id) === empreendimentoId)?.nome ?? "empreendimento";
+  const selectedTypeLabel = typeFilter === TYPE_ALL ? "Todos os tipos" : typeFilter === TYPE_INBOUND ? "Atendimento" : "Ativação";
+  const sendReportMutation = useMutation({
+    mutationFn: async () => {
+      if (!companyId || totals.received === 0) throw new Error("Não há leads para enviar neste período.");
+      const imageDataUrl = await createJourneyFunnelReportImage({
+        companyName: selectedCompanyName,
+        empreendimentoName: selectedEmpreendimentoName,
+        typeLabel: selectedTypeLabel,
+        dateFrom,
+        dateTo,
+        counts: totals,
+      });
+      return sendReportFn({
+        data: {
+          companyId,
+          companyName: selectedCompanyName,
+          empreendimentoName: selectedEmpreendimentoName,
+          typeLabel: selectedTypeLabel,
+          dateFrom,
+          dateTo,
+          counts: totals,
+          imageDataUrl,
+        },
+      });
+    },
+    onSuccess: () => toast.success("Relatório enviado ao grupo de WhatsApp."),
+    onError: (error: Error) => toast.error(error.message || "Não foi possível enviar o relatório."),
+  });
 
   if (me && !canView) {
     return (
@@ -282,6 +316,14 @@ function ConversationAnalysisPage() {
             Análise de leads de {selectedEmpreendimentoName} em {selectedCompanyName}.
           </p>
         </div>
+        <Button
+          variant="outline"
+          onClick={() => sendReportMutation.mutate()}
+          disabled={!companyId || analysisQuery.isLoading || totals.received === 0 || sendReportMutation.isPending}
+        >
+          <MessageCircle className="mr-2 h-4 w-4 text-[#25D366]" />
+          {sendReportMutation.isPending ? "Enviando relatório..." : "Enviar relatório"}
+        </Button>
       </div>
 
       <Card className="rounded-xl">
