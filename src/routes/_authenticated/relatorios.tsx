@@ -25,6 +25,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
 import { calculateJourneyFunnel, createJourneySessionIds } from "@/lib/journey-funnel";
+import { formatLeadOrigin } from "@/lib/lead-origin";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/relatorios")({
@@ -95,7 +96,7 @@ function ReportsPage() {
 
       let lq = supabase
         .from("crm_leads")
-        .select("id, lead_id, telefone, lead_quente, id_empresa, nome, crm_stage_id, crm_assigned_to, id_empreendimento, status, created_at, updated_at")
+        .select("id, lead_id, telefone, lead_quente, id_empresa, nome, origem, crm_stage_id, crm_assigned_to, id_empreendimento, status, created_at, updated_at")
         .in("id_empresa", empresaIds)
         .gte("created_at", fromIso)
         .lte("created_at", toIso);
@@ -114,6 +115,19 @@ function ReportsPage() {
       const cohort = leads ?? [];
       const crmLeadIds = cohort.map((lead) => lead.id);
       const cohortLegacyLeadIds = cohort.flatMap((lead) => (lead.lead_id === null ? [] : [lead.lead_id]));
+      const attributionResults = (
+        await Promise.all(
+          chunk(crmLeadIds, 20).map((leadIdGroup) =>
+            Promise.all(
+              leadIdGroup.map(async (leadId) => {
+                const result = await supabase.rpc("crm_get_lead_attribution", { p_lead_id: leadId });
+                if (result.error) throw result.error;
+                return { leadId, attribution: result.data?.[0] ?? null };
+              }),
+            ),
+          ),
+        )
+      ).flat();
       const legacyLeadsResult = await supabase
         .from("lead")
         .select("id,numero,qtd_interacoes,qualificado,status_history")
@@ -234,6 +248,7 @@ function ReportsPage() {
         stages: stages ?? [],
         emps: emps ?? [],
         journey,
+        attributions: attributionResults,
       };
     },
   });
@@ -265,7 +280,7 @@ function ReportsPage() {
         </div>
       ) : (
         <div className="grid gap-4 lg:grid-cols-2">
-          <JourneyFunnelPanel counts={data.journey} />
+          <LeadAttributionPanel data={data} />
           <div className="lg:col-span-2">
             <EmpreendimentoPanel data={data} />
           </div>
@@ -335,7 +350,7 @@ function DatePick({ value, onChange, placeholder }: { value?: Date; onChange: (d
   );
 }
 
-/* -------------------- Panel 1: Funnel -------------------- */
+/* -------------------- Panel 1: Attribution -------------------- */
 
 type ReportData = {
   leads: Array<{
@@ -345,6 +360,7 @@ type ReportData = {
     lead_quente: boolean | null;
     id_empresa: number;
     nome: string;
+    origem: string | null;
     crm_stage_id: number | null;
     crm_assigned_to: string | null;
     id_empreendimento: number | null;
@@ -361,7 +377,99 @@ type ReportData = {
     sentToCrm: number;
     scheduled: number;
   };
+  attributions: Array<{
+    leadId: number;
+    attribution: {
+      source_type: string;
+      meta_campaign_name: string;
+      meta_ad_name: string;
+      utm_source: string;
+      utm_campaign: string;
+      utm_content: string;
+      gclid: string;
+    } | null;
+  }>;
 };
+
+function LeadAttributionPanel({ data }: { data: ReportData }) {
+  const attributionByLeadId = new Map(
+    data.attributions.map(({ leadId, attribution }) => [leadId, attribution]),
+  );
+  const rowsByAttribution = new Map<string, { origem: string; campanha: string; anuncio: string; leads: number }>();
+
+  for (const lead of data.leads) {
+    const attribution = attributionByLeadId.get(lead.id);
+    const origem = getAttributionOrigin(attribution, lead.origem);
+    const campanha = attribution?.meta_campaign_name || attribution?.utm_campaign || "Sem campanha identificada";
+    const anuncio = attribution?.meta_ad_name || attribution?.utm_content || "Sem anúncio identificado";
+    const key = `${origem}\u0000${campanha}\u0000${anuncio}`;
+    const current = rowsByAttribution.get(key) ?? { origem, campanha, anuncio, leads: 0 };
+    current.leads += 1;
+    rowsByAttribution.set(key, current);
+  }
+
+  const rows = [...rowsByAttribution.values()].sort((a, b) => b.leads - a.leads || a.origem.localeCompare(b.origem));
+  const total = data.leads.length;
+
+  return (
+    <Card className="rounded-2xl">
+      <CardHeader className="pb-4">
+        <CardTitle>Leads por origem e anúncio</CardTitle>
+        <p className="text-sm text-muted-foreground">Atribuição dos leads recebidos no período</p>
+      </CardHeader>
+      <CardContent>
+        {rows.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Nenhum lead recebido no período selecionado.</p>
+        ) : (
+          <div className="max-h-[360px] overflow-auto rounded-md border">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 bg-muted/90 text-left text-xs text-muted-foreground backdrop-blur">
+                <tr>
+                  <th className="px-3 py-2 font-medium">Origem</th>
+                  <th className="px-3 py-2 font-medium">Campanha / anúncio</th>
+                  <th className="px-3 py-2 text-right font-medium">Leads</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row) => (
+                  <tr key={`${row.origem}-${row.campanha}-${row.anuncio}`} className="border-t">
+                    <td className="px-3 py-2 align-top font-medium">{row.origem}</td>
+                    <td className="px-3 py-2 align-top">
+                      <p className="line-clamp-1">{row.campanha}</p>
+                      <p className="line-clamp-1 text-xs text-muted-foreground">{row.anuncio}</p>
+                    </td>
+                    <td className="px-3 py-2 text-right align-top tabular-nums">
+                      {row.leads} <span className="text-xs text-muted-foreground">({total ? ((row.leads / total) * 100).toFixed(1) : "0.0"}%)</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function getAttributionOrigin(
+  attribution: ReportData["attributions"][number]["attribution"],
+  fallbackOrigin: string | null,
+) {
+  if (attribution?.meta_campaign_name || attribution?.meta_ad_name) return "Meta Ads";
+  if (attribution?.gclid) return "Google Ads";
+  if (attribution?.utm_source) {
+    if (/google|adwords/i.test(attribution.utm_source)) return "Google Ads";
+    if (/meta|facebook|instagram/i.test(attribution.utm_source)) return "Meta Ads";
+    return attribution.utm_source;
+  }
+  if (attribution?.source_type) {
+    if (/meta/i.test(attribution.source_type)) return "Meta Ads";
+    if (/rd/i.test(attribution.source_type)) return "RD Station";
+    return attribution.source_type;
+  }
+  return formatLeadOrigin(fallbackOrigin);
+}
 
 function JourneyFunnelPanel({ counts }: { counts: ReportData["journey"] }) {
   const rows = [
