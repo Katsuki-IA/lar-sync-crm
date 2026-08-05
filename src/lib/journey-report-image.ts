@@ -70,7 +70,7 @@ export async function createJourneyFunnelReportImage(input: JourneyReportImageIn
     ctx.fillText(`${value} · ${percent}%`, endX, y);
     ctx.textAlign = "left";
 
-    const barY = y + 20;
+    const barY = y + 34;
     ctx.fillStyle = TRACK;
     ctx.beginPath();
     ctx.roundRect(startX, barY, trackWidth, 12, 6);
