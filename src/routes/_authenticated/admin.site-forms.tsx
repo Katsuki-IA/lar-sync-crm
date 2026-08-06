@@ -108,6 +108,11 @@ function AdminSiteFormsPage() {
     [empreendimentos, idEmpresa],
   );
 
+  const filteredSources = useMemo(
+    () => sources.filter((source) => String(source.id_empresa) === idEmpresa),
+    [sources, idEmpresa],
+  );
+
   useEffect(() => {
     if (!filteredEmpreendimentos.some((emp) => String(emp.id) === idEmpreendimento)) {
       setIdEmpreendimento(filteredEmpreendimentos[0] ? String(filteredEmpreendimentos[0].id) : "");
@@ -223,16 +228,20 @@ function AdminSiteFormsPage() {
               Cada fonte tem um token próprio e pode ser desativada sem afetar as demais.
             </p>
           </div>
-          {isLoading ? <Badge variant="secondary">Carregando</Badge> : <Badge variant="outline">{sources.length} fonte(s)</Badge>}
+          {isLoading ? (
+            <Badge variant="secondary">Carregando</Badge>
+          ) : (
+            <Badge variant="outline">{filteredSources.length} fonte(s)</Badge>
+          )}
         </div>
 
-        {sources.length === 0 ? (
+        {filteredSources.length === 0 ? (
           <div className="rounded-lg border border-dashed border-border py-10 text-center text-sm text-muted-foreground">
-            Nenhuma fonte criada ainda.
+            Nenhuma fonte criada para esta empresa.
           </div>
         ) : (
           <div className="space-y-3">
-            {sources.map((source) => (
+            {filteredSources.map((source) => (
               <SiteLeadSourceRow
                 key={source.id}
                 source={source}
