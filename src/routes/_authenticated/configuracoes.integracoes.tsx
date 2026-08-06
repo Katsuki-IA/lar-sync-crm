@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import {
   AlertTriangle,
   ArrowRight,
+  CheckCircle2,
   ChevronLeft,
   Facebook,
   Plug,
@@ -764,54 +765,58 @@ function IntegracoesPage() {
                       Nenhum formulário retornado para esta página.
                     </div>
                   ) : (
-                    selectedPageForms.map((form) => (
-                      <div
-                        key={form.id}
-                        className="grid grid-cols-[1fr_140px_132px] items-center gap-3 border-b px-4 py-3"
-                        style={{ borderColor: "var(--border)" }}
-                      >
-                        <div className="min-w-0">
-                          <div className="truncate text-sm font-medium text-foreground">
-                            {form.form_name ?? form.form_id}
-                          </div>
-                          <div className="truncate text-xs text-muted-foreground">
-                            {typeof form.leads_count === "number"
-                              ? `${form.leads_count} leads na Meta`
-                              : form.form_id}
-                          </div>
-                        </div>
-                        <div>
-                          {Number(form.mapped_fields_count ?? 0) >= 2 && form.id_empreendimento && form.id_funnel ? (
-                            <Badge
-                              className="border-0 text-[10px]"
-                              style={{
-                                backgroundColor: "var(--success-bg)",
-                                color: "var(--success)",
-                              }}
-                            >
-                              Concluído
-                            </Badge>
-                          ) : (
-                            <Badge
-                              className="border-0 text-[10px]"
-                              style={{
-                                backgroundColor: "var(--surface-2)",
-                                color: "var(--text-secondary)",
-                              }}
-                            >
-                              Pendente
-                            </Badge>
-                          )}
-                        </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleEditFormMapping(form)}
+                    selectedPageForms.map((form) => {
+                      const isConnected =
+                        Number(form.mapped_fields_count ?? 0) >= 2 &&
+                        Boolean(form.id_empreendimento) &&
+                        Boolean(form.id_funnel);
+
+                      return (
+                        <div
+                          key={form.id}
+                          className={`grid grid-cols-[1fr_140px_132px] items-center gap-3 border-b px-4 py-3 transition-colors ${
+                            isConnected ? "bg-emerald-50/70" : ""
+                          }`}
+                          style={{ borderColor: "var(--border)" }}
                         >
-                          Combinar campos
-                        </Button>
-                      </div>
-                    ))
+                          <div className="min-w-0">
+                            <div className="truncate text-sm font-medium text-foreground">
+                              {form.form_name ?? form.form_id}
+                            </div>
+                            <div className="truncate text-xs text-muted-foreground">
+                              {typeof form.leads_count === "number"
+                                ? `${form.leads_count} leads na Meta`
+                                : form.form_id}
+                            </div>
+                          </div>
+                          <div>
+                            {isConnected ? (
+                              <Badge className="w-fit gap-1 border border-emerald-200 bg-emerald-100 text-[10px] font-semibold text-emerald-700 hover:bg-emerald-100">
+                                <CheckCircle2 className="h-3 w-3" />
+                                Conectado
+                              </Badge>
+                            ) : (
+                              <Badge
+                                className="border-0 text-[10px]"
+                                style={{
+                                  backgroundColor: "var(--surface-2)",
+                                  color: "var(--text-secondary)",
+                                }}
+                              >
+                                Pendente
+                              </Badge>
+                            )}
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEditFormMapping(form)}
+                          >
+                            Combinar campos
+                          </Button>
+                        </div>
+                      );
+                    })
                   )}
                 </div>
               </>
