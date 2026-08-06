@@ -88,9 +88,6 @@ function GlobalFunnelPage() {
     }
   }
 
-  const selectedCompanyName =
-    companies.find((company: Empresa) => String(company.id) === selectedCompanyId)?.nome ?? null;
-
   const renameFunnel = useMutation({
     mutationFn: async () => {
       const next = prompt("Nome do funil global", data?.funnel.nome ?? "Funil padrão")?.trim();
@@ -165,9 +162,9 @@ function GlobalFunnelPage() {
         </Button>
       </div>
       <p className="mb-4 text-sm text-muted-foreground">As alterações abaixo são aplicadas a todas as empresas e também ao seed de novas empresas.</p>
-      <div className="mb-4 grid gap-3 md:grid-cols-[320px_1fr] md:items-end">
+      <div className="mb-4 max-w-xs">
         <div className="space-y-1.5">
-          <Label htmlFor="admin-stage-company">Empresa para ver ID local</Label>
+          <Label htmlFor="admin-stage-company">Empresa</Label>
           <Select value={selectedCompanyId} onValueChange={setSelectedCompanyId}>
             <SelectTrigger id="admin-stage-company" className="bg-white">
               <SelectValue placeholder="Selecionar empresa" />
@@ -181,12 +178,6 @@ function GlobalFunnelPage() {
             </SelectContent>
           </Select>
         </div>
-        <p className="text-sm text-muted-foreground">
-          Os IDs mostrados na listagem são globais. Para SQL e automações por empresa, use o ID local exibido para{" "}
-          <span className="font-medium text-foreground">
-            {selectedCompanyName ?? "a empresa selecionada"}
-          </span>.
-        </p>
       </div>
       {isLoading ? <p className="text-sm text-muted-foreground">Carregando...</p> : (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
@@ -197,7 +188,6 @@ function GlobalFunnelPage() {
                   key={stage.id}
                   stage={stage}
                   localStage={localStageMap.get(stage.id)}
-                  selectedCompanyId={selectedCompanyId}
                   disabled={reorder.isPending}
                   onEdit={() => { setEditing(stage); setName(stage.nome); setDialogOpen(true); }}
                   onDelete={() => { if (confirm(`Remover a etapa "${stage.nome}" de todas as empresas?`)) deleteStage.mutate(stage.id); }}
@@ -224,14 +214,12 @@ function GlobalFunnelPage() {
 function StageRow({
   stage,
   localStage,
-  selectedCompanyId,
   disabled,
   onEdit,
   onDelete,
 }: {
   stage: GlobalStage;
   localStage?: LocalStage;
-  selectedCompanyId: string;
   disabled: boolean;
   onEdit: () => void;
   onDelete: () => void;
@@ -242,23 +230,12 @@ function StageRow({
       <button ref={sortable.setActivatorNodeRef} type="button" className="cursor-grab touch-none rounded p-1 text-muted-foreground hover:bg-muted active:cursor-grabbing" {...sortable.attributes} {...sortable.listeners}>
         <GripVertical className="h-4 w-4" />
       </button>
-      <div className="w-28 space-y-1 text-xs text-muted-foreground">
-        <div className="font-mono">Global #{stage.id}</div>
-        {selectedCompanyId ? (
-          <div className="font-mono">
-            Local {localStage ? `#${localStage.id}` : "—"}
-          </div>
-        ) : null}
+      <div className="w-20 font-mono text-xs text-muted-foreground">
+        ID {localStage ? `#${localStage.id}` : "—"}
       </div>
       <div className="flex-1">
         <div className="text-sm font-medium">{stage.nome}</div>
-        {selectedCompanyId ? (
-          <div className="text-xs text-muted-foreground">
-            {localStage ? `ID usado pela empresa selecionada.` : "Etapa local ainda não sincronizada para esta empresa."}
-          </div>
-        ) : null}
       </div>
-      <span className="text-xs text-muted-foreground">Ordem {stage.ordem}</span>
       <Button size="icon" variant="ghost" onClick={onEdit}><Pencil className="h-4 w-4" /></Button>
       <Button size="icon" variant="ghost" onClick={onDelete}><Trash2 className="h-4 w-4" /></Button>
     </div>
