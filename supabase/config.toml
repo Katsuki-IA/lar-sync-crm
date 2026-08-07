@@ -23,3 +23,15 @@ verify_jwt = false
 
 [functions.conversation-analysis-classify]
 verify_jwt = false
+
+[functions.n8n-wa-status-event]
+verify_jwt = false
+
+[functions.n8n-wa-message-upsert]
+verify_jwt = false
+
+[functions.n8n-agent-empreendimentos]
+verify_jwt = false
+
+[functions.n8n-agent-images]
+verify_jwt = false
