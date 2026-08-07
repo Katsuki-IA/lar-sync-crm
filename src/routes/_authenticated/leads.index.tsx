@@ -572,7 +572,7 @@ function LeadsList() {
                 <Link to="/leads/importar"><Upload className="h-4 w-4 mr-1" /> Importar leads</Link>
               </Button>
             )}
-            {me?.role === "super_admin" && <Button asChild className="rounded-lg shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] hover:shadow-primary/40"><Link to="/leads/new"><Plus className="h-4 w-4 mr-1" /> Novo Lead</Link></Button>}
+            {(me?.role === "super_admin" || me?.role === "manager") && <Button asChild className="rounded-lg shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] hover:shadow-primary/40"><Link to="/leads/new"><Plus className="h-4 w-4 mr-1" /> Novo Lead</Link></Button>}
           </div>
         </div>
 
@@ -800,7 +800,7 @@ function LeadsList() {
                             {(activeChips.length > 0 || search) && (
                               <Button variant="outline" size="sm" onClick={clearAll}>Limpar filtros</Button>
                             )}
-                            {me?.role === "super_admin" && <Button asChild size="sm"><Link to="/leads/new"><Plus className="h-4 w-4 mr-1" /> Novo lead</Link></Button>}
+                            {(me?.role === "super_admin" || me?.role === "manager") && <Button asChild size="sm"><Link to="/leads/new"><Plus className="h-4 w-4 mr-1" /> Novo lead</Link></Button>}
                           </div>
                         </div>
                       </td>

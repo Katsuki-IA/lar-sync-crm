@@ -31,7 +31,9 @@ export const Route = createFileRoute("/_authenticated/leads/new")({
     const { data } = await supabase.auth.getUser();
     if (!data.user) throw redirect({ to: "/auth" });
     const { data: me } = await supabase.from("crm_users").select("role").eq("auth_user_id", data.user.id).maybeSingle();
-    if (me?.role !== "super_admin") throw redirect({ to: "/leads" });
+    if (me?.role !== "super_admin" && me?.role !== "manager") {
+      throw redirect({ to: "/leads" });
+    }
   },
   component: NewLead,
 });
