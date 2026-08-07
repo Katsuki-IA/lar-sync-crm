@@ -1,4 +1,5 @@
 -- Fase 1 da migração para WhatsApp Business-Scoped User IDs (BSUID).
+-- Versão alinhada ao registro aplicado pelo Supabase MCP em produção.
 -- Esta migração é estritamente aditiva: nenhuma chave legada é alterada e
 -- telefone/numero continuam obrigatórios onde já eram obrigatórios.
 
@@ -61,7 +62,7 @@ before update on public.wa_contact_identities
 for each row execute function public.handle_updated_at();
 
 alter table public.wa_contact_identities enable row level security;
-revoke all on table public.wa_contact_identities from anon, authenticated;
+revoke all on table public.wa_contact_identities from public, anon, authenticated;
 grant select, insert, update, delete on table public.wa_contact_identities to service_role;
 
 alter table public.lead
@@ -118,6 +119,26 @@ create index if not exists wa_messages_conversation_key_idx
 create index if not exists n8n_chat_conversas_conversation_key_idx
   on public.n8n_chat_conversas (conversation_key)
   where conversation_key is not null and btrim(conversation_key) <> '';
+
+create index if not exists lead_wa_identity_id_idx
+  on public.lead (wa_identity_id)
+  where wa_identity_id is not null;
+
+create index if not exists crm_leads_wa_identity_id_idx
+  on public.crm_leads (wa_identity_id)
+  where wa_identity_id is not null;
+
+create index if not exists wa_messages_wa_identity_id_idx
+  on public.wa_messages (wa_identity_id)
+  where wa_identity_id is not null;
+
+create index if not exists n8n_chat_conversas_empresa_idx
+  on public.n8n_chat_conversas (id_empresa)
+  where id_empresa is not null;
+
+create index if not exists n8n_chat_conversas_wa_identity_id_idx
+  on public.n8n_chat_conversas (wa_identity_id)
+  where wa_identity_id is not null;
 
 comment on column public.lead.wa_user_id is
   'BSUID opcional; numero continua sendo usado como chave nesta fase.';
