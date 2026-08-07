@@ -1290,6 +1290,7 @@ export type Database = {
       }
       crm_leads: {
         Row: {
+          conversation_key: string | null
           created_at: string | null
           crm_assigned_to: string | null
           crm_stage_id: number | null
@@ -1312,8 +1313,14 @@ export type Database = {
           tags: string[] | null
           telefone: string
           updated_at: string | null
+          wa_identity_id: string | null
+          wa_parent_user_id: string | null
+          wa_user_id: string | null
+          wa_username: string | null
+          legacy_conversation_key: string | null
         }
         Insert: {
+          conversation_key?: string | null
           created_at?: string | null
           crm_assigned_to?: string | null
           crm_stage_id?: number | null
@@ -1336,8 +1343,14 @@ export type Database = {
           tags?: string[] | null
           telefone: string
           updated_at?: string | null
+          wa_identity_id?: string | null
+          wa_parent_user_id?: string | null
+          wa_user_id?: string | null
+          wa_username?: string | null
+          legacy_conversation_key?: string | null
         }
         Update: {
+          conversation_key?: string | null
           created_at?: string | null
           crm_assigned_to?: string | null
           crm_stage_id?: number | null
@@ -1360,6 +1373,11 @@ export type Database = {
           tags?: string[] | null
           telefone?: string
           updated_at?: string | null
+          wa_identity_id?: string | null
+          wa_parent_user_id?: string | null
+          wa_user_id?: string | null
+          wa_username?: string | null
+          legacy_conversation_key?: string | null
         }
         Relationships: [
           {
@@ -1395,6 +1413,13 @@ export type Database = {
             columns: ["lead_id"]
             isOneToOne: false
             referencedRelation: "lead"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_leads_wa_identity_id_fkey"
+            columns: ["wa_identity_id"]
+            isOneToOne: false
+            referencedRelation: "wa_contact_identities"
             referencedColumns: ["id"]
           },
         ]
@@ -2916,6 +2941,7 @@ export type Database = {
         Row: {
           atendimento_humano: boolean | null
           ativacao: boolean | null
+          conversation_key: string | null
           created_at: string | null
           crm_assigned_to: string | null
           crm_stage_id: number | null
@@ -2931,6 +2957,7 @@ export type Database = {
           interesse: number | null
           last_mesage: string | null
           last_message_timestamp: string | null
+          legacy_conversation_key: string | null
           lead_quente: boolean | null
           loft_id_negociacao: string | null
           nome: string
@@ -2943,10 +2970,15 @@ export type Database = {
           status_history: string | null
           ult_message: string | null
           updated_at: string | null
+          wa_identity_id: string | null
+          wa_parent_user_id: string | null
+          wa_user_id: string | null
+          wa_username: string | null
         }
         Insert: {
           atendimento_humano?: boolean | null
           ativacao?: boolean | null
+          conversation_key?: string | null
           created_at?: string | null
           crm_assigned_to?: string | null
           crm_stage_id?: number | null
@@ -2962,6 +2994,7 @@ export type Database = {
           interesse?: number | null
           last_mesage?: string | null
           last_message_timestamp?: string | null
+          legacy_conversation_key?: string | null
           lead_quente?: boolean | null
           loft_id_negociacao?: string | null
           nome: string
@@ -2974,10 +3007,15 @@ export type Database = {
           status_history?: string | null
           ult_message?: string | null
           updated_at?: string | null
+          wa_identity_id?: string | null
+          wa_parent_user_id?: string | null
+          wa_user_id?: string | null
+          wa_username?: string | null
         }
         Update: {
           atendimento_humano?: boolean | null
           ativacao?: boolean | null
+          conversation_key?: string | null
           created_at?: string | null
           crm_assigned_to?: string | null
           crm_stage_id?: number | null
@@ -2993,6 +3031,7 @@ export type Database = {
           interesse?: number | null
           last_mesage?: string | null
           last_message_timestamp?: string | null
+          legacy_conversation_key?: string | null
           lead_quente?: boolean | null
           loft_id_negociacao?: string | null
           nome?: string
@@ -3005,6 +3044,10 @@ export type Database = {
           status_history?: string | null
           ult_message?: string | null
           updated_at?: string | null
+          wa_identity_id?: string | null
+          wa_parent_user_id?: string | null
+          wa_user_id?: string | null
+          wa_username?: string | null
         }
         Relationships: [
           {
@@ -3040,6 +3083,13 @@ export type Database = {
             columns: ["interesse"]
             isOneToOne: false
             referencedRelation: "empreendimento"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_wa_identity_id_fkey"
+            columns: ["wa_identity_id"]
+            isOneToOne: false
+            referencedRelation: "wa_contact_identities"
             referencedColumns: ["id"]
           },
         ]
@@ -3251,30 +3301,66 @@ export type Database = {
       }
       n8n_chat_conversas: {
         Row: {
+          conversation_key: string | null
           created_at: string
           id: number
+          id_empresa: number | null
+          legacy_conversation_key: string | null
           message: Json | null
           numero: string | null
+          telefone: string | null
           time: string | null
           type: string | null
+          wa_identity_id: string | null
+          wa_user_id: string | null
+          wa_username: string | null
         }
         Insert: {
+          conversation_key?: string | null
           created_at?: string
           id?: number
+          id_empresa?: number | null
+          legacy_conversation_key?: string | null
           message?: Json | null
           numero?: string | null
+          telefone?: string | null
           time?: string | null
           type?: string | null
+          wa_identity_id?: string | null
+          wa_user_id?: string | null
+          wa_username?: string | null
         }
         Update: {
+          conversation_key?: string | null
           created_at?: string
           id?: number
+          id_empresa?: number | null
+          legacy_conversation_key?: string | null
           message?: Json | null
           numero?: string | null
+          telefone?: string | null
           time?: string | null
           type?: string | null
+          wa_identity_id?: string | null
+          wa_user_id?: string | null
+          wa_username?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "n8n_chat_conversas_id_empresa_fkey"
+            columns: ["id_empresa"]
+            isOneToOne: false
+            referencedRelation: "empresa_dados"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "n8n_chat_conversas_wa_identity_id_fkey"
+            columns: ["wa_identity_id"]
+            isOneToOne: false
+            referencedRelation: "wa_contact_identities"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       n8n_relatorios_consolidados: {
         Row: {
@@ -3579,10 +3665,93 @@ export type Database = {
         }
         Relationships: []
       }
+      wa_contact_identities: {
+        Row: {
+          business_phone_number_id: string | null
+          conversation_key: string | null
+          created_at: string
+          crm_lead_id: number | null
+          display_name: string | null
+          first_seen_at: string
+          id: string
+          id_empresa: number
+          last_seen_at: string
+          lead_id: number | null
+          legacy_conversation_key: string | null
+          raw: Json
+          telefone: string | null
+          updated_at: string
+          username: string | null
+          wa_parent_user_id: string | null
+          wa_user_id: string | null
+        }
+        Insert: {
+          business_phone_number_id?: string | null
+          conversation_key?: string | null
+          created_at?: string
+          crm_lead_id?: number | null
+          display_name?: string | null
+          first_seen_at?: string
+          id?: string
+          id_empresa: number
+          last_seen_at?: string
+          lead_id?: number | null
+          legacy_conversation_key?: string | null
+          raw?: Json
+          telefone?: string | null
+          updated_at?: string
+          username?: string | null
+          wa_parent_user_id?: string | null
+          wa_user_id?: string | null
+        }
+        Update: {
+          business_phone_number_id?: string | null
+          conversation_key?: string | null
+          created_at?: string
+          crm_lead_id?: number | null
+          display_name?: string | null
+          first_seen_at?: string
+          id?: string
+          id_empresa?: number
+          last_seen_at?: string
+          lead_id?: number | null
+          legacy_conversation_key?: string | null
+          raw?: Json
+          telefone?: string | null
+          updated_at?: string
+          username?: string | null
+          wa_parent_user_id?: string | null
+          wa_user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wa_contact_identities_crm_lead_id_fkey"
+            columns: ["crm_lead_id"]
+            isOneToOne: false
+            referencedRelation: "crm_leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wa_contact_identities_id_empresa_fkey"
+            columns: ["id_empresa"]
+            isOneToOne: false
+            referencedRelation: "empresa_dados"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wa_contact_identities_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "lead"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       wa_messages: {
         Row: {
           client_message_id: string | null
           contact_name: string | null
+          conversation_key: string | null
           created_at: string
           crm_entity_id: string | null
           crm_entity_type: string | null
@@ -3595,9 +3764,12 @@ export type Database = {
           error_code: string | null
           error_message: string | null
           failed_at: string | null
+          from_user_id: string | null
+          from_username: string | null
           from_wa_id: string | null
           id: string
           message_id: string | null
+          legacy_conversation_key: string | null
           phone_number_id: string
           raw: Json
           read_at: string | null
@@ -3612,12 +3784,16 @@ export type Database = {
           text_body: string | null
           timestamp_meta: string | null
           to_wa_id: string | null
+          to_user_id: string | null
+          to_username: string | null
           type: string | null
           updated_at: string
+          wa_identity_id: string | null
         }
         Insert: {
           client_message_id?: string | null
           contact_name?: string | null
+          conversation_key?: string | null
           created_at?: string
           crm_entity_id?: string | null
           crm_entity_type?: string | null
@@ -3630,9 +3806,12 @@ export type Database = {
           error_code?: string | null
           error_message?: string | null
           failed_at?: string | null
+          from_user_id?: string | null
+          from_username?: string | null
           from_wa_id?: string | null
           id?: string
           message_id?: string | null
+          legacy_conversation_key?: string | null
           phone_number_id: string
           raw?: Json
           read_at?: string | null
@@ -3647,12 +3826,16 @@ export type Database = {
           text_body?: string | null
           timestamp_meta?: string | null
           to_wa_id?: string | null
+          to_user_id?: string | null
+          to_username?: string | null
           type?: string | null
           updated_at?: string
+          wa_identity_id?: string | null
         }
         Update: {
           client_message_id?: string | null
           contact_name?: string | null
+          conversation_key?: string | null
           created_at?: string
           crm_entity_id?: string | null
           crm_entity_type?: string | null
@@ -3665,9 +3848,12 @@ export type Database = {
           error_code?: string | null
           error_message?: string | null
           failed_at?: string | null
+          from_user_id?: string | null
+          from_username?: string | null
           from_wa_id?: string | null
           id?: string
           message_id?: string | null
+          legacy_conversation_key?: string | null
           phone_number_id?: string
           raw?: Json
           read_at?: string | null
@@ -3682,10 +3868,21 @@ export type Database = {
           text_body?: string | null
           timestamp_meta?: string | null
           to_wa_id?: string | null
+          to_user_id?: string | null
+          to_username?: string | null
           type?: string | null
           updated_at?: string
+          wa_identity_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "wa_messages_wa_identity_id_fkey"
+            columns: ["wa_identity_id"]
+            isOneToOne: false
+            referencedRelation: "wa_contact_identities"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       wa_webhook_events: {
         Row: {
