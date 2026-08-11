@@ -59,10 +59,28 @@ Deno.serve(async (req) => {
   if (options) return options;
 
   return withErrorHandling(async () => {
-    const { limitPerForm = 100 } = (await req.json().catch(() => ({}))) as {
+    const {
+      formId,
+      since,
+      until,
+      limitPerForm = 500,
+    } = (await req.json().catch(() => ({}))) as {
+      formId?: string;
+      since?: string;
+      until?: string;
       limitPerForm?: number;
     };
-    const safeLimit = Math.min(Math.max(Number(limitPerForm) || 100, 1), 500);
+    if (!formId?.trim()) throw new Error("Selecione um formulario para recuperar");
+    const sinceDate = new Date(since ?? "");
+    const untilDate = new Date(until ?? "");
+    if (Number.isNaN(sinceDate.getTime()) || Number.isNaN(untilDate.getTime())) {
+      throw new Error("Informe o periodo inicial e final da recuperacao");
+    }
+    if (untilDate < sinceDate) throw new Error("A data final deve ser posterior a data inicial");
+    if (untilDate.getTime() - sinceDate.getTime() > 31 * 24 * 60 * 60 * 1000) {
+      throw new Error("O periodo maximo por recuperacao e de 31 dias");
+    }
+    const safeLimit = Math.min(Math.max(Number(limitPerForm) || 500, 1), 500);
     const { crmUser } = await getAuthorizedCrmUser(req);
     const { graphVersion } = getMetaConfig(false);
     const supabaseAdmin = createSupabaseAdmin();
@@ -76,37 +94,48 @@ Deno.serve(async (req) => {
     if (connectionError) throw new Error(connectionError.message);
     if (!connection) throw new Error("Nenhuma conta Meta conectada para esta empresa");
 
-    const { data: forms, error: formsError } = await supabaseAdmin
+    const { data: form, error: formError } = await supabaseAdmin
       .from("crm_meta_forms")
       .select("form_id,page_access_token,id_empreendimento,id_funnel")
       .eq("id_empresa", crmUser.id_empresa)
       .eq("connection_id", connection.id)
+      .eq("form_id", formId.trim())
       .eq("active", true)
       .not("id_empreendimento", "is", null)
-      .not("id_funnel", "is", null);
-    if (formsError) throw new Error(formsError.message);
+      .not("id_funnel", "is", null)
+      .maybeSingle();
+    if (formError) throw new Error(formError.message);
+    if (!form) throw new Error("Formulario nao configurado para esta empresa");
 
     let checked = 0;
     let recovered = 0;
     let duplicates = 0;
     const failed: Array<{ formId: string; leadId?: string; message: string }> = [];
+    const warnings: Array<{ formId: string; leadId?: string; message: string }> = [];
 
-    for (const form of forms ?? []) {
+    for (const selectedForm of [form]) {
       try {
-        const accessToken = form.page_access_token || connection.user_access_token;
+        const accessToken = selectedForm.page_access_token || connection.user_access_token;
         const url = new URL(
-          `https://graph.facebook.com/${graphVersion}/${form.form_id}/leads`,
+          `https://graph.facebook.com/${graphVersion}/${selectedForm.form_id}/leads`,
         );
         url.searchParams.set("fields", "id,created_time,ad_id,form_id,field_data");
-        url.searchParams.set("limit", String(safeLimit));
+        url.searchParams.set("limit", "100");
         url.searchParams.set("access_token", accessToken);
-        const leads = (await fetchGraphCollection<MetaLead>(url)).slice(0, safeLimit);
+        const leads = (await fetchGraphCollection<MetaLead>(url))
+          .filter((lead) => {
+            const createdAt = new Date(lead.created_time ?? "");
+            return (
+              !Number.isNaN(createdAt.getTime()) && createdAt >= sinceDate && createdAt <= untilDate
+            );
+          })
+          .slice(0, safeLimit);
 
         const { data: mappings, error: mappingError } = await supabaseAdmin
           .from("crm_meta_field_mapping")
           .select("meta_field_key,crm_field")
           .eq("id_empresa", crmUser.id_empresa)
-          .eq("form_id", form.form_id);
+          .eq("form_id", selectedForm.form_id);
         if (mappingError) throw new Error(mappingError.message);
         const mapping = Object.fromEntries(
           (mappings ?? []).map((item) => [item.meta_field_key, item.crm_field]),
@@ -114,7 +143,7 @@ Deno.serve(async (req) => {
         const routing = await getRouting(
           supabaseAdmin,
           crmUser.id_empresa,
-          Number(form.id_funnel),
+          Number(selectedForm.id_funnel),
         );
 
         for (const lead of leads) {
@@ -128,8 +157,7 @@ Deno.serve(async (req) => {
             if (!nome || !phone.normalized) {
               throw new Error("Lead sem nome ou telefone conforme o mapeamento atual");
             }
-            const email =
-              getMappedMetaValue({ values, mapping, crmField: "email" }).trim() || null;
+            const email = getMappedMetaValue({ values, mapping, crmField: "email" }).trim() || null;
             const origem = resolveLeadOrigin(
               getMappedMetaValue({ values, mapping, crmField: "origem" }),
               "FB",
@@ -140,7 +168,7 @@ Deno.serve(async (req) => {
               "crm_ingest_meta_lead",
               {
                 p_id_empresa: crmUser.id_empresa,
-                p_form_id: form.form_id,
+                p_form_id: selectedForm.form_id,
                 p_lead_id_meta: lead.id,
                 p_nome: nome,
                 p_email: email,
@@ -151,13 +179,13 @@ Deno.serve(async (req) => {
                   recovered_at: new Date().toISOString(),
                   destination: {
                     id_empresa: crmUser.id_empresa,
-                    id_empreendimento: form.id_empreendimento,
-                    id_funnel: form.id_funnel,
+                    id_empreendimento: selectedForm.id_empreendimento,
+                    id_funnel: selectedForm.id_funnel,
                   },
                 },
                 p_origem: origem,
                 p_observacoes: observacoes,
-                p_id_empreendimento: form.id_empreendimento,
+                p_id_empreendimento: selectedForm.id_empreendimento,
                 p_crm_stage_id: routing.stageId,
                 p_crm_assigned_to: routing.assignedTo,
               },
@@ -167,8 +195,8 @@ Deno.serve(async (req) => {
             if (result?.was_inserted) recovered += 1;
             else duplicates += 1;
           } catch (error) {
-            failed.push({
-              formId: form.form_id,
+            warnings.push({
+              formId: selectedForm.form_id,
               leadId: lead.id,
               message: error instanceof Error ? error.message : "Falha ao recuperar lead",
             });
@@ -179,10 +207,10 @@ Deno.serve(async (req) => {
           .from("crm_meta_forms")
           .update({ last_recovered_at: new Date().toISOString() })
           .eq("id_empresa", crmUser.id_empresa)
-          .eq("form_id", form.form_id);
+          .eq("form_id", selectedForm.form_id);
       } catch (error) {
         failed.push({
-          formId: form.form_id,
+          formId: selectedForm.form_id,
           message: error instanceof Error ? error.message : "Falha ao consultar formulario",
         });
       }
@@ -194,18 +222,22 @@ Deno.serve(async (req) => {
         .update({
           health_status: "degraded",
           last_health_check_at: new Date().toISOString(),
-          last_error: failed.map((item) => `${item.formId}: ${item.message}`).join(" | ").slice(0, 2000),
+          last_error: failed
+            .map((item) => `${item.formId}: ${item.message}`)
+            .join(" | ")
+            .slice(0, 2000),
         })
         .eq("id", connection.id)
         .eq("id_empresa", crmUser.id_empresa);
     }
 
     return jsonResponse({
-      forms: forms?.length ?? 0,
+      forms: 1,
       checked,
       recovered,
       duplicates,
       failed,
+      warnings,
     });
   });
 });

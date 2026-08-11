@@ -59,6 +59,14 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/_authenticated/configuracoes/integracoes")({
   beforeLoad: async () => {
@@ -167,6 +175,10 @@ function IntegracoesPage() {
   const [syncing, setSyncing] = useState(false);
   const [enrichingAttribution, setEnrichingAttribution] = useState(false);
   const [recoveringLeads, setRecoveringLeads] = useState(false);
+  const [recoveryOpen, setRecoveryOpen] = useState(false);
+  const [recoveryFormId, setRecoveryFormId] = useState("");
+  const [recoverySince, setRecoverySince] = useState("");
+  const [recoveryUntil, setRecoveryUntil] = useState("");
   const [lastSync, setLastSync] = useState<MetaFormsSyncResult | null>(null);
   const [drawerView, setDrawerView] = useState<MetaDrawerView>("account");
   const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
@@ -264,6 +276,12 @@ function IntegracoesPage() {
 
   const connection = (status?.connection as MetaConnection | null | undefined) ?? null;
   const forms = (status?.forms as MetaForm[] | undefined) ?? [];
+  const recoveryForms = forms.filter(
+    (form) =>
+      Number(form.mapped_fields_count ?? 0) >= 2 &&
+      Boolean(form.id_empreendimento) &&
+      Boolean(form.id_funnel),
+  );
 
   const connected = !!connection;
   const pages = useMemo<MetaPageSummary[]>(() => {
@@ -410,28 +428,61 @@ function IntegracoesPage() {
       }
     } catch (error) {
       toast.error(
-        error instanceof Error
-          ? error.message
-          : "Falha ao atualizar os dados de anúncios da Meta",
+        error instanceof Error ? error.message : "Falha ao atualizar os dados de anúncios da Meta",
       );
     } finally {
       setEnrichingAttribution(false);
     }
   };
 
+  const openRecoveryDialog = () => {
+    const today = new Date();
+    const sevenDaysAgo = new Date(today);
+    sevenDaysAgo.setDate(today.getDate() - 7);
+    const toInputDate = (date: Date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    };
+    setRecoveryFormId(recoveryForms.length === 1 ? recoveryForms[0].form_id : "");
+    setRecoverySince(toInputDate(sevenDaysAgo));
+    setRecoveryUntil(toInputDate(today));
+    setRecoveryOpen(true);
+  };
+
   const handleRecoverLeads = async () => {
+    if (!recoveryFormId) {
+      toast.error("Selecione o formulario que deve ser recuperado");
+      return;
+    }
+    if (!recoverySince || !recoveryUntil) {
+      toast.error("Informe as datas inicial e final");
+      return;
+    }
+
     try {
       setRecoveringLeads(true);
-      const result = await recoverMetaLeads({ limitPerForm: 100 });
+      const result = await recoverMetaLeads({
+        formId: recoveryFormId,
+        since: new Date(`${recoverySince}T00:00:00`).toISOString(),
+        until: new Date(`${recoveryUntil}T23:59:59.999`).toISOString(),
+        limitPerForm: 500,
+      });
       if (result.failed.length > 0) {
         toast.warning(
           `${result.recovered} lead(s) recuperado(s); ${result.failed.length} falha(s). Verifique a autorizacao da pagina.`,
+        );
+      } else if (result.warnings.length > 0) {
+        toast.warning(
+          `${result.recovered} lead(s) recuperado(s); ${result.warnings.length} registro(s) incompleto(s) ignorado(s).`,
         );
       } else if (result.recovered > 0) {
         toast.success(`${result.recovered} lead(s) recuperado(s) da Meta.`);
       } else {
         toast.info(`${result.checked} lead(s) verificado(s); nenhum estava faltando.`);
       }
+      if (result.failed.length === 0) setRecoveryOpen(false);
       await qc.invalidateQueries({ queryKey: ["meta-integration-status", activeEmpresaId] });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Falha ao recuperar leads da Meta");
@@ -580,9 +631,7 @@ function IntegracoesPage() {
                       onClick={handleEnrichAttribution}
                     >
                       <RefreshCw
-                        className={
-                          enrichingAttribution ? "h-4 w-4 animate-spin" : "h-4 w-4"
-                        }
+                        className={enrichingAttribution ? "h-4 w-4 animate-spin" : "h-4 w-4"}
                       />
                       {enrichingAttribution ? "Atualizando..." : "Atualizar anúncios"}
                     </Button>
@@ -591,12 +640,10 @@ function IntegracoesPage() {
                       size="sm"
                       className="gap-2"
                       disabled={recoveringLeads}
-                      onClick={handleRecoverLeads}
+                      onClick={openRecoveryDialog}
                     >
-                      <RefreshCw
-                        className={recoveringLeads ? "h-4 w-4 animate-spin" : "h-4 w-4"}
-                      />
-                      {recoveringLeads ? "Recuperando..." : "Recuperar leads"}
+                      <RefreshCw className={recoveringLeads ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
+                      Recuperar leads
                     </Button>
                     <DisconnectMetaButton
                       className="gap-2 text-destructive"
@@ -622,6 +669,68 @@ function IntegracoesPage() {
         </Card>
         <RdStationIntegrationCard />
       </div>
+
+      <Dialog open={recoveryOpen} onOpenChange={setRecoveryOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Recuperar leads da Meta</DialogTitle>
+            <DialogDescription>
+              Escolha um unico formulario e o periodo exato. Registros ja existentes nao serao
+              duplicados.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Formulario</Label>
+              <Select value={recoveryFormId} onValueChange={setRecoveryFormId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o formulario" />
+                </SelectTrigger>
+                <SelectContent>
+                  {recoveryForms.map((form) => (
+                    <SelectItem key={form.form_id} value={form.form_id}>
+                      {form.form_name ?? form.form_id}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="meta-recovery-since">De</Label>
+                <Input
+                  id="meta-recovery-since"
+                  type="date"
+                  value={recoverySince}
+                  onChange={(event) => setRecoverySince(event.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="meta-recovery-until">Ate</Label>
+                <Input
+                  id="meta-recovery-until"
+                  type="date"
+                  value={recoveryUntil}
+                  onChange={(event) => setRecoveryUntil(event.target.value)}
+                />
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">Periodo maximo: 31 dias.</p>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setRecoveryOpen(false)}
+              disabled={recoveringLeads}
+            >
+              Cancelar
+            </Button>
+            <Button onClick={handleRecoverLeads} disabled={recoveringLeads}>
+              {recoveringLeads ? "Recuperando..." : "Recuperar periodo"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
         <SheetContent
@@ -923,10 +1032,7 @@ function IntegracoesPage() {
                       {formFields.funnels.length > 1 ? (
                         <div className="mt-4 max-w-md space-y-2">
                           <Label htmlFor="meta-funnel">Funil *</Label>
-                          <Select
-                            value={selectedFunnelId}
-                            onValueChange={setSelectedFunnelId}
-                          >
+                          <Select value={selectedFunnelId} onValueChange={setSelectedFunnelId}>
                             <SelectTrigger id="meta-funnel">
                               <SelectValue placeholder="Selecionar funil" />
                             </SelectTrigger>
@@ -1031,7 +1137,9 @@ function IntegracoesPage() {
                         <div className="flex flex-wrap items-end justify-start gap-2 sm:justify-end">
                           <Button
                             variant="outline"
-                            disabled={savingMapping || !selectedEmpreendimentoId || !selectedFunnelId}
+                            disabled={
+                              savingMapping || !selectedEmpreendimentoId || !selectedFunnelId
+                            }
                             onClick={handleSaveMapping}
                           >
                             {savingMapping ? "Salvando..." : "Salvar mapeamento"}

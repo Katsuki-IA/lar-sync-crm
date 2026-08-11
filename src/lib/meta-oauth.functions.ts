@@ -132,6 +132,7 @@ export type MetaLeadsRecoveryResult = {
   recovered: number;
   duplicates: number;
   failed: Array<{ formId: string; leadId?: string; message: string }>;
+  warnings: Array<{ formId: string; leadId?: string; message: string }>;
 };
 
 async function getFunctionErrorMessage(error: unknown, fallback: string) {
@@ -211,6 +212,11 @@ export async function enrichMetaAttribution(data?: { leadId?: number; limit?: nu
   return invokeMetaFunction<MetaAttributionEnrichmentResult>("meta-enrich-attribution", data);
 }
 
-export async function recoverMetaLeads(data?: { limitPerForm?: number }) {
+export async function recoverMetaLeads(data: {
+  formId: string;
+  since: string;
+  until: string;
+  limitPerForm?: number;
+}) {
   return invokeMetaFunction<MetaLeadsRecoveryResult>("meta-leads-recover", data);
 }
