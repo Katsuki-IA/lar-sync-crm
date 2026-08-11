@@ -162,6 +162,8 @@ async function processLeadgenEvent(args: {
     .eq("form_id", formId)
     .eq("page_id", pageId)
     .eq("active", true)
+    .not("id_empreendimento", "is", null)
+    .not("id_funnel", "is", null)
     .maybeSingle();
   if (formError) throw new Error(formError.message);
   if (!form) {

@@ -59,11 +59,11 @@ async function authenticate(
   if (crmToken) {
     const { data, error } = await admin
       .from("credentials")
-      .select("cv_crm_token,rd_crm_access_token")
+      .select("cv_crm_token,rd_crm_access_token,rd_hub_access_token")
       .eq("id_empresa", idEmpresa)
       .maybeSingle();
     if (error) throw new Error(error.message);
-    const validTokens = [data?.cv_crm_token, data?.rd_crm_access_token]
+    const validTokens = [data?.cv_crm_token, data?.rd_crm_access_token, data?.rd_hub_access_token]
       .map((value) => String(value ?? "").trim())
       .filter(Boolean);
     if (validTokens.includes(crmToken)) return;
@@ -98,11 +98,14 @@ Deno.serve(async (req) => {
     const admin = createSupabaseAdmin();
     await authenticate(admin, req, idEmpresa);
 
-    const scheduledAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
     const additionalTags = normalizeTags(payload.additionalTags);
     const triggerReference = String(payload.triggerReference ?? "").trim() || null;
     const externalStageKind = String(payload.externalStageKind ?? "").trim() || null;
     const conversationSummary = String(payload.conversationSummary ?? "").trim() || null;
+    const dispatchDelayMs = externalStageKind?.toLowerCase() === "without_whatsapp"
+      ? 0
+      : 60 * 60 * 1000;
+    const scheduledAt = new Date(Date.now() + dispatchDelayMs).toISOString();
 
     const { data: job, error } = await admin.rpc("crm_enqueue_external_dispatch", {
       p_id_empresa: idEmpresa,

@@ -16,7 +16,7 @@ Deno.serve(async (req) => {
 
     const { data: connection, error: connectionError } = await supabaseAdmin
       .from("crm_meta_connections")
-      .select("id,user_name,user_id_meta,connected_at,active")
+      .select("id,user_name,user_id_meta,connected_at,active,health_status,last_health_check_at,last_error")
       .eq("id_empresa", crmUser.id_empresa)
       .eq("active", true)
       .maybeSingle();
@@ -24,7 +24,7 @@ Deno.serve(async (req) => {
 
     const { data: forms, error: formsError } = await supabaseAdmin
       .from("crm_meta_forms")
-      .select("id,form_id,form_name,page_id,page_name,leads_count,active,id_empreendimento,id_funnel")
+      .select("id,form_id,form_name,page_id,page_name,leads_count,active,id_empreendimento,id_funnel,webhook_subscribed,webhook_checked_at,webhook_error,last_recovered_at")
       .eq("id_empresa", crmUser.id_empresa)
       .eq("active", true)
       .order("page_name", { ascending: true });

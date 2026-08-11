@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
 
     const { data: form, error: formError } = await supabaseAdmin
       .from("crm_meta_forms")
-      .select("form_id")
+      .select("form_id,page_id")
       .eq("id_empresa", crmUser.id_empresa)
       .eq("form_id", formId)
       .eq("active", true)
@@ -57,6 +57,24 @@ Deno.serve(async (req) => {
 
     if (formError) throw new Error(formError.message);
     if (!form) throw new Error("Formulário não encontrado para esta empresa");
+
+    const { data: otherOwner, error: ownerError } = await supabaseAdmin
+      .from("crm_meta_forms")
+      .select("id_empresa")
+      .eq("form_id", form.form_id)
+      .eq("page_id", form.page_id)
+      .eq("active", true)
+      .not("id_empreendimento", "is", null)
+      .not("id_funnel", "is", null)
+      .neq("id_empresa", crmUser.id_empresa)
+      .limit(1)
+      .maybeSingle();
+    if (ownerError) throw new Error(ownerError.message);
+    if (otherOwner) {
+      throw new Error(
+        "Este formulario Meta ja esta configurado em outra empresa. Desconecte-o la antes de continuar.",
+      );
+    }
 
     const { data: empreendimento, error: empreendimentoError } = await supabaseAdmin
       .from("empreendimento")

@@ -23,9 +23,11 @@ import {
   type MetaFormsSyncResult,
   getMetaFormFields,
   getMetaIntegrationStatus,
+  recoverMetaLeads,
   saveMetaFieldMapping,
   syncMetaForms,
 } from "@/lib/meta-oauth.functions";
+import { useActiveEmpresa } from "@/hooks/use-active-empresa";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -80,6 +82,9 @@ type MetaConnection = {
   user_id_meta: string;
   connected_at: string | null;
   active: boolean | null;
+  health_status: "unknown" | "healthy" | "degraded" | "error";
+  last_health_check_at: string | null;
+  last_error: string | null;
 };
 
 type MetaForm = {
@@ -93,6 +98,10 @@ type MetaForm = {
   id_empreendimento: number | null;
   id_funnel: number | null;
   mapped_fields_count?: number;
+  webhook_subscribed: boolean;
+  webhook_checked_at: string | null;
+  webhook_error: string | null;
+  last_recovered_at: string | null;
 };
 
 type MetaOAuthCallbackMessage = {
@@ -152,10 +161,12 @@ function getSupabaseOrigin() {
 
 function IntegracoesPage() {
   const qc = useQueryClient();
+  const { activeEmpresaId } = useActiveEmpresa();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [enrichingAttribution, setEnrichingAttribution] = useState(false);
+  const [recoveringLeads, setRecoveringLeads] = useState(false);
   const [lastSync, setLastSync] = useState<MetaFormsSyncResult | null>(null);
   const [drawerView, setDrawerView] = useState<MetaDrawerView>("account");
   const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
@@ -244,7 +255,8 @@ function IntegracoesPage() {
   };
 
   const { data: status, isLoading } = useQuery({
-    queryKey: ["meta-integration-status"],
+    queryKey: ["meta-integration-status", activeEmpresaId],
+    enabled: Boolean(activeEmpresaId),
     queryFn: async () => {
       return getMetaIntegrationStatus();
     },
@@ -303,10 +315,18 @@ function IntegracoesPage() {
     isLoading: loadingFormFields,
     refetch: refetchFormFields,
   } = useQuery({
-    queryKey: ["meta-form-fields", selectedFormId],
+    queryKey: ["meta-form-fields", activeEmpresaId, selectedFormId],
     enabled: drawerOpen && drawerView === "mapping" && !!selectedFormId,
     queryFn: async () => getMetaFormFields({ formId: selectedFormId! }),
   });
+
+  useEffect(() => {
+    setDrawerOpen(false);
+    setDrawerView("account");
+    setSelectedPageId(null);
+    setSelectedFormId(null);
+    setLastSync(null);
+  }, [activeEmpresaId]);
 
   useEffect(() => {
     if (!formFields) return;
@@ -399,6 +419,27 @@ function IntegracoesPage() {
     }
   };
 
+  const handleRecoverLeads = async () => {
+    try {
+      setRecoveringLeads(true);
+      const result = await recoverMetaLeads({ limitPerForm: 100 });
+      if (result.failed.length > 0) {
+        toast.warning(
+          `${result.recovered} lead(s) recuperado(s); ${result.failed.length} falha(s). Verifique a autorizacao da pagina.`,
+        );
+      } else if (result.recovered > 0) {
+        toast.success(`${result.recovered} lead(s) recuperado(s) da Meta.`);
+      } else {
+        toast.info(`${result.checked} lead(s) verificado(s); nenhum estava faltando.`);
+      }
+      await qc.invalidateQueries({ queryKey: ["meta-integration-status", activeEmpresaId] });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Falha ao recuperar leads da Meta");
+    } finally {
+      setRecoveringLeads(false);
+    }
+  };
+
   const handleSelectPage = (pageId: string) => {
     setSelectedPageId(pageId);
     setSelectedFormId(null);
@@ -486,12 +527,16 @@ function IntegracoesPage() {
                   <Badge variant="secondary" className="text-[10px]">
                     …
                   </Badge>
-                ) : connected ? (
+                ) : connected && connection.health_status === "healthy" ? (
                   <Badge
                     className="text-[10px] border-0"
                     style={{ backgroundColor: "var(--success-bg)", color: "var(--success)" }}
                   >
                     Conectado
+                  </Badge>
+                ) : connected ? (
+                  <Badge variant="destructive" className="text-[10px]">
+                    Requer atencao
                   </Badge>
                 ) : (
                   <Badge
@@ -540,6 +585,18 @@ function IntegracoesPage() {
                         }
                       />
                       {enrichingAttribution ? "Atualizando..." : "Atualizar anúncios"}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-2"
+                      disabled={recoveringLeads}
+                      onClick={handleRecoverLeads}
+                    >
+                      <RefreshCw
+                        className={recoveringLeads ? "h-4 w-4 animate-spin" : "h-4 w-4"}
+                      />
+                      {recoveringLeads ? "Recuperando..." : "Recuperar leads"}
                     </Button>
                     <DisconnectMetaButton
                       className="gap-2 text-destructive"
@@ -769,7 +826,8 @@ function IntegracoesPage() {
                       const isConnected =
                         Number(form.mapped_fields_count ?? 0) >= 2 &&
                         Boolean(form.id_empreendimento) &&
-                        Boolean(form.id_funnel);
+                        Boolean(form.id_funnel) &&
+                        form.webhook_subscribed;
 
                       return (
                         <div

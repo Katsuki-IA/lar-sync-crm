@@ -40,6 +40,7 @@ import {
   saveRdSettings,
   syncRdAssets,
 } from "@/lib/rd-oauth.functions";
+import { useActiveEmpresa } from "@/hooks/use-active-empresa";
 
 type RdOAuthCallbackMessage = {
   source?: string;
@@ -95,6 +96,7 @@ function RdDisconnectButton({
 
 export function RdStationIntegrationCard() {
   const qc = useQueryClient();
+  const { activeEmpresaId } = useActiveEmpresa();
   const [connectOpen, setConnectOpen] = useState(false);
   const [manageOpen, setManageOpen] = useState(false);
   const [empreendimentoId, setEmpreendimentoId] = useState("");
@@ -107,7 +109,8 @@ export function RdStationIntegrationCard() {
   const [sourceSelections, setSourceSelections] = useState<Record<string, string>>({});
   const [sourceFunnelSelections, setSourceFunnelSelections] = useState<Record<string, string>>({});
   const { data, isLoading } = useQuery({
-    queryKey: ["rd-integration-status"],
+    queryKey: ["rd-integration-status", activeEmpresaId],
+    enabled: Boolean(activeEmpresaId),
     queryFn: getRdIntegrationStatus,
   });
   const connected = Boolean(data?.connection?.active);

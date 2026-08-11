@@ -17,6 +17,9 @@ dist-ssr
 supabase/.temp/
 *.local
 
+# Local n8n workflow exports may contain execution data or other sensitive values.
+mcp/backups/
+
 # Wrangler / Cloudflare
 .wrangler/
 .dev.vars

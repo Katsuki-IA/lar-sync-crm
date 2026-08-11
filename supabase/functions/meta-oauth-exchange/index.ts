@@ -4,6 +4,7 @@ import {
   getMetaConfig,
   handleOptions,
   jsonResponse,
+  syncMetaFormsForConnection,
   verifySignedState,
   withErrorHandling,
 } from "../_shared/meta.ts";
@@ -65,15 +66,23 @@ Deno.serve(async (req) => {
           user_access_token: accessToken,
           connected_at: new Date().toISOString(),
           active: true,
+          health_status: "unknown",
+          last_health_check_at: null,
+          last_error: null,
         },
         { onConflict: "id_empresa" },
       )
-      .select("id,user_name,user_id_meta,connected_at,active")
+      .select("id,user_name,user_id_meta,connected_at,active,health_status,last_health_check_at,last_error")
       .single();
 
     if (connectionError) throw new Error(connectionError.message);
 
-    const sync = { pagesCount: 0, formsCount: 0, pages: [], errors: [], sources: [] };
+    const sync = await syncMetaFormsForConnection({
+      idEmpresa: crmUser.id_empresa,
+      connectionId: connection.id,
+      userAccessToken: accessToken,
+      graphVersion,
+    });
     return jsonResponse({ ok: true, connection, sync });
   });
 });

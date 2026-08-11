@@ -39,11 +39,28 @@ type CvCredentials = {
 
 type RdCredentials = {
   default_crm: string | null;
-  rd_crm_access_token: string | null;
   rd_user_id: string | null;
+  rd_crm_access_token: string | null;
   rd_client_id: string | null;
   rd_client_secret: string | null;
   rd_refresh_token: string | null;
+  rd_hub_access_token: string | null;
+  rd_hub_client_id: string | null;
+  rd_hub_client_secret: string | null;
+  rd_hub_refresh_token: string | null;
+  rd_hub_token_expires_at: string | null;
+};
+
+const RD_CREDENTIALS_SELECT =
+  "default_crm,rd_user_id,rd_crm_access_token,rd_client_id,rd_client_secret,rd_refresh_token,rd_hub_access_token,rd_hub_client_id,rd_hub_client_secret,rd_hub_refresh_token,rd_hub_token_expires_at";
+
+type ResolvedRdOAuthCredentials = {
+  source: "hub" | "legacy";
+  accessToken: string | null;
+  clientId: string | null;
+  clientSecret: string | null;
+  refreshToken: string | null;
+  tokenExpiresAt: string | null;
 };
 
 type DispatchSettings = {
@@ -146,7 +163,14 @@ function normalizeDispatchTags(value: unknown) {
   const supplied = Array.isArray(value)
     ? value.map((tag) => String(tag ?? "").trim()).filter(Boolean)
     : [];
-  return Array.from(new Set(["Atendimento IA", ...supplied])).slice(0, 10);
+  const seen = new Set<string>();
+
+  return ["Atendimento IA", ...supplied].filter((tag) => {
+    const normalized = normalizeLabel(tag);
+    if (!normalized || seen.has(normalized)) return false;
+    seen.add(normalized);
+    return true;
+  });
 }
 
 function toScalarId(value?: string | null) {
@@ -203,14 +227,108 @@ function requireRdCredential(value: string | null | undefined, label: string) {
   return normalized;
 }
 
+function rdTokenExpiresAt(expiresIn: unknown) {
+  const parsedSeconds = Number(expiresIn);
+  const seconds = Number.isFinite(parsedSeconds) && parsedSeconds > 0 ? parsedSeconds : 7200;
+  return new Date(Date.now() + seconds * 1000).toISOString();
+}
+
+function resolveRdOAuthCredentials(credentials: RdCredentials): ResolvedRdOAuthCredentials {
+  const hubValues = [
+    credentials.rd_hub_access_token,
+    credentials.rd_hub_client_id,
+    credentials.rd_hub_client_secret,
+    credentials.rd_hub_refresh_token,
+  ].map((value) => String(value ?? "").trim());
+  const hasAnyHubCredential = hubValues.some(Boolean);
+  const hasCompleteHubCredentials = hubValues.every(Boolean);
+
+  if (hasAnyHubCredential && !hasCompleteHubCredentials) {
+    throw new Error("As credenciais RD dedicadas ao Hub estão incompletas para esta empresa.");
+  }
+
+  if (hasCompleteHubCredentials) {
+    return {
+      source: "hub",
+      accessToken: credentials.rd_hub_access_token,
+      clientId: credentials.rd_hub_client_id,
+      clientSecret: credentials.rd_hub_client_secret,
+      refreshToken: credentials.rd_hub_refresh_token,
+      tokenExpiresAt: credentials.rd_hub_token_expires_at,
+    };
+  }
+
+  return {
+    source: "legacy",
+    accessToken: credentials.rd_crm_access_token,
+    clientId: credentials.rd_client_id,
+    clientSecret: credentials.rd_client_secret,
+    refreshToken: credentials.rd_refresh_token,
+    tokenExpiresAt: null,
+  };
+}
+
+function hasFreshRdAccessToken(credentials: ResolvedRdOAuthCredentials) {
+  if (!credentials.accessToken || !credentials.tokenExpiresAt) return false;
+  const expiresAt = new Date(credentials.tokenExpiresAt).getTime();
+  return Number.isFinite(expiresAt) && expiresAt > Date.now() + 60_000;
+}
+
+async function loadRdCredentials(
+  admin: ReturnType<typeof createSupabaseAdmin>,
+  idEmpresa: number,
+) {
+  const { data, error } = await admin
+    .from("credentials")
+    .select(RD_CREDENTIALS_SELECT)
+    .eq("id_empresa", idEmpresa)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error("As credenciais RD do Hub não foram encontradas para esta empresa.");
+  return data as unknown as RdCredentials;
+}
+
+async function loadRotatedRdCredentials(
+  admin: ReturnType<typeof createSupabaseAdmin>,
+  idEmpresa: number,
+  previousCredentials: ResolvedRdOAuthCredentials,
+) {
+  for (const delayMs of [100, 250, 500]) {
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+    const latest = await loadRdCredentials(admin, idEmpresa);
+    const latestOAuth = resolveRdOAuthCredentials(latest);
+    if (
+      latestOAuth.accessToken &&
+      (latestOAuth.source !== previousCredentials.source ||
+        latestOAuth.refreshToken !== previousCredentials.refreshToken ||
+        latestOAuth.accessToken !== previousCredentials.accessToken)
+    ) {
+      return latest;
+    }
+  }
+  return null;
+}
+
 async function refreshRdCredentials(
   admin: ReturnType<typeof createSupabaseAdmin>,
   idEmpresa: number,
   credentials: RdCredentials,
 ) {
-  const clientId = requireRdCredential(credentials.rd_client_id, "client_id");
-  const clientSecret = requireRdCredential(credentials.rd_client_secret, "client_secret");
-  const refreshToken = requireRdCredential(credentials.rd_refresh_token, "refresh_token");
+  const latestBeforeRefresh = await loadRdCredentials(admin, idEmpresa);
+  const previousOAuth = resolveRdOAuthCredentials(credentials);
+  const latestOAuth = resolveRdOAuthCredentials(latestBeforeRefresh);
+  if (
+    latestOAuth.source !== previousOAuth.source ||
+    latestOAuth.refreshToken !== previousOAuth.refreshToken ||
+    latestOAuth.accessToken !== previousOAuth.accessToken
+  ) {
+    return latestBeforeRefresh;
+  }
+
+  const credentialLabel = latestOAuth.source === "hub" ? "Hub" : "legada";
+  const clientId = requireRdCredential(latestOAuth.clientId, `${credentialLabel} client_id`);
+  const clientSecret = requireRdCredential(latestOAuth.clientSecret, `${credentialLabel} client_secret`);
+  const refreshToken = requireRdCredential(latestOAuth.refreshToken, `${credentialLabel} refresh_token`);
 
   const response = await fetch("https://api.rd.services/oauth2/token", {
     method: "POST",
@@ -224,34 +342,38 @@ async function refreshRdCredentials(
   });
   const payload = await parseResponsePayload(response);
   if (!response.ok) {
+    const rotatedCredentials = await loadRotatedRdCredentials(admin, idEmpresa, latestOAuth);
+    if (rotatedCredentials) return rotatedCredentials;
     throw new Error(externalApiError(payload, `RD Station retornou ${response.status} ao renovar o token.`));
   }
 
   const accessToken = requireRdCredential(payload?.access_token, "access_token retornado");
   const nextRefreshToken = requireRdCredential(payload?.refresh_token, "refresh_token retornado");
-  const { data, error } = await admin
-    .from("credentials")
-    .update({
+  const tokenExpiresAt = rdTokenExpiresAt(payload?.expires_in);
+  const tokenUpdate = latestOAuth.source === "hub"
+    ? {
+      rd_hub_access_token: accessToken,
+      rd_hub_refresh_token: nextRefreshToken,
+      rd_hub_token_expires_at: tokenExpiresAt,
+      updated_at: new Date().toISOString(),
+    }
+    : {
       rd_crm_access_token: accessToken,
       rd_refresh_token: nextRefreshToken,
       updated_at: new Date().toISOString(),
-    })
+    };
+  const refreshTokenColumn = latestOAuth.source === "hub" ? "rd_hub_refresh_token" : "rd_refresh_token";
+  const { data, error } = await admin
+    .from("credentials")
+    .update(tokenUpdate)
     .eq("id_empresa", idEmpresa)
-    .eq("rd_refresh_token", refreshToken)
-    .select("default_crm,rd_crm_access_token,rd_user_id,rd_client_id,rd_client_secret,rd_refresh_token")
+    .eq(refreshTokenColumn, refreshToken)
+    .select(RD_CREDENTIALS_SELECT)
     .maybeSingle();
   if (error) throw new Error(error.message);
 
-  if (data) return data as RdCredentials;
-
-  const { data: latest, error: latestError } = await admin
-    .from("credentials")
-    .select("default_crm,rd_crm_access_token,rd_user_id,rd_client_id,rd_client_secret,rd_refresh_token")
-    .eq("id_empresa", idEmpresa)
-    .maybeSingle();
-  if (latestError) throw new Error(latestError.message);
-  if (!latest) throw new Error("As credenciais RD não foram encontradas após renovar o token.");
-  return latest as RdCredentials;
+  if (data) return data as unknown as RdCredentials;
+  return await loadRdCredentials(admin, idEmpresa);
 }
 
 async function requestToRd(
@@ -272,12 +394,34 @@ async function requestToRd(
       body: JSON.stringify(body),
     });
 
-  const accessToken = requireRdCredential(credentials.rd_crm_access_token, "access_token");
+  let activeCredentials = await loadRdCredentials(admin, idEmpresa);
+  let activeOAuth = resolveRdOAuthCredentials(activeCredentials);
+  if (!activeOAuth.accessToken) {
+    activeCredentials = credentials;
+    activeOAuth = resolveRdOAuthCredentials(activeCredentials);
+  }
+  if (activeOAuth.tokenExpiresAt && !hasFreshRdAccessToken(activeOAuth)) {
+    activeCredentials = await refreshRdCredentials(admin, idEmpresa, activeCredentials);
+    activeOAuth = resolveRdOAuthCredentials(activeCredentials);
+  }
+
+  let accessToken = requireRdCredential(activeOAuth.accessToken, `${activeOAuth.source === "hub" ? "Hub" : "legada"} access_token`);
   let response = await send(accessToken);
   if (response.status !== 401) return response;
 
-  const refreshedCredentials = await refreshRdCredentials(admin, idEmpresa, credentials);
-  response = await send(requireRdCredential(refreshedCredentials.rd_crm_access_token, "access_token"));
+  const latestCredentials = await loadRdCredentials(admin, idEmpresa);
+  const latestOAuth = resolveRdOAuthCredentials(latestCredentials);
+  if (latestOAuth.accessToken && latestOAuth.accessToken !== accessToken) {
+    activeCredentials = latestCredentials;
+    activeOAuth = latestOAuth;
+    accessToken = latestOAuth.accessToken;
+    response = await send(accessToken);
+    if (response.status !== 401) return response;
+  }
+
+  const refreshedCredentials = await refreshRdCredentials(admin, idEmpresa, activeCredentials);
+  const refreshedOAuth = resolveRdOAuthCredentials(refreshedCredentials);
+  response = await send(requireRdCredential(refreshedOAuth.accessToken, "access_token renovado"));
   return response;
 }
 
@@ -305,11 +449,15 @@ async function authenticateDispatchRequest(
   if (crmDispatchToken) {
     const { data: credentials, error: credentialsError } = await supabaseAdmin
       .from("credentials")
-      .select("cv_crm_token,rd_crm_access_token")
+      .select("cv_crm_token,rd_crm_access_token,rd_hub_access_token")
       .eq("id_empresa", idEmpresa)
       .maybeSingle();
     if (credentialsError) throw new Error(credentialsError.message);
-    const validTokens = [credentials?.cv_crm_token, credentials?.rd_crm_access_token]
+    const validTokens = [
+      credentials?.cv_crm_token,
+      credentials?.rd_crm_access_token,
+      credentials?.rd_hub_access_token,
+    ]
       .map((value) => String(value ?? "").trim())
       .filter(Boolean);
     if (validTokens.includes(crmDispatchToken)) {
@@ -614,7 +762,7 @@ Deno.serve(async (req) => {
           .maybeSingle(),
         admin
           .from("credentials")
-          .select("default_crm,cv_crm_url,cv_crm_token,cv_crm_email,rd_crm_access_token,rd_user_id,rd_client_id,rd_client_secret,rd_refresh_token")
+          .select(`cv_crm_url,cv_crm_token,cv_crm_email,${RD_CREDENTIALS_SELECT}`)
           .eq("id_empresa", lead.id_empresa)
           .maybeSingle(),
       ]);
@@ -711,7 +859,10 @@ Deno.serve(async (req) => {
     const providerLabel = isCvCrm ? "CV" : "RD";
     const email = String(lead.email ?? "").trim();
     const phone = String(lead.telefone ?? "").trim();
-    const tags = normalizeDispatchTags(body.additionalTags);
+    const requestedTags = normalizeDispatchTags(body.additionalTags);
+    const tags = isCvCrm
+      ? normalizeDispatchTags([...leadTagNames, ...requestedTags])
+      : requestedTags;
     let requestPayload: Record<string, unknown> = {};
     let responsePayload: Json | Record<string, unknown> | null = null;
     let summaryPayload: CvSummaryResult | null = null;

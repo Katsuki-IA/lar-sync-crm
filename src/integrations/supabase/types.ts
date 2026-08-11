@@ -226,6 +226,11 @@ export type Database = {
           rd_client_id: string | null
           rd_client_secret: string | null
           rd_crm_access_token: string | null
+          rd_hub_access_token: string | null
+          rd_hub_client_id: string | null
+          rd_hub_client_secret: string | null
+          rd_hub_refresh_token: string | null
+          rd_hub_token_expires_at: string | null
           rd_refresh_token: string | null
           rd_user_id: string | null
           updated_at: string | null
@@ -253,6 +258,11 @@ export type Database = {
           rd_client_id?: string | null
           rd_client_secret?: string | null
           rd_crm_access_token?: string | null
+          rd_hub_access_token?: string | null
+          rd_hub_client_id?: string | null
+          rd_hub_client_secret?: string | null
+          rd_hub_refresh_token?: string | null
+          rd_hub_token_expires_at?: string | null
           rd_refresh_token?: string | null
           rd_user_id?: string | null
           updated_at?: string | null
@@ -280,6 +290,11 @@ export type Database = {
           rd_client_id?: string | null
           rd_client_secret?: string | null
           rd_crm_access_token?: string | null
+          rd_hub_access_token?: string | null
+          rd_hub_client_id?: string | null
+          rd_hub_client_secret?: string | null
+          rd_hub_refresh_token?: string | null
+          rd_hub_token_expires_at?: string | null
           rd_refresh_token?: string | null
           rd_user_id?: string | null
           updated_at?: string | null
@@ -1485,8 +1500,11 @@ export type Database = {
         Row: {
           active: boolean | null
           connected_at: string | null
+          health_status: string
           id: string
           id_empresa: number
+          last_error: string | null
+          last_health_check_at: string | null
           user_access_token: string
           user_id_meta: string
           user_name: string | null
@@ -1494,8 +1512,11 @@ export type Database = {
         Insert: {
           active?: boolean | null
           connected_at?: string | null
+          health_status?: string
           id?: string
           id_empresa: number
+          last_error?: string | null
+          last_health_check_at?: string | null
           user_access_token: string
           user_id_meta: string
           user_name?: string | null
@@ -1503,8 +1524,11 @@ export type Database = {
         Update: {
           active?: boolean | null
           connected_at?: string | null
+          health_status?: string
           id?: string
           id_empresa?: number
+          last_error?: string | null
+          last_health_check_at?: string | null
           user_access_token?: string
           user_id_meta?: string
           user_name?: string | null
@@ -1565,10 +1589,14 @@ export type Database = {
           id_empreendimento: number | null
           id_empresa: number
           id_funnel: number | null
+          last_recovered_at: string | null
           leads_count: number | null
           page_access_token: string | null
           page_id: string
           page_name: string | null
+          webhook_checked_at: string | null
+          webhook_error: string | null
+          webhook_subscribed: boolean
         }
         Insert: {
           active?: boolean | null
@@ -1580,10 +1608,14 @@ export type Database = {
           id_empreendimento?: number | null
           id_empresa: number
           id_funnel?: number | null
+          last_recovered_at?: string | null
           leads_count?: number | null
           page_access_token?: string | null
           page_id: string
           page_name?: string | null
+          webhook_checked_at?: string | null
+          webhook_error?: string | null
+          webhook_subscribed?: boolean
         }
         Update: {
           active?: boolean | null
@@ -1595,10 +1627,14 @@ export type Database = {
           id_empreendimento?: number | null
           id_empresa?: number
           id_funnel?: number | null
+          last_recovered_at?: string | null
           leads_count?: number | null
           page_access_token?: string | null
           page_id?: string
           page_name?: string | null
+          webhook_checked_at?: string | null
+          webhook_error?: string | null
+          webhook_subscribed?: boolean
         }
         Relationships: [
           {

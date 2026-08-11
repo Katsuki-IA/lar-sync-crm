@@ -6,6 +6,9 @@ export type MetaConnectionStatus = {
   user_id_meta: string;
   connected_at: string | null;
   active: boolean | null;
+  health_status: "unknown" | "healthy" | "degraded" | "error";
+  last_health_check_at: string | null;
+  last_error: string | null;
 };
 
 export type MetaFormStatus = {
@@ -19,6 +22,10 @@ export type MetaFormStatus = {
   id_empreendimento: number | null;
   id_funnel: number | null;
   mapped_fields_count?: number;
+  webhook_subscribed: boolean;
+  webhook_checked_at: string | null;
+  webhook_error: string | null;
+  last_recovered_at: string | null;
 };
 
 export type MetaIntegrationStatus = {
@@ -119,6 +126,14 @@ export type MetaAttributionEnrichmentResult = {
   }>;
 };
 
+export type MetaLeadsRecoveryResult = {
+  forms: number;
+  checked: number;
+  recovered: number;
+  duplicates: number;
+  failed: Array<{ formId: string; leadId?: string; message: string }>;
+};
+
 async function getFunctionErrorMessage(error: unknown, fallback: string) {
   const context = (error as { context?: unknown } | null)?.context;
 
@@ -194,4 +209,8 @@ export async function createMetaTestLead(data: MetaTestLeadInput) {
 
 export async function enrichMetaAttribution(data?: { leadId?: number; limit?: number }) {
   return invokeMetaFunction<MetaAttributionEnrichmentResult>("meta-enrich-attribution", data);
+}
+
+export async function recoverMetaLeads(data?: { limitPerForm?: number }) {
+  return invokeMetaFunction<MetaLeadsRecoveryResult>("meta-leads-recover", data);
 }

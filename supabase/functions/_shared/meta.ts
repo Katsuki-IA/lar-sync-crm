@@ -371,6 +371,9 @@ export async function syncMetaFormsForConnection(args: {
     form_name: string | null;
     leads_count: number;
     active: boolean;
+    webhook_subscribed: boolean;
+    webhook_checked_at: string;
+    webhook_error: string | null;
   }> = [];
 
   for (const page of pages) {
@@ -387,6 +390,7 @@ export async function syncMetaFormsForConnection(args: {
     }
 
     let webhookSubscribed = false;
+    let webhookError: string | null = null;
     const subscriptionUrl = new URL(
       `https://graph.facebook.com/${args.graphVersion}/${page.id}/subscribed_apps`,
     );
@@ -404,6 +408,7 @@ export async function syncMetaFormsForConnection(args: {
       }
       webhookSubscribed = true;
     } catch (error) {
+      webhookError = error instanceof Error ? error.message : "Falha ao inscrever a pagina";
       pageErrors.push({
         pageId: page.id,
         pageName: page.name ?? null,
@@ -442,6 +447,9 @@ export async function syncMetaFormsForConnection(args: {
           form_name: form.name ?? null,
           leads_count: form.leads_count ?? 0,
           active: true,
+          webhook_subscribed: webhookSubscribed,
+          webhook_checked_at: new Date().toISOString(),
+          webhook_error: webhookError,
         })),
       );
     } catch (error) {
@@ -470,11 +478,63 @@ export async function syncMetaFormsForConnection(args: {
   if (deactivateError) throw new Error(deactivateError.message);
 
   if (rows.length > 0) {
+    const { data: ownedElsewhere, error: ownerError } = await supabaseAdmin
+      .from("crm_meta_forms")
+      .select("form_id,page_id")
+      .in("form_id", Array.from(new Set(rows.map((row) => row.form_id))))
+      .eq("active", true)
+      .not("id_empreendimento", "is", null)
+      .not("id_funnel", "is", null)
+      .neq("id_empresa", args.idEmpresa);
+    if (ownerError) throw new Error(ownerError.message);
+
+    const ownerKeys = new Set(
+      (ownedElsewhere ?? []).map((form) => `${form.form_id}:${form.page_id}`),
+    );
+    if (ownerKeys.size > 0) {
+      const blocked = rows.filter((row) => ownerKeys.has(`${row.form_id}:${row.page_id}`));
+      for (const row of blocked) {
+        pageErrors.push({
+          pageId: row.page_id,
+          pageName: row.page_name,
+          message: `Formulario ${row.form_name ?? row.form_id} ja esta configurado em outra empresa`,
+        });
+      }
+      for (let index = rows.length - 1; index >= 0; index -= 1) {
+        if (ownerKeys.has(`${rows[index].form_id}:${rows[index].page_id}`)) rows.splice(index, 1);
+      }
+    }
+  }
+
+  if (rows.length > 0) {
     const { error } = await supabaseAdmin
       .from("crm_meta_forms")
       .upsert(rows, { onConflict: "id_empresa,form_id" });
     if (error) throw new Error(error.message);
   }
+
+  const sourceErrors = sources.filter((source) => source.error);
+  const healthStatus = pages.length === 0
+    ? "error"
+    : pageErrors.length > 0 || sourceErrors.length > 0
+      ? "degraded"
+      : "healthy";
+  const healthErrors = [
+    ...pageErrors.map((error) => `${error.pageName ?? error.pageId}: ${error.message}`),
+    ...sourceErrors.map((source) => `${source.source}: ${source.error}`),
+  ];
+  const { error: healthError } = await supabaseAdmin
+    .from("crm_meta_connections")
+    .update({
+      health_status: healthStatus,
+      last_health_check_at: new Date().toISOString(),
+      last_error: healthErrors.length > 0
+        ? healthErrors.join(" | ").slice(0, 2000)
+        : null,
+    })
+    .eq("id", args.connectionId)
+    .eq("id_empresa", args.idEmpresa);
+  if (healthError) throw new Error(healthError.message);
 
   return {
     pagesCount: pages.length,
