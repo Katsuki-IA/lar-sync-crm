@@ -473,6 +473,8 @@ function LeadAttributionPanel({ data }: { data: ReportData }) {
   const attributionByLeadId = new Map(
     data.attributions.map(({ leadId, attribution }) => [leadId, attribution]),
   );
+  const stageById = new Map(data.stages.map((stage) => [stage.id, stage]));
+  const stageOrderById = new Map(data.stages.map((stage) => [stage.id, stage.ordem]));
   const rowsByAttribution = new Map<
     string,
     {
@@ -482,6 +484,7 @@ function LeadAttributionPanel({ data }: { data: ReportData }) {
       conjunto: string;
       anuncio: string;
       leads: number;
+      stageCounts: Map<number | null, number>;
     }
   >();
 
@@ -505,8 +508,13 @@ function LeadAttributionPanel({ data }: { data: ReportData }) {
       conjunto,
       anuncio,
       leads: 0,
+      stageCounts: new Map<number | null, number>(),
     };
     current.leads += 1;
+    current.stageCounts.set(
+      lead.crm_stage_id,
+      (current.stageCounts.get(lead.crm_stage_id) ?? 0) + 1,
+    );
     rowsByAttribution.set(key, current);
   }
 
@@ -528,14 +536,14 @@ function LeadAttributionPanel({ data }: { data: ReportData }) {
           </p>
         ) : (
           <div className="max-h-[420px] overflow-auto rounded-md border">
-            <table className="w-full min-w-[980px] table-fixed text-sm">
+            <table className="w-full min-w-[1120px] table-fixed text-sm">
               <colgroup>
-                <col className="w-[15%]" />
-                <col className="w-[15%]" />
-                <col className="w-[22%]" />
-                <col className="w-[19%]" />
-                <col className="w-[21%]" />
-                <col className="w-[8%]" />
+                <col className="w-[13%]" />
+                <col className="w-[13%]" />
+                <col className="w-[20%]" />
+                <col className="w-[18%]" />
+                <col className="w-[18%]" />
+                <col className="w-[18%]" />
               </colgroup>
               <thead className="sticky top-0 bg-muted/90 text-left text-xs text-muted-foreground backdrop-blur">
                 <tr>
@@ -544,7 +552,7 @@ function LeadAttributionPanel({ data }: { data: ReportData }) {
                   <th className="px-3 py-2 font-medium">Campanha</th>
                   <th className="px-3 py-2 font-medium">Conjunto de anúncios</th>
                   <th className="px-3 py-2 font-medium">Anúncio / conteúdo</th>
-                  <th className="px-3 py-2 text-right font-medium">Leads</th>
+                  <th className="px-3 py-2 font-medium">Leads por etapa</th>
                 </tr>
               </thead>
               <tbody>
@@ -574,11 +582,49 @@ function LeadAttributionPanel({ data }: { data: ReportData }) {
                         {row.anuncio}
                       </p>
                     </td>
-                    <td className="px-3 py-2 text-right align-top tabular-nums">
-                      {row.leads}{" "}
-                      <span className="text-xs text-muted-foreground">
-                        ({total ? ((row.leads / total) * 100).toFixed(1) : "0.0"}%)
-                      </span>
+                    <td className="px-3 py-2 align-top tabular-nums">
+                      <div className="mb-1.5 whitespace-nowrap font-semibold">
+                        {row.leads}{" "}
+                        <span className="text-xs font-normal text-muted-foreground">
+                          ({total ? ((row.leads / total) * 100).toFixed(1) : "0.0"}%)
+                        </span>
+                      </div>
+                      <div className="space-y-1">
+                        {[...row.stageCounts.entries()]
+                          .sort(([stageIdA], [stageIdB]) => {
+                            const orderA =
+                              stageIdA === null
+                                ? Number.MAX_SAFE_INTEGER
+                                : (stageOrderById.get(stageIdA) ?? Number.MAX_SAFE_INTEGER);
+                            const orderB =
+                              stageIdB === null
+                                ? Number.MAX_SAFE_INTEGER
+                                : (stageOrderById.get(stageIdB) ?? Number.MAX_SAFE_INTEGER);
+                            return orderA - orderB;
+                          })
+                          .map(([stageId, count]) => {
+                            const stage = stageId === null ? null : stageById.get(stageId);
+                            return (
+                              <div
+                                key={stageId ?? "no-stage"}
+                                className="flex min-w-0 items-center justify-between gap-2 text-xs"
+                              >
+                                <span className="flex min-w-0 items-center gap-1.5 text-muted-foreground">
+                                  <span
+                                    className="h-2 w-2 shrink-0 rounded-full"
+                                    style={{ backgroundColor: stage?.cor ?? "#A1A1AA" }}
+                                  />
+                                  <span className="truncate" title={stage?.nome ?? "Sem etapa"}>
+                                    {stage?.nome ?? "Sem etapa"}
+                                  </span>
+                                </span>
+                                <span className="shrink-0 font-medium text-foreground">
+                                  {count}
+                                </span>
+                              </div>
+                            );
+                          })}
+                      </div>
                     </td>
                   </tr>
                 ))}
