@@ -478,7 +478,6 @@ function LeadAttributionPanel({ data }: { data: ReportData }) {
     {
       origem: string;
       fonte: string;
-      meio: string;
       campanha: string;
       conjunto: string;
       anuncio: string;
@@ -489,18 +488,19 @@ function LeadAttributionPanel({ data }: { data: ReportData }) {
   for (const lead of data.leads) {
     const attribution = attributionByLeadId.get(lead.id);
     const origem = getAttributionOrigin(attribution, lead.origem);
-    const fonte = attribution?.utm_source || attribution?.source_type || "Não identificada";
-    const meio = attribution?.utm_medium || "Não identificado";
+    const fonte =
+      origem === "Meta Ads"
+        ? "Meta Lead Ads"
+        : attribution?.utm_source || attribution?.source_type || "Não identificada";
     const campanha =
       attribution?.meta_campaign_name || attribution?.utm_campaign || "Sem campanha identificada";
     const conjunto = attribution?.meta_adset_name || "Sem conjunto identificado";
     const anuncio =
       attribution?.meta_ad_name || attribution?.utm_content || "Sem anúncio identificado";
-    const key = `${origem}\u0000${fonte}\u0000${meio}\u0000${campanha}\u0000${conjunto}\u0000${anuncio}`;
+    const key = `${origem}\u0000${fonte}\u0000${campanha}\u0000${conjunto}\u0000${anuncio}`;
     const current = rowsByAttribution.get(key) ?? {
       origem,
       fonte,
-      meio,
       campanha,
       conjunto,
       anuncio,
@@ -540,7 +540,7 @@ function LeadAttributionPanel({ data }: { data: ReportData }) {
               <thead className="sticky top-0 bg-muted/90 text-left text-xs text-muted-foreground backdrop-blur">
                 <tr>
                   <th className="px-3 py-2 font-medium">Origem</th>
-                  <th className="px-3 py-2 font-medium">Fonte / meio</th>
+                  <th className="px-3 py-2 font-medium">Fonte</th>
                   <th className="px-3 py-2 font-medium">Campanha</th>
                   <th className="px-3 py-2 font-medium">Conjunto de anúncios</th>
                   <th className="px-3 py-2 font-medium">Anúncio / conteúdo</th>
@@ -550,16 +550,13 @@ function LeadAttributionPanel({ data }: { data: ReportData }) {
               <tbody>
                 {rows.map((row) => (
                   <tr
-                    key={`${row.origem}-${row.fonte}-${row.meio}-${row.campanha}-${row.conjunto}-${row.anuncio}`}
+                    key={`${row.origem}-${row.fonte}-${row.campanha}-${row.conjunto}-${row.anuncio}`}
                     className="border-t"
                   >
                     <td className="px-3 py-2 align-top font-medium">{row.origem}</td>
-                    <td className="px-3 py-2 align-top">
+                    <td className="px-3 py-2 align-top font-medium">
                       <p className="truncate" title={row.fonte}>
                         {row.fonte}
-                      </p>
-                      <p className="truncate text-xs text-muted-foreground" title={row.meio}>
-                        {row.meio}
                       </p>
                     </td>
                     <td className="px-3 py-2 align-top">
