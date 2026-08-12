@@ -20,7 +20,13 @@ import { useCrmUser } from "@/hooks/use-crm-user";
 import { useActiveEmpresa } from "@/hooks/use-active-empresa";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
@@ -52,7 +58,18 @@ function presetToRange(p: Preset, customFrom?: Date, customTo?: Date): Range {
   return { from: customFrom ?? subDays(today, 29), to: customTo ?? today };
 }
 
-const DONUT_COLORS = ["#C14F21", "#E68F6A", "#F2B9A3", "#A3421C", "#D96D3E", "#7A3115", "#B07D1A", "#2471A3", "#2D7D52", "#52200D"];
+const DONUT_COLORS = [
+  "#C14F21",
+  "#E68F6A",
+  "#F2B9A3",
+  "#A3421C",
+  "#D96D3E",
+  "#7A3115",
+  "#B07D1A",
+  "#2471A3",
+  "#2D7D52",
+  "#52200D",
+];
 
 function isConvertedStage(name?: string | null) {
   return /fech|ganh|venda|convert/i.test(name ?? "");
@@ -63,7 +80,8 @@ function isLostStage(name?: string | null) {
 
 function chunk<T>(items: T[], size: number) {
   const chunks: T[][] = [];
-  for (let index = 0; index < items.length; index += size) chunks.push(items.slice(index, index + size));
+  for (let index = 0; index < items.length; index += size)
+    chunks.push(items.slice(index, index + size));
   return chunks;
 }
 
@@ -87,7 +105,14 @@ function ReportsPage() {
 
   const { data, isLoading } = useQuery({
     enabled: !!me && !!activeEmpresaId,
-    queryKey: ["reports", me?.id, me?.role, activeEmpresaId, range.from.toISOString(), range.to.toISOString()],
+    queryKey: [
+      "reports",
+      me?.id,
+      me?.role,
+      activeEmpresaId,
+      range.from.toISOString(),
+      range.to.toISOString(),
+    ],
     queryFn: async () => {
       const isAgent = me?.role === "agent";
       const empresaIds = activeEmpresaId ? [activeEmpresaId] : [];
@@ -96,31 +121,45 @@ function ReportsPage() {
 
       let lq = supabase
         .from("crm_leads")
-        .select("id, lead_id, telefone, lead_quente, id_empresa, nome, origem, crm_stage_id, crm_assigned_to, id_empreendimento, status, created_at, updated_at")
+        .select(
+          "id, lead_id, telefone, lead_quente, id_empresa, nome, origem, crm_stage_id, crm_assigned_to, id_empreendimento, status, created_at, updated_at",
+        )
         .in("id_empresa", empresaIds)
         .gte("created_at", fromIso)
         .lte("created_at", toIso);
       if (isAgent && me) lq = lq.eq("crm_assigned_to", me.id);
 
-      const [{ data: leads, error: leadsError }, { data: stages, error: stagesError }, { data: emps, error: empsError }] =
-        await Promise.all([
-          lq,
-          supabase.from("crm_stages").select("id, nome, cor, ordem").eq("id_empresa", activeEmpresaId!).eq("ativo", true).order("ordem"),
-          supabase.from("empreendimento").select("id, nome").in("id_empresa", empresaIds),
-        ]);
+      const [
+        { data: leads, error: leadsError },
+        { data: stages, error: stagesError },
+        { data: emps, error: empsError },
+      ] = await Promise.all([
+        lq,
+        supabase
+          .from("crm_stages")
+          .select("id, nome, cor, ordem")
+          .eq("id_empresa", activeEmpresaId!)
+          .eq("ativo", true)
+          .order("ordem"),
+        supabase.from("empreendimento").select("id, nome").in("id_empresa", empresaIds),
+      ]);
       if (leadsError) throw leadsError;
       if (stagesError) throw stagesError;
       if (empsError) throw empsError;
 
       const cohort = leads ?? [];
       const crmLeadIds = cohort.map((lead) => lead.id);
-      const cohortLegacyLeadIds = cohort.flatMap((lead) => (lead.lead_id === null ? [] : [lead.lead_id]));
+      const cohortLegacyLeadIds = cohort.flatMap((lead) =>
+        lead.lead_id === null ? [] : [lead.lead_id],
+      );
       const attributionResults = (
         await Promise.all(
           chunk(crmLeadIds, 20).map((leadIdGroup) =>
             Promise.all(
               leadIdGroup.map(async (leadId) => {
-                const result = await supabase.rpc("crm_get_lead_attribution", { p_lead_id: leadId });
+                const result = await supabase.rpc("crm_get_lead_attribution", {
+                  p_lead_id: leadId,
+                });
                 if (result.error) throw result.error;
                 return { leadId, attribution: result.data?.[0] ?? null };
               }),
@@ -139,7 +178,7 @@ function ReportsPage() {
 
       const classificationsResult = legacyLeadIds.length
         ? await supabase
-          .from("crm_conversation_classifications")
+            .from("crm_conversation_classifications")
             .select("lead_id,cliente_respondeu,qualificado")
             .eq("id_empresa", activeEmpresaId!)
             .in("lead_id", legacyLeadIds)
@@ -147,15 +186,20 @@ function ReportsPage() {
       if (classificationsResult.error) {
         const code = (classificationsResult.error as { code?: string }).code;
         const message = classificationsResult.error.message ?? "";
-        if (code !== "42P01" && code !== "PGRST205" && !message.includes("crm_conversation_classifications")) {
+        if (
+          code !== "42P01" &&
+          code !== "PGRST205" &&
+          !message.includes("crm_conversation_classifications")
+        ) {
           throw classificationsResult.error;
         }
       }
 
-      const legacyLeadById = new Map(
-        (legacyLeadsResult.data ?? []).map((lead) => [lead.id, lead]),
-      );
-      const legacyLeadBySessionId = new Map<string, NonNullable<typeof legacyLeadsResult.data>[number]>();
+      const legacyLeadById = new Map((legacyLeadsResult.data ?? []).map((lead) => [lead.id, lead]));
+      const legacyLeadBySessionId = new Map<
+        string,
+        NonNullable<typeof legacyLeadsResult.data>[number]
+      >();
       for (const legacyLead of legacyLeadsResult.data ?? []) {
         for (const sessionId of createJourneySessionIds(legacyLead.numero, activeEmpresaId!)) {
           legacyLeadBySessionId.set(sessionId, legacyLead);
@@ -186,11 +230,11 @@ function ReportsPage() {
           telefones: [legacyLead?.numero, lead.telefone],
           idEmpresa: lead.id_empresa,
           leadQuente: lead.lead_quente,
-        legacyEngaged:
-          Boolean(legacyLead && classifiedResponseLeadIds.has(legacyLead.id)) ||
-          (legacyLead?.qtd_interacoes ?? 0) >= 2,
-        legacyQualified:
-          Boolean(legacyLead && classifiedQualifiedLeadIds.has(legacyLead.id)) ||
+          legacyEngaged:
+            Boolean(legacyLead && classifiedResponseLeadIds.has(legacyLead.id)) ||
+            (legacyLead?.qtd_interacoes ?? 0) >= 2,
+          legacyQualified:
+            Boolean(legacyLead && classifiedQualifiedLeadIds.has(legacyLead.id)) ||
             legacyLead?.qualificado === 1 ||
             (history.includes("qualificado") && !history.includes("desqualificado")),
         };
@@ -210,7 +254,10 @@ function ReportsPage() {
           ),
         ),
         crmLeadIds.length
-          ? supabase.from("crm_lead_activities").select("lead_id,metadata,descricao").in("lead_id", crmLeadIds)
+          ? supabase
+              .from("crm_lead_activities")
+              .select("lead_id,metadata,descricao")
+              .in("lead_id", crmLeadIds)
           : Promise.resolve({ data: [], error: null }),
         cohortLegacyLeadIds.length
           ? supabase
@@ -257,9 +304,12 @@ function ReportsPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-[24px] font-bold tracking-tight text-foreground">Relatórios &amp; Analytics</h1>
+          <h1 className="text-[24px] font-bold tracking-tight text-foreground">
+            Relatórios &amp; Analytics
+          </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {format(range.from, "dd MMM", { locale: ptBR })} – {format(range.to, "dd MMM yyyy", { locale: ptBR })}
+            {format(range.from, "dd MMM", { locale: ptBR })} –{" "}
+            {format(range.to, "dd MMM yyyy", { locale: ptBR })}
           </p>
         </div>
         <PeriodFilter
@@ -280,7 +330,9 @@ function ReportsPage() {
         </div>
       ) : (
         <div className="grid gap-4 lg:grid-cols-2">
-          <LeadAttributionPanel data={data} />
+          <div className="lg:col-span-2">
+            <LeadAttributionPanel data={data} />
+          </div>
           <div className="lg:col-span-2">
             <EmpreendimentoPanel data={data} />
           </div>
@@ -331,20 +383,37 @@ function PeriodFilter({
   );
 }
 
-function DatePick({ value, onChange, placeholder }: { value?: Date; onChange: (d?: Date) => void; placeholder: string }) {
+function DatePick({
+  value,
+  onChange,
+  placeholder,
+}: {
+  value?: Date;
+  onChange: (d?: Date) => void;
+  placeholder: string;
+}) {
   return (
     <Popover>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
-          className={cn("h-9 w-[150px] justify-start text-left font-normal", !value && "text-muted-foreground")}
+          className={cn(
+            "h-9 w-[150px] justify-start text-left font-normal",
+            !value && "text-muted-foreground",
+          )}
         >
           <CalendarIcon className="mr-2 h-4 w-4" />
           {value ? format(value, "dd/MM/yyyy") : placeholder}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="end">
-        <Calendar mode="single" selected={value} onSelect={onChange} initialFocus className="pointer-events-auto" />
+        <Calendar
+          mode="single"
+          selected={value}
+          onSelect={onChange}
+          initialFocus
+          className="pointer-events-auto"
+        />
       </PopoverContent>
     </Popover>
   );
@@ -381,12 +450,21 @@ type ReportData = {
     leadId: number;
     attribution: {
       source_type: string;
+      meta_form_id: string;
+      meta_page_id: string;
       meta_campaign_name: string;
+      meta_adset_name: string;
       meta_ad_name: string;
       utm_source: string;
+      utm_medium: string;
       utm_campaign: string;
       utm_content: string;
+      utm_term: string;
       gclid: string;
+      landing_page_url: string;
+      referrer_url: string;
+      created_at: string;
+      meta_enriched_at: string;
     } | null;
   }>;
 };
@@ -395,20 +473,46 @@ function LeadAttributionPanel({ data }: { data: ReportData }) {
   const attributionByLeadId = new Map(
     data.attributions.map(({ leadId, attribution }) => [leadId, attribution]),
   );
-  const rowsByAttribution = new Map<string, { origem: string; campanha: string; anuncio: string; leads: number }>();
+  const rowsByAttribution = new Map<
+    string,
+    {
+      origem: string;
+      fonte: string;
+      meio: string;
+      campanha: string;
+      conjunto: string;
+      anuncio: string;
+      leads: number;
+    }
+  >();
 
   for (const lead of data.leads) {
     const attribution = attributionByLeadId.get(lead.id);
     const origem = getAttributionOrigin(attribution, lead.origem);
-    const campanha = attribution?.meta_campaign_name || attribution?.utm_campaign || "Sem campanha identificada";
-    const anuncio = attribution?.meta_ad_name || attribution?.utm_content || "Sem anúncio identificado";
-    const key = `${origem}\u0000${campanha}\u0000${anuncio}`;
-    const current = rowsByAttribution.get(key) ?? { origem, campanha, anuncio, leads: 0 };
+    const fonte = attribution?.utm_source || attribution?.source_type || "Não identificada";
+    const meio = attribution?.utm_medium || "Não identificado";
+    const campanha =
+      attribution?.meta_campaign_name || attribution?.utm_campaign || "Sem campanha identificada";
+    const conjunto = attribution?.meta_adset_name || "Sem conjunto identificado";
+    const anuncio =
+      attribution?.meta_ad_name || attribution?.utm_content || "Sem anúncio identificado";
+    const key = `${origem}\u0000${fonte}\u0000${meio}\u0000${campanha}\u0000${conjunto}\u0000${anuncio}`;
+    const current = rowsByAttribution.get(key) ?? {
+      origem,
+      fonte,
+      meio,
+      campanha,
+      conjunto,
+      anuncio,
+      leads: 0,
+    };
     current.leads += 1;
     rowsByAttribution.set(key, current);
   }
 
-  const rows = [...rowsByAttribution.values()].sort((a, b) => b.leads - a.leads || a.origem.localeCompare(b.origem));
+  const rows = [...rowsByAttribution.values()].sort(
+    (a, b) => b.leads - a.leads || a.origem.localeCompare(b.origem),
+  );
   const total = data.leads.length;
 
   return (
@@ -419,27 +523,65 @@ function LeadAttributionPanel({ data }: { data: ReportData }) {
       </CardHeader>
       <CardContent>
         {rows.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Nenhum lead recebido no período selecionado.</p>
+          <p className="text-sm text-muted-foreground">
+            Nenhum lead recebido no período selecionado.
+          </p>
         ) : (
-          <div className="max-h-[360px] overflow-auto rounded-md border">
-            <table className="w-full text-sm">
+          <div className="max-h-[420px] overflow-auto rounded-md border">
+            <table className="w-full min-w-[980px] table-fixed text-sm">
+              <colgroup>
+                <col className="w-[15%]" />
+                <col className="w-[15%]" />
+                <col className="w-[22%]" />
+                <col className="w-[19%]" />
+                <col className="w-[21%]" />
+                <col className="w-[8%]" />
+              </colgroup>
               <thead className="sticky top-0 bg-muted/90 text-left text-xs text-muted-foreground backdrop-blur">
                 <tr>
                   <th className="px-3 py-2 font-medium">Origem</th>
-                  <th className="px-3 py-2 font-medium">Campanha / anúncio</th>
+                  <th className="px-3 py-2 font-medium">Fonte / meio</th>
+                  <th className="px-3 py-2 font-medium">Campanha</th>
+                  <th className="px-3 py-2 font-medium">Conjunto de anúncios</th>
+                  <th className="px-3 py-2 font-medium">Anúncio / conteúdo</th>
                   <th className="px-3 py-2 text-right font-medium">Leads</th>
                 </tr>
               </thead>
               <tbody>
                 {rows.map((row) => (
-                  <tr key={`${row.origem}-${row.campanha}-${row.anuncio}`} className="border-t">
+                  <tr
+                    key={`${row.origem}-${row.fonte}-${row.meio}-${row.campanha}-${row.conjunto}-${row.anuncio}`}
+                    className="border-t"
+                  >
                     <td className="px-3 py-2 align-top font-medium">{row.origem}</td>
                     <td className="px-3 py-2 align-top">
-                      <p className="line-clamp-1">{row.campanha}</p>
-                      <p className="line-clamp-1 text-xs text-muted-foreground">{row.anuncio}</p>
+                      <p className="truncate" title={row.fonte}>
+                        {row.fonte}
+                      </p>
+                      <p className="truncate text-xs text-muted-foreground" title={row.meio}>
+                        {row.meio}
+                      </p>
+                    </td>
+                    <td className="px-3 py-2 align-top">
+                      <p className="line-clamp-2" title={row.campanha}>
+                        {row.campanha}
+                      </p>
+                    </td>
+                    <td className="px-3 py-2 align-top">
+                      <p className="line-clamp-2" title={row.conjunto}>
+                        {row.conjunto}
+                      </p>
+                    </td>
+                    <td className="px-3 py-2 align-top">
+                      <p className="line-clamp-2" title={row.anuncio}>
+                        {row.anuncio}
+                      </p>
                     </td>
                     <td className="px-3 py-2 text-right align-top tabular-nums">
-                      {row.leads} <span className="text-xs text-muted-foreground">({total ? ((row.leads / total) * 100).toFixed(1) : "0.0"}%)</span>
+                      {row.leads}{" "}
+                      <span className="text-xs text-muted-foreground">
+                        ({total ? ((row.leads / total) * 100).toFixed(1) : "0.0"}%)
+                      </span>
                     </td>
                   </tr>
                 ))}
@@ -494,10 +636,15 @@ function JourneyFunnelPanel({ counts }: { counts: ReportData["journey"] }) {
             <div key={row.label} className="space-y-1.5">
               <div className="flex items-center justify-between gap-3 text-sm font-medium">
                 <span>{row.label}</span>
-                <span className="text-muted-foreground">{row.value} · {pct.toFixed(1)}%</span>
+                <span className="text-muted-foreground">
+                  {row.value} · {pct.toFixed(1)}%
+                </span>
               </div>
               <div className="h-2 overflow-hidden rounded-full bg-muted">
-                <div className={cn("h-full rounded-full transition-all", row.color)} style={{ width: `${pct}%` }} />
+                <div
+                  className={cn("h-full rounded-full transition-all", row.color)}
+                  style={{ width: `${pct}%` }}
+                />
               </div>
             </div>
           );
@@ -712,17 +859,23 @@ function KpiMini({ label, value }: { label: string; value: string }) {
 }
 */
 
-
 /* -------------------- Panel 5: Empreendimentos -------------------- */
 
 function EmpreendimentoPanel({ data }: { data: ReportData }) {
   const stageById = new Map(data.stages.map((s) => [s.id, s]));
   const empMap = new Map(data.emps.map((e) => [e.id, e.nome]));
-  type Row = { id: number; nome: string; total: number; andamento: number; convertidos: number; perdidos: number };
+  type Row = {
+    id: number;
+    nome: string;
+    total: number;
+    andamento: number;
+    convertidos: number;
+    perdidos: number;
+  };
   const map = new Map<number, Row>();
   for (const l of data.leads) {
     const id = l.id_empreendimento ?? 0;
-    const nome = id ? empMap.get(id) ?? "—" : "Sem interesse";
+    const nome = id ? (empMap.get(id) ?? "—") : "Sem interesse";
     const st = l.crm_stage_id ? stageById.get(l.crm_stage_id) : null;
     const cur = map.get(id) ?? { id, nome, total: 0, andamento: 0, convertidos: 0, perdidos: 0 };
     cur.total += 1;
@@ -737,9 +890,20 @@ function EmpreendimentoPanel({ data }: { data: ReportData }) {
   const [sortKey, setSortKey] = useState<keyof Row | "taxa">("total");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const sorted = [...rows].sort((a, b) => {
-    const av = sortKey === "taxa" ? (a.total ? a.convertidos / a.total : 0) : (a[sortKey] as number | string);
-    const bv = sortKey === "taxa" ? (b.total ? b.convertidos / b.total : 0) : (b[sortKey] as number | string);
-    if (typeof av === "string" && typeof bv === "string") return sortDir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
+    const av =
+      sortKey === "taxa"
+        ? a.total
+          ? a.convertidos / a.total
+          : 0
+        : (a[sortKey] as number | string);
+    const bv =
+      sortKey === "taxa"
+        ? b.total
+          ? b.convertidos / b.total
+          : 0
+        : (b[sortKey] as number | string);
+    if (typeof av === "string" && typeof bv === "string")
+      return sortDir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
     return sortDir === "asc" ? (av as number) - (bv as number) : (bv as number) - (av as number);
   });
 
@@ -756,15 +920,27 @@ function EmpreendimentoPanel({ data }: { data: ReportData }) {
 
   const donut = rows
     .filter((r) => r.total > 0)
-    .map((r, i) => ({ name: r.nome, value: r.total, color: DONUT_COLORS[i % DONUT_COLORS.length], convertidos: r.convertidos, taxa: r.total ? (r.convertidos / r.total) * 100 : 0 }));
+    .map((r, i) => ({
+      name: r.nome,
+      value: r.total,
+      color: DONUT_COLORS[i % DONUT_COLORS.length],
+      convertidos: r.convertidos,
+      taxa: r.total ? (r.convertidos / r.total) * 100 : 0,
+    }));
 
   const headerBtn = (key: keyof Row | "taxa", label: string, align: "left" | "right" = "right") => (
     <th
       onClick={() => {
         if (sortKey === key) setSortDir(sortDir === "asc" ? "desc" : "asc");
-        else { setSortKey(key); setSortDir("desc"); }
+        else {
+          setSortKey(key);
+          setSortDir("desc");
+        }
       }}
-      className={cn("py-2 font-medium cursor-pointer select-none hover:text-foreground", align === "left" ? "text-left" : "text-right")}
+      className={cn(
+        "py-2 font-medium cursor-pointer select-none hover:text-foreground",
+        align === "left" ? "text-left" : "text-right",
+      )}
     >
       {label} {sortKey === key && (sortDir === "asc" ? "↑" : "↓")}
     </th>
@@ -783,16 +959,35 @@ function EmpreendimentoPanel({ data }: { data: ReportData }) {
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie data={donut} dataKey="value" nameKey="name" innerRadius={55} outerRadius={90} paddingAngle={2}>
+                  <Pie
+                    data={donut}
+                    dataKey="value"
+                    nameKey="name"
+                    innerRadius={55}
+                    outerRadius={90}
+                    paddingAngle={2}
+                  >
                     {donut.map((d) => (
                       <Cell key={d.name} fill={d.color} />
                     ))}
                   </Pie>
                   <RTooltip
-                    contentStyle={{ background: "var(--color-card)", border: "1px solid var(--color-border)", borderRadius: 12 }}
+                    contentStyle={{
+                      background: "var(--color-card)",
+                      border: "1px solid var(--color-border)",
+                      borderRadius: 12,
+                    }}
                     formatter={(_v, _n, p) => {
-                      const d = p.payload as { name: string; value: number; convertidos: number; taxa: number };
-                      return [`${d.value} leads · ${d.convertidos} conv · ${d.taxa.toFixed(1)}%`, d.name];
+                      const d = p.payload as {
+                        name: string;
+                        value: number;
+                        convertidos: number;
+                        taxa: number;
+                      };
+                      return [
+                        `${d.value} leads · ${d.convertidos} conv · ${d.taxa.toFixed(1)}%`,
+                        d.name,
+                      ];
                     }}
                   />
                   <Legend
