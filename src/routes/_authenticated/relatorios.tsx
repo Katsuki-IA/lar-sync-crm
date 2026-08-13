@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format, subDays, startOfYear } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, Columns3, Rows3 } from "lucide-react";
 import {
   Cell,
   Pie,
@@ -470,6 +470,7 @@ type ReportData = {
 };
 
 function LeadAttributionPanel({ data }: { data: ReportData }) {
+  const [stageView, setStageView] = useState<"vertical" | "horizontal">("vertical");
   const attributionByLeadId = new Map(
     data.attributions.map(({ leadId, attribution }) => [leadId, attribution]),
   );
@@ -522,12 +523,55 @@ function LeadAttributionPanel({ data }: { data: ReportData }) {
     (a, b) => b.leads - a.leads || a.origem.localeCompare(b.origem),
   );
   const total = data.leads.length;
+  const horizontalStages = data.stages.filter((stage) =>
+    rows.some((row) => row.stageCounts.has(stage.id)),
+  );
+  const hasLeadsWithoutStage = rows.some((row) => row.stageCounts.has(null));
 
   return (
     <Card className="rounded-2xl">
-      <CardHeader className="pb-4">
-        <CardTitle>Leads por origem e anúncio</CardTitle>
-        <p className="text-sm text-muted-foreground">Atribuição dos leads recebidos no período</p>
+      <CardHeader className="flex flex-row items-start justify-between gap-4 pb-4">
+        <div>
+          <CardTitle>Leads por origem e anúncio</CardTitle>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Atribuição dos leads recebidos no período
+          </p>
+        </div>
+        <div
+          className="flex shrink-0 rounded-md border bg-muted/30 p-0.5"
+          aria-label="Visualização das etapas"
+        >
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className={cn(
+              "h-8 w-8",
+              stageView === "vertical" && "bg-background text-foreground shadow-sm",
+            )}
+            onClick={() => setStageView("vertical")}
+            aria-label="Visualização vertical"
+            aria-pressed={stageView === "vertical"}
+            title="Etapas na vertical"
+          >
+            <Rows3 className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className={cn(
+              "h-8 w-8",
+              stageView === "horizontal" && "bg-background text-foreground shadow-sm",
+            )}
+            onClick={() => setStageView("horizontal")}
+            aria-label="Visualização horizontal"
+            aria-pressed={stageView === "horizontal"}
+            title="Etapas em colunas"
+          >
+            <Columns3 className="h-4 w-4" />
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
         {rows.length === 0 ? (
@@ -536,15 +580,22 @@ function LeadAttributionPanel({ data }: { data: ReportData }) {
           </p>
         ) : (
           <div className="max-h-[420px] overflow-auto rounded-md border">
-            <table className="w-full min-w-[1120px] table-fixed text-sm">
-              <colgroup>
-                <col className="w-[13%]" />
-                <col className="w-[13%]" />
-                <col className="w-[20%]" />
-                <col className="w-[18%]" />
-                <col className="w-[18%]" />
-                <col className="w-[18%]" />
-              </colgroup>
+            <table
+              className={cn(
+                "w-full text-sm",
+                stageView === "vertical" ? "min-w-[1120px] table-fixed" : "min-w-max table-auto",
+              )}
+            >
+              {stageView === "vertical" && (
+                <colgroup>
+                  <col className="w-[13%]" />
+                  <col className="w-[13%]" />
+                  <col className="w-[20%]" />
+                  <col className="w-[18%]" />
+                  <col className="w-[18%]" />
+                  <col className="w-[18%]" />
+                </colgroup>
+              )}
               <thead className="sticky top-0 bg-muted/90 text-left text-xs text-muted-foreground backdrop-blur">
                 <tr>
                   <th className="px-3 py-2 font-medium">Origem</th>
@@ -552,7 +603,35 @@ function LeadAttributionPanel({ data }: { data: ReportData }) {
                   <th className="px-3 py-2 font-medium">Campanha</th>
                   <th className="px-3 py-2 font-medium">Conjunto de anúncios</th>
                   <th className="px-3 py-2 font-medium">Anúncio / conteúdo</th>
-                  <th className="px-3 py-2 font-medium">Leads por etapa</th>
+                  {stageView === "vertical" ? (
+                    <th className="px-3 py-2 font-medium">Leads por etapa</th>
+                  ) : (
+                    <>
+                      <th className="min-w-24 px-3 py-2 text-right font-medium">Total</th>
+                      {horizontalStages.map((stage) => (
+                        <th
+                          key={stage.id}
+                          className="min-w-32 whitespace-nowrap px-3 py-2 text-center font-medium"
+                        >
+                          <span className="inline-flex items-center gap-1.5">
+                            <span
+                              className="h-2 w-2 rounded-full"
+                              style={{ backgroundColor: stage.cor ?? "#A1A1AA" }}
+                            />
+                            {stage.nome}
+                          </span>
+                        </th>
+                      ))}
+                      {hasLeadsWithoutStage && (
+                        <th className="min-w-32 whitespace-nowrap px-3 py-2 text-center font-medium">
+                          <span className="inline-flex items-center gap-1.5">
+                            <span className="h-2 w-2 rounded-full bg-zinc-400" />
+                            Sem etapa
+                          </span>
+                        </th>
+                      )}
+                    </>
+                  )}
                 </tr>
               </thead>
               <tbody>
@@ -582,50 +661,74 @@ function LeadAttributionPanel({ data }: { data: ReportData }) {
                         {row.anuncio}
                       </p>
                     </td>
-                    <td className="px-3 py-2 align-top tabular-nums">
-                      <div className="mb-1.5 whitespace-nowrap font-semibold">
-                        {row.leads}{" "}
-                        <span className="text-xs font-normal text-muted-foreground">
-                          ({total ? ((row.leads / total) * 100).toFixed(1) : "0.0"}%)
-                        </span>
-                      </div>
-                      <div className="space-y-1">
-                        {[...row.stageCounts.entries()]
-                          .sort(([stageIdA], [stageIdB]) => {
-                            const orderA =
-                              stageIdA === null
-                                ? Number.MAX_SAFE_INTEGER
-                                : (stageOrderById.get(stageIdA) ?? Number.MAX_SAFE_INTEGER);
-                            const orderB =
-                              stageIdB === null
-                                ? Number.MAX_SAFE_INTEGER
-                                : (stageOrderById.get(stageIdB) ?? Number.MAX_SAFE_INTEGER);
-                            return orderA - orderB;
-                          })
-                          .map(([stageId, count]) => {
-                            const stage = stageId === null ? null : stageById.get(stageId);
-                            return (
-                              <div
-                                key={stageId ?? "no-stage"}
-                                className="flex min-w-0 items-center justify-between gap-2 text-xs"
-                              >
-                                <span className="flex min-w-0 items-center gap-1.5 text-muted-foreground">
-                                  <span
-                                    className="h-2 w-2 shrink-0 rounded-full"
-                                    style={{ backgroundColor: stage?.cor ?? "#A1A1AA" }}
-                                  />
-                                  <span className="truncate" title={stage?.nome ?? "Sem etapa"}>
-                                    {stage?.nome ?? "Sem etapa"}
+                    {stageView === "vertical" ? (
+                      <td className="px-3 py-2 align-top tabular-nums">
+                        <div className="mb-1.5 whitespace-nowrap font-semibold">
+                          {row.leads}{" "}
+                          <span className="text-xs font-normal text-muted-foreground">
+                            ({total ? ((row.leads / total) * 100).toFixed(1) : "0.0"}%)
+                          </span>
+                        </div>
+                        <div className="space-y-1">
+                          {[...row.stageCounts.entries()]
+                            .sort(([stageIdA], [stageIdB]) => {
+                              const orderA =
+                                stageIdA === null
+                                  ? Number.MAX_SAFE_INTEGER
+                                  : (stageOrderById.get(stageIdA) ?? Number.MAX_SAFE_INTEGER);
+                              const orderB =
+                                stageIdB === null
+                                  ? Number.MAX_SAFE_INTEGER
+                                  : (stageOrderById.get(stageIdB) ?? Number.MAX_SAFE_INTEGER);
+                              return orderA - orderB;
+                            })
+                            .map(([stageId, count]) => {
+                              const stage = stageId === null ? null : stageById.get(stageId);
+                              return (
+                                <div
+                                  key={stageId ?? "no-stage"}
+                                  className="flex min-w-0 items-center justify-between gap-2 text-xs"
+                                >
+                                  <span className="flex min-w-0 items-center gap-1.5 text-muted-foreground">
+                                    <span
+                                      className="h-2 w-2 shrink-0 rounded-full"
+                                      style={{ backgroundColor: stage?.cor ?? "#A1A1AA" }}
+                                    />
+                                    <span className="truncate" title={stage?.nome ?? "Sem etapa"}>
+                                      {stage?.nome ?? "Sem etapa"}
+                                    </span>
                                   </span>
-                                </span>
-                                <span className="shrink-0 font-medium text-foreground">
-                                  {count}
-                                </span>
-                              </div>
-                            );
-                          })}
-                      </div>
-                    </td>
+                                  <span className="shrink-0 font-medium text-foreground">
+                                    {count}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                        </div>
+                      </td>
+                    ) : (
+                      <>
+                        <td className="whitespace-nowrap px-3 py-2 text-right align-top font-semibold tabular-nums">
+                          {row.leads}{" "}
+                          <span className="text-xs font-normal text-muted-foreground">
+                            ({total ? ((row.leads / total) * 100).toFixed(1) : "0.0"}%)
+                          </span>
+                        </td>
+                        {horizontalStages.map((stage) => (
+                          <td
+                            key={stage.id}
+                            className="px-3 py-2 text-center align-top font-medium tabular-nums"
+                          >
+                            {row.stageCounts.get(stage.id) ?? 0}
+                          </td>
+                        ))}
+                        {hasLeadsWithoutStage && (
+                          <td className="px-3 py-2 text-center align-top font-medium tabular-nums">
+                            {row.stageCounts.get(null) ?? 0}
+                          </td>
+                        )}
+                      </>
+                    )}
                   </tr>
                 ))}
               </tbody>
