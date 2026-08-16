@@ -117,15 +117,18 @@ function AdminCrmDispatchPage() {
     field: keyof ExternalStageOverride,
     value: string,
   ) => {
+    const emptyOverride: ExternalStageOverride = {
+      external_stage_blocked_send_id: "",
+      external_stage_qualified_id: "",
+      external_stage_unqualified_id: "",
+      external_stage_visit_scheduled_id: "",
+      external_stage_lost_id: "",
+      external_stage_without_whatsapp_id: "",
+    };
     setStageOverrides((current) => ({
       ...current,
       [idEmpreendimento]: {
-        external_stage_blocked_send_id: "",
-        external_stage_qualified_id: "",
-        external_stage_unqualified_id: "",
-        external_stage_visit_scheduled_id: "",
-        external_stage_lost_id: "",
-        external_stage_without_whatsapp_id: "",
+        ...emptyOverride,
         ...current[idEmpreendimento],
         [field]: value,
       },
