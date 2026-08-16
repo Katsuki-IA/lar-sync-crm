@@ -29,6 +29,7 @@ import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedSettingsIndexRouteImport } from './routes/_authenticated/settings.index'
 import { Route as AuthenticatedLeadsIndexRouteImport } from './routes/_authenticated/leads.index'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
+import { Route as ApiPublicPulseFunilIaRouteImport } from './routes/api/public/pulse-funil-ia'
 import { Route as AuthenticatedSettingsUsersRouteImport } from './routes/_authenticated/settings.users'
 import { Route as AuthenticatedSettingsTagsRouteImport } from './routes/_authenticated/settings.tags'
 import { Route as AuthenticatedSettingsStagesRouteImport } from './routes/_authenticated/settings.stages'
@@ -149,6 +150,11 @@ const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AuthenticatedAdminRoute,
+} as any)
+const ApiPublicPulseFunilIaRoute = ApiPublicPulseFunilIaRouteImport.update({
+  id: '/api/public/pulse-funil-ia',
+  path: '/api/public/pulse-funil-ia',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedSettingsUsersRoute =
   AuthenticatedSettingsUsersRouteImport.update({
@@ -290,6 +296,7 @@ export interface FileRoutesByFullPath {
   '/settings/stages': typeof AuthenticatedSettingsStagesRoute
   '/settings/tags': typeof AuthenticatedSettingsTagsRoute
   '/settings/users': typeof AuthenticatedSettingsUsersRoute
+  '/api/public/pulse-funil-ia': typeof ApiPublicPulseFunilIaRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/leads/': typeof AuthenticatedLeadsIndexRoute
   '/settings/': typeof AuthenticatedSettingsIndexRoute
@@ -327,6 +334,7 @@ export interface FileRoutesByTo {
   '/settings/stages': typeof AuthenticatedSettingsStagesRoute
   '/settings/tags': typeof AuthenticatedSettingsTagsRoute
   '/settings/users': typeof AuthenticatedSettingsUsersRoute
+  '/api/public/pulse-funil-ia': typeof ApiPublicPulseFunilIaRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/leads': typeof AuthenticatedLeadsIndexRoute
   '/settings': typeof AuthenticatedSettingsIndexRoute
@@ -368,6 +376,7 @@ export interface FileRoutesById {
   '/_authenticated/settings/stages': typeof AuthenticatedSettingsStagesRoute
   '/_authenticated/settings/tags': typeof AuthenticatedSettingsTagsRoute
   '/_authenticated/settings/users': typeof AuthenticatedSettingsUsersRoute
+  '/api/public/pulse-funil-ia': typeof ApiPublicPulseFunilIaRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/leads/': typeof AuthenticatedLeadsIndexRoute
   '/_authenticated/settings/': typeof AuthenticatedSettingsIndexRoute
@@ -409,6 +418,7 @@ export interface FileRouteTypes {
     | '/settings/stages'
     | '/settings/tags'
     | '/settings/users'
+    | '/api/public/pulse-funil-ia'
     | '/admin/'
     | '/leads/'
     | '/settings/'
@@ -446,6 +456,7 @@ export interface FileRouteTypes {
     | '/settings/stages'
     | '/settings/tags'
     | '/settings/users'
+    | '/api/public/pulse-funil-ia'
     | '/admin'
     | '/leads'
     | '/settings'
@@ -486,6 +497,7 @@ export interface FileRouteTypes {
     | '/_authenticated/settings/stages'
     | '/_authenticated/settings/tags'
     | '/_authenticated/settings/users'
+    | '/api/public/pulse-funil-ia'
     | '/_authenticated/admin/'
     | '/_authenticated/leads/'
     | '/_authenticated/settings/'
@@ -501,6 +513,7 @@ export interface RootRouteChildren {
   HistoricoLeadIdRoute: typeof HistoricoLeadIdRoute
   IntegracoesRdRoute: typeof IntegracoesRdRoute
   PrivacidadeExclusaoDeDadosRoute: typeof PrivacidadeExclusaoDeDadosRoute
+  ApiPublicPulseFunilIaRoute: typeof ApiPublicPulseFunilIaRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -644,6 +657,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/'
       preLoaderRoute: typeof AuthenticatedAdminIndexRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/api/public/pulse-funil-ia': {
+      id: '/api/public/pulse-funil-ia'
+      path: '/api/public/pulse-funil-ia'
+      fullPath: '/api/public/pulse-funil-ia'
+      preLoaderRoute: typeof ApiPublicPulseFunilIaRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_authenticated/settings/users': {
       id: '/_authenticated/settings/users'
@@ -874,6 +894,7 @@ const rootRouteChildren: RootRouteChildren = {
   HistoricoLeadIdRoute: HistoricoLeadIdRoute,
   IntegracoesRdRoute: IntegracoesRdRoute,
   PrivacidadeExclusaoDeDadosRoute: PrivacidadeExclusaoDeDadosRoute,
+  ApiPublicPulseFunilIaRoute: ApiPublicPulseFunilIaRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

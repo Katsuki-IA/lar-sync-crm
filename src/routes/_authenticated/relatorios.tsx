@@ -491,7 +491,7 @@ function LeadAttributionPanel({ data }: { data: ReportData }) {
 
   for (const lead of data.leads) {
     const attribution = attributionByLeadId.get(lead.id);
-    const origem = getAttributionOrigin(attribution, lead.origem);
+    const origem = getAttributionOrigin(attribution ?? null, lead.origem);
     const fonte =
       origem === "Meta Ads"
         ? "Meta Lead Ads"

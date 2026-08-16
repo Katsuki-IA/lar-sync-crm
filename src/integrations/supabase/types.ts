@@ -66,66 +66,6 @@ export type Database = {
           },
         ]
       }
-      backup_lead_add55_20260417: {
-        Row: {
-          id_empresa: number | null
-          lead_id: number | null
-          numero_novo: string | null
-          numero_original: string | null
-        }
-        Insert: {
-          id_empresa?: number | null
-          lead_id?: number | null
-          numero_novo?: string | null
-          numero_original?: string | null
-        }
-        Update: {
-          id_empresa?: number | null
-          lead_id?: number | null
-          numero_novo?: string | null
-          numero_original?: string | null
-        }
-        Relationships: []
-      }
-      backup_lead_dedup_20260417: {
-        Row: {
-          acao: string | null
-          com_prefixo_55: boolean | null
-          created_at: string | null
-          id_empresa: number | null
-          keep_id: number | null
-          lead_id: number | null
-          lead_nome: string | null
-          numero_novo: string | null
-          numero_original: string | null
-          telefone_base: string | null
-        }
-        Insert: {
-          acao?: string | null
-          com_prefixo_55?: boolean | null
-          created_at?: string | null
-          id_empresa?: number | null
-          keep_id?: number | null
-          lead_id?: number | null
-          lead_nome?: string | null
-          numero_novo?: string | null
-          numero_original?: string | null
-          telefone_base?: string | null
-        }
-        Update: {
-          acao?: string | null
-          com_prefixo_55?: boolean | null
-          created_at?: string | null
-          id_empresa?: number | null
-          keep_id?: number | null
-          lead_id?: number | null
-          lead_nome?: string | null
-          numero_novo?: string | null
-          numero_original?: string | null
-          telefone_base?: string | null
-        }
-        Relationships: []
-      }
       blocked_numbers: {
         Row: {
           created_at: string
@@ -1317,6 +1257,7 @@ export type Database = {
           id_empresa: number
           lead_id: number | null
           lead_quente: boolean | null
+          legacy_conversation_key: string | null
           loft_id_negociacao: string | null
           nome: string
           observacoes: string | null
@@ -1332,7 +1273,6 @@ export type Database = {
           wa_parent_user_id: string | null
           wa_user_id: string | null
           wa_username: string | null
-          legacy_conversation_key: string | null
         }
         Insert: {
           conversation_key?: string | null
@@ -1347,6 +1287,7 @@ export type Database = {
           id_empresa: number
           lead_id?: number | null
           lead_quente?: boolean | null
+          legacy_conversation_key?: string | null
           loft_id_negociacao?: string | null
           nome: string
           observacoes?: string | null
@@ -1362,7 +1303,6 @@ export type Database = {
           wa_parent_user_id?: string | null
           wa_user_id?: string | null
           wa_username?: string | null
-          legacy_conversation_key?: string | null
         }
         Update: {
           conversation_key?: string | null
@@ -1377,6 +1317,7 @@ export type Database = {
           id_empresa?: number
           lead_id?: number | null
           lead_quente?: boolean | null
+          legacy_conversation_key?: string | null
           loft_id_negociacao?: string | null
           nome?: string
           observacoes?: string | null
@@ -1392,7 +1333,6 @@ export type Database = {
           wa_parent_user_id?: string | null
           wa_user_id?: string | null
           wa_username?: string | null
-          legacy_conversation_key?: string | null
         }
         Relationships: [
           {
@@ -2993,8 +2933,8 @@ export type Database = {
           interesse: number | null
           last_mesage: string | null
           last_message_timestamp: string | null
-          legacy_conversation_key: string | null
           lead_quente: boolean | null
+          legacy_conversation_key: string | null
           loft_id_negociacao: string | null
           nome: string
           numero: string
@@ -3030,8 +2970,8 @@ export type Database = {
           interesse?: number | null
           last_mesage?: string | null
           last_message_timestamp?: string | null
-          legacy_conversation_key?: string | null
           lead_quente?: boolean | null
+          legacy_conversation_key?: string | null
           loft_id_negociacao?: string | null
           nome: string
           numero: string
@@ -3067,8 +3007,8 @@ export type Database = {
           interesse?: number | null
           last_mesage?: string | null
           last_message_timestamp?: string | null
-          legacy_conversation_key?: string | null
           lead_quente?: boolean | null
+          legacy_conversation_key?: string | null
           loft_id_negociacao?: string | null
           nome?: string
           numero?: string
@@ -3484,7 +3424,6 @@ export type Database = {
           nome_empresa: string | null
           prompt: string
           prompt_backup: string | null
-          prompt_user: string | null
           updated_at: string | null
           updated_by: string | null
         }
@@ -3496,7 +3435,6 @@ export type Database = {
           nome_empresa?: string | null
           prompt: string
           prompt_backup?: string | null
-          prompt_user?: string | null
           updated_at?: string | null
           updated_by?: string | null
         }
@@ -3508,7 +3446,6 @@ export type Database = {
           nome_empresa?: string | null
           prompt?: string
           prompt_backup?: string | null
-          prompt_user?: string | null
           updated_at?: string | null
           updated_by?: string | null
         }
@@ -3653,54 +3590,6 @@ export type Database = {
           },
         ]
       }
-      wa_message_status_events: {
-        Row: {
-          conversation: Json
-          created_at: string
-          dedupe_key: string
-          error_code: string | null
-          error_message: string | null
-          id: string
-          message_id: string
-          phone_number_id: string
-          pricing: Json
-          raw: Json
-          recipient_id: string | null
-          status: string
-          timestamp_meta: string | null
-        }
-        Insert: {
-          conversation?: Json
-          created_at?: string
-          dedupe_key: string
-          error_code?: string | null
-          error_message?: string | null
-          id?: string
-          message_id: string
-          phone_number_id: string
-          pricing?: Json
-          raw?: Json
-          recipient_id?: string | null
-          status: string
-          timestamp_meta?: string | null
-        }
-        Update: {
-          conversation?: Json
-          created_at?: string
-          dedupe_key?: string
-          error_code?: string | null
-          error_message?: string | null
-          id?: string
-          message_id?: string
-          phone_number_id?: string
-          pricing?: Json
-          raw?: Json
-          recipient_id?: string | null
-          status?: string
-          timestamp_meta?: string | null
-        }
-        Relationships: []
-      }
       wa_contact_identities: {
         Row: {
           business_phone_number_id: string | null
@@ -3783,6 +3672,54 @@ export type Database = {
           },
         ]
       }
+      wa_message_status_events: {
+        Row: {
+          conversation: Json
+          created_at: string
+          dedupe_key: string
+          error_code: string | null
+          error_message: string | null
+          id: string
+          message_id: string
+          phone_number_id: string
+          pricing: Json
+          raw: Json
+          recipient_id: string | null
+          status: string
+          timestamp_meta: string | null
+        }
+        Insert: {
+          conversation?: Json
+          created_at?: string
+          dedupe_key: string
+          error_code?: string | null
+          error_message?: string | null
+          id?: string
+          message_id: string
+          phone_number_id: string
+          pricing?: Json
+          raw?: Json
+          recipient_id?: string | null
+          status: string
+          timestamp_meta?: string | null
+        }
+        Update: {
+          conversation?: Json
+          created_at?: string
+          dedupe_key?: string
+          error_code?: string | null
+          error_message?: string | null
+          id?: string
+          message_id?: string
+          phone_number_id?: string
+          pricing?: Json
+          raw?: Json
+          recipient_id?: string | null
+          status?: string
+          timestamp_meta?: string | null
+        }
+        Relationships: []
+      }
       wa_messages: {
         Row: {
           client_message_id: string | null
@@ -3804,8 +3741,8 @@ export type Database = {
           from_username: string | null
           from_wa_id: string | null
           id: string
-          message_id: string | null
           legacy_conversation_key: string | null
+          message_id: string | null
           phone_number_id: string
           raw: Json
           read_at: string | null
@@ -3819,9 +3756,9 @@ export type Database = {
           tenant_id: number | null
           text_body: string | null
           timestamp_meta: string | null
-          to_wa_id: string | null
           to_user_id: string | null
           to_username: string | null
+          to_wa_id: string | null
           type: string | null
           updated_at: string
           wa_identity_id: string | null
@@ -3846,8 +3783,8 @@ export type Database = {
           from_username?: string | null
           from_wa_id?: string | null
           id?: string
-          message_id?: string | null
           legacy_conversation_key?: string | null
+          message_id?: string | null
           phone_number_id: string
           raw?: Json
           read_at?: string | null
@@ -3861,9 +3798,9 @@ export type Database = {
           tenant_id?: number | null
           text_body?: string | null
           timestamp_meta?: string | null
-          to_wa_id?: string | null
           to_user_id?: string | null
           to_username?: string | null
+          to_wa_id?: string | null
           type?: string | null
           updated_at?: string
           wa_identity_id?: string | null
@@ -3888,8 +3825,8 @@ export type Database = {
           from_username?: string | null
           from_wa_id?: string | null
           id?: string
-          message_id?: string | null
           legacy_conversation_key?: string | null
+          message_id?: string | null
           phone_number_id?: string
           raw?: Json
           read_at?: string | null
@@ -3903,9 +3840,9 @@ export type Database = {
           tenant_id?: number | null
           text_body?: string | null
           timestamp_meta?: string | null
-          to_wa_id?: string | null
           to_user_id?: string | null
           to_username?: string | null
+          to_wa_id?: string | null
           type?: string | null
           updated_at?: string
           wa_identity_id?: string | null
