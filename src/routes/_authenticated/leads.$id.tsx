@@ -106,7 +106,7 @@ function LeadDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("crm_leads")
-        .select("id, id_empresa, nome, telefone, email, origem, id_empreendimento, crm_stage_id, crm_assigned_to, lead_quente, qualificado, created_at")
+        .select("id, id_empresa, nome, telefone, email, origem, id_empreendimento, crm_stage_id, lead_quente, qualificado, created_at")
         .eq("id", leadId)
         .eq("id_empresa", activeEmpresaId!)
         .single();
@@ -292,22 +292,6 @@ function LeadDetail() {
       qc.invalidateQueries({ queryKey: ["lead", leadId] });
       qc.invalidateQueries({ queryKey: ["lead-activities", leadId] });
       toast.success("Estágio atualizado");
-    },
-  });
-
-  const assignMut = useMutation({
-    mutationFn: async (uid: string) => {
-      const toName = meta?.users.find((u) => u.id === uid)?.nome ?? "—";
-      const { error } = await supabase.from("crm_leads").update({ crm_assigned_to: uid }).eq("id", leadId);
-      if (error) throw error;
-      await supabase.from("crm_lead_activities").insert({
-        lead_id: leadId, crm_user_id: me!.id, tipo: "assignment", descricao: `Atribuído a ${toName}`,
-      });
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["lead", leadId] });
-      qc.invalidateQueries({ queryKey: ["lead-activities", leadId] });
-      toast.success("Responsável atualizado");
     },
   });
 
@@ -553,20 +537,6 @@ function LeadDetail() {
                   <div className="mt-1"><span className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium" style={{ backgroundColor: `${currentStageColor}1F`, borderColor: `${currentStageColor}40`, color: currentStageColor }}><span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: currentStageColor }} />{stage.nome}</span></div>
                 ) : <p className="mt-1">—</p>}
               </div>
-              <div>
-                <label className="text-xs text-muted-foreground">Responsável</label>
-                {canManage ? (
-                  <Select value={lead.crm_assigned_to ?? ""} onValueChange={(v) => assignMut.mutate(v)}>
-                    <SelectTrigger className="mt-1"><SelectValue placeholder="Atribuir" /></SelectTrigger>
-                    <SelectContent>
-                      {meta?.users.map((u) => <SelectItem key={u.id} value={u.id}>{u.nome}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <p className="mt-1">{lead.crm_assigned_to ? userMap.get(lead.crm_assigned_to) ?? "—" : "—"}</p>
-                )}
-              </div>
-
               <div>
                 <div className="flex items-center justify-between">
                   <label className="text-xs text-muted-foreground">Tags</label>

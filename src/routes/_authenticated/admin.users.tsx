@@ -19,10 +19,23 @@ import { useAllowedEmpresas } from "@/hooks/use-allowed-empresas";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 
 export const Route = createFileRoute("/_authenticated/admin/users")({
@@ -43,6 +56,8 @@ type EmpresaRow = {
   id: number;
   nome: string | null;
 };
+
+const AI_TECHNICAL_EMAIL_PATTERN = /^ia\+\d+@hub\.katsuki\.local$/i;
 
 function emptyCreateForm() {
   return {
@@ -117,7 +132,10 @@ function AdminUsersPage() {
     return (data as AdminUserRow[]).filter((user) => user.id_empresa === empresaId);
   }, [data, selectedEmpresa]);
 
-  const createPasswordError = createForm.password ? getPasswordPolicyError(createForm.password) : null;
+  const createPasswordError = createForm.password
+    ? getPasswordPolicyError(createForm.password)
+    : null;
+  const createEmailReserved = AI_TECHNICAL_EMAIL_PATTERN.test(createForm.email.trim());
   const editPasswordError = editForm.password ? getPasswordPolicyError(editForm.password) : null;
   const editPasswordMismatch =
     editForm.password && editForm.confirmPassword && editForm.password !== editForm.confirmPassword
@@ -126,9 +144,9 @@ function AdminUsersPage() {
 
   const isAiUser = (user: AdminUserRow) =>
     !user.auth_user_id &&
-    user.role === "agent" &&
+    (user.role === "ai_agent" || user.role === "agent") &&
     typeof user.email === "string" &&
-    /^ia\+\d+@hub\.katsuki\.local$/i.test(user.email);
+    AI_TECHNICAL_EMAIL_PATTERN.test(user.email);
 
   const createMutation = useMutation({
     mutationFn: () =>
@@ -175,7 +193,8 @@ function AdminUsersPage() {
   });
 
   const toggleMutation = useMutation({
-    mutationFn: ({ id, active }: { id: string; active: boolean }) => toggleFn({ data: { user_id: id, active } }),
+    mutationFn: ({ id, active }: { id: string; active: boolean }) =>
+      toggleFn({ data: { user_id: id, active } }),
     onSuccess: async () => {
       toast.success("Status atualizado");
       await qc.invalidateQueries({ queryKey: ["admin_all_users"] });
@@ -212,7 +231,9 @@ function AdminUsersPage() {
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div className="space-y-1">
           <h2 className="text-lg font-medium">Usuários ({filteredUsers.length})</h2>
-          <p className="text-sm text-muted-foreground">Crie, filtre e edite usuários das empresas do HUB.</p>
+          <p className="text-sm text-muted-foreground">
+            Crie, filtre e edite usuários das empresas do HUB.
+          </p>
         </div>
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
@@ -255,7 +276,9 @@ function AdminUsersPage() {
               </DialogHeader>
               {tempPwd ? (
                 <div className="space-y-3">
-                  <p className="text-sm">Senha temporária gerada. Envie ao usuário, ela não será exibida novamente.</p>
+                  <p className="text-sm">
+                    Senha temporária gerada. Envie ao usuário, ela não será exibida novamente.
+                  </p>
                   <div className="flex items-center gap-2 rounded-lg bg-muted p-3 font-mono text-sm">
                     <span className="flex-1 break-all">{tempPwd}</span>
                     <Button
@@ -275,22 +298,37 @@ function AdminUsersPage() {
                 <div className="space-y-4">
                   <div className="space-y-1.5">
                     <Label>Nome</Label>
-                    <Input value={createForm.nome} onChange={(event) => setCreateForm((prev) => ({ ...prev, nome: event.target.value }))} />
+                    <Input
+                      value={createForm.nome}
+                      onChange={(event) =>
+                        setCreateForm((prev) => ({ ...prev, nome: event.target.value }))
+                      }
+                    />
                   </div>
                   <div className="space-y-1.5">
                     <Label>Email</Label>
                     <Input
                       type="email"
                       value={createForm.email}
-                      onChange={(event) => setCreateForm((prev) => ({ ...prev, email: event.target.value }))}
+                      onChange={(event) =>
+                        setCreateForm((prev) => ({ ...prev, email: event.target.value }))
+                      }
                     />
+                    {createEmailReserved && (
+                      <p className="text-xs text-destructive">
+                        Este e-mail é reservado ao Atendente IA e é criado automaticamente.
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-1.5">
                     <Label>Função</Label>
                     <Select
                       value={createForm.role}
                       onValueChange={(value) =>
-                        setCreateForm((prev) => ({ ...prev, role: value as "agent" | "manager" | "super_admin" }))
+                        setCreateForm((prev) => ({
+                          ...prev,
+                          role: value as "agent" | "manager" | "super_admin",
+                        }))
                       }
                     >
                       <SelectTrigger className="cursor-pointer">
@@ -308,7 +346,9 @@ function AdminUsersPage() {
                       <Label>Empresa</Label>
                       <Select
                         value={createForm.id_empresa}
-                        onValueChange={(value) => setCreateForm((prev) => ({ ...prev, id_empresa: value }))}
+                        onValueChange={(value) =>
+                          setCreateForm((prev) => ({ ...prev, id_empresa: value }))
+                        }
                       >
                         <SelectTrigger className="cursor-pointer">
                           <SelectValue placeholder="Selecionar empresa" />
@@ -330,9 +370,17 @@ function AdminUsersPage() {
                       minLength={PASSWORD_MIN_LENGTH}
                       placeholder="Deixe em branco para gerar"
                       value={createForm.password}
-                      onChange={(event) => setCreateForm((prev) => ({ ...prev, password: event.target.value }))}
+                      onChange={(event) =>
+                        setCreateForm((prev) => ({ ...prev, password: event.target.value }))
+                      }
                     />
-                    <p className={createPasswordError ? "text-xs text-destructive" : "text-xs text-muted-foreground"}>
+                    <p
+                      className={
+                        createPasswordError
+                          ? "text-xs text-destructive"
+                          : "text-xs text-muted-foreground"
+                      }
+                    >
                       {createPasswordError ??
                         "Se informada, use pelo menos 8 caracteres e um caractere especial. Em branco, uma senha segura será gerada."}
                     </p>
@@ -352,7 +400,11 @@ function AdminUsersPage() {
                   </Button>
                 ) : (
                   <>
-                    <Button variant="outline" className="cursor-pointer" onClick={() => setCreateOpen(false)}>
+                    <Button
+                      variant="outline"
+                      className="cursor-pointer"
+                      onClick={() => setCreateOpen(false)}
+                    >
                       Cancelar
                     </Button>
                     <Button
@@ -361,6 +413,7 @@ function AdminUsersPage() {
                       disabled={
                         !createForm.nome ||
                         !createForm.email ||
+                        createEmailReserved ||
                         (createForm.role !== "super_admin" && !createForm.id_empresa) ||
                         !!createPasswordError ||
                         createMutation.isPending
@@ -401,8 +454,12 @@ function AdminUsersPage() {
                     <td className="px-4 py-2">
                       {user.id_empresa != null ? (
                         <div className="flex flex-col">
-                          <span>{empresaNameMap.get(user.id_empresa) ?? `Empresa ${user.id_empresa}`}</span>
-                          <span className="text-xs text-muted-foreground">ID {user.id_empresa}</span>
+                          <span>
+                            {empresaNameMap.get(user.id_empresa) ?? `Empresa ${user.id_empresa}`}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            ID {user.id_empresa}
+                          </span>
                         </div>
                       ) : (
                         <span className="text-muted-foreground">Global</span>
@@ -410,14 +467,22 @@ function AdminUsersPage() {
                     </td>
                     <td className="px-4 py-2">
                       <Badge variant="secondary">
-                        {user.role === "manager" ? "Gestor" : user.role === "super_admin" ? "Super Admin" : "Corretor"}
+                        {aiUser
+                          ? "Atendente IA"
+                          : user.role === "manager"
+                            ? "Gestor"
+                            : user.role === "super_admin"
+                              ? "Super Admin"
+                              : "Corretor"}
                       </Badge>
                     </td>
                     <td className="px-4 py-2">
                       <Switch
                         checked={!!user.active}
-                        disabled={toggleMutation.isPending}
-                        onCheckedChange={(value) => toggleMutation.mutate({ id: user.id, active: value })}
+                        disabled={aiUser || toggleMutation.isPending}
+                        onCheckedChange={(value) =>
+                          toggleMutation.mutate({ id: user.id, active: value })
+                        }
                       />
                     </td>
                     <td className="px-4 py-2">
@@ -447,11 +512,11 @@ function AdminUsersPage() {
                                 setEditForm({
                                   nome: user.nome ?? "",
                                   email: user.email ?? "",
-                                  role: (user.role === "manager" || user.role === "super_admin" ? user.role : "agent") as
-                                    | "agent"
-                                    | "manager"
-                                    | "super_admin",
-                                  id_empresa: user.id_empresa != null ? String(user.id_empresa) : "",
+                                  role: (user.role === "manager" || user.role === "super_admin"
+                                    ? user.role
+                                    : "agent") as "agent" | "manager" | "super_admin",
+                                  id_empresa:
+                                    user.id_empresa != null ? String(user.id_empresa) : "",
                                   password: "",
                                   confirmPassword: "",
                                 });
@@ -499,14 +564,19 @@ function AdminUsersPage() {
           <div className="space-y-4">
             <div className="space-y-1.5">
               <Label>Nome</Label>
-              <Input value={editForm.nome} onChange={(event) => setEditForm((prev) => ({ ...prev, nome: event.target.value }))} />
+              <Input
+                value={editForm.nome}
+                onChange={(event) => setEditForm((prev) => ({ ...prev, nome: event.target.value }))}
+              />
             </div>
             <div className="space-y-1.5">
               <Label>Email</Label>
               <Input
                 type="email"
                 value={editForm.email}
-                onChange={(event) => setEditForm((prev) => ({ ...prev, email: event.target.value }))}
+                onChange={(event) =>
+                  setEditForm((prev) => ({ ...prev, email: event.target.value }))
+                }
               />
             </div>
             <div className="space-y-1.5">
@@ -514,7 +584,10 @@ function AdminUsersPage() {
               <Select
                 value={editForm.role}
                 onValueChange={(value) =>
-                  setEditForm((prev) => ({ ...prev, role: value as "agent" | "manager" | "super_admin" }))
+                  setEditForm((prev) => ({
+                    ...prev,
+                    role: value as "agent" | "manager" | "super_admin",
+                  }))
                 }
               >
                 <SelectTrigger className="cursor-pointer">
@@ -554,10 +627,17 @@ function AdminUsersPage() {
                 minLength={PASSWORD_MIN_LENGTH}
                 placeholder="Deixe em branco para manter a senha atual"
                 value={editForm.password}
-                onChange={(event) => setEditForm((prev) => ({ ...prev, password: event.target.value }))}
+                onChange={(event) =>
+                  setEditForm((prev) => ({ ...prev, password: event.target.value }))
+                }
               />
-              <p className={editPasswordError ? "text-xs text-destructive" : "text-xs text-muted-foreground"}>
-                {editPasswordError ?? "Se informada, use pelo menos 8 caracteres e um caractere especial."}
+              <p
+                className={
+                  editPasswordError ? "text-xs text-destructive" : "text-xs text-muted-foreground"
+                }
+              >
+                {editPasswordError ??
+                  "Se informada, use pelo menos 8 caracteres e um caractere especial."}
               </p>
             </div>
             <div className="space-y-1.5">
@@ -567,10 +647,14 @@ function AdminUsersPage() {
                 minLength={PASSWORD_MIN_LENGTH}
                 placeholder="Repita a nova senha"
                 value={editForm.confirmPassword}
-                onChange={(event) => setEditForm((prev) => ({ ...prev, confirmPassword: event.target.value }))}
+                onChange={(event) =>
+                  setEditForm((prev) => ({ ...prev, confirmPassword: event.target.value }))
+                }
                 disabled={!editForm.password}
               />
-              {editPasswordMismatch ? <p className="text-xs text-destructive">{editPasswordMismatch}</p> : null}
+              {editPasswordMismatch ? (
+                <p className="text-xs text-destructive">{editPasswordMismatch}</p>
+              ) : null}
             </div>
           </div>
           <DialogFooter>

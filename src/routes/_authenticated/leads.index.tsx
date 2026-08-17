@@ -771,7 +771,6 @@ function LeadsList() {
                     <Th>Nome</Th>
                     <Th>Telefone</Th>
                     <Th className="hidden md:table-cell">Empreendimento</Th>
-                    <Th>Responsável</Th>
                     <Th>Estágio</Th>
                     <Th className="hidden lg:table-cell">Criado</Th>
                     <Th className="text-right pr-4">Ações</Th>
@@ -780,14 +779,14 @@ function LeadsList() {
                 <tbody>
                   {isLoading && Array.from({ length: 6 }).map((_, i) => (
                     <tr key={i} className="border-b" style={{ borderColor: "var(--border)" }}>
-                      {Array.from({ length: 9 }).map((_, j) => (
+                      {Array.from({ length: 8 }).map((_, j) => (
                         <td key={j} className="px-4 py-4"><Skeleton className="h-5 w-full max-w-[160px]" /></td>
                       ))}
                     </tr>
                   ))}
                   {!isLoading && !data?.rows.length && (
                     <tr>
-                      <td colSpan={9} className="px-4 py-16">
+                      <td colSpan={8} className="px-4 py-16">
                         <div className="flex flex-col items-center text-center gap-4">
                           <div className="h-16 w-16 rounded-full flex items-center justify-center" style={{ backgroundColor: "rgba(193,79,33,0.1)" }}>
                             <UsersIcon className="h-7 w-7 text-primary" />
@@ -809,7 +808,6 @@ function LeadsList() {
                   {!isLoading && data?.rows.map((l) => {
                     const s = l.crm_stage_id ? stageMap.get(l.crm_stage_id) : undefined;
                     const sColor = stageColor(s?.nome, s?.cor);
-                    const responsavel = l.crm_assigned_to ? userMap.get(l.crm_assigned_to) : null;
                     const isChecked = selected.has(l.id);
                     return (
                       <tr
@@ -852,11 +850,6 @@ function LeadsList() {
                         <td className="px-4 py-4 text-muted-foreground">{l.telefone ?? "—"}</td>
                         <td className="px-4 py-4 hidden md:table-cell text-muted-foreground">
                           {l.id_empreendimento ? empMap.get(l.id_empreendimento) ?? "—" : "Sem interesse"}
-                        </td>
-                        <td className="px-4 py-4">
-                          {responsavel ? (
-                            <span className="text-sm text-foreground truncate">{responsavel}</span>
-                          ) : <span className="text-muted-foreground">—</span>}
                         </td>
                         <td className="px-4 py-4">
                           {s ? (

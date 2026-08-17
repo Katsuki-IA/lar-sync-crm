@@ -27,6 +27,25 @@ const CRM_DISPATCH_WITHOUT_CONTACT_STAGE_NAME_SET = new Set<string>(
   CRM_DISPATCH_WITHOUT_CONTACT_STAGE_NAMES,
 );
 
+const AI_TECHNICAL_EMAIL_PATTERN = /^ia\+\d+@hub\.katsuki\.local$/i;
+
+function normalizeEmail(email: string) {
+  return email.trim().toLowerCase();
+}
+
+function isAiTechnicalUser(user: {
+  auth_user_id: string | null;
+  email: string | null;
+  role: string;
+}) {
+  return (
+    !user.auth_user_id &&
+    (user.role === "ai_agent" || user.role === "agent") &&
+    typeof user.email === "string" &&
+    AI_TECHNICAL_EMAIL_PATTERN.test(user.email)
+  );
+}
+
 async function getMe(supabase: any, userId: string) {
   const { data, error } = await supabase
     .from("crm_users")
@@ -67,11 +86,18 @@ export const createCrmUser = createServerFn({ method: "POST" })
     }
     if (!targetEmpresa && data.role !== "super_admin") throw new Error("Empresa obrigatória");
 
+    const normalizedEmail = normalizeEmail(data.email);
+    if (AI_TECHNICAL_EMAIL_PATTERN.test(normalizedEmail)) {
+      throw new Error(
+        "Este e-mail é reservado ao Atendente IA e é criado automaticamente pelo sistema",
+      );
+    }
+
     const password = data.password ?? generateTemporaryPassword();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const { data: authData, error: authErr } = await supabaseAdmin.auth.admin.createUser({
-      email: data.email,
+      email: normalizedEmail,
       password,
       email_confirm: true,
       user_metadata: { nome: data.nome },
@@ -82,7 +108,7 @@ export const createCrmUser = createServerFn({ method: "POST" })
       auth_user_id: authData.user.id,
       id_empresa: targetEmpresa,
       nome: data.nome,
-      email: data.email,
+      email: normalizedEmail,
       role: data.role,
       active: true,
     });
@@ -107,10 +133,13 @@ export const resetCrmUserPassword = createServerFn({ method: "POST" })
       .eq("id", data.user_id)
       .maybeSingle();
     if (tErr || !target) throw new Error("Usuário não encontrado");
-    if (me.role === "manager" && target.id_empresa !== me.id_empresa) throw new Error("Sem permissão");
+    if (me.role === "manager" && target.id_empresa !== me.id_empresa)
+      throw new Error("Sem permissão");
     if (!target.auth_user_id) throw new Error("Usuário sem auth vinculado");
     const password = generateTemporaryPassword();
-    const { error } = await supabaseAdmin.auth.admin.updateUserById(target.auth_user_id, { password });
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(target.auth_user_id, {
+      password,
+    });
     if (error) throw new Error(error.message);
     return { ok: true, password };
   });
@@ -125,11 +154,15 @@ export const setCrmUserActive = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: target } = await supabaseAdmin
       .from("crm_users")
-      .select("id_empresa")
+      .select("id_empresa,auth_user_id,email,role")
       .eq("id", data.user_id)
       .maybeSingle();
     if (!target) throw new Error("Usuário não encontrado");
-    if (me.role === "manager" && target.id_empresa !== me.id_empresa) throw new Error("Sem permissão");
+    if (me.role === "manager" && target.id_empresa !== me.id_empresa)
+      throw new Error("Sem permissão");
+    if (isAiTechnicalUser(target)) {
+      throw new Error("O Atendente IA é um usuário técnico e permanece inativo para login");
+    }
     const { error } = await supabaseAdmin
       .from("crm_users")
       .update({ active: data.active })
@@ -169,11 +202,7 @@ export const updateCrmUser = createServerFn({ method: "POST" })
 
     if (targetError || !target) throw new Error("Usuário não encontrado");
 
-    const isAiUser =
-      !target.auth_user_id &&
-      target.role === "agent" &&
-      typeof target.email === "string" &&
-      /^ia\+\d+@hub\.katsuki\.local$/i.test(target.email);
+    const isAiUser = isAiTechnicalUser(target);
 
     if (isAiUser) {
       throw new Error("Use a edição específica para renomear o atendente IA");
@@ -183,12 +212,22 @@ export const updateCrmUser = createServerFn({ method: "POST" })
       throw new Error("Empresa obrigatória para gestor ou corretor");
     }
 
+    const normalizedEmail = normalizeEmail(data.email);
+    if (AI_TECHNICAL_EMAIL_PATTERN.test(normalizedEmail)) {
+      throw new Error(
+        "Este e-mail é reservado ao Atendente IA e é criado automaticamente pelo sistema",
+      );
+    }
+
     if (target.auth_user_id) {
-      const { error: authUpdateError } = await supabaseAdmin.auth.admin.updateUserById(target.auth_user_id, {
-        email: data.email,
-        ...(data.password ? { password: data.password } : {}),
-        user_metadata: { nome: data.nome },
-      });
+      const { error: authUpdateError } = await supabaseAdmin.auth.admin.updateUserById(
+        target.auth_user_id,
+        {
+          email: normalizedEmail,
+          ...(data.password ? { password: data.password } : {}),
+          user_metadata: { nome: data.nome },
+        },
+      );
       if (authUpdateError) throw new Error(authUpdateError.message);
     }
 
@@ -196,7 +235,7 @@ export const updateCrmUser = createServerFn({ method: "POST" })
       .from("crm_users")
       .update({
         nome: data.nome.trim(),
-        email: data.email.trim().toLowerCase(),
+        email: normalizedEmail,
         role: data.role,
         id_empresa: data.role === "super_admin" ? null : (data.id_empresa ?? null),
       })
@@ -219,25 +258,31 @@ export const renameAiCrmUser = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: target, error: targetError } = await supabaseAdmin
       .from("crm_users")
-      .select("id, auth_user_id, email, role")
+      .select("id, id_empresa, auth_user_id, email, role")
       .eq("id", data.user_id)
       .maybeSingle();
 
     if (targetError || !target) throw new Error("Usuário não encontrado");
 
-    const isAiUser =
-      !target.auth_user_id &&
-      target.role === "agent" &&
-      typeof target.email === "string" &&
-      /^ia\+\d+@hub\.katsuki\.local$/i.test(target.email);
+    const isAiUser = isAiTechnicalUser(target);
 
     if (!isAiUser) {
       throw new Error("Apenas o usuário técnico da IA pode ser renomeado aqui");
     }
 
+    if (!target.id_empresa) throw new Error("Atendente IA sem empresa vinculada");
+
+    const nome = data.nome.trim();
+    const { error: companyError } = await supabaseAdmin
+      .from("empresa_dados")
+      .update({ nome_atendente_ia: nome })
+      .eq("id", target.id_empresa);
+
+    if (companyError) throw new Error(companyError.message);
+
     const { error } = await supabaseAdmin
       .from("crm_users")
-      .update({ nome: data.nome.trim() })
+      .update({ nome, role: "ai_agent", active: false })
       .eq("id", data.user_id);
 
     if (error) throw new Error(error.message);
@@ -341,19 +386,21 @@ export const getCrmDispatchSettings = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const loadStages = async () => {
-      const [{ data: globalStages, error: globalStagesError }, { data: localStages, error: localStagesError }] =
-        await Promise.all([
-          supabaseAdmin
-            .from("crm_global_stages")
-            .select("id,nome,ordem")
-            .eq("ativo", true)
-            .order("ordem", { ascending: true }),
-          supabaseAdmin
-            .from("crm_stages")
-            .select("id,nome,ordem,global_stage_id")
-            .eq("id_empresa", data.id_empresa)
-            .eq("ativo", true),
-        ]);
+      const [
+        { data: globalStages, error: globalStagesError },
+        { data: localStages, error: localStagesError },
+      ] = await Promise.all([
+        supabaseAdmin
+          .from("crm_global_stages")
+          .select("id,nome,ordem")
+          .eq("ativo", true)
+          .order("ordem", { ascending: true }),
+        supabaseAdmin
+          .from("crm_stages")
+          .select("id,nome,ordem,global_stage_id")
+          .eq("id_empresa", data.id_empresa)
+          .eq("ativo", true),
+      ]);
 
       if (globalStagesError) throw new Error(globalStagesError.message);
       if (localStagesError) throw new Error(localStagesError.message);
@@ -386,7 +433,12 @@ export const getCrmDispatchSettings = createServerFn({ method: "GET" })
         .filter((stage) => stage.id != null);
 
       if (stages.length > 0) {
-        return stages as Array<{ id: number; nome: string; ordem: number; global_stage_id: number }>;
+        return stages as Array<{
+          id: number;
+          nome: string;
+          ordem: number;
+          global_stage_id: number;
+        }>;
       }
 
       return (localStages ?? [])
@@ -412,7 +464,9 @@ export const getCrmDispatchSettings = createServerFn({ method: "GET" })
     const [settingsResult, empreendimentosResult, overridesResult] = await Promise.all([
       supabaseAdmin
         .from("crm_lead_dispatch_settings")
-        .select("stage_without_contact_id,stage_with_contact_id,external_stage_blocked_send_id,external_stage_qualified_id,external_stage_unqualified_id,external_stage_visit_scheduled_id,external_stage_lost_id,external_stage_without_whatsapp_id,updated_at")
+        .select(
+          "stage_without_contact_id,stage_with_contact_id,external_stage_blocked_send_id,external_stage_qualified_id,external_stage_unqualified_id,external_stage_visit_scheduled_id,external_stage_lost_id,external_stage_without_whatsapp_id,updated_at",
+        )
         .eq("id_empresa", data.id_empresa)
         .maybeSingle(),
       supabaseAdmin
@@ -422,7 +476,9 @@ export const getCrmDispatchSettings = createServerFn({ method: "GET" })
         .order("nome", { ascending: true }),
       supabaseAdmin
         .from("crm_lead_dispatch_stage_overrides")
-        .select("id_empreendimento,external_stage_blocked_send_id,external_stage_qualified_id,external_stage_unqualified_id,external_stage_visit_scheduled_id,external_stage_lost_id,external_stage_without_whatsapp_id")
+        .select(
+          "id_empreendimento,external_stage_blocked_send_id,external_stage_qualified_id,external_stage_unqualified_id,external_stage_visit_scheduled_id,external_stage_lost_id,external_stage_without_whatsapp_id",
+        )
         .eq("id_empresa", data.id_empresa),
     ]);
 
@@ -464,17 +520,19 @@ export const saveCrmDispatchSettings = createServerFn({ method: "POST" })
         external_stage_visit_scheduled_id: z.string().trim().max(120).nullable(),
         external_stage_lost_id: z.string().trim().max(120).nullable(),
         external_stage_without_whatsapp_id: z.string().trim().max(120).nullable(),
-        stage_overrides: z.array(
-          z.object({
-            id_empreendimento: z.number().int().positive(),
-            external_stage_blocked_send_id: z.string().trim().max(120).nullable(),
-            external_stage_qualified_id: z.string().trim().max(120).nullable(),
-            external_stage_unqualified_id: z.string().trim().max(120).nullable(),
-            external_stage_visit_scheduled_id: z.string().trim().max(120).nullable(),
-            external_stage_lost_id: z.string().trim().max(120).nullable(),
-            external_stage_without_whatsapp_id: z.string().trim().max(120).nullable(),
-          }),
-        ).default([]),
+        stage_overrides: z
+          .array(
+            z.object({
+              id_empreendimento: z.number().int().positive(),
+              external_stage_blocked_send_id: z.string().trim().max(120).nullable(),
+              external_stage_qualified_id: z.string().trim().max(120).nullable(),
+              external_stage_unqualified_id: z.string().trim().max(120).nullable(),
+              external_stage_visit_scheduled_id: z.string().trim().max(120).nullable(),
+              external_stage_lost_id: z.string().trim().max(120).nullable(),
+              external_stage_without_whatsapp_id: z.string().trim().max(120).nullable(),
+            }),
+          )
+          .default([]),
       })
       .parse(d),
   )
@@ -489,15 +547,17 @@ export const saveCrmDispatchSettings = createServerFn({ method: "POST" })
     });
     if (syncError) throw new Error(syncError.message);
 
-    const [{ data: allowedGlobalStages, error: allowedGlobalStagesError }, { data: allowedLocalStages, error: allowedLocalStagesError }] =
-      await Promise.all([
-        supabaseAdmin.from("crm_global_stages").select("id,nome").eq("ativo", true),
-        supabaseAdmin
-          .from("crm_stages")
-          .select("id,nome,global_stage_id")
-          .eq("id_empresa", data.id_empresa)
-          .eq("ativo", true),
-      ]);
+    const [
+      { data: allowedGlobalStages, error: allowedGlobalStagesError },
+      { data: allowedLocalStages, error: allowedLocalStagesError },
+    ] = await Promise.all([
+      supabaseAdmin.from("crm_global_stages").select("id,nome").eq("ativo", true),
+      supabaseAdmin
+        .from("crm_stages")
+        .select("id,nome,global_stage_id")
+        .eq("id_empresa", data.id_empresa)
+        .eq("ativo", true),
+    ]);
 
     if (allowedGlobalStagesError) throw new Error(allowedGlobalStagesError.message);
     if (allowedLocalStagesError) throw new Error(allowedLocalStagesError.message);
@@ -538,8 +598,12 @@ export const saveCrmDispatchSettings = createServerFn({ method: "POST" })
       .eq("id_empresa", data.id_empresa);
     if (companyProjectsError) throw new Error(companyProjectsError.message);
 
-    const companyProjectIds = new Set((companyProjects ?? []).map((project: any) => project.id as number));
-    if (data.stage_overrides.some((override) => !companyProjectIds.has(override.id_empreendimento))) {
+    const companyProjectIds = new Set(
+      (companyProjects ?? []).map((project: any) => project.id as number),
+    );
+    if (
+      data.stage_overrides.some((override) => !companyProjectIds.has(override.id_empreendimento))
+    ) {
       throw new Error("Um dos empreendimentos selecionados não pertence a esta empresa");
     }
 
@@ -680,26 +744,29 @@ export const listSiteLeadSources = createServerFn({ method: "GET" })
       return { empresas: [], empreendimentos: [], sources: [] };
     }
 
-    const [{ data: empresas, error: empresasError }, { data: empreendimentos, error: empError }, { data: sources, error: sourcesError }] =
-      await Promise.all([
-        supabaseAdmin
-          .from("empresa_dados")
-          .select("id,nome")
-          .in("id", allowedCompanyIds)
-          .order("nome", { ascending: true }),
-        supabaseAdmin
-          .from("empreendimento")
-          .select("id,id_empresa,nome")
-          .in("id_empresa", allowedCompanyIds)
-          .order("nome", { ascending: true }),
-        admin
-          .from("crm_site_lead_sources")
-          .select(
-            "id,id_empresa,id_empreendimento,nome,token,allowed_domains,origem,active,leads_count,last_lead_at,last_error,created_at,updated_at",
-          )
-          .in("id_empresa", allowedCompanyIds)
-          .order("created_at", { ascending: false }),
-      ]);
+    const [
+      { data: empresas, error: empresasError },
+      { data: empreendimentos, error: empError },
+      { data: sources, error: sourcesError },
+    ] = await Promise.all([
+      supabaseAdmin
+        .from("empresa_dados")
+        .select("id,nome")
+        .in("id", allowedCompanyIds)
+        .order("nome", { ascending: true }),
+      supabaseAdmin
+        .from("empreendimento")
+        .select("id,id_empresa,nome")
+        .in("id_empresa", allowedCompanyIds)
+        .order("nome", { ascending: true }),
+      admin
+        .from("crm_site_lead_sources")
+        .select(
+          "id,id_empresa,id_empreendimento,nome,token,allowed_domains,origem,active,leads_count,last_lead_at,last_error,created_at,updated_at",
+        )
+        .in("id_empresa", allowedCompanyIds)
+        .order("created_at", { ascending: false }),
+    ]);
 
     if (empresasError) throw new Error(empresasError.message);
     if (empError) throw new Error(empError.message);
@@ -730,7 +797,11 @@ export const createSiteLeadSource = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const allowedCompanyIds = await listHubCompanyIds(supabaseAdmin);
     if (!allowedCompanyIds.includes(data.id_empresa)) throw new Error("Empresa sem CRM Hub");
-    await assertEmpreendimentoBelongsToCompany(supabaseAdmin, data.id_empresa, data.id_empreendimento);
+    await assertEmpreendimentoBelongsToCompany(
+      supabaseAdmin,
+      data.id_empresa,
+      data.id_empreendimento,
+    );
 
     const { error } = await (supabaseAdmin as any).from("crm_site_lead_sources").insert({
       id_empresa: data.id_empresa,
