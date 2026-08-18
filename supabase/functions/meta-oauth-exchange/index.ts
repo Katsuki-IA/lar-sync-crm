@@ -72,7 +72,9 @@ Deno.serve(async (req) => {
         },
         { onConflict: "id_empresa" },
       )
-      .select("id,user_name,user_id_meta,connected_at,active,health_status,last_health_check_at,last_error")
+      .select(
+        "id,user_name,user_id_meta,connected_at,active,health_status,last_health_check_at,last_error,selected_page_ids",
+      )
       .single();
 
     if (connectionError) throw new Error(connectionError.message);
@@ -82,6 +84,7 @@ Deno.serve(async (req) => {
       connectionId: connection.id,
       userAccessToken: accessToken,
       graphVersion,
+      selectedPageIds: connection.selected_page_ids ?? [],
     });
     return jsonResponse({ ok: true, connection, sync });
   });

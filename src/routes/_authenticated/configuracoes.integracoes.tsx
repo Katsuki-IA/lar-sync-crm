@@ -31,6 +31,7 @@ import { useActiveEmpresa } from "@/hooks/use-active-empresa";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { RdStationIntegrationCard } from "@/components/rd-station-integration-card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -93,6 +94,7 @@ type MetaConnection = {
   health_status: "unknown" | "healthy" | "degraded" | "error";
   last_health_check_at: string | null;
   last_error: string | null;
+  selected_page_ids: string[];
 };
 
 type MetaForm = {
@@ -128,6 +130,7 @@ type MetaPageSummary = {
   pageName: string | null;
   formsCount: number;
   source: string | null;
+  selected: boolean;
 };
 
 type DisconnectMetaButtonProps = {
@@ -173,6 +176,7 @@ function IntegracoesPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [savingPages, setSavingPages] = useState(false);
   const [enrichingAttribution, setEnrichingAttribution] = useState(false);
   const [recoveringLeads, setRecoveringLeads] = useState(false);
   const [recoveryOpen, setRecoveryOpen] = useState(false);
@@ -180,6 +184,7 @@ function IntegracoesPage() {
   const [recoverySince, setRecoverySince] = useState("");
   const [recoveryUntil, setRecoveryUntil] = useState("");
   const [lastSync, setLastSync] = useState<MetaFormsSyncResult | null>(null);
+  const [selectedMetaPageIds, setSelectedMetaPageIds] = useState<string[]>([]);
   const [drawerView, setDrawerView] = useState<MetaDrawerView>("account");
   const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
   const [selectedFormId, setSelectedFormId] = useState<string | null>(null);
@@ -275,7 +280,7 @@ function IntegracoesPage() {
   });
 
   const connection = (status?.connection as MetaConnection | null | undefined) ?? null;
-  const forms = (status?.forms as MetaForm[] | undefined) ?? [];
+  const forms = useMemo(() => (status?.forms as MetaForm[] | undefined) ?? [], [status?.forms]);
   const recoveryForms = forms.filter(
     (form) =>
       Number(form.mapped_fields_count ?? 0) >= 2 &&
@@ -294,6 +299,7 @@ function IntegracoesPage() {
         pageName: form.page_name ?? current?.pageName ?? null,
         formsCount: (current?.formsCount ?? 0) + 1,
         source: current?.source ?? null,
+        selected: selectedMetaPageIds.includes(form.page_id),
       });
     }
 
@@ -304,13 +310,14 @@ function IntegracoesPage() {
         pageName: page.pageName ?? current?.pageName ?? null,
         formsCount: Math.max(page.formsCount, current?.formsCount ?? 0),
         source: page.source ?? current?.source ?? null,
+        selected: selectedMetaPageIds.includes(page.pageId),
       });
     }
 
     return Array.from(byId.values())
-      .filter((page) => page.formsCount > 0)
+      .filter((page) => page.formsCount > 0 || page.selected)
       .sort((a, b) => (a.pageName ?? a.pageId).localeCompare(b.pageName ?? b.pageId));
-  }, [forms, lastSync]);
+  }, [forms, lastSync, selectedMetaPageIds]);
 
   const filteredPages = pages.filter((page) => {
     const term = pageSearch.trim().toLowerCase();
@@ -344,7 +351,13 @@ function IntegracoesPage() {
     setSelectedPageId(null);
     setSelectedFormId(null);
     setLastSync(null);
+    setSelectedMetaPageIds([]);
   }, [activeEmpresaId]);
+
+  useEffect(() => {
+    if (!connection) return;
+    setSelectedMetaPageIds(connection.selected_page_ids ?? []);
+  }, [connection]);
 
   useEffect(() => {
     if (!formFields) return;
@@ -393,6 +406,9 @@ function IntegracoesPage() {
       setSyncing(true);
       const result = await syncMetaForms();
       setLastSync(result);
+      setSelectedMetaPageIds(
+        result.pages.filter((page) => page.selected).map((page) => page.pageId),
+      );
       if (result.formsCount > 0 && result.errors.length > 0) {
         toast.warning(
           `${result.formsCount} formulário(s) sincronizado(s), com ${result.errors.length} alerta(s)`,
@@ -409,6 +425,40 @@ function IntegracoesPage() {
       toast.error(error instanceof Error ? error.message : "Falha ao sincronizar formulários");
     } finally {
       setSyncing(false);
+    }
+  };
+
+  const toggleMetaPage = (pageId: string, checked: boolean) => {
+    setSelectedMetaPageIds((current) =>
+      checked
+        ? Array.from(new Set([...current, pageId]))
+        : current.filter((currentPageId) => currentPageId !== pageId),
+    );
+  };
+
+  const handleSavePageSelection = async () => {
+    if (selectedMetaPageIds.length === 0) {
+      toast.error("Selecione ao menos uma página para esta empresa");
+      return;
+    }
+
+    try {
+      setSavingPages(true);
+      const result = await syncMetaForms({ pageIds: selectedMetaPageIds });
+      setLastSync(result);
+      setSelectedMetaPageIds(
+        result.pages.filter((page) => page.selected).map((page) => page.pageId),
+      );
+      if (result.errors.length > 0) {
+        toast.warning(`Seleção salva, mas ${result.errors.length} página(s) precisam de atenção.`);
+      } else {
+        toast.success("Páginas desta empresa salvas e sincronizadas");
+      }
+      await qc.invalidateQueries({ queryKey: ["meta-integration-status", activeEmpresaId] });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Falha ao salvar páginas da empresa");
+    } finally {
+      setSavingPages(false);
     }
   };
 
@@ -549,6 +599,7 @@ function IntegracoesPage() {
     setSelectedPageId(null);
     setSelectedFormId(null);
     setLastSync(null);
+    setSelectedMetaPageIds([]);
     void qc.invalidateQueries({ queryKey: ["meta-integration-status"] });
   };
 
@@ -817,7 +868,7 @@ function IntegracoesPage() {
                       disabled={connecting}
                       onClick={startMetaOAuth}
                     >
-                      {connecting ? "Aguardando..." : "Conectar página"}
+                      {connecting ? "Aguardando..." : "Reautorizar Meta"}
                     </Button>
                     <Button
                       variant="outline"
@@ -832,13 +883,28 @@ function IntegracoesPage() {
                   </div>
                 </div>
 
+                <div className="flex flex-col gap-3 rounded-lg border border-border bg-muted/30 p-3 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-xs leading-relaxed text-muted-foreground">
+                    Marque somente as páginas que pertencem a esta empresa. O mesmo usuário do
+                    Facebook pode administrar páginas de empresas diferentes.
+                  </p>
+                  <Button
+                    size="sm"
+                    className="shrink-0"
+                    disabled={savingPages || syncing}
+                    onClick={handleSavePageSelection}
+                  >
+                    {savingPages ? "Salvando..." : "Salvar páginas"}
+                  </Button>
+                </div>
+
                 {lastSync && lastSync.errors.length > 0 ? (
-                  <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-100">
+                  <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-950 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-100">
                     <div className="flex items-center gap-2 font-medium">
                       <AlertTriangle className="h-4 w-4 shrink-0" />
                       Algumas páginas ainda não estão habilitadas para receber leads
                     </div>
-                    <div className="mt-2 space-y-1 text-amber-100/80">
+                    <div className="mt-2 space-y-1 text-amber-900 dark:text-amber-200">
                       {lastSync.errors.slice(0, 3).map((error) => (
                         <p key={`${error.pageId}-${error.message}`}>
                           <span className="font-medium">{error.pageName ?? error.pageId}:</span>{" "}
@@ -857,11 +923,13 @@ function IntegracoesPage() {
                   style={{ borderColor: "var(--border)" }}
                 >
                   <div
-                    className="grid grid-cols-[1fr_130px_38px] gap-3 border-b px-4 py-3 text-[10px] uppercase tracking-wider text-muted-foreground"
+                    className="grid grid-cols-[42px_1fr_130px_90px_38px] gap-3 border-b px-4 py-3 text-[10px] uppercase tracking-wider text-muted-foreground"
                     style={{ borderColor: "var(--border)" }}
                   >
+                    <div>Usar</div>
                     <div>Página da Meta</div>
                     <div>Formulários</div>
+                    <div>Status</div>
                     <div />
                   </div>
                   {filteredPages.length === 0 ? (
@@ -871,13 +939,18 @@ function IntegracoesPage() {
                     </div>
                   ) : (
                     filteredPages.map((page) => (
-                      <button
+                      <div
                         key={page.pageId}
-                        type="button"
-                        className="group grid w-full cursor-pointer grid-cols-[1fr_130px_38px] items-center gap-3 border-b px-4 py-3 text-left transition-colors hover:bg-[var(--primary-50)]"
+                        className="group grid w-full grid-cols-[42px_1fr_130px_90px_38px] items-center gap-3 border-b px-4 py-3 text-left transition-colors hover:bg-[var(--primary-50)]"
                         style={{ borderColor: "var(--border)" }}
-                        onClick={() => handleSelectPage(page.pageId)}
                       >
+                        <Checkbox
+                          checked={selectedMetaPageIds.includes(page.pageId)}
+                          aria-label={`Usar página ${page.pageName ?? page.pageId} nesta empresa`}
+                          onCheckedChange={(checked) =>
+                            toggleMetaPage(page.pageId, checked === true)
+                          }
+                        />
                         <div className="min-w-0">
                           <div className="truncate text-sm font-medium text-foreground">
                             {page.pageName ?? page.pageId}
@@ -887,8 +960,24 @@ function IntegracoesPage() {
                           </div>
                         </div>
                         <div className="text-sm text-muted-foreground">{page.formsCount}</div>
-                        <ArrowRight className="h-4 w-4 text-muted-foreground transition-colors group-hover:text-foreground" />
-                      </button>
+                        <Badge
+                          variant={page.selected ? "secondary" : "outline"}
+                          className="w-fit text-[10px]"
+                        >
+                          {page.selected ? "Selecionada" : "Disponível"}
+                        </Badge>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          disabled={!page.selected}
+                          aria-label={`Abrir formulários de ${page.pageName ?? page.pageId}`}
+                          onClick={() => handleSelectPage(page.pageId)}
+                        >
+                          <ArrowRight className="h-4 w-4 text-muted-foreground transition-colors group-hover:text-foreground" />
+                        </Button>
+                      </div>
                     ))
                   )}
                 </div>

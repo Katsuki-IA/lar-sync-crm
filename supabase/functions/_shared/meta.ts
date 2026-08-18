@@ -43,6 +43,7 @@ type MetaSyncPageResult = {
   hasAccessToken: boolean;
   webhookSubscribed: boolean;
   source: string | null;
+  selected: boolean;
 };
 
 type MetaSyncPageError = {
@@ -322,7 +323,10 @@ async function fetchMetaPages(args: {
   businessesUrl.searchParams.set("fields", "id,name");
   businessesUrl.searchParams.set("limit", "100");
   businessesUrl.searchParams.set("access_token", args.userAccessToken);
-  const businesses = await fetchGraphCollectionResult<MetaBusiness>("/me/businesses", businessesUrl);
+  const businesses = await fetchGraphCollectionResult<MetaBusiness>(
+    "/me/businesses",
+    businessesUrl,
+  );
   sources.push({
     source: businesses.source,
     count: businesses.items.length,
@@ -353,6 +357,7 @@ export async function syncMetaFormsForConnection(args: {
   connectionId: string;
   userAccessToken: string;
   graphVersion: string;
+  selectedPageIds: string[];
 }) {
   const supabaseAdmin = createSupabaseAdmin();
   const { pages, sources } = await fetchMetaPages({
@@ -361,6 +366,11 @@ export async function syncMetaFormsForConnection(args: {
   });
   const pageResults: MetaSyncPageResult[] = [];
   const pageErrors: MetaSyncPageError[] = [];
+  const selectedPageIds = Array.from(new Set(args.selectedPageIds.map((pageId) => String(pageId))));
+  const selectedPageSet = new Set(selectedPageIds);
+  const discoveredPageIds = new Set(pages.map((page) => page.id));
+  const missingSelectedPageIds = selectedPageIds.filter((pageId) => !discoveredPageIds.has(pageId));
+  const successfullyFetchedPageIds = new Set<string>();
   const rows: Array<{
     id_empresa: number;
     connection_id: string;
@@ -377,6 +387,7 @@ export async function syncMetaFormsForConnection(args: {
   }> = [];
 
   for (const page of pages) {
+    const selected = selectedPageSet.has(page.id);
     if (!page.access_token) {
       pageResults.push({
         pageId: page.id,
@@ -385,38 +396,48 @@ export async function syncMetaFormsForConnection(args: {
         hasAccessToken: false,
         webhookSubscribed: false,
         source: page.source ?? null,
+        selected,
       });
+      if (selected) {
+        pageErrors.push({
+          pageId: page.id,
+          pageName: page.name ?? null,
+          message: "A Meta não retornou um token de acesso para esta página",
+        });
+      }
       continue;
     }
 
     let webhookSubscribed = false;
     let webhookError: string | null = null;
-    const subscriptionUrl = new URL(
-      `https://graph.facebook.com/${args.graphVersion}/${page.id}/subscribed_apps`,
-    );
-    subscriptionUrl.searchParams.set("subscribed_fields", "leadgen");
-    subscriptionUrl.searchParams.set("access_token", page.access_token);
-    try {
-      const subscriptionResponse = await fetch(subscriptionUrl.toString(), { method: "POST" });
-      const subscriptionJson = await subscriptionResponse.json();
-      const subscriptionSucceeded =
-        subscriptionJson?.success === true || subscriptionJson?.success === "true";
-      if (!subscriptionResponse.ok || subscriptionJson?.error || !subscriptionSucceeded) {
-        throw new Error(
-          subscriptionJson?.error?.message ?? "A Meta não confirmou a assinatura do webhook",
-        );
+    if (selected) {
+      const subscriptionUrl = new URL(
+        `https://graph.facebook.com/${args.graphVersion}/${page.id}/subscribed_apps`,
+      );
+      subscriptionUrl.searchParams.set("subscribed_fields", "leadgen");
+      subscriptionUrl.searchParams.set("access_token", page.access_token);
+      try {
+        const subscriptionResponse = await fetch(subscriptionUrl.toString(), { method: "POST" });
+        const subscriptionJson = await subscriptionResponse.json();
+        const subscriptionSucceeded =
+          subscriptionJson?.success === true || subscriptionJson?.success === "true";
+        if (!subscriptionResponse.ok || subscriptionJson?.error || !subscriptionSucceeded) {
+          throw new Error(
+            subscriptionJson?.error?.message ?? "A Meta não confirmou a assinatura do webhook",
+          );
+        }
+        webhookSubscribed = true;
+      } catch (error) {
+        webhookError = error instanceof Error ? error.message : "Falha ao inscrever a pagina";
+        pageErrors.push({
+          pageId: page.id,
+          pageName: page.name ?? null,
+          message: `Webhook leadgen: ${
+            error instanceof Error ? error.message : "falha ao inscrever a página"
+          }`,
+        });
+        console.warn(`Falha ao inscrever webhook leadgen na página Meta ${page.id}`, error);
       }
-      webhookSubscribed = true;
-    } catch (error) {
-      webhookError = error instanceof Error ? error.message : "Falha ao inscrever a pagina";
-      pageErrors.push({
-        pageId: page.id,
-        pageName: page.name ?? null,
-        message: `Webhook leadgen: ${
-          error instanceof Error ? error.message : "falha ao inscrever a página"
-        }`,
-      });
-      console.warn(`Falha ao inscrever webhook leadgen na página Meta ${page.id}`, error);
     }
 
     const formsUrl = new URL(
@@ -435,23 +456,27 @@ export async function syncMetaFormsForConnection(args: {
         hasAccessToken: true,
         webhookSubscribed,
         source: page.source ?? null,
+        selected,
       });
-      rows.push(
-        ...forms.map((form) => ({
-          id_empresa: args.idEmpresa,
-          connection_id: args.connectionId,
-          page_id: page.id,
-          page_name: page.name ?? null,
-          page_access_token: page.access_token!,
-          form_id: form.id,
-          form_name: form.name ?? null,
-          leads_count: form.leads_count ?? 0,
-          active: true,
-          webhook_subscribed: webhookSubscribed,
-          webhook_checked_at: new Date().toISOString(),
-          webhook_error: webhookError,
-        })),
-      );
+      if (selected) {
+        successfullyFetchedPageIds.add(page.id);
+        rows.push(
+          ...forms.map((form) => ({
+            id_empresa: args.idEmpresa,
+            connection_id: args.connectionId,
+            page_id: page.id,
+            page_name: page.name ?? null,
+            page_access_token: page.access_token!,
+            form_id: form.id,
+            form_name: form.name ?? null,
+            leads_count: form.leads_count ?? 0,
+            active: true,
+            webhook_subscribed: webhookSubscribed,
+            webhook_checked_at: new Date().toISOString(),
+            webhook_error: webhookError,
+          })),
+        );
+      }
     } catch (error) {
       pageResults.push({
         pageId: page.id,
@@ -460,22 +485,43 @@ export async function syncMetaFormsForConnection(args: {
         hasAccessToken: true,
         webhookSubscribed,
         source: page.source ?? null,
+        selected,
       });
-      pageErrors.push({
-        pageId: page.id,
-        pageName: page.name ?? null,
-        message: error instanceof Error ? error.message : "Falha ao sincronizar formulários",
-      });
+      if (selected) {
+        pageErrors.push({
+          pageId: page.id,
+          pageName: page.name ?? null,
+          message: error instanceof Error ? error.message : "Falha ao sincronizar formulários",
+        });
+      }
       console.warn(`Falha ao sincronizar formulários da página Meta ${page.id}`, error);
     }
   }
 
-  const { error: deactivateError } = await supabaseAdmin
+  const { data: currentForms, error: currentFormsError } = await supabaseAdmin
     .from("crm_meta_forms")
-    .update({ active: false })
+    .select("id,page_id,form_id")
     .eq("id_empresa", args.idEmpresa)
-    .eq("connection_id", args.connectionId);
-  if (deactivateError) throw new Error(deactivateError.message);
+    .eq("connection_id", args.connectionId)
+    .eq("active", true);
+  if (currentFormsError) throw new Error(currentFormsError.message);
+
+  const pagesToDeactivate = Array.from(
+    new Set(
+      (currentForms ?? [])
+        .map((form) => form.page_id)
+        .filter((pageId) => !selectedPageSet.has(pageId)),
+    ),
+  );
+  if (pagesToDeactivate.length > 0) {
+    const { error: deactivateError } = await supabaseAdmin
+      .from("crm_meta_forms")
+      .update({ active: false })
+      .eq("id_empresa", args.idEmpresa)
+      .eq("connection_id", args.connectionId)
+      .in("page_id", pagesToDeactivate);
+    if (deactivateError) throw new Error(deactivateError.message);
+  }
 
   if (rows.length > 0) {
     const { data: ownedElsewhere, error: ownerError } = await supabaseAdmin
@@ -513,24 +559,61 @@ export async function syncMetaFormsForConnection(args: {
     if (error) throw new Error(error.message);
   }
 
-  const sourceErrors = sources.filter((source) => source.error);
-  const healthStatus = pages.length === 0
-    ? "error"
-    : pageErrors.length > 0 || sourceErrors.length > 0
-      ? "degraded"
-      : "healthy";
+  const returnedFormKeys = new Set(rows.map((row) => `${row.page_id}:${row.form_id}`));
+  const staleFormIds = (currentForms ?? [])
+    .filter(
+      (form) =>
+        successfullyFetchedPageIds.has(form.page_id) &&
+        !returnedFormKeys.has(`${form.page_id}:${form.form_id}`),
+    )
+    .map((form) => form.id);
+  if (staleFormIds.length > 0) {
+    const { error: staleFormsError } = await supabaseAdmin
+      .from("crm_meta_forms")
+      .update({ active: false })
+      .eq("id_empresa", args.idEmpresa)
+      .eq("connection_id", args.connectionId)
+      .in("id", staleFormIds);
+    if (staleFormsError) throw new Error(staleFormsError.message);
+  }
+
+  for (const pageId of missingSelectedPageIds) {
+    pageResults.push({
+      pageId,
+      pageName: null,
+      formsCount: 0,
+      hasAccessToken: false,
+      webhookSubscribed: false,
+      source: null,
+      selected: true,
+    });
+    pageErrors.push({
+      pageId,
+      pageName: null,
+      message: "Página selecionada não foi retornada pela Meta. Reautorize o acesso à página.",
+    });
+  }
+
+  const healthStatus =
+    selectedPageIds.length === 0 || pages.length === 0
+      ? "error"
+      : pageErrors.length > 0
+        ? "degraded"
+        : "healthy";
   const healthErrors = [
     ...pageErrors.map((error) => `${error.pageName ?? error.pageId}: ${error.message}`),
-    ...sourceErrors.map((source) => `${source.source}: ${source.error}`),
   ];
+  if (selectedPageIds.length === 0) {
+    healthErrors.push("Nenhuma página foi selecionada para esta empresa");
+  } else if (pages.length === 0) {
+    healthErrors.push("A Meta não retornou páginas para esta conexão");
+  }
   const { error: healthError } = await supabaseAdmin
     .from("crm_meta_connections")
     .update({
       health_status: healthStatus,
       last_health_check_at: new Date().toISOString(),
-      last_error: healthErrors.length > 0
-        ? healthErrors.join(" | ").slice(0, 2000)
-        : null,
+      last_error: healthErrors.length > 0 ? healthErrors.join(" | ").slice(0, 2000) : null,
     })
     .eq("id", args.connectionId)
     .eq("id_empresa", args.idEmpresa);

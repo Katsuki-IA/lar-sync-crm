@@ -9,6 +9,7 @@ export type MetaConnectionStatus = {
   health_status: "unknown" | "healthy" | "degraded" | "error";
   last_health_check_at: string | null;
   last_error: string | null;
+  selected_page_ids: string[];
 };
 
 export type MetaFormStatus = {
@@ -47,6 +48,7 @@ export type MetaFormsSyncResult = {
     hasAccessToken: boolean;
     webhookSubscribed: boolean;
     source: string | null;
+    selected: boolean;
   }>;
   errors: Array<{
     pageId: string;
@@ -188,8 +190,8 @@ export async function getMetaIntegrationStatus() {
   return invokeMetaFunction<MetaIntegrationStatus>("meta-integration-status");
 }
 
-export async function syncMetaForms() {
-  return invokeMetaFunction<MetaFormsSyncResult>("meta-forms-sync");
+export async function syncMetaForms(data?: { pageIds?: string[] }) {
+  return invokeMetaFunction<MetaFormsSyncResult>("meta-forms-sync", data);
 }
 
 export async function disconnectMetaConnection() {
