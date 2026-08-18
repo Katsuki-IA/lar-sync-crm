@@ -51,6 +51,15 @@ type RdCredentials = {
   rd_hub_token_expires_at: string | null;
 };
 
+type LeadAttribution = {
+  meta_campaign_name: string | null;
+  meta_ad_name: string | null;
+  utm_source: string | null;
+  utm_medium: string | null;
+  utm_campaign: string | null;
+  utm_content: string | null;
+};
+
 const RD_CREDENTIALS_SELECT =
   "default_crm,rd_user_id,rd_crm_access_token,rd_client_id,rd_client_secret,rd_refresh_token,rd_hub_access_token,rd_hub_client_id,rd_hub_client_secret,rd_hub_refresh_token,rd_hub_token_expires_at";
 
@@ -83,6 +92,16 @@ type CvSummaryResult = {
   conversation_url?: string | null;
   whatsapp_url?: string | null;
 };
+
+class DispatchRequestError extends Error {
+  retryable: boolean;
+
+  constructor(message: string, retryable: boolean) {
+    super(message);
+    this.name = "DispatchRequestError";
+    this.retryable = retryable;
+  }
+}
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -120,6 +139,11 @@ function trimTrailingSlash(value: string) {
 
 function onlyDigits(value?: string | null) {
   return (value ?? "").replace(/\D/g, "");
+}
+
+function toE164(value?: string | null) {
+  const digits = onlyDigits(value);
+  return digits ? `+${digits}` : "";
 }
 
 function stripDiacritics(value: string) {
@@ -735,7 +759,7 @@ Deno.serve(async (req) => {
 
     const { data: lead, error: leadError } = await admin
       .from("crm_leads")
-      .select("id,id_empresa,nome,telefone,email,crm_stage_id,id_empreendimento,historico_token")
+      .select("id,id_empresa,nome,telefone,email,origem,crm_stage_id,id_empreendimento,historico_token")
       .eq("id", leadId)
       .eq("id_empresa", idEmpresa)
       .maybeSingle();
@@ -753,7 +777,21 @@ Deno.serve(async (req) => {
       throw new Error("Este lead já foi enviado para o CRM.");
     }
 
-    const [{ data: empresa, error: empresaError }, { data: credentials, error: credentialsError }] =
+    const { data: previousSuccessfulSends, error: previousSuccessfulSendsError } = await admin
+      .from("crm_external_crm_send_logs")
+      .select("id,external_id")
+      .eq("lead_id", lead.id)
+      .eq("status", "sent")
+      .limit(1);
+    if (previousSuccessfulSendsError) throw new Error(previousSuccessfulSendsError.message);
+    if (previousSuccessfulSends?.length) {
+      throw new Error("Este lead já possui um envio confirmado para o CRM externo.");
+    }
+
+    const [
+      { data: empresa, error: empresaError },
+      { data: credentials, error: credentialsError },
+    ] =
       await Promise.all([
         admin
           .from("empresa_dados")
@@ -775,7 +813,10 @@ Deno.serve(async (req) => {
       normalizeCrmKey((credentials as CvCredentials | null)?.default_crm);
     const isCvCrm = ["cv", "cv_crm"].includes(crmKey);
     const isRdCrm = ["rd", "rd_crm", "rdstation", "rd_station"].includes(crmKey);
-    if (!isCvCrm && !isRdCrm) throw new Error("O CRM padrão desta empresa não é suportado para envio.");
+    const isKatsukiCrm = ["katsuki", "katsuki_crm"].includes(crmKey);
+    if (!isCvCrm && !isRdCrm && !isKatsukiCrm) {
+      throw new Error("O CRM padrão desta empresa não é suportado para envio.");
+    }
 
     const cvCredentials = credentials as CvCredentials | null;
     const cvUrl = trimTrailingSlash(String(cvCredentials?.cv_crm_url ?? "").trim());
@@ -784,6 +825,11 @@ Deno.serve(async (req) => {
 
     if (isCvCrm && (!cvUrl || !cvToken || !cvEmail)) {
       throw new Error("As credenciais do CV CRM estão incompletas para esta empresa.");
+    }
+
+    const katsukiApiKey = cvToken;
+    if (isKatsukiCrm && (!cvUrl || !katsukiApiKey)) {
+      throw new Error("A URL ou a chave do Katsuki CRM não está configurada em credentials.");
     }
 
     const dispatchSettingsResult = await admin
@@ -844,6 +890,14 @@ Deno.serve(async (req) => {
       : { data: null, error: null };
     if (stageOverrideResult.error) throw new Error(stageOverrideResult.error.message);
     const leadTagNames = await loadLeadTagNames(admin, lead.id, lead.id_empresa);
+    const { data: attributionData, error: attributionError } = await admin
+      .from("crm_lead_attribution")
+      .select("meta_campaign_name,meta_ad_name,utm_source,utm_medium,utm_campaign,utm_content")
+      .eq("crm_lead_id", lead.id)
+      .eq("id_empresa", lead.id_empresa)
+      .maybeSingle();
+    if (attributionError) throw new Error(attributionError.message);
+    const attribution = attributionData as LeadAttribution | null;
     const externalStageId = resolveExternalStageId(
       currentStageName,
       dispatchSettings,
@@ -855,8 +909,8 @@ Deno.serve(async (req) => {
     const conversationUrl = `${appBaseUrl}/historico/${lead.historico_token ?? lead.id}`;
     const whatsappUrl = buildWhatsAppUrl(lead.telefone, empreendimentoNome);
 
-    const provider = isCvCrm ? "cv_crm" : "rd_crm";
-    const providerLabel = isCvCrm ? "CV" : "RD";
+    const provider = isCvCrm ? "cv_crm" : isKatsukiCrm ? "katsuki_crm" : "rd_crm";
+    const providerLabel = isCvCrm ? "CV" : isKatsukiCrm ? "Katsuki" : "RD";
     const email = String(lead.email ?? "").trim();
     const phone = String(lead.telefone ?? "").trim();
     const requestedTags = normalizeDispatchTags(body.additionalTags);
@@ -926,7 +980,68 @@ Deno.serve(async (req) => {
         responsePayload = await parseResponsePayload(response);
         if (!response.ok) throw new Error(externalApiError(responsePayload, `CV CRM retornou ${response.status}`));
         externalId = inferExternalId(responsePayload);
-      } else {
+      } else if (isKatsukiCrm) {
+        const campaignName = String(
+          attribution?.meta_campaign_name ?? attribution?.utm_campaign ?? "",
+        ).trim();
+        const sourceName = String(lead.origem ?? "").trim();
+        const summary = String(summaryPayload?.summary ?? "").trim().slice(0, 5000);
+
+        requestPayload = {
+          nome: String(lead.nome ?? "").trim() || "Lead sem nome",
+          canal: "Hub Katsuki",
+          etapa_id: String(externalStageId),
+        };
+        if (email) requestPayload.email = email;
+        if (phone) requestPayload.telefone = toE164(phone);
+        if (sourceName) requestPayload.portal = sourceName;
+        if (campaignName) requestPayload.campanha = campaignName;
+        if (attribution?.utm_source) requestPayload.utm_source = attribution.utm_source;
+        if (attribution?.utm_medium) requestPayload.utm_medium = attribution.utm_medium;
+        if (attribution?.utm_campaign) requestPayload.utm_campaign = attribution.utm_campaign;
+        if (attribution?.utm_content || attribution?.meta_ad_name) {
+          requestPayload.utm_content = attribution?.utm_content || attribution?.meta_ad_name;
+        }
+        if (summary) {
+          requestPayload.atividades = [{
+            tipo: "nota",
+            descricao: summary,
+            metadata: {
+              canal: "whatsapp",
+              source: "hub_katsuki",
+              crm_lead_id: lead.id,
+            },
+          }];
+        }
+
+        let response: Response;
+        try {
+          response = await fetch(cvUrl, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-api-key": katsukiApiKey,
+            },
+            body: JSON.stringify(requestPayload),
+          });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Falha de rede";
+          throw new DispatchRequestError(
+            `Falha de rede ao enviar para o Katsuki CRM: ${message}. Reenvio automático bloqueado para evitar duplicidade.`,
+            false,
+          );
+        }
+        responsePayload = await parseResponsePayload(response);
+        if (!response.ok) {
+          throw new DispatchRequestError(
+            externalApiError(responsePayload, `Katsuki CRM retornou ${response.status}`),
+            response.status === 429 || response.status >= 500,
+          );
+        }
+        externalId = inferExternalId(responsePayload);
+        if (!externalId) throw new Error("O Katsuki CRM não retornou o lead_id criado.");
+        conversationSummarySynced = Boolean(summary);
+      } else if (isRdCrm) {
         if (!phone && !email) throw new Error("O lead precisa ter telefone ou e-mail para ser enviado ao RD.");
 
         const rdCredentials = credentials as RdCredentials;
@@ -1006,11 +1121,14 @@ Deno.serve(async (req) => {
             conversationSummarySynced = true;
           }
         }
+      } else {
+        throw new Error("Provedor de CRM sem implementação de dispatch.");
       }
 
       await admin.from("crm_external_crm_send_logs").insert({
         id_empresa: lead.id_empresa,
         lead_id: lead.id,
+        connection_id: null,
         provider,
         request_payload: requestPayload,
         status: "sent",
@@ -1026,6 +1144,7 @@ Deno.serve(async (req) => {
       await admin.from("crm_external_crm_send_logs").insert({
         id_empresa: lead.id_empresa,
         lead_id: lead.id,
+        connection_id: null,
         provider,
         request_payload: requestPayload,
         status: "failed",
@@ -1146,9 +1265,13 @@ Deno.serve(async (req) => {
       });
   } catch (error) {
     console.error(error);
+    const retryable = error instanceof DispatchRequestError ? error.retryable : undefined;
     return jsonResponse(
-      { error: error instanceof Error ? error.message : "Erro interno" },
-      400,
+      {
+        error: error instanceof Error ? error.message : "Erro interno",
+        ...(retryable == null ? {} : { retryable }),
+      },
+      retryable === true ? 503 : 400,
     );
   }
 });

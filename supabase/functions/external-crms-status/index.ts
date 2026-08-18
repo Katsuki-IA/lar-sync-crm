@@ -8,6 +8,7 @@ import {
 
 const PROVIDERS = [
   { provider: "rd_station", label: "RD Station CRM", available: true },
+  { provider: "katsuki_crm", label: "Katsuki CRM", available: true },
   { provider: "cv_crm", label: "CV CRM", available: false },
   { provider: "c2s", label: "C2S", available: false },
   { provider: "kommo", label: "Kommo", available: false },

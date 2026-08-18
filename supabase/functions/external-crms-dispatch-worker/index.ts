@@ -15,6 +15,16 @@ type QueueJob = {
   payload: Record<string, unknown> | null;
 };
 
+class WorkerDispatchError extends Error {
+  retryable: boolean;
+
+  constructor(message: string, retryable: boolean) {
+    super(message);
+    this.name = "WorkerDispatchError";
+    this.retryable = retryable;
+  }
+}
+
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -92,7 +102,12 @@ Deno.serve(async (req) => {
           }),
         });
         const responsePayload = await parseResponse(response);
-        if (!response.ok) throw new Error(responseError(responsePayload, response.status));
+        if (!response.ok) {
+          throw new WorkerDispatchError(
+            responseError(responsePayload, response.status),
+            responsePayload?.retryable !== false,
+          );
+        }
 
         const { error: updateError } = await admin
           .from("crm_external_dispatch_queue")
@@ -107,7 +122,8 @@ Deno.serve(async (req) => {
         results.push({ id: job.id, status: "sent" });
       } catch (jobError) {
         const message = jobError instanceof Error ? jobError.message : "Erro inesperado";
-        const retry = job.attempts < job.max_attempts;
+        const retryAllowed = !(jobError instanceof WorkerDispatchError) || jobError.retryable;
+        const retry = retryAllowed && job.attempts < job.max_attempts;
         const retryMinutes = Math.min(5 * 2 ** Math.max(job.attempts - 1, 0), 60);
         const values = retry
           ? {

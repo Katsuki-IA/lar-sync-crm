@@ -342,7 +342,7 @@ export const listCrmDispatchEmpresas = createServerFn({ method: "GET" })
 
     const { data, error } = await supabaseAdmin
       .from("empresa_dados")
-      .select("id,nome")
+      .select("id,nome,default_crm")
       .in("id", companyIds)
       .order("nome", { ascending: true });
     if (error) throw new Error(error.message);
@@ -461,7 +461,7 @@ export const getCrmDispatchSettings = createServerFn({ method: "GET" })
       stages = await loadStages();
     }
 
-    const [settingsResult, empreendimentosResult, overridesResult] = await Promise.all([
+    const [settingsResult, empreendimentosResult, overridesResult, companyResult, credentialsResult] = await Promise.all([
       supabaseAdmin
         .from("crm_lead_dispatch_settings")
         .select(
@@ -480,11 +480,23 @@ export const getCrmDispatchSettings = createServerFn({ method: "GET" })
           "id_empreendimento,external_stage_blocked_send_id,external_stage_qualified_id,external_stage_unqualified_id,external_stage_visit_scheduled_id,external_stage_lost_id,external_stage_without_whatsapp_id",
         )
         .eq("id_empresa", data.id_empresa),
+      supabaseAdmin
+        .from("empresa_dados")
+        .select("default_crm")
+        .eq("id", data.id_empresa)
+        .maybeSingle(),
+      supabaseAdmin
+        .from("credentials")
+        .select("cv_crm_url,cv_crm_token")
+        .eq("id_empresa", data.id_empresa)
+        .maybeSingle(),
     ]);
 
     if (settingsResult.error) throw new Error(settingsResult.error.message);
     if (empreendimentosResult.error) throw new Error(empreendimentosResult.error.message);
     if (overridesResult.error) throw new Error(overridesResult.error.message);
+    if (companyResult.error) throw new Error(companyResult.error.message);
+    if (credentialsResult.error) throw new Error(credentialsResult.error.message);
 
     const settings = settingsResult.data;
 
@@ -503,6 +515,11 @@ export const getCrmDispatchSettings = createServerFn({ method: "GET" })
       },
       empreendimentos: empreendimentosResult.data ?? [],
       stage_overrides: overridesResult.data ?? [],
+      external_crm: {
+        provider: companyResult.data?.default_crm ?? null,
+        katsuki_api_key_configured: Boolean(credentialsResult.data?.cv_crm_token),
+        active: Boolean(credentialsResult.data?.cv_crm_url && credentialsResult.data?.cv_crm_token),
+      },
     };
   });
 

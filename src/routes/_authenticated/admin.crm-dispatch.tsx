@@ -18,6 +18,7 @@ export const Route = createFileRoute("/_authenticated/admin/crm-dispatch")({
 type Empresa = {
   id: number;
   nome: string | null;
+  default_crm: string | null;
 };
 
 type StageOption = {
