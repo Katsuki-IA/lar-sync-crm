@@ -651,16 +651,24 @@ function resolveExternalStageId(
   const lost = stageValue("external_stage_lost_id");
   const withoutWhatsapp = stageValue("external_stage_without_whatsapp_id");
   const hasQualifiedTag = leadTagNames.some((tagName) => normalizeLabel(tagName) === "qualificado");
+  const normalizedStageName = normalizeLabel(stageName);
+  const normalizedExternalStageKind = normalizeLabel(externalStageKind);
+  const isBlockedSend = normalizedStageName === "bloqueio envio" || [
+    "blocked_send",
+    "blocked",
+    "meta_blocked",
+    "bloqueio_envio",
+  ].includes(normalizedExternalStageKind);
 
   if (!unqualified) {
     throw new Error("O ID externo de Não qualificado não está configurado para esta empresa.");
   }
 
-  if (normalizeLabel(externalStageKind) === "without_whatsapp") return withoutWhatsapp || unqualified;
+  if (isBlockedSend) return blockedSend || unqualified;
+  if (normalizedExternalStageKind === "without_whatsapp") return withoutWhatsapp || unqualified;
   if (stageName === "Perdido") return lost || unqualified;
   if (stageName === "Visita Agendada") return visitScheduled || unqualified;
   if (hasQualifiedTag) return qualified || unqualified;
-  if (stageName === "Bloqueio Envio") return blockedSend || unqualified;
   return unqualified;
 }
 
@@ -914,7 +922,7 @@ Deno.serve(async (req) => {
     const email = String(lead.email ?? "").trim();
     const phone = String(lead.telefone ?? "").trim();
     const requestedTags = normalizeDispatchTags(body.additionalTags);
-    const tags = isCvCrm
+    const tags = isCvCrm || isKatsukiCrm
       ? normalizeDispatchTags([...leadTagNames, ...requestedTags])
       : requestedTags;
     let requestPayload: Record<string, unknown> = {};
@@ -924,7 +932,8 @@ Deno.serve(async (req) => {
     let conversationSummarySynced = false;
     let externalId: string | null = null;
     const suppliedSummary = String(body.conversationSummary ?? "").trim();
-    const isWithoutWhatsappStage = normalizeLabel(body.externalStageKind) === "without_whatsapp";
+    const isWithoutWhatsappStage = normalizeLabel(body.externalStageKind) === "without_whatsapp" &&
+      normalizeLabel(currentStageName) !== "bloqueio envio";
 
     try {
       if (suppliedSummary || isWithoutWhatsappStage) {
@@ -996,12 +1005,16 @@ Deno.serve(async (req) => {
         if (phone) requestPayload.telefone = toE164(phone);
         if (sourceName) requestPayload.portal = sourceName;
         if (campaignName) requestPayload.campanha = campaignName;
+        if (cvEmpreendimentoId != null) {
+          requestPayload.empreendimento_id = String(cvEmpreendimentoId);
+        }
         if (attribution?.utm_source) requestPayload.utm_source = attribution.utm_source;
         if (attribution?.utm_medium) requestPayload.utm_medium = attribution.utm_medium;
         if (attribution?.utm_campaign) requestPayload.utm_campaign = attribution.utm_campaign;
         if (attribution?.utm_content || attribution?.meta_ad_name) {
           requestPayload.utm_content = attribution?.utm_content || attribution?.meta_ad_name;
         }
+        if (tags.length) requestPayload.tags = tags.slice(0, 30);
         if (summary) {
           requestPayload.atividades = [{
             tipo: "nota",
@@ -1214,7 +1227,7 @@ Deno.serve(async (req) => {
           provider,
           external_id: externalId,
           id_empreendimento_local: localEmpreendimentoId,
-          external_empreendimento_id: isCvCrm ? cvEmpreendimentoId : null,
+          external_empreendimento_id: isCvCrm || isKatsukiCrm ? cvEmpreendimentoId : null,
           external_stage_id: isCvCrm ? toScalarId(externalStageId) : externalStageId,
           qualified_by_tag: leadTagNames.some((tagName) => normalizeLabel(tagName) === "qualificado"),
           conversation_summary_synced: conversationSummarySynced,
