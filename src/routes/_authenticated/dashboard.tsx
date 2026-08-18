@@ -52,7 +52,12 @@ function DashboardPage() {
 
       const [{ data: leads, count }, { data: stages }, { data: emps }] = await Promise.all([
         baseLeads(),
-        supabase.from("crm_stages").select("id, nome, cor, ordem").eq("ativo", true).order("ordem"),
+        supabase
+          .from("crm_stages")
+          .select("id, nome, cor, ordem")
+          .eq("id_empresa", activeEmpresaId!)
+          .eq("ativo", true)
+          .order("ordem"),
         supabase.from("empreendimento").select("id, nome").in("id_empresa", empresaIds),
       ]);
 
