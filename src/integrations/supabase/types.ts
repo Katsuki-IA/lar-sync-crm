@@ -1019,6 +1019,7 @@ export type Database = {
       crm_lead_dispatch_settings: {
         Row: {
           created_at: string
+          dispatch_delay_minutes: number
           external_stage_blocked_send_id: string | null
           external_stage_lost_id: string | null
           external_stage_qualified_id: string | null
@@ -1033,6 +1034,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          dispatch_delay_minutes?: number
           external_stage_blocked_send_id?: string | null
           external_stage_lost_id?: string | null
           external_stage_qualified_id?: string | null
@@ -1047,6 +1049,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          dispatch_delay_minutes?: number
           external_stage_blocked_send_id?: string | null
           external_stage_lost_id?: string | null
           external_stage_qualified_id?: string | null

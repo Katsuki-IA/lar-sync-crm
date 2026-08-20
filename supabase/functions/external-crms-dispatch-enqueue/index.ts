@@ -102,9 +102,21 @@ Deno.serve(async (req) => {
     const triggerReference = String(payload.triggerReference ?? "").trim() || null;
     const externalStageKind = String(payload.externalStageKind ?? "").trim() || null;
     const conversationSummary = String(payload.conversationSummary ?? "").trim() || null;
-    const dispatchDelayMs = externalStageKind?.toLowerCase() === "without_whatsapp"
-      ? 0
-      : 60 * 60 * 1000;
+    const { data: dispatchSettings, error: dispatchSettingsError } = await admin
+      .from("crm_lead_dispatch_settings")
+      .select("dispatch_delay_minutes")
+      .eq("id_empresa", idEmpresa)
+      .maybeSingle();
+    if (dispatchSettingsError) throw new Error(dispatchSettingsError.message);
+
+    const configuredDelayMinutes = Number(dispatchSettings?.dispatch_delay_minutes ?? 60);
+    const dispatchDelayMinutes =
+      externalStageKind?.toLowerCase() === "without_whatsapp"
+        ? 0
+        : Number.isSafeInteger(configuredDelayMinutes) && configuredDelayMinutes >= 0
+          ? Math.min(configuredDelayMinutes, 10080)
+          : 60;
+    const dispatchDelayMs = dispatchDelayMinutes * 60 * 1000;
     const scheduledAt = new Date(Date.now() + dispatchDelayMs).toISOString();
 
     const { data: job, error } = await admin.rpc("crm_enqueue_external_dispatch", {
@@ -130,6 +142,7 @@ Deno.serve(async (req) => {
       ok: true,
       queued: true,
       scheduledAt: queueJob?.scheduled_at ?? scheduledAt,
+      delayMinutes: dispatchDelayMinutes,
       jobId: queueJob?.id ?? null,
       status: queueJob?.status ?? "pending",
     });

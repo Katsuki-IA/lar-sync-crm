@@ -465,7 +465,7 @@ export const getCrmDispatchSettings = createServerFn({ method: "GET" })
       supabaseAdmin
         .from("crm_lead_dispatch_settings")
         .select(
-          "stage_without_contact_id,stage_with_contact_id,external_stage_blocked_send_id,external_stage_qualified_id,external_stage_unqualified_id,external_stage_visit_scheduled_id,external_stage_lost_id,external_stage_without_whatsapp_id,updated_at",
+          "stage_without_contact_id,stage_with_contact_id,dispatch_delay_minutes,external_stage_blocked_send_id,external_stage_qualified_id,external_stage_unqualified_id,external_stage_visit_scheduled_id,external_stage_lost_id,external_stage_without_whatsapp_id,updated_at",
         )
         .eq("id_empresa", data.id_empresa)
         .maybeSingle(),
@@ -505,6 +505,7 @@ export const getCrmDispatchSettings = createServerFn({ method: "GET" })
       settings: {
         stage_without_contact_id: settings?.stage_without_contact_id ?? null,
         stage_with_contact_id: settings?.stage_with_contact_id ?? null,
+        dispatch_delay_minutes: settings?.dispatch_delay_minutes ?? 60,
         external_stage_blocked_send_id: settings?.external_stage_blocked_send_id ?? null,
         external_stage_qualified_id: settings?.external_stage_qualified_id ?? null,
         external_stage_unqualified_id: settings?.external_stage_unqualified_id ?? null,
@@ -531,6 +532,7 @@ export const saveCrmDispatchSettings = createServerFn({ method: "POST" })
         id_empresa: z.number().int().positive(),
         stage_without_contact_id: z.number().int().positive().nullable(),
         stage_with_contact_id: z.number().int().positive().nullable(),
+        dispatch_delay_minutes: z.number().int().min(0).max(10080),
         external_stage_blocked_send_id: z.string().trim().max(120).nullable(),
         external_stage_qualified_id: z.string().trim().max(120).nullable(),
         external_stage_unqualified_id: z.string().trim().max(120).nullable(),
@@ -629,6 +631,7 @@ export const saveCrmDispatchSettings = createServerFn({ method: "POST" })
         id_empresa: data.id_empresa,
         stage_without_contact_id: data.stage_without_contact_id,
         stage_with_contact_id: data.stage_with_contact_id,
+        dispatch_delay_minutes: data.dispatch_delay_minutes,
         external_stage_blocked_send_id: data.external_stage_blocked_send_id,
         external_stage_qualified_id: data.external_stage_qualified_id,
         external_stage_unqualified_id: data.external_stage_unqualified_id,

@@ -53,6 +53,7 @@ function AdminCrmDispatchPage() {
   const [selectedCompanyId, setSelectedCompanyId] = useState("");
   const [withoutContactStageId, setWithoutContactStageId] = useState<string>(EMPTY_VALUE);
   const [withContactStageId, setWithContactStageId] = useState<string>(EMPTY_VALUE);
+  const [dispatchDelayMinutes, setDispatchDelayMinutes] = useState("60");
   const [blockedSendExternalStageId, setBlockedSendExternalStageId] = useState("");
   const [qualifiedExternalStageId, setQualifiedExternalStageId] = useState("");
   const [unqualifiedExternalStageId, setUnqualifiedExternalStageId] = useState("");
@@ -90,6 +91,7 @@ function AdminCrmDispatchPage() {
         ? String(configData.settings.stage_with_contact_id)
         : EMPTY_VALUE,
     );
+    setDispatchDelayMinutes(String(configData.settings.dispatch_delay_minutes ?? 60));
     setBlockedSendExternalStageId(configData.settings.external_stage_blocked_send_id ?? "");
     setQualifiedExternalStageId(configData.settings.external_stage_qualified_id ?? "");
     setUnqualifiedExternalStageId(configData.settings.external_stage_unqualified_id ?? "");
@@ -150,6 +152,7 @@ function AdminCrmDispatchPage() {
             withoutContactStageId === EMPTY_VALUE ? null : Number(withoutContactStageId),
           stage_with_contact_id:
             withContactStageId === EMPTY_VALUE ? null : Number(withContactStageId),
+          dispatch_delay_minutes: Number(dispatchDelayMinutes),
           external_stage_blocked_send_id: blockedSendExternalStageId.trim() || null,
           external_stage_qualified_id: qualifiedExternalStageId.trim() || null,
           external_stage_unqualified_id: unqualifiedExternalStageId.trim() || null,
@@ -183,6 +186,11 @@ function AdminCrmDispatchPage() {
   const empreendimentos = (configData?.empreendimentos ?? []) as EmpreendimentoOption[];
   const withoutContactStages = stages.filter((stage) => WITHOUT_CONTACT_STAGE_NAMES.has(stage.nome));
   const isLoading = companiesLoading || (!!selectedCompanyId && configLoading);
+  const parsedDispatchDelayMinutes = Number(dispatchDelayMinutes);
+  const dispatchDelayIsValid =
+    Number.isInteger(parsedDispatchDelayMinutes) &&
+    parsedDispatchDelayMinutes >= 0 &&
+    parsedDispatchDelayMinutes <= 10080;
 
   return (
     <Card className="p-4 space-y-5">
@@ -266,6 +274,36 @@ function AdminCrmDispatchPage() {
                 ))}
               </SelectContent>
             </Select>
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-border p-4">
+        <div className="max-w-md space-y-2">
+          <div className="space-y-1">
+            <h3 className="font-medium">Tempo para envio ao CRM externo</h3>
+            <p className="text-sm text-muted-foreground">
+              Define quantos minutos o sistema aguarda após o gatilho dos follow-ups antes de enviar
+              o lead. Use 0 para envio imediato. O padrão é 60 minutos.
+            </p>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="dispatch-delay-minutes">Tempo de espera (minutos)</Label>
+            <Input
+              id="dispatch-delay-minutes"
+              type="number"
+              min={0}
+              max={10080}
+              step={1}
+              value={dispatchDelayMinutes}
+              onChange={(event) => setDispatchDelayMinutes(event.target.value)}
+              disabled={isLoading}
+            />
+            {!dispatchDelayIsValid ? (
+              <p className="text-xs text-destructive">
+                Informe um número inteiro entre 0 e 10.080 minutos.
+              </p>
+            ) : null}
           </div>
         </div>
       </div>
@@ -436,7 +474,7 @@ function AdminCrmDispatchPage() {
           <div className="flex justify-end">
             <Button
               onClick={() => saveMutation.mutate()}
-              disabled={!selectedCompanyId || saveMutation.isPending || isLoading}
+              disabled={!selectedCompanyId || saveMutation.isPending || isLoading || !dispatchDelayIsValid}
             >
               {saveMutation.isPending ? "Salvando..." : "Salvar configuração"}
             </Button>
