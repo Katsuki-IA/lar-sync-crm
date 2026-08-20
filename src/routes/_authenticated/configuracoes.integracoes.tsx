@@ -185,6 +185,7 @@ function IntegracoesPage() {
   const [recoveryUntil, setRecoveryUntil] = useState("");
   const [lastSync, setLastSync] = useState<MetaFormsSyncResult | null>(null);
   const [selectedMetaPageIds, setSelectedMetaPageIds] = useState<string[]>([]);
+  const [pageSelectionDirty, setPageSelectionDirty] = useState(false);
   const [drawerView, setDrawerView] = useState<MetaDrawerView>("account");
   const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
   const [selectedFormId, setSelectedFormId] = useState<string | null>(null);
@@ -281,6 +282,10 @@ function IntegracoesPage() {
 
   const connection = (status?.connection as MetaConnection | null | undefined) ?? null;
   const forms = useMemo(() => (status?.forms as MetaForm[] | undefined) ?? [], [status?.forms]);
+  const persistedMetaPageIds = useMemo(
+    () => connection?.selected_page_ids ?? [],
+    [connection?.selected_page_ids],
+  );
   const recoveryForms = forms.filter(
     (form) =>
       Number(form.mapped_fields_count ?? 0) >= 2 &&
@@ -299,7 +304,7 @@ function IntegracoesPage() {
         pageName: form.page_name ?? current?.pageName ?? null,
         formsCount: (current?.formsCount ?? 0) + 1,
         source: current?.source ?? null,
-        selected: selectedMetaPageIds.includes(form.page_id),
+        selected: persistedMetaPageIds.includes(form.page_id),
       });
     }
 
@@ -310,14 +315,14 @@ function IntegracoesPage() {
         pageName: page.pageName ?? current?.pageName ?? null,
         formsCount: Math.max(page.formsCount, current?.formsCount ?? 0),
         source: page.source ?? current?.source ?? null,
-        selected: selectedMetaPageIds.includes(page.pageId),
+        selected: persistedMetaPageIds.includes(page.pageId),
       });
     }
 
     return Array.from(byId.values())
       .filter((page) => page.formsCount > 0 || page.selected)
       .sort((a, b) => (a.pageName ?? a.pageId).localeCompare(b.pageName ?? b.pageId));
-  }, [forms, lastSync, selectedMetaPageIds]);
+  }, [forms, lastSync, persistedMetaPageIds]);
 
   const filteredPages = pages.filter((page) => {
     const term = pageSearch.trim().toLowerCase();
@@ -352,12 +357,13 @@ function IntegracoesPage() {
     setSelectedFormId(null);
     setLastSync(null);
     setSelectedMetaPageIds([]);
+    setPageSelectionDirty(false);
   }, [activeEmpresaId]);
 
   useEffect(() => {
-    if (!connection) return;
+    if (!connection || pageSelectionDirty) return;
     setSelectedMetaPageIds(connection.selected_page_ids ?? []);
-  }, [connection]);
+  }, [connection, pageSelectionDirty]);
 
   useEffect(() => {
     if (!formFields) return;
@@ -406,9 +412,11 @@ function IntegracoesPage() {
       setSyncing(true);
       const result = await syncMetaForms();
       setLastSync(result);
-      setSelectedMetaPageIds(
-        result.pages.filter((page) => page.selected).map((page) => page.pageId),
-      );
+      if (!pageSelectionDirty) {
+        setSelectedMetaPageIds(
+          result.pages.filter((page) => page.selected).map((page) => page.pageId),
+        );
+      }
       if (result.formsCount > 0 && result.errors.length > 0) {
         toast.warning(
           `${result.formsCount} formulário(s) sincronizado(s), com ${result.errors.length} alerta(s)`,
@@ -429,6 +437,7 @@ function IntegracoesPage() {
   };
 
   const toggleMetaPage = (pageId: string, checked: boolean) => {
+    setPageSelectionDirty(true);
     setSelectedMetaPageIds((current) =>
       checked
         ? Array.from(new Set([...current, pageId]))
@@ -437,14 +446,15 @@ function IntegracoesPage() {
   };
 
   const handleSavePageSelection = async () => {
-    if (selectedMetaPageIds.length === 0) {
+    const pageIdsToSave = Array.from(new Set(selectedMetaPageIds));
+    if (pageIdsToSave.length === 0) {
       toast.error("Selecione ao menos uma página para esta empresa");
       return;
     }
 
     try {
       setSavingPages(true);
-      const result = await syncMetaForms({ pageIds: selectedMetaPageIds });
+      const result = await syncMetaForms({ pageIds: pageIdsToSave });
       setLastSync(result);
       setSelectedMetaPageIds(
         result.pages.filter((page) => page.selected).map((page) => page.pageId),
@@ -454,7 +464,11 @@ function IntegracoesPage() {
       } else {
         toast.success("Páginas desta empresa salvas e sincronizadas");
       }
-      await qc.invalidateQueries({ queryKey: ["meta-integration-status", activeEmpresaId] });
+      await qc.refetchQueries({
+        queryKey: ["meta-integration-status", activeEmpresaId],
+        type: "active",
+      });
+      setPageSelectionDirty(false);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Falha ao salvar páginas da empresa");
     } finally {
@@ -600,6 +614,7 @@ function IntegracoesPage() {
     setSelectedFormId(null);
     setLastSync(null);
     setSelectedMetaPageIds([]);
+    setPageSelectionDirty(false);
     void qc.invalidateQueries({ queryKey: ["meta-integration-status"] });
   };
 
@@ -971,7 +986,7 @@ function IntegracoesPage() {
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8"
-                          disabled={!page.selected}
+                          disabled={!page.selected || savingPages || syncing}
                           aria-label={`Abrir formulários de ${page.pageName ?? page.pageId}`}
                           onClick={() => handleSelectPage(page.pageId)}
                         >
