@@ -23,6 +23,10 @@ export type JourneyFunnelCounts = {
   scheduled: number;
 };
 
+export type JourneyFunnelLeadStages = JourneyFunnelCounts & {
+  leadId: number;
+};
+
 const LEGACY_CRM_SENT_DESCRIPTION = "lead enviado ao crm cv com sucesso";
 
 export function createJourneySessionIds(
@@ -39,12 +43,12 @@ export function createJourneySessionIds(
   return [...new Set(variations.map((value) => `${value}${empresaId}`))];
 }
 
-export function calculateJourneyFunnel({
+export function calculateJourneyFunnelLeadStages({
   leads,
   messages,
   activities,
   appointments,
-}: JourneyFunnelInput): JourneyFunnelCounts {
+}: JourneyFunnelInput): JourneyFunnelLeadStages[] {
   const humanSessions = new Set(
     messages
       .filter((message) => message.type?.toLowerCase() === "human")
@@ -74,24 +78,34 @@ export function calculateJourneyFunnel({
     appointments.map((appointment) => appointment.legacyLeadId),
   );
 
-  return leads.reduce<JourneyFunnelCounts>(
-    (counts, lead) => {
-      const hasHumanMessage = lead.telefones
+  return leads.map((lead) => {
+    const hasHumanMessage =
+      lead.telefones
         .flatMap((telefone) => createJourneySessionIds(telefone, lead.idEmpresa))
         .some((sessionId) => humanSessions.has(sessionId)) ||
-        Boolean(lead.legacyEngaged) ||
-        aiConversationLeadIds.has(lead.id);
+      Boolean(lead.legacyEngaged) ||
+      aiConversationLeadIds.has(lead.id);
 
-      counts.received += 1;
-      if (hasHumanMessage) counts.engaged += 1;
-      if (lead.leadQuente || lead.legacyQualified) counts.hot += 1;
-      if (sentToCrmLeadIds.has(lead.id)) counts.sentToCrm += 1;
-      if (lead.leadId !== null && scheduledLegacyLeadIds.has(lead.leadId)) {
-        counts.scheduled += 1;
-      }
+    return {
+      leadId: lead.id,
+      received: 1,
+      engaged: hasHumanMessage ? 1 : 0,
+      hot: lead.leadQuente || lead.legacyQualified ? 1 : 0,
+      sentToCrm: sentToCrmLeadIds.has(lead.id) ? 1 : 0,
+      scheduled: lead.leadId !== null && scheduledLegacyLeadIds.has(lead.leadId) ? 1 : 0,
+    };
+  });
+}
 
-      return counts;
-    },
+export function calculateJourneyFunnel(input: JourneyFunnelInput): JourneyFunnelCounts {
+  return calculateJourneyFunnelLeadStages(input).reduce<JourneyFunnelCounts>(
+    (counts, stages) => ({
+      received: counts.received + stages.received,
+      engaged: counts.engaged + stages.engaged,
+      hot: counts.hot + stages.hot,
+      sentToCrm: counts.sentToCrm + stages.sentToCrm,
+      scheduled: counts.scheduled + stages.scheduled,
+    }),
     { received: 0, engaged: 0, hot: 0, sentToCrm: 0, scheduled: 0 },
   );
 }

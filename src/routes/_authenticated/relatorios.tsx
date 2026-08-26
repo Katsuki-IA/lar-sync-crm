@@ -30,7 +30,12 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
-import { calculateJourneyFunnel, createJourneySessionIds } from "@/lib/journey-funnel";
+import {
+  calculateJourneyFunnel,
+  calculateJourneyFunnelLeadStages,
+  createJourneySessionIds,
+  type JourneyFunnelCounts,
+} from "@/lib/journey-funnel";
 import { formatLeadOrigin } from "@/lib/lead-origin";
 import { cn } from "@/lib/utils";
 
@@ -273,7 +278,7 @@ function ReportsPage() {
       if (activitiesResult.error) throw activitiesResult.error;
       if (appointmentsResult.error) throw appointmentsResult.error;
 
-      const journey = calculateJourneyFunnel({
+      const journeyInput = {
         leads: journeyLeads,
         messages: messageResults.flatMap((result) =>
           (result.data ?? []).flatMap((message) =>
@@ -288,13 +293,16 @@ function ReportsPage() {
         appointments: (appointmentsResult.data ?? []).flatMap((appointment) =>
           appointment.id_lead === null ? [] : [{ legacyLeadId: appointment.id_lead }],
         ),
-      });
+      };
+      const journey = calculateJourneyFunnel(journeyInput);
+      const journeyLeadStages = calculateJourneyFunnelLeadStages(journeyInput);
 
       return {
         leads: cohort,
         stages: stages ?? [],
         emps: emps ?? [],
         journey,
+        journeyLeadStages,
         attributions: attributionResults,
       };
     },
@@ -446,6 +454,7 @@ type ReportData = {
     sentToCrm: number;
     scheduled: number;
   };
+  journeyLeadStages: Array<JourneyFunnelCounts & { leadId: number }>;
   attributions: Array<{
     leadId: number;
     attribution: {
@@ -469,13 +478,26 @@ type ReportData = {
   }>;
 };
 
+const JOURNEY_ATTRIBUTION_STAGES: Array<{
+  key: keyof JourneyFunnelCounts;
+  label: string;
+  color: string;
+}> = [
+  { key: "received", label: "Leads recebidos", color: "#C14F21" },
+  { key: "engaged", label: "Interagindo com a IA", color: "#C14F21" },
+  { key: "hot", label: "Leads quentes", color: "#C14F21" },
+  { key: "sentToCrm", label: "Enviados ao corretor", color: "#2D7D52" },
+  { key: "scheduled", label: "Visitas agendadas", color: "#2D7D52" },
+];
+
 function LeadAttributionPanel({ data }: { data: ReportData }) {
   const [stageView, setStageView] = useState<"vertical" | "horizontal">("vertical");
   const attributionByLeadId = new Map(
     data.attributions.map(({ leadId, attribution }) => [leadId, attribution]),
   );
-  const stageById = new Map(data.stages.map((stage) => [stage.id, stage]));
-  const stageOrderById = new Map(data.stages.map((stage) => [stage.id, stage.ordem]));
+  const journeyStagesByLeadId = new Map(
+    data.journeyLeadStages.map(({ leadId, ...stages }) => [leadId, stages]),
+  );
   const rowsByAttribution = new Map<
     string,
     {
@@ -485,7 +507,7 @@ function LeadAttributionPanel({ data }: { data: ReportData }) {
       conjunto: string;
       anuncio: string;
       leads: number;
-      stageCounts: Map<number | null, number>;
+      stageCounts: JourneyFunnelCounts;
     }
   >();
 
@@ -509,13 +531,13 @@ function LeadAttributionPanel({ data }: { data: ReportData }) {
       conjunto,
       anuncio,
       leads: 0,
-      stageCounts: new Map<number | null, number>(),
+      stageCounts: { received: 0, engaged: 0, hot: 0, sentToCrm: 0, scheduled: 0 },
     };
     current.leads += 1;
-    current.stageCounts.set(
-      lead.crm_stage_id,
-      (current.stageCounts.get(lead.crm_stage_id) ?? 0) + 1,
-    );
+    const leadStages = journeyStagesByLeadId.get(lead.id);
+    for (const stage of JOURNEY_ATTRIBUTION_STAGES) {
+      current.stageCounts[stage.key] += leadStages?.[stage.key] ?? 0;
+    }
     rowsByAttribution.set(key, current);
   }
 
@@ -523,10 +545,6 @@ function LeadAttributionPanel({ data }: { data: ReportData }) {
     (a, b) => b.leads - a.leads || a.origem.localeCompare(b.origem),
   );
   const total = data.leads.length;
-  const horizontalStages = data.stages.filter((stage) =>
-    rows.some((row) => row.stageCounts.has(stage.id)),
-  );
-  const hasLeadsWithoutStage = rows.some((row) => row.stageCounts.has(null));
 
   return (
     <Card className="rounded-2xl">
@@ -608,28 +626,20 @@ function LeadAttributionPanel({ data }: { data: ReportData }) {
                   ) : (
                     <>
                       <th className="min-w-24 px-3 py-2 text-right font-medium">Total</th>
-                      {horizontalStages.map((stage) => (
+                      {JOURNEY_ATTRIBUTION_STAGES.map((stage) => (
                         <th
-                          key={stage.id}
+                          key={stage.key}
                           className="min-w-32 whitespace-nowrap px-3 py-2 text-center font-medium"
                         >
                           <span className="inline-flex items-center gap-1.5">
                             <span
                               className="h-2 w-2 rounded-full"
-                              style={{ backgroundColor: stage.cor ?? "#A1A1AA" }}
+                              style={{ backgroundColor: stage.color }}
                             />
-                            {stage.nome}
+                            {stage.label}
                           </span>
                         </th>
                       ))}
-                      {hasLeadsWithoutStage && (
-                        <th className="min-w-32 whitespace-nowrap px-3 py-2 text-center font-medium">
-                          <span className="inline-flex items-center gap-1.5">
-                            <span className="h-2 w-2 rounded-full bg-zinc-400" />
-                            Sem etapa
-                          </span>
-                        </th>
-                      )}
                     </>
                   )}
                 </tr>
@@ -670,40 +680,28 @@ function LeadAttributionPanel({ data }: { data: ReportData }) {
                           </span>
                         </div>
                         <div className="space-y-1">
-                          {[...row.stageCounts.entries()]
-                            .sort(([stageIdA], [stageIdB]) => {
-                              const orderA =
-                                stageIdA === null
-                                  ? Number.MAX_SAFE_INTEGER
-                                  : (stageOrderById.get(stageIdA) ?? Number.MAX_SAFE_INTEGER);
-                              const orderB =
-                                stageIdB === null
-                                  ? Number.MAX_SAFE_INTEGER
-                                  : (stageOrderById.get(stageIdB) ?? Number.MAX_SAFE_INTEGER);
-                              return orderA - orderB;
-                            })
-                            .map(([stageId, count]) => {
-                              const stage = stageId === null ? null : stageById.get(stageId);
-                              return (
-                                <div
-                                  key={stageId ?? "no-stage"}
-                                  className="flex min-w-0 items-center justify-between gap-2 text-xs"
-                                >
-                                  <span className="flex min-w-0 items-center gap-1.5 text-muted-foreground">
-                                    <span
-                                      className="h-2 w-2 shrink-0 rounded-full"
-                                      style={{ backgroundColor: stage?.cor ?? "#A1A1AA" }}
-                                    />
-                                    <span className="truncate" title={stage?.nome ?? "Sem etapa"}>
-                                      {stage?.nome ?? "Sem etapa"}
-                                    </span>
+                          {JOURNEY_ATTRIBUTION_STAGES.map((stage) => {
+                            const count = row.stageCounts[stage.key];
+                            return (
+                              <div
+                                key={stage.key}
+                                className="flex min-w-0 items-center justify-between gap-2 text-xs"
+                              >
+                                <span className="flex min-w-0 items-center gap-1.5 text-muted-foreground">
+                                  <span
+                                    className="h-2 w-2 shrink-0 rounded-full"
+                                    style={{ backgroundColor: stage.color }}
+                                  />
+                                  <span className="truncate" title={stage.label}>
+                                    {stage.label}
                                   </span>
-                                  <span className="shrink-0 font-medium text-foreground">
-                                    {count}
-                                  </span>
-                                </div>
-                              );
-                            })}
+                                </span>
+                                <span className="shrink-0 font-medium text-foreground">
+                                  {count}
+                                </span>
+                              </div>
+                            );
+                          })}
                         </div>
                       </td>
                     ) : (
@@ -714,19 +712,14 @@ function LeadAttributionPanel({ data }: { data: ReportData }) {
                             ({total ? ((row.leads / total) * 100).toFixed(1) : "0.0"}%)
                           </span>
                         </td>
-                        {horizontalStages.map((stage) => (
+                        {JOURNEY_ATTRIBUTION_STAGES.map((stage) => (
                           <td
-                            key={stage.id}
+                            key={stage.key}
                             className="px-3 py-2 text-center align-top font-medium tabular-nums"
                           >
-                            {row.stageCounts.get(stage.id) ?? 0}
+                            {row.stageCounts[stage.key]}
                           </td>
                         ))}
-                        {hasLeadsWithoutStage && (
-                          <td className="px-3 py-2 text-center align-top font-medium tabular-nums">
-                            {row.stageCounts.get(null) ?? 0}
-                          </td>
-                        )}
                       </>
                     )}
                   </tr>

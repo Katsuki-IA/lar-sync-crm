@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   calculateJourneyFunnel,
+  calculateJourneyFunnelLeadStages,
   createJourneySessionIds,
 } from "./journey-funnel";
 
@@ -13,7 +14,7 @@ describe("journey funnel", () => {
   });
 
   it("counts each cohort lead once according to the journey criteria", () => {
-    const result = calculateJourneyFunnel({
+    const input = {
       leads: [
         { id: 1, leadId: 101, telefones: ["+55 (48) 99999-0000"], idEmpresa: 9, leadQuente: true },
         { id: 2, leadId: 102, telefones: ["48988880000"], idEmpresa: 9, leadQuente: false },
@@ -32,7 +33,8 @@ describe("journey funnel", () => {
         { leadId: 2, event: null, descricao: "Lead enviado ao CRM CV com sucesso" },
       ],
       appointments: [{ legacyLeadId: 101 }, { legacyLeadId: 101 }, { legacyLeadId: 102 }],
-    });
+    };
+    const result = calculateJourneyFunnel(input);
 
     expect(result).toEqual({
       received: 4,
@@ -41,6 +43,13 @@ describe("journey funnel", () => {
       sentToCrm: 2,
       scheduled: 2,
     });
+
+    expect(calculateJourneyFunnelLeadStages(input)).toEqual([
+      { leadId: 1, received: 1, engaged: 1, hot: 1, sentToCrm: 1, scheduled: 1 },
+      { leadId: 2, received: 1, engaged: 0, hot: 0, sentToCrm: 1, scheduled: 1 },
+      { leadId: 3, received: 1, engaged: 1, hot: 1, sentToCrm: 0, scheduled: 0 },
+      { leadId: 4, received: 1, engaged: 0, hot: 0, sentToCrm: 0, scheduled: 0 },
+    ]);
   });
 
   it("uses the linked legacy phone before the CRM fallback", () => {
