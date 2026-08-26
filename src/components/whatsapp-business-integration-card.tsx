@@ -174,6 +174,7 @@ function runEmbeddedSignup(
       },
       {
         config_id: config.configId,
+        display: "popup",
         response_type: "code",
         override_default_response_type: true,
         extras: { setup: {}, featureType: "", sessionInfoVersion: "3" },
