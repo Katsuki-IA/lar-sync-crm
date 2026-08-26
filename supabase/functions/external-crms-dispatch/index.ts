@@ -666,6 +666,7 @@ function resolveExternalStageId(
 
   if (isBlockedSend) return blockedSend || unqualified;
   if (normalizedExternalStageKind === "without_whatsapp") return withoutWhatsapp || unqualified;
+  if (["lost", "perdido"].includes(normalizedExternalStageKind)) return lost || unqualified;
   if (stageName === "Perdido") return lost || unqualified;
   if (stageName === "Visita Agendada") return visitScheduled || unqualified;
   if (hasQualifiedTag) return qualified || unqualified;
