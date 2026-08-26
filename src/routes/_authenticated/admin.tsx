@@ -25,6 +25,7 @@ const tabs = [
   { to: "/admin/crm-dispatch", label: "Envio ao CRM" },
   { to: "/admin/site-forms", label: "Formulários externos" },
   { to: "/admin/notifications", label: "Notificações" },
+  { to: "/admin/paginas-legais", label: "Páginas legais" },
 ] as const;
 
 function AdminLayout() {
@@ -44,7 +45,9 @@ function AdminLayout() {
               to={t.to}
               className={cn(
                 "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors",
-                active ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground",
+                active
+                  ? "border-primary text-foreground"
+                  : "border-transparent text-muted-foreground hover:text-foreground",
               )}
             >
               {t.label}
