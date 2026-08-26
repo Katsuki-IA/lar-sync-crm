@@ -94,6 +94,12 @@ async function parseBody(req: Request): Promise<Record<string, unknown>> {
     const parsed = JSON.parse(raw);
     return typeof parsed === "object" && parsed !== null ? (parsed as Record<string, unknown>) : {};
   } catch {
+    if (raw.includes("=")) {
+      const params = new URLSearchParams(raw);
+      const output: Record<string, unknown> = {};
+      for (const [key, value] of params.entries()) output[key] = value;
+      if (Object.keys(output).length > 0) return output;
+    }
     return { raw };
   }
 }
@@ -106,38 +112,93 @@ function addField(fields: Map<string, string>, key: string, value: unknown) {
   fields.set(normalizeKey(key), text);
 }
 
+function parseStructuredString(value: string): unknown {
+  const trimmed = value.trim();
+  if (!(trimmed.startsWith("{") || trimmed.startsWith("["))) return value;
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    return value;
+  }
+}
+
+function addStructuredField(
+  fields: Map<string, string>,
+  key: string,
+  value: unknown,
+  depth = 0,
+) {
+  addField(fields, key, value);
+  for (const segment of key.split(/\[|\]/).filter(Boolean)) addField(fields, segment, value);
+  if (depth >= 4) return;
+
+  const structured = typeof value === "string" ? parseStructuredString(value) : value;
+  if (Array.isArray(structured)) {
+    structured.forEach((item, index) =>
+      addStructuredField(fields, `${key}[${index}]`, item, depth + 1),
+    );
+    return;
+  }
+  if (!structured || typeof structured !== "object") return;
+
+  const record = structured as Record<string, unknown>;
+  const semanticKey = valueToString(record.id ?? record.name ?? record.title ?? record.label);
+  const semanticValue = record.value ?? record.raw_value ?? record.text;
+  if (semanticKey && semanticValue !== undefined) addField(fields, semanticKey, semanticValue);
+
+  for (const [childKey, childValue] of Object.entries(record)) {
+    addField(fields, childKey, childValue);
+    addStructuredField(fields, `${key}[${childKey}]`, childValue, depth + 1);
+  }
+}
+
+function applyElementorFlatFields(
+  payload: Record<string, unknown>,
+  fields: Map<string, string>,
+) {
+  const elementorFields = new Map<string, Record<string, unknown>>();
+  for (const [key, value] of Object.entries(payload)) {
+    const match = key.match(/^fields\[([^\]]+)]\[([^\]]+)]$/);
+    if (!match?.[1] || !match[2]) continue;
+    const record = elementorFields.get(match[1]) ?? {};
+    record[match[2]] = value;
+    elementorFields.set(match[1], record);
+  }
+
+  for (const [fieldId, record] of elementorFields) {
+    const value = record.raw_value ?? record.value;
+    if (value === undefined) continue;
+    addField(fields, fieldId, value);
+    const title = valueToString(record.title);
+    if (title) addField(fields, title, value);
+  }
+}
+
 function flattenPayload(payload: Record<string, unknown>) {
   const fields = new Map<string, string>();
 
   for (const [key, value] of Object.entries(payload)) {
-    addField(fields, key, value);
-
-    const bracketMatch = key.match(/^form_fields\[(.+)]$/);
-    if (bracketMatch?.[1]) addField(fields, bracketMatch[1], value);
+    addStructuredField(fields, key, value);
   }
-
-  const formFields = payload.form_fields;
-  if (formFields && typeof formFields === "object" && !Array.isArray(formFields)) {
-    for (const [key, value] of Object.entries(formFields as Record<string, unknown>)) {
-      addField(fields, key, value);
-    }
-  }
-
-  const fieldsPayload = payload.fields;
-  if (Array.isArray(fieldsPayload)) {
-    for (const field of fieldsPayload) {
-      if (!field || typeof field !== "object") continue;
-      const record = field as Record<string, unknown>;
-      const key = valueToString(record.id ?? record.name ?? record.title ?? record.label);
-      addField(fields, key, record.value ?? record.raw_value ?? record.text);
-    }
-  } else if (fieldsPayload && typeof fieldsPayload === "object") {
-    for (const [key, value] of Object.entries(fieldsPayload as Record<string, unknown>)) {
-      addField(fields, key, value);
-    }
-  }
+  applyElementorFlatFields(payload, fields);
 
   return fields;
+}
+
+function findLikelyPhone(fields: Map<string, string>) {
+  const candidates = Array.from(new Set(fields.values())).filter((value) => {
+    if (value.includes("@")) return false;
+    const digits = value.replace(/\D/g, "");
+    return digits.length === 10 || digits.length === 11 ||
+      ((digits.length === 12 || digits.length === 13) && digits.startsWith("55"));
+  });
+  return candidates.length === 1 ? candidates[0] : "";
+}
+
+function findLikelyEmail(fields: Map<string, string>) {
+  return Array.from(new Set(fields.values())).find((value) =>
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
+  ) ?? "";
 }
 
 function getMappedValue(args: {
@@ -294,17 +355,27 @@ Deno.serve(async (req) => {
         "fone",
       ],
       pattern: /(^|_)(telefone|phone|phone_number|celular|mobile|whatsapp|fone|tel)(_|$)/,
-    });
+    }) || findLikelyPhone(fields);
     const email = getMappedValue({
       fields,
       mapping: source.field_mapping,
       crmField: "email",
       aliases: ["email", "e_mail", "email_address", "your_email"],
       pattern: /(^|_)(email|e_mail|email_address)(_|$)/,
-    });
+    }) || findLikelyEmail(fields);
 
     const telefone = normalizeBrazilPhone(telefoneOriginal).normalized;
-    if (!telefone) return jsonResponse({ error: "Telefone obrigatório" }, 400);
+    if (!telefone) {
+      const receivedFields = Array.from(new Set(Array.from(fields.keys()).map(normalizeKey)))
+        .filter(Boolean)
+        .slice(0, 40);
+      const diagnostic = `Telefone obrigatório. Campos recebidos: ${receivedFields.join(", ") || "nenhum"}`;
+      await supabaseAdmin
+        .from("crm_site_lead_sources")
+        .update({ last_error: diagnostic.slice(0, 2000) })
+        .eq("id", source.id);
+      return jsonResponse({ error: "Telefone obrigatório", received_fields: receivedFields }, 400);
+    }
 
     const origem = resolveLeadOrigin(
       payload.origem ?? payload.source ?? payload.utm_source ?? source.origem ?? "SI",
