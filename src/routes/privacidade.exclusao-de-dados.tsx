@@ -34,10 +34,10 @@ function ExclusaoDeDadosPage() {
               <li>
                 Envie um email para{" "}
                 <a
-                  href="mailto:fatcho@fg1.com.br?subject=Exclusão de Dados"
+                  href="mailto:ia@katsuki.com.br?subject=Exclusão de Dados"
                   className="text-primary underline underline-offset-2 hover:text-primary/80"
                 >
-                  fatcho@fg1.com.br
+                  ia@katsuki.com.br
                 </a>
               </li>
               <li>

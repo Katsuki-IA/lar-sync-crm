@@ -151,7 +151,7 @@ function PrivacyPolicyPage() {
         <h2>9. Solicitações e contato</h2>
         <p>
           Para dúvidas ou solicitações relacionadas à privacidade, envie um e-mail para{" "}
-          <a href="mailto:fatcho@fg1.com.br">fatcho@fg1.com.br</a>. Para pedidos específicos de
+          <a href="mailto:ia@katsuki.com.br">ia@katsuki.com.br</a>. Para pedidos específicos de
           remoção, consulte também nossa{" "}
           <a href="/privacidade/exclusao-de-dados">página de Exclusão de Dados</a>.
         </p>

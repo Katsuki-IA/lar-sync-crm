@@ -191,7 +191,7 @@ function TermsOfUsePage() {
         </p>
         <p>
           Dúvidas sobre estes Termos podem ser encaminhadas para{" "}
-          <a href="mailto:fatcho@fg1.com.br">fatcho@fg1.com.br</a>.
+          <a href="mailto:ia@katsuki.com.br">ia@katsuki.com.br</a>.
         </p>
       </section>
     </LegalPageLayout>
