@@ -34,6 +34,7 @@ import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RdStationIntegrationCard } from "@/components/rd-station-integration-card";
 import { WhatsAppBusinessIntegrationCard } from "@/components/whatsapp-business-integration-card";
+import { WhatsAppMetaReviewPanel } from "@/components/whatsapp-meta-review-panel";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -737,6 +738,8 @@ function IntegracoesPage() {
         <WhatsAppBusinessIntegrationCard />
         <RdStationIntegrationCard />
       </div>
+
+      <WhatsAppMetaReviewPanel />
 
       <Dialog open={recoveryOpen} onOpenChange={setRecoveryOpen}>
         <DialogContent>
