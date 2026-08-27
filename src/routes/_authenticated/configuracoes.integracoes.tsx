@@ -79,7 +79,7 @@ export const Route = createFileRoute("/_authenticated/configuracoes/integracoes"
       .select("role")
       .eq("auth_user_id", data.user.id)
       .maybeSingle();
-    if (!me || (me.role !== "manager" && me.role !== "super_admin")) {
+    if (!me || me.role !== "manager") {
       throw redirect({ to: "/dashboard" });
     }
   },

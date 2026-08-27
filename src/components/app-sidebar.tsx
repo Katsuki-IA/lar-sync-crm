@@ -32,6 +32,8 @@ export function AppSidebar() {
   const adminItems: Item[] = [];
   if (me?.role === "manager" || me?.role === "super_admin") {
     adminItems.push({ title: "Configurações", url: "/settings/users", match: "/settings", icon: Settings });
+  }
+  if (me?.role === "manager") {
     adminItems.push({ title: "Integrações", url: "/configuracoes/integracoes", match: "/configuracoes", icon: Plug });
   }
   if (me?.role === "super_admin") {
