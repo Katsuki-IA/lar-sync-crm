@@ -1,20 +1,22 @@
+import { handleOptions, jsonResponse, withErrorHandling } from "../_shared/meta.ts";
 import {
-  getAuthorizedCrmUser,
-  handleOptions,
-  jsonResponse,
-  withErrorHandling,
-} from "../_shared/meta.ts";
-import { createOnboardingSession, getWhatsAppConfig } from "../_shared/whatsapp-embedded.ts";
+  assertWhatsAppConnectionAllowed,
+  createOnboardingSession,
+  getAuthorizedWhatsAppTarget,
+  getWhatsAppConfig,
+} from "../_shared/whatsapp-embedded.ts";
 
 Deno.serve(async (req) => {
   const options = handleOptions(req);
   if (options) return options;
 
   return withErrorHandling(async () => {
-    const { userId, crmUser } = await getAuthorizedCrmUser(req);
+    const body = (await req.json()) as { empresaId?: unknown };
+    const { userId, idEmpresa } = await getAuthorizedWhatsAppTarget(req, body.empresaId);
+    await assertWhatsAppConnectionAllowed(idEmpresa);
     const config = getWhatsAppConfig(true);
     const sessionId = await createOnboardingSession({
-      idEmpresa: crmUser.id_empresa,
+      idEmpresa,
       userId,
     });
 

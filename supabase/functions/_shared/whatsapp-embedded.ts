@@ -1,4 +1,4 @@
-import { createSupabaseAdmin } from "./meta.ts";
+import { createSupabaseAdmin, getAuthorizedCrmUser } from "./meta.ts";
 
 const DEFAULT_GRAPH_VERSION = "v26.0";
 
@@ -18,6 +18,96 @@ export type WhatsAppConfig = {
   graphVersion: string;
   encryptionKey: string;
 };
+
+export type WhatsAppTarget = {
+  userId: string;
+  idEmpresa: number;
+  role: "manager" | "super_admin";
+};
+
+function parseEmpresaId(value: unknown): number {
+  const idEmpresa = typeof value === "number" ? value : Number(value);
+  if (!Number.isSafeInteger(idEmpresa) || idEmpresa <= 0) {
+    throw new Error("Selecione uma empresa válida para configurar o WhatsApp");
+  }
+  return idEmpresa;
+}
+
+export async function getAuthorizedWhatsAppTarget(
+  req: Request,
+  requestedEmpresaId: unknown,
+): Promise<WhatsAppTarget> {
+  const { userId, crmUser } = await getAuthorizedCrmUser(req);
+  const idEmpresa = parseEmpresaId(requestedEmpresaId);
+
+  if (crmUser.role === "manager") {
+    if (idEmpresa !== crmUser.id_empresa) {
+      throw new Error("Você não tem permissão para configurar esta empresa");
+    }
+    return { userId, idEmpresa, role: "manager" };
+  }
+
+  const supabaseAdmin = createSupabaseAdmin();
+  const { data: allowedCompany, error } = await supabaseAdmin
+    .from("credentials")
+    .select("id_empresa")
+    .eq("id_empresa", idEmpresa)
+    .eq("default_crm", "hub")
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!allowedCompany) throw new Error("Esta empresa não está habilitada no Hub");
+
+  return { userId, idEmpresa, role: "super_admin" };
+}
+
+export type WhatsAppLegacyState = {
+  legacyConfigured: boolean;
+  protectedLegacy: boolean;
+};
+
+export async function getWhatsAppLegacyState(idEmpresa: number): Promise<WhatsAppLegacyState> {
+  const supabaseAdmin = createSupabaseAdmin();
+  const [
+    { data: credentials, error: credentialsError },
+    { data: connection, error: connectionError },
+  ] = await Promise.all([
+    supabaseAdmin
+      .from("credentials")
+      .select("waba_id,whatsapp_access_token,whatsapp_business_id")
+      .eq("id_empresa", idEmpresa)
+      .limit(1)
+      .maybeSingle(),
+    supabaseAdmin
+      .from("crm_whatsapp_connections")
+      .select("id")
+      .eq("id_empresa", idEmpresa)
+      .neq("status", "disconnected")
+      .limit(1)
+      .maybeSingle(),
+  ]);
+  if (credentialsError) throw new Error(credentialsError.message);
+  if (connectionError) throw new Error(connectionError.message);
+
+  const legacyConfigured = Boolean(
+    credentials?.waba_id?.trim() ||
+    credentials?.whatsapp_access_token?.trim() ||
+    credentials?.whatsapp_business_id?.trim(),
+  );
+  return {
+    legacyConfigured,
+    protectedLegacy: legacyConfigured && !connection,
+  };
+}
+
+export async function assertWhatsAppConnectionAllowed(idEmpresa: number): Promise<void> {
+  const { protectedLegacy } = await getWhatsAppLegacyState(idEmpresa);
+  if (protectedLegacy) {
+    throw new Error(
+      "Esta empresa já usa uma integração WhatsApp em produção. Faça a migração assistida antes de conectar pelo Hub.",
+    );
+  }
+}
 
 export function getWhatsAppConfig(requireSecrets = true): WhatsAppConfig {
   const config = {

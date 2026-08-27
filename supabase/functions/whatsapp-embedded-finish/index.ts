@@ -1,6 +1,5 @@
 import {
   createSupabaseAdmin,
-  getAuthorizedCrmUser,
   handleOptions,
   jsonResponse,
   withErrorHandling,
@@ -8,12 +7,15 @@ import {
 import {
   consumeOnboardingSession,
   encryptSecret,
+  assertWhatsAppConnectionAllowed,
+  getAuthorizedWhatsAppTarget,
   getWhatsAppConfig,
   graphRequest,
   randomRegistrationPin,
 } from "../_shared/whatsapp-embedded.ts";
 
 type FinishInput = {
+  empresaId?: unknown;
   sessionId?: string;
   code?: string;
   wabaId?: string;
@@ -58,8 +60,9 @@ Deno.serve(async (req) => {
   if (options) return options;
 
   return withErrorHandling(async () => {
-    const { userId, crmUser } = await getAuthorizedCrmUser(req);
     const body = (await req.json()) as FinishInput;
+    const { userId, idEmpresa } = await getAuthorizedWhatsAppTarget(req, body.empresaId);
+    await assertWhatsAppConnectionAllowed(idEmpresa);
     const sessionId = typeof body.sessionId === "string" ? body.sessionId.trim() : "";
     const code = typeof body.code === "string" ? body.code.trim() : "";
     if (!/^[0-9a-f-]{36}$/iu.test(sessionId)) throw new Error("Sessão de conexão inválida");
@@ -70,7 +73,7 @@ Deno.serve(async (req) => {
     const businessId = body.businessId ? requireId(body.businessId, "Business ID") : null;
     const config = getWhatsAppConfig(true);
 
-    await consumeOnboardingSession({ sessionId, idEmpresa: crmUser.id_empresa, userId });
+    await consumeOnboardingSession({ sessionId, idEmpresa, userId });
 
     const tokenUrl = new URL(
       `https://graph.facebook.com/${config.graphVersion}/oauth/access_token`,
@@ -118,7 +121,7 @@ Deno.serve(async (req) => {
       .select("id_empresa")
       .eq("waba_id", wabaId)
       .neq("status", "disconnected")
-      .neq("id_empresa", crmUser.id_empresa)
+      .neq("id_empresa", idEmpresa)
       .maybeSingle();
     if (ownerError) throw new Error(ownerError.message);
     if (existingOwner) throw new Error("Esta conta WhatsApp já está conectada a outra empresa");
@@ -144,7 +147,7 @@ Deno.serve(async (req) => {
       .from("crm_whatsapp_connections")
       .upsert(
         {
-          id_empresa: crmUser.id_empresa,
+          id_empresa: idEmpresa,
           business_id: businessId,
           waba_id: wabaId,
           business_name: waba.name ?? null,
@@ -152,6 +155,7 @@ Deno.serve(async (req) => {
           registration_pin_ciphertext: pinCiphertext,
           token_expires_at: tokenExpiresAt,
           status: "connected",
+          activation_status: "test",
           webhook_subscribed: true,
           phone_registered: true,
           connected_by: userId,
@@ -170,14 +174,14 @@ Deno.serve(async (req) => {
     const { error: deactivateError } = await supabaseAdmin
       .from("crm_whatsapp_phone_numbers")
       .update({ active: false, updated_at: now })
-      .eq("id_empresa", crmUser.id_empresa)
+      .eq("id_empresa", idEmpresa)
       .neq("phone_number_id", phoneNumberId);
     if (deactivateError) throw new Error(deactivateError.message);
 
     const { error: phoneError } = await supabaseAdmin.from("crm_whatsapp_phone_numbers").upsert(
       {
         connection_id: connection.id,
-        id_empresa: crmUser.id_empresa,
+        id_empresa: idEmpresa,
         phone_number_id: phoneNumberId,
         display_phone_number: phone.display_phone_number ?? null,
         verified_name: phone.verified_name ?? null,
@@ -192,22 +196,6 @@ Deno.serve(async (req) => {
     );
     if (phoneError) throw new Error(phoneError.message);
 
-    const { error: companyError } = await supabaseAdmin
-      .from("empresa_dados")
-      .update({ id_phone_number: phoneNumberId, updated_at: now })
-      .eq("id", crmUser.id_empresa);
-    if (companyError) throw new Error(companyError.message);
-
-    const { error: credentialsError } = await supabaseAdmin
-      .from("credentials")
-      .update({
-        waba_id: wabaId,
-        whatsapp_business_id: phoneNumberId,
-        updated_at: now.slice(0, 10),
-      })
-      .eq("id_empresa", crmUser.id_empresa);
-    if (credentialsError) throw new Error(credentialsError.message);
-
-    return jsonResponse({ ok: true });
+    return jsonResponse({ ok: true, activationStatus: "test" });
   });
 });

@@ -1,25 +1,29 @@
 import {
   createSupabaseAdmin,
-  getAuthorizedCrmUser,
   handleOptions,
   jsonResponse,
   withErrorHandling,
 } from "../_shared/meta.ts";
-import { getWhatsAppConfig } from "../_shared/whatsapp-embedded.ts";
+import {
+  getAuthorizedWhatsAppTarget,
+  getWhatsAppConfig,
+  getWhatsAppLegacyState,
+} from "../_shared/whatsapp-embedded.ts";
 
 Deno.serve(async (req) => {
   const options = handleOptions(req);
   if (options) return options;
 
   return withErrorHandling(async () => {
-    const { crmUser } = await getAuthorizedCrmUser(req);
+    const body = (await req.json()) as { empresaId?: unknown };
+    const { idEmpresa } = await getAuthorizedWhatsAppTarget(req, body.empresaId);
     const supabaseAdmin = createSupabaseAdmin();
     const { data: connection, error } = await supabaseAdmin
       .from("crm_whatsapp_connections")
       .select(
-        "id,business_id,waba_id,business_name,status,webhook_subscribed,phone_registered,connected_at,last_health_check_at,last_error,token_expires_at",
+        "id,business_id,waba_id,business_name,status,activation_status,webhook_subscribed,phone_registered,connected_at,last_health_check_at,last_error,token_expires_at",
       )
-      .eq("id_empresa", crmUser.id_empresa)
+      .eq("id_empresa", idEmpresa)
       .neq("status", "disconnected")
       .maybeSingle();
     if (error) throw new Error(error.message);
@@ -45,6 +49,7 @@ Deno.serve(async (req) => {
       configured = false;
     }
 
-    return jsonResponse({ configured, connection: connection ?? null, phone });
+    const legacy = await getWhatsAppLegacyState(idEmpresa);
+    return jsonResponse({ configured, connection: connection ?? null, phone, ...legacy });
   });
 });

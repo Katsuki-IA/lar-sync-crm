@@ -1,23 +1,28 @@
 import {
   createSupabaseAdmin,
-  getAuthorizedCrmUser,
   handleOptions,
   jsonResponse,
   withErrorHandling,
 } from "../_shared/meta.ts";
-import { decryptSecret, getWhatsAppConfig, graphRequest } from "../_shared/whatsapp-embedded.ts";
+import {
+  decryptSecret,
+  getAuthorizedWhatsAppTarget,
+  getWhatsAppConfig,
+  graphRequest,
+} from "../_shared/whatsapp-embedded.ts";
 
 Deno.serve(async (req) => {
   const options = handleOptions(req);
   if (options) return options;
 
   return withErrorHandling(async () => {
-    const { crmUser } = await getAuthorizedCrmUser(req);
+    const body = (await req.json()) as { empresaId?: unknown };
+    const { idEmpresa } = await getAuthorizedWhatsAppTarget(req, body.empresaId);
     const supabaseAdmin = createSupabaseAdmin();
     const { data: connection, error } = await supabaseAdmin
       .from("crm_whatsapp_connections")
       .select("id,waba_id,access_token_ciphertext")
-      .eq("id_empresa", crmUser.id_empresa)
+      .eq("id_empresa", idEmpresa)
       .neq("status", "disconnected")
       .maybeSingle();
     if (error) throw new Error(error.message);

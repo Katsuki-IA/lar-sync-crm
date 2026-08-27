@@ -188,37 +188,41 @@ function formatDate(value: string | null | undefined) {
 }
 
 export function WhatsAppBusinessIntegrationCard() {
-  const { activeEmpresaId } = useActiveEmpresa();
+  const { activeEmpresaId, activeEmpresa } = useActiveEmpresa();
   const queryClient = useQueryClient();
   const [connecting, setConnecting] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
   const { data, isLoading, error } = useQuery({
     queryKey: ["whatsapp-integration-status", activeEmpresaId],
     enabled: Boolean(activeEmpresaId),
-    queryFn: getWhatsAppIntegrationStatus,
+    queryFn: () => getWhatsAppIntegrationStatus(activeEmpresaId!),
     retry: false,
   });
 
   useEffect(() => {
-    if (!data?.configured) return;
-    void startWhatsAppEmbeddedSignup()
+    if (!activeEmpresaId || !data?.configured || data.protectedLegacy) return;
+    void startWhatsAppEmbeddedSignup(activeEmpresaId)
       .then(loadFacebookSdk)
       .catch(() => {
         // The connect action will show a useful error if preloading fails.
       });
-  }, [data?.configured]);
+  }, [activeEmpresaId, data?.configured, data?.protectedLegacy]);
 
   const connection = data?.connection ?? null;
   const connected = connection?.status === "connected";
   const needsAttention = Boolean(connection && !connected);
+  const protectedLegacy = Boolean(data?.protectedLegacy);
+  const testConnection = connection?.activation_status === "test";
 
   const handleConnect = async () => {
     try {
+      if (!activeEmpresaId) throw new Error("Selecione uma empresa antes de conectar");
       setConnecting(true);
-      const config = await startWhatsAppEmbeddedSignup();
+      const config = await startWhatsAppEmbeddedSignup(activeEmpresaId);
       const sdk = await loadFacebookSdk(config);
       const result = await runEmbeddedSignup(sdk, config);
       await finishWhatsAppEmbeddedSignup({
+        empresaId: activeEmpresaId,
         sessionId: config.sessionId,
         code: result.code,
         wabaId: result.assets.wabaId,
@@ -228,7 +232,7 @@ export function WhatsAppBusinessIntegrationCard() {
       await queryClient.invalidateQueries({
         queryKey: ["whatsapp-integration-status", activeEmpresaId],
       });
-      toast.success("WhatsApp Business conectado com sucesso");
+      toast.success("WhatsApp conectado para teste, sem alterar a integração em produção");
     } catch (connectError) {
       toast.error(
         connectError instanceof Error ? connectError.message : "Falha ao conectar o WhatsApp",
@@ -240,8 +244,9 @@ export function WhatsAppBusinessIntegrationCard() {
 
   const handleDisconnect = async () => {
     try {
+      if (!activeEmpresaId) throw new Error("Selecione uma empresa antes de desconectar");
       setDisconnecting(true);
-      const result = await disconnectWhatsApp();
+      const result = await disconnectWhatsApp(activeEmpresaId);
       await queryClient.invalidateQueries({
         queryKey: ["whatsapp-integration-status", activeEmpresaId],
       });
@@ -280,12 +285,16 @@ export function WhatsAppBusinessIntegrationCard() {
               <Badge variant="secondary" className="text-[10px]">
                 …
               </Badge>
+            ) : protectedLegacy ? (
+              <Badge variant="secondary" className="text-[10px]">
+                Protegido — produção
+              </Badge>
             ) : connected ? (
               <Badge
                 className="text-[10px] border-0"
                 style={{ backgroundColor: "var(--success-bg)", color: "var(--success)" }}
               >
-                Conectado
+                {testConnection ? "Conectado para teste" : "Conectado"}
               </Badge>
             ) : needsAttention ? (
               <Badge variant="destructive" className="text-[10px]">
@@ -304,6 +313,20 @@ export function WhatsAppBusinessIntegrationCard() {
             Conecte a conta e o número do cliente pelo fluxo oficial da Meta
           </p>
 
+          {activeEmpresa ? (
+            <p className="mt-1 text-xs text-muted-foreground">
+              Empresa selecionada: <span className="font-medium">{activeEmpresa.nome}</span>
+            </p>
+          ) : null}
+
+          {protectedLegacy ? (
+            <div className="mt-3 rounded-md border border-amber-300 bg-amber-50 p-3 text-xs text-amber-800">
+              Esta empresa já possui WhatsApp configurado em produção. A conexão foi bloqueada para
+              preservar as credenciais, o número e o fluxo atual do n8n. Para trocar para o
+              aplicativo da Katsuki, será necessário executar uma migração assistida.
+            </div>
+          ) : null}
+
           {connection ? (
             <div className="mt-3 space-y-1 text-xs text-muted-foreground">
               <p className="font-medium text-foreground">
@@ -312,6 +335,12 @@ export function WhatsAppBusinessIntegrationCard() {
               <p>{data?.phone?.display_phone_number ?? "Número não informado"}</p>
               <p>WABA: {connection.waba_id}</p>
               <p>Conectado em {formatDate(connection.connected_at)}</p>
+              {testConnection ? (
+                <p className="flex items-start gap-1 text-amber-600">
+                  <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                  Modo de teste: ainda não ativado no n8n nem na integração de produção.
+                </p>
+              ) : null}
               {connection.webhook_subscribed && connection.phone_registered ? (
                 <p className="flex items-center gap-1 text-emerald-600">
                   <CheckCircle2 className="h-3.5 w-3.5" /> Webhook e número registrados
@@ -338,7 +367,7 @@ export function WhatsAppBusinessIntegrationCard() {
           ) : null}
 
           <div className="mt-4 flex flex-wrap gap-2">
-            {!connection ? (
+            {!connection && !protectedLegacy ? (
               <Button
                 size="sm"
                 className="gap-2"
@@ -349,7 +378,7 @@ export function WhatsAppBusinessIntegrationCard() {
                 <Plug className="h-4 w-4" />
                 {connecting ? "Concluindo conexão..." : "Conectar WhatsApp"}
               </Button>
-            ) : (
+            ) : connection ? (
               <>
                 <Button
                   variant="outline"
@@ -387,9 +416,9 @@ export function WhatsAppBusinessIntegrationCard() {
                   </AlertDialogContent>
                 </AlertDialog>
               </>
-            )}
+            ) : null}
           </div>
-          {!connection ? (
+          {!connection && !protectedLegacy ? (
             <p className="mt-3 text-[11px] text-muted-foreground">
               Ao continuar, você concorda com os{" "}
               <a className="underline" href="/termos-de-uso" target="_blank" rel="noreferrer">

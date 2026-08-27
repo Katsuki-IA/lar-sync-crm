@@ -8,6 +8,7 @@ create table if not exists public.crm_whatsapp_connections (
   registration_pin_ciphertext text,
   token_expires_at timestamptz,
   status text not null default 'connected',
+  activation_status text not null default 'test',
   webhook_subscribed boolean not null default false,
   phone_registered boolean not null default false,
   connected_by uuid references auth.users(id) on delete set null,
@@ -19,6 +20,8 @@ create table if not exists public.crm_whatsapp_connections (
   updated_at timestamptz not null default now(),
   constraint crm_whatsapp_connections_status_check
     check (status in ('connected', 'attention', 'disconnected', 'error')),
+  constraint crm_whatsapp_connections_activation_status_check
+    check (activation_status in ('test', 'active')),
   constraint crm_whatsapp_connections_empresa_key unique (id_empresa)
 );
 

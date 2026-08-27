@@ -6,6 +6,7 @@ export type WhatsAppConnectionStatus = {
   waba_id: string;
   business_name: string | null;
   status: "connected" | "attention" | "error";
+  activation_status: "test" | "active";
   webhook_subscribed: boolean;
   phone_registered: boolean;
   connected_at: string;
@@ -28,6 +29,8 @@ export type WhatsAppIntegrationStatus = {
   configured: boolean;
   connection: WhatsAppConnectionStatus | null;
   phone: WhatsAppPhoneStatus | null;
+  legacyConfigured: boolean;
+  protectedLegacy: boolean;
 };
 
 export type WhatsAppEmbeddedStart = {
@@ -58,24 +61,32 @@ async function invokeWhatsAppFunction<T>(name: string, body?: Record<string, unk
   return data;
 }
 
-export function getWhatsAppIntegrationStatus() {
-  return invokeWhatsAppFunction<WhatsAppIntegrationStatus>("whatsapp-integration-status");
+export function getWhatsAppIntegrationStatus(empresaId: number) {
+  return invokeWhatsAppFunction<WhatsAppIntegrationStatus>("whatsapp-integration-status", {
+    empresaId,
+  });
 }
 
-export function startWhatsAppEmbeddedSignup() {
-  return invokeWhatsAppFunction<WhatsAppEmbeddedStart>("whatsapp-embedded-start");
+export function startWhatsAppEmbeddedSignup(empresaId: number) {
+  return invokeWhatsAppFunction<WhatsAppEmbeddedStart>("whatsapp-embedded-start", { empresaId });
 }
 
 export function finishWhatsAppEmbeddedSignup(data: {
+  empresaId: number;
   sessionId: string;
   code: string;
   wabaId: string;
   phoneNumberId: string;
   businessId?: string;
 }) {
-  return invokeWhatsAppFunction<{ ok: true }>("whatsapp-embedded-finish", data);
+  return invokeWhatsAppFunction<{ ok: true; activationStatus: "test" }>(
+    "whatsapp-embedded-finish",
+    data,
+  );
 }
 
-export function disconnectWhatsApp() {
-  return invokeWhatsAppFunction<{ ok: true; warning?: string | null }>("whatsapp-disconnect");
+export function disconnectWhatsApp(empresaId: number) {
+  return invokeWhatsAppFunction<{ ok: true; warning?: string | null }>("whatsapp-disconnect", {
+    empresaId,
+  });
 }
