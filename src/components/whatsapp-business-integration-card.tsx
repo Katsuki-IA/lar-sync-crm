@@ -52,6 +52,7 @@ declare global {
 }
 
 let facebookSdkPromise: Promise<FacebookSdk> | null = null;
+const EMBEDDED_SIGNUP_TIMEOUT_MS = 30 * 60 * 1000;
 
 function loadFacebookSdk(config: WhatsAppEmbeddedStart): Promise<FacebookSdk> {
   if (!facebookSdkPromise) {
@@ -159,7 +160,7 @@ function runEmbeddedSignup(
 
     const timeout = window.setTimeout(
       () => fail("A conexão com o WhatsApp expirou. Tente novamente."),
-      2 * 60 * 1000,
+      EMBEDDED_SIGNUP_TIMEOUT_MS,
     );
     window.addEventListener("message", messageHandler);
 

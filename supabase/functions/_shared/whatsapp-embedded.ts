@@ -192,7 +192,7 @@ export async function createOnboardingSession(args: {
   userId: string;
 }): Promise<string> {
   const supabaseAdmin = createSupabaseAdmin();
-  const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+  const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
 
   await supabaseAdmin
     .from("crm_whatsapp_onboarding_sessions")
