@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { type ReactNode, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format, subDays, startOfYear } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarIcon, Columns3, Rows3 } from "lucide-react";
+import { ArrowDown, ArrowUp, CalendarIcon, Columns3, ListFilter, Rows3 } from "lucide-react";
 import {
   Cell,
   Pie,
@@ -30,6 +30,7 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   calculateJourneyFunnel,
   calculateJourneyFunnelLeadStages,
@@ -490,26 +491,40 @@ const JOURNEY_ATTRIBUTION_STAGES: Array<{
   { key: "scheduled", label: "Visitas agendadas", color: "#2D7D52" },
 ];
 
+type AttributionRow = {
+  origem: string;
+  fonte: string;
+  campanha: string;
+  conjunto: string;
+  anuncio: string;
+  leads: number;
+  stageCounts: JourneyFunnelCounts;
+};
+
+type AttributionColumn =
+  "origem" | "fonte" | "campanha" | "conjunto" | "anuncio" | "leads" | keyof JourneyFunnelCounts;
+
+type AttributionSort = {
+  column: AttributionColumn;
+  direction: "asc" | "desc";
+  mode: "absolute" | "percentage" | "text";
+};
+
 function LeadAttributionPanel({ data }: { data: ReportData }) {
   const [stageView, setStageView] = useState<"vertical" | "horizontal">("vertical");
+  const [sort, setSort] = useState<AttributionSort>({
+    column: "leads",
+    direction: "desc",
+    mode: "absolute",
+  });
+  const [filters, setFilters] = useState<Partial<Record<AttributionColumn, string[]>>>({});
   const attributionByLeadId = new Map(
     data.attributions.map(({ leadId, attribution }) => [leadId, attribution]),
   );
   const journeyStagesByLeadId = new Map(
     data.journeyLeadStages.map(({ leadId, ...stages }) => [leadId, stages]),
   );
-  const rowsByAttribution = new Map<
-    string,
-    {
-      origem: string;
-      fonte: string;
-      campanha: string;
-      conjunto: string;
-      anuncio: string;
-      leads: number;
-      stageCounts: JourneyFunnelCounts;
-    }
-  >();
+  const rowsByAttribution = new Map<string, AttributionRow>();
 
   for (const lead of data.leads) {
     const attribution = attributionByLeadId.get(lead.id);
@@ -541,10 +556,162 @@ function LeadAttributionPanel({ data }: { data: ReportData }) {
     rowsByAttribution.set(key, current);
   }
 
-  const rows = [...rowsByAttribution.values()].sort(
-    (a, b) => b.leads - a.leads || a.origem.localeCompare(b.origem),
-  );
   const total = data.leads.length;
+  const allRows = [...rowsByAttribution.values()];
+
+  const getColumnValue = (row: AttributionRow, column: AttributionColumn) => {
+    if (column in row.stageCounts) return row.stageCounts[column as keyof JourneyFunnelCounts];
+    return row[
+      column as keyof Pick<
+        AttributionRow,
+        "origem" | "fonte" | "campanha" | "conjunto" | "anuncio" | "leads"
+      >
+    ];
+  };
+  const getPercentage = (row: AttributionRow, column: AttributionColumn) => {
+    const value = Number(getColumnValue(row, column));
+    return column === "leads" ? (total ? value / total : 0) : row.leads ? value / row.leads : 0;
+  };
+  const rows = useMemo(() => {
+    const selectedRows = allRows.filter((row) =>
+      Object.entries(filters).every(([column, values]) => {
+        if (!values?.length) return true;
+        return values.includes(String(getColumnValue(row, column as AttributionColumn)));
+      }),
+    );
+    return selectedRows.sort((a, b) => {
+      const aValue =
+        sort.mode === "percentage" ? getPercentage(a, sort.column) : getColumnValue(a, sort.column);
+      const bValue =
+        sort.mode === "percentage" ? getPercentage(b, sort.column) : getColumnValue(b, sort.column);
+      const comparison =
+        typeof aValue === "string" && typeof bValue === "string"
+          ? aValue.localeCompare(bValue, "pt-BR")
+          : Number(aValue) - Number(bValue);
+      return (sort.direction === "asc" ? 1 : -1) * comparison;
+    });
+  }, [allRows, filters, sort, total]);
+
+  const toggleFilter = (column: AttributionColumn, value: string) => {
+    setFilters((current) => {
+      const selected = current[column] ?? [];
+      const next = selected.includes(value)
+        ? selected.filter((item) => item !== value)
+        : [...selected, value];
+      return { ...current, [column]: next };
+    });
+  };
+
+  const renderColumnHeader = (
+    column: AttributionColumn,
+    label: ReactNode,
+    numeric = false,
+    className?: string,
+  ) => {
+    const options = [...new Set(allRows.map((row) => String(getColumnValue(row, column))))].sort(
+      (a, b) => (numeric ? Number(b) - Number(a) : a.localeCompare(b, "pt-BR")),
+    );
+    const selected = filters[column] ?? [];
+    const hasFilter = selected.length > 0;
+    const setColumnSort = (
+      mode: AttributionSort["mode"],
+      direction: AttributionSort["direction"],
+    ) => setSort({ column, mode, direction });
+
+    return (
+      <th key={column} className={cn("px-3 py-2 font-medium", className)}>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="-mx-1 h-7 max-w-full justify-start gap-1 px-1 text-xs font-medium text-muted-foreground hover:text-foreground"
+            >
+              {label}
+              <ListFilter className={cn("h-3.5 w-3.5 shrink-0", hasFilter && "text-primary")} />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="start" className="w-64 p-3">
+            <p className="mb-2 text-xs font-semibold text-foreground">Ordenar</p>
+            <div className="grid grid-cols-2 gap-1">
+              {numeric ? (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setColumnSort("absolute", "desc")}
+                  >
+                    Número <ArrowDown />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setColumnSort("absolute", "asc")}
+                  >
+                    Número <ArrowUp />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setColumnSort("percentage", "desc")}
+                  >
+                    Percentual <ArrowDown />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setColumnSort("percentage", "asc")}
+                  >
+                    Percentual <ArrowUp />
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button variant="ghost" size="sm" onClick={() => setColumnSort("text", "asc")}>
+                    A - Z <ArrowUp />
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => setColumnSort("text", "desc")}>
+                    Z - A <ArrowDown />
+                  </Button>
+                </>
+              )}
+            </div>
+            <div className="my-3 border-t" />
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <p className="text-xs font-semibold text-foreground">Filtrar valores</p>
+              {hasFilter && (
+                <Button
+                  variant="link"
+                  size="sm"
+                  className="h-auto px-0"
+                  onClick={() => setFilters((current) => ({ ...current, [column]: [] }))}
+                >
+                  Limpar
+                </Button>
+              )}
+            </div>
+            <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
+              {options.map((option) => (
+                <label
+                  key={option}
+                  className="flex cursor-pointer items-center gap-2 text-xs text-foreground"
+                >
+                  <Checkbox
+                    checked={selected.includes(option)}
+                    onCheckedChange={() => toggleFilter(column, option)}
+                  />
+                  <span className="min-w-0 truncate" title={option}>
+                    {option}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </PopoverContent>
+        </Popover>
+      </th>
+    );
+  };
 
   return (
     <Card className="rounded-2xl">
@@ -616,30 +783,30 @@ function LeadAttributionPanel({ data }: { data: ReportData }) {
               )}
               <thead className="sticky top-0 bg-muted/90 text-left text-xs text-muted-foreground backdrop-blur">
                 <tr>
-                  <th className="px-3 py-2 font-medium">Origem</th>
-                  <th className="px-3 py-2 font-medium">Fonte</th>
-                  <th className="px-3 py-2 font-medium">Campanha</th>
-                  <th className="px-3 py-2 font-medium">Conjunto de anúncios</th>
-                  <th className="px-3 py-2 font-medium">Anúncio / conteúdo</th>
+                  {renderColumnHeader("origem", "Origem")}
+                  {renderColumnHeader("fonte", "Fonte")}
+                  {renderColumnHeader("campanha", "Campanha")}
+                  {renderColumnHeader("conjunto", "Conjunto de anúncios")}
+                  {renderColumnHeader("anuncio", "Anúncio / conteúdo")}
                   {stageView === "vertical" ? (
-                    <th className="px-3 py-2 font-medium">Leads por etapa</th>
+                    renderColumnHeader("leads", "Leads por etapa", true)
                   ) : (
                     <>
-                      <th className="min-w-24 px-3 py-2 text-right font-medium">Total</th>
-                      {JOURNEY_ATTRIBUTION_STAGES.map((stage) => (
-                        <th
-                          key={stage.key}
-                          className="min-w-32 whitespace-nowrap px-3 py-2 text-center font-medium"
-                        >
+                      {renderColumnHeader("leads", "Total", true, "min-w-24 text-right")}
+                      {JOURNEY_ATTRIBUTION_STAGES.map((stage) =>
+                        renderColumnHeader(
+                          stage.key,
                           <span className="inline-flex items-center gap-1.5">
                             <span
                               className="h-2 w-2 rounded-full"
                               style={{ backgroundColor: stage.color }}
                             />
                             {stage.label}
-                          </span>
-                        </th>
-                      ))}
+                          </span>,
+                          true,
+                          "min-w-32 whitespace-nowrap text-center",
+                        ),
+                      )}
                     </>
                   )}
                 </tr>
