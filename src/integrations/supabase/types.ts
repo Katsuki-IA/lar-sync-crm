@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.1"
+    PostgrestVersion: "14.17"
   }
   public: {
     Tables: {
@@ -1448,6 +1448,7 @@ export type Database = {
           id_empresa: number
           last_error: string | null
           last_health_check_at: string | null
+          selected_page_ids: string[]
           user_access_token: string
           user_id_meta: string
           user_name: string | null
@@ -1460,6 +1461,7 @@ export type Database = {
           id_empresa: number
           last_error?: string | null
           last_health_check_at?: string | null
+          selected_page_ids?: string[]
           user_access_token: string
           user_id_meta: string
           user_name?: string | null
@@ -1472,6 +1474,7 @@ export type Database = {
           id_empresa?: number
           last_error?: string | null
           last_health_check_at?: string | null
+          selected_page_ids?: string[]
           user_access_token?: string
           user_id_meta?: string
           user_name?: string | null
@@ -2431,6 +2434,235 @@ export type Database = {
           },
         ]
       }
+      crm_whatsapp_connections: {
+        Row: {
+          access_token_ciphertext: string
+          activation_status: string
+          business_id: string | null
+          business_name: string | null
+          connected_at: string
+          connected_by: string | null
+          created_at: string
+          disconnected_at: string | null
+          id: string
+          id_empresa: number
+          last_error: string | null
+          last_health_check_at: string | null
+          phone_registered: boolean
+          registration_pin_ciphertext: string | null
+          status: string
+          token_expires_at: string | null
+          updated_at: string
+          waba_id: string
+          webhook_subscribed: boolean
+        }
+        Insert: {
+          access_token_ciphertext: string
+          activation_status?: string
+          business_id?: string | null
+          business_name?: string | null
+          connected_at?: string
+          connected_by?: string | null
+          created_at?: string
+          disconnected_at?: string | null
+          id?: string
+          id_empresa: number
+          last_error?: string | null
+          last_health_check_at?: string | null
+          phone_registered?: boolean
+          registration_pin_ciphertext?: string | null
+          status?: string
+          token_expires_at?: string | null
+          updated_at?: string
+          waba_id: string
+          webhook_subscribed?: boolean
+        }
+        Update: {
+          access_token_ciphertext?: string
+          activation_status?: string
+          business_id?: string | null
+          business_name?: string | null
+          connected_at?: string
+          connected_by?: string | null
+          created_at?: string
+          disconnected_at?: string | null
+          id?: string
+          id_empresa?: number
+          last_error?: string | null
+          last_health_check_at?: string | null
+          phone_registered?: boolean
+          registration_pin_ciphertext?: string | null
+          status?: string
+          token_expires_at?: string | null
+          updated_at?: string
+          waba_id?: string
+          webhook_subscribed?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_whatsapp_connections_id_empresa_fkey"
+            columns: ["id_empresa"]
+            isOneToOne: true
+            referencedRelation: "empresa_dados"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_whatsapp_onboarding_sessions: {
+        Row: {
+          auth_user_id: string
+          consumed_at: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          id_empresa: number
+        }
+        Insert: {
+          auth_user_id: string
+          consumed_at?: string | null
+          created_at?: string
+          expires_at: string
+          id?: string
+          id_empresa: number
+        }
+        Update: {
+          auth_user_id?: string
+          consumed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          id_empresa?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_whatsapp_onboarding_sessions_id_empresa_fkey"
+            columns: ["id_empresa"]
+            isOneToOne: false
+            referencedRelation: "empresa_dados"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_whatsapp_phone_numbers: {
+        Row: {
+          active: boolean
+          code_verification_status: string | null
+          connection_id: string
+          created_at: string
+          display_phone_number: string | null
+          id: string
+          id_empresa: number
+          name_status: string | null
+          phone_number_id: string
+          platform_status: string | null
+          quality_rating: string | null
+          updated_at: string
+          verified_name: string | null
+        }
+        Insert: {
+          active?: boolean
+          code_verification_status?: string | null
+          connection_id: string
+          created_at?: string
+          display_phone_number?: string | null
+          id?: string
+          id_empresa: number
+          name_status?: string | null
+          phone_number_id: string
+          platform_status?: string | null
+          quality_rating?: string | null
+          updated_at?: string
+          verified_name?: string | null
+        }
+        Update: {
+          active?: boolean
+          code_verification_status?: string | null
+          connection_id?: string
+          created_at?: string
+          display_phone_number?: string | null
+          id?: string
+          id_empresa?: number
+          name_status?: string | null
+          phone_number_id?: string
+          platform_status?: string | null
+          quality_rating?: string | null
+          updated_at?: string
+          verified_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_whatsapp_phone_numbers_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "crm_whatsapp_connections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_whatsapp_phone_numbers_id_empresa_fkey"
+            columns: ["id_empresa"]
+            isOneToOne: false
+            referencedRelation: "empresa_dados"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_whatsapp_review_events: {
+        Row: {
+          connection_id: string | null
+          created_at: string
+          event_key: string
+          event_type: string
+          id: string
+          id_empresa: number
+          message_id: string | null
+          occurred_at: string
+          payload: Json
+          phone_number_id: string | null
+          source: string
+        }
+        Insert: {
+          connection_id?: string | null
+          created_at?: string
+          event_key: string
+          event_type: string
+          id?: string
+          id_empresa: number
+          message_id?: string | null
+          occurred_at?: string
+          payload?: Json
+          phone_number_id?: string | null
+          source: string
+        }
+        Update: {
+          connection_id?: string | null
+          created_at?: string
+          event_key?: string
+          event_type?: string
+          id?: string
+          id_empresa?: number
+          message_id?: string | null
+          occurred_at?: string
+          payload?: Json
+          phone_number_id?: string | null
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_whatsapp_review_events_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "crm_whatsapp_connections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_whatsapp_review_events_id_empresa_fkey"
+            columns: ["id_empresa"]
+            isOneToOne: false
+            referencedRelation: "empresa_dados"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       empreendimento: {
         Row: {
           area_lazer: string | null
@@ -2619,6 +2851,48 @@ export type Database = {
           template_msg_inicial?: string | null
           updated_at?: string | null
           webhook_status?: boolean | null
+        }
+        Relationships: []
+      }
+      epura_leads: {
+        Row: {
+          atendido_em: string | null
+          data_cadastro_cv: string
+          email: string | null
+          id: number
+          id_empreendimento: number | null
+          id_empresa: number
+          last_error: string | null
+          nome: string
+          status: string
+          telefone: string
+          tentativas: number
+        }
+        Insert: {
+          atendido_em?: string | null
+          data_cadastro_cv?: string
+          email?: string | null
+          id?: number
+          id_empreendimento?: number | null
+          id_empresa?: number
+          last_error?: string | null
+          nome: string
+          status?: string
+          telefone: string
+          tentativas?: number
+        }
+        Update: {
+          atendido_em?: string | null
+          data_cadastro_cv?: string
+          email?: string | null
+          id?: number
+          id_empreendimento?: number | null
+          id_empresa?: number
+          last_error?: string | null
+          nome?: string
+          status?: string
+          telefone?: string
+          tentativas?: number
         }
         Relationships: []
       }
@@ -3464,6 +3738,7 @@ export type Database = {
       }
       rd_steps: {
         Row: {
+          atendimento_corretor: string | null
           contato_feito: string | null
           duplicado: string | null
           empresa_id: number
@@ -3481,6 +3756,7 @@ export type Database = {
           visita_agendada: string | null
         }
         Insert: {
+          atendimento_corretor?: string | null
           contato_feito?: string | null
           duplicado?: string | null
           empresa_id: number
@@ -3498,6 +3774,7 @@ export type Database = {
           visita_agendada?: string | null
         }
         Update: {
+          atendimento_corretor?: string | null
           contato_feito?: string | null
           duplicado?: string | null
           empresa_id?: number
