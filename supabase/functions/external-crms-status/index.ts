@@ -10,7 +10,7 @@ const PROVIDERS = [
   { provider: "rd_station", label: "RD Station CRM", available: true },
   { provider: "katsuki_crm", label: "Katsuki CRM", available: true },
   { provider: "cv_crm", label: "CV CRM", available: false },
-  { provider: "c2s", label: "C2S", available: false },
+  { provider: "c2s", label: "C2S", available: true },
   { provider: "kommo", label: "Kommo", available: false },
   { provider: "loft", label: "Loft", available: false },
   { provider: "custom", label: "API personalizada", available: false },
@@ -25,7 +25,9 @@ Deno.serve(async (req) => {
     const supabaseAdmin = createSupabaseAdmin();
     const { data, error } = await supabaseAdmin
       .from("crm_external_crm_connections")
-      .select("id,provider,provider_label,account_id,account_name,settings,active,connected_at,last_error")
+      .select(
+        "id,provider,provider_label,account_id,account_name,settings,active,connected_at,last_error",
+      )
       .eq("id_empresa", crmUser.id_empresa)
       .order("created_at", { ascending: true });
     if (error) throw new Error(error.message);

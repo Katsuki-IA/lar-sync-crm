@@ -682,6 +682,9 @@ function LeadAttributionPanel({ data }: { data: ReportData }) {
                         <div className="space-y-1">
                           {JOURNEY_ATTRIBUTION_STAGES.map((stage) => {
                             const count = row.stageCounts[stage.key];
+                            const percentage = row.leads
+                              ? ((count / row.leads) * 100).toFixed(1)
+                              : "0.0";
                             return (
                               <div
                                 key={stage.key}
@@ -697,7 +700,10 @@ function LeadAttributionPanel({ data }: { data: ReportData }) {
                                   </span>
                                 </span>
                                 <span className="shrink-0 font-medium text-foreground">
-                                  {count}
+                                  {count}{" "}
+                                  <span className="text-xs font-normal text-muted-foreground">
+                                    ({percentage}%)
+                                  </span>
                                 </span>
                               </div>
                             );
@@ -717,7 +723,14 @@ function LeadAttributionPanel({ data }: { data: ReportData }) {
                             key={stage.key}
                             className="px-3 py-2 text-center align-top font-medium tabular-nums"
                           >
-                            {row.stageCounts[stage.key]}
+                            {row.stageCounts[stage.key]}{" "}
+                            <span className="text-xs font-normal text-muted-foreground">
+                              (
+                              {row.leads
+                                ? ((row.stageCounts[stage.key] / row.leads) * 100).toFixed(1)
+                                : "0.0"}
+                              %)
+                            </span>
                           </td>
                         ))}
                       </>

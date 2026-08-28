@@ -59,11 +59,16 @@ async function authenticate(
   if (crmToken) {
     const { data, error } = await admin
       .from("credentials")
-      .select("cv_crm_token,rd_crm_access_token,rd_hub_access_token")
+      .select("cv_crm_token,c2s_crm_token,rd_crm_access_token,rd_hub_access_token")
       .eq("id_empresa", idEmpresa)
       .maybeSingle();
     if (error) throw new Error(error.message);
-    const validTokens = [data?.cv_crm_token, data?.rd_crm_access_token, data?.rd_hub_access_token]
+    const validTokens = [
+      data?.cv_crm_token,
+      data?.c2s_crm_token,
+      data?.rd_crm_access_token,
+      data?.rd_hub_access_token,
+    ]
       .map((value) => String(value ?? "").trim())
       .filter(Boolean);
     if (validTokens.includes(crmToken)) return;
@@ -74,9 +79,10 @@ async function authenticate(
 
 function normalizeTags(value: unknown) {
   if (!Array.isArray(value)) return [];
-  return Array.from(
-    new Set(value.map((tag) => String(tag ?? "").trim()).filter(Boolean)),
-  ).slice(0, 10);
+  return Array.from(new Set(value.map((tag) => String(tag ?? "").trim()).filter(Boolean))).slice(
+    0,
+    10,
+  );
 }
 
 Deno.serve(async (req) => {
@@ -128,7 +134,9 @@ Deno.serve(async (req) => {
       p_payload: {
         leadId,
         idEmpresa,
-        ...(Number.isSafeInteger(idEmpreendimento) && idEmpreendimento > 0 ? { idEmpreendimento } : {}),
+        ...(Number.isSafeInteger(idEmpreendimento) && idEmpreendimento > 0
+          ? { idEmpreendimento }
+          : {}),
         additionalTags,
         ...(externalStageKind ? { externalStageKind } : {}),
         ...(conversationSummary ? { conversationSummary } : {}),
