@@ -61,6 +61,7 @@ Deno.serve(async (req) => {
     url.searchParams.set("end_date", formatDate(endDate));
     url.searchParams.append("assets_type[]", "LandingPage");
     url.searchParams.append("assets_type[]", "Forms");
+    url.searchParams.append("assets_type[]", "Popup");
 
     const response = await fetch(url, {
       headers: { Authorization: `Bearer ${accessToken}` },

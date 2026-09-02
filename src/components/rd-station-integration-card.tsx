@@ -123,9 +123,10 @@ export function RdStationIntegrationCard() {
 
   useEffect(() => {
     if (!funnelId && data?.funnels.length) {
-      const selected = data.funnels.length === 1
-        ? data.funnels[0]
-        : data.funnels.find((item) => item.is_default) ?? data.funnels[0];
+      const selected =
+        data.funnels.length === 1
+          ? data.funnels[0]
+          : (data.funnels.find((item) => item.is_default) ?? data.funnels[0]);
       setFunnelId(String(selected.id));
     }
   }, [data?.funnels, funnelId]);
@@ -137,7 +138,11 @@ export function RdStationIntegrationCard() {
     if (manageOpen && data?.connection?.default_id_funnel) {
       setFunnelId(String(data.connection.default_id_funnel));
     }
-  }, [data?.connection?.default_id_empreendimento, data?.connection?.default_id_funnel, manageOpen]);
+  }, [
+    data?.connection?.default_id_empreendimento,
+    data?.connection?.default_id_funnel,
+    manageOpen,
+  ]);
 
   useEffect(() => {
     if (!data?.sources) return;
@@ -494,7 +499,9 @@ export function RdStationIntegrationCard() {
 
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-3">
-              <h4 className="text-sm font-medium">Formulários e landing pages</h4>
+              <h4 className="text-sm font-medium">
+                Formulários, landing pages, pop-ups e botões de WhatsApp
+              </h4>
               <Button
                 variant="outline"
                 size="sm"
@@ -523,7 +530,11 @@ export function RdStationIntegrationCard() {
                           {source.pending ? ` · ${source.pending} aguardando` : ""}
                         </div>
                       </div>
-                      <Badge variant={source.id_empreendimento && source.id_funnel ? "secondary" : "destructive"}>
+                      <Badge
+                        variant={
+                          source.id_empreendimento && source.id_funnel ? "secondary" : "destructive"
+                        }
+                      >
                         {source.id_empreendimento && source.id_funnel ? "Configurado" : "Pendente"}
                       </Badge>
                     </div>
@@ -601,7 +612,8 @@ export function RdStationIntegrationCard() {
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">
-                Nenhum formulário ou landing page encontrado nos últimos 45 dias.
+                Nenhum formulário, landing page, pop-up ou botão de WhatsApp encontrado nos últimos
+                45 dias.
               </p>
             )}
           </div>
