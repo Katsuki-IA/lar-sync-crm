@@ -15,8 +15,21 @@ type DispatchPayload = {
   idEmpreendimento?: number;
   additionalTags?: string[];
   conversationSummary?: string;
+  cancellationReasonId?: string | number;
+  cancellationReasonName?: string;
+  cancellationReasonDescription?: string;
   enforceScheduledRule?: boolean;
   externalStageKind?: string;
+};
+
+type CvCancellationReason = {
+  id: string | number;
+  nome: string;
+};
+
+type CvCancellationSelection = {
+  reason: CvCancellationReason;
+  source: "provided" | "rules";
 };
 
 type CrmUser = {
@@ -151,6 +164,150 @@ function stripDiacritics(value: string) {
 
 function normalizeLabel(value?: string | null) {
   return stripDiacritics(String(value ?? "").trim()).toLowerCase();
+}
+
+function isLostDispatch(currentStageName?: string | null, externalStageKind?: string | null) {
+  const normalizedKind = normalizeLabel(externalStageKind).replace(/[\s-]+/g, "_");
+  const normalizedStage = normalizeLabel(currentStageName);
+  return ["lost", "perdido", "perda"].includes(normalizedKind) || normalizedStage === "perdido";
+}
+
+function parseCvCancellationReasons(payload: unknown): CvCancellationReason[] {
+  const record =
+    payload && typeof payload === "object" ? (payload as Record<string, unknown>) : null;
+  const candidates = Array.isArray(payload)
+    ? payload
+    : Array.isArray(record?.dados)
+      ? record.dados
+      : Array.isArray(record?.data)
+        ? record.data
+        : [];
+
+  return candidates
+    .map((item): CvCancellationReason | null => {
+      if (!item || typeof item !== "object") return null;
+      const reason = item as Record<string, unknown>;
+      const id = reason.id;
+      const nome = String(reason.nome ?? reason.name ?? "").trim();
+      const status = normalizeLabel(String(reason.situacao ?? reason.status ?? ""));
+      const isInactive = ["i", "inativo", "inactive", "false", "0"].includes(status);
+      if ((typeof id !== "string" && typeof id !== "number") || !nome || isInactive) return null;
+      return { id, nome };
+    })
+    .filter((item): item is CvCancellationReason => item != null);
+}
+
+function fallbackCvCancellationReason(
+  reasons: CvCancellationReason[],
+  context: string,
+): CvCancellationReason {
+  const normalizedContext = normalizeLabel(context);
+  const rules: Array<{ context: string[]; reason: string[] }> = [
+    {
+      context: ["sem interesse", "nao tem interesse", "nao possui interesse"],
+      reason: ["nao tem interesse no momento", "sem interesse", "nao tem interesse", "desistencia"],
+    },
+    {
+      context: ["financeir", "credito", "renda", "valor", "caro"],
+      reason: ["sem condicoes financeiras", "credito reprovado", "financeir"],
+    },
+    {
+      context: ["localizacao", "bairro", "distante"],
+      reason: ["localizacao"],
+    },
+    {
+      context: ["tipologia", "planta", "metragem", "quartos", "suites"],
+      reason: ["tipologia", "produto nao atende"],
+    },
+    {
+      context: ["outro imovel", "ja comprou", "ja alugou"],
+      reason: ["comprou outro imovel", "alugou o imovel"],
+    },
+    {
+      context: ["contato invalido", "numero invalido", "telefone invalido"],
+      reason: ["dados de contato invalido"],
+    },
+  ];
+
+  for (const rule of rules) {
+    if (!rule.context.some((term) => normalizedContext.includes(term))) continue;
+    for (const expected of rule.reason) {
+      const match = reasons.find((reason) => normalizeLabel(reason.nome).includes(expected));
+      if (match) return match;
+    }
+  }
+
+  const genericOrder = [
+    "nao tem interesse no momento",
+    "sem interesse",
+    "nao tem interesse",
+    "desistencia",
+    "apenas curioso e pesquisando",
+  ];
+  for (const expected of genericOrder) {
+    const match = reasons.find((reason) => normalizeLabel(reason.nome).includes(expected));
+    if (match) return match;
+  }
+
+  return reasons[0];
+}
+
+function selectCvCancellationReason(args: {
+  reasons: CvCancellationReason[];
+  context: string;
+  providedId?: string | number;
+  providedName?: string;
+}): CvCancellationSelection {
+  const providedId = String(args.providedId ?? "").trim();
+  const providedName = normalizeLabel(args.providedName);
+  if (providedId || providedName) {
+    const providedMatch = args.reasons.find(
+      (reason) =>
+        (providedId && String(reason.id) === providedId) ||
+        (providedName && normalizeLabel(reason.nome) === providedName),
+    );
+    if (!providedMatch) {
+      throw new Error("O motivo de cancelamento informado não está ativo no CV.");
+    }
+    return { reason: providedMatch, source: "provided" };
+  }
+
+  return {
+    reason: fallbackCvCancellationReason(args.reasons, args.context),
+    source: "rules",
+  };
+}
+
+async function loadCvCancellationReasons(args: {
+  cvUrl: string;
+  cvToken: string;
+  cvEmail: string;
+}) {
+  let response: Response;
+  try {
+    response = await fetch(`${args.cvUrl}/api/v1/comercial/motivos-cancelamento-lead`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        token: args.cvToken,
+        email: args.cvEmail,
+        origemcv: "true",
+      },
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Falha de rede";
+    throw new Error(`Falha ao consultar motivos de cancelamento no CV: ${message}`);
+  }
+
+  const payload = await parseResponsePayload(response);
+  if (!response.ok) {
+    throw new Error(
+      externalApiError(payload, `CV CRM retornou ${response.status} ao consultar os motivos`),
+    );
+  }
+  const reasons = parseCvCancellationReasons(payload);
+  if (!reasons.length) throw new Error("O CV não retornou motivos de cancelamento ativos.");
+  return reasons;
 }
 
 function buildWhatsAppUrl(phone?: string | null, empreendimento?: string | null) {
@@ -978,6 +1135,9 @@ Deno.serve(async (req) => {
     let summaryErrorMessage: string | null = null;
     let conversationSummarySynced = false;
     let externalId: string | null = null;
+    let cvCancellationReasonId: string | number | null = null;
+    let cvCancellationReasonName: string | null = null;
+    let cvCancellationReasonSource: CvCancellationSelection["source"] | null = null;
     const suppliedSummary = String(body.conversationSummary ?? "").trim();
     const isWithoutWhatsappStage =
       normalizeLabel(body.externalStageKind) === "without_whatsapp" &&
@@ -1023,6 +1183,32 @@ Deno.serve(async (req) => {
         if (summaryPayload?.summary) {
           requestPayload.interacoes = [{ descricao: summaryPayload.summary, tipo: "W" }];
           conversationSummarySynced = true;
+        }
+
+        if (isLostDispatch(currentStageName, body.externalStageKind)) {
+          const reasons = await loadCvCancellationReasons({ cvUrl, cvToken, cvEmail });
+          const cancellationContext = suppliedSummary || summaryPayload?.summary || "";
+          const selection = selectCvCancellationReason({
+            reasons,
+            context: cancellationContext,
+            providedId: body.cancellationReasonId,
+            providedName: body.cancellationReasonName,
+          });
+          const cancellationDescription = String(
+            body.cancellationReasonDescription ||
+              suppliedSummary ||
+              summaryPayload?.summary ||
+              "Cliente relatou que não tem interesse.",
+          )
+            .trim()
+            .slice(0, 5000);
+
+          requestPayload.motivo_cancelamento = selection.reason.nome;
+          requestPayload.descricao_motivo_cancelamento =
+            cancellationDescription || "Cliente relatou que não tem interesse.";
+          cvCancellationReasonId = selection.reason.id;
+          cvCancellationReasonName = selection.reason.nome;
+          cvCancellationReasonSource = selection.source;
         }
 
         const response = await fetch(`${cvUrl}/api/v1/comercial/leads`, {
@@ -1394,6 +1580,9 @@ Deno.serve(async (req) => {
         id_empreendimento_local: localEmpreendimentoId,
         external_empreendimento_id: isCvCrm || isKatsukiCrm ? cvEmpreendimentoId : null,
         external_stage_id: isCvCrm ? toScalarId(externalStageId) : externalStageId,
+        cv_cancellation_reason_id: cvCancellationReasonId,
+        cv_cancellation_reason_name: cvCancellationReasonName,
+        cv_cancellation_reason_source: cvCancellationReasonSource,
         qualified_by_tag: leadTagNames.some((tagName) => normalizeLabel(tagName) === "qualificado"),
         conversation_summary_synced: conversationSummarySynced,
         conversation_summary_error: summaryErrorMessage,
