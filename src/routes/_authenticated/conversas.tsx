@@ -307,12 +307,12 @@ const messageQuery = useQuery({
     const sortMessages = (messages: ConversationMessage[]) =>
       [...messages].sort((a, b) => {
         const timeDifference =
-          timestampMs(a.time ?? a.created_at) -
-          timestampMs(b.time ?? b.created_at);
+          timestampMs(b.time ?? b.created_at) -
+          timestampMs(a.time ?? a.created_at);
 
         return (
           timeDifference ||
-          a.id.localeCompare(b.id, undefined, { numeric: true })
+          b.id.localeCompare(a.id, undefined, { numeric: true })
         );
       });
 
