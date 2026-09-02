@@ -4900,6 +4900,15 @@ export type Database = {
         }
         Returns: Json
       }
+      cancel_followup_dispatch_by_crm_guard_v2: {
+        Args: {
+          p_details?: Json
+          p_dispatch_id: number
+          p_reason: string
+          p_worker_id: string
+        }
+        Returns: Json
+      }
       claim_authorized_followup_test_crm_event_v2: {
         Args: {
           p_authorization_id: string
@@ -5381,6 +5390,10 @@ export type Database = {
       followup_context_v2: {
         Args: { p_qtd_interacoes: number; p_status: string }
         Returns: string
+      }
+      followup_crm_pre_send_context_v2: {
+        Args: { p_dispatch_id: number; p_worker_id: string }
+        Returns: Json
       }
       followup_dispatch_validation_v2: {
         Args: { p_dispatch_id: number }
