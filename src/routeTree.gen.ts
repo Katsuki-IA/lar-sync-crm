@@ -32,6 +32,7 @@ import { Route as AuthenticatedSettingsIndexRouteImport } from './routes/_authen
 import { Route as AuthenticatedLeadsIndexRouteImport } from './routes/_authenticated/leads.index'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
 import { Route as ApiPublicPulseFunilIaRouteImport } from './routes/api/public/pulse-funil-ia'
+import { Route as ApiPublicGloriaLeadsRouteImport } from './routes/api/public/gloria-leads'
 import { Route as AuthenticatedSettingsUsersRouteImport } from './routes/_authenticated/settings.users'
 import { Route as AuthenticatedSettingsTagsRouteImport } from './routes/_authenticated/settings.tags'
 import { Route as AuthenticatedSettingsStagesRouteImport } from './routes/_authenticated/settings.stages'
@@ -167,6 +168,11 @@ const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
 const ApiPublicPulseFunilIaRoute = ApiPublicPulseFunilIaRouteImport.update({
   id: '/api/public/pulse-funil-ia',
   path: '/api/public/pulse-funil-ia',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicGloriaLeadsRoute = ApiPublicGloriaLeadsRouteImport.update({
+  id: '/api/public/gloria-leads',
+  path: '/api/public/gloria-leads',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedSettingsUsersRoute =
@@ -318,6 +324,7 @@ export interface FileRoutesByFullPath {
   '/settings/stages': typeof AuthenticatedSettingsStagesRoute
   '/settings/tags': typeof AuthenticatedSettingsTagsRoute
   '/settings/users': typeof AuthenticatedSettingsUsersRoute
+  '/api/public/gloria-leads': typeof ApiPublicGloriaLeadsRoute
   '/api/public/pulse-funil-ia': typeof ApiPublicPulseFunilIaRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/leads/': typeof AuthenticatedLeadsIndexRoute
@@ -359,6 +366,7 @@ export interface FileRoutesByTo {
   '/settings/stages': typeof AuthenticatedSettingsStagesRoute
   '/settings/tags': typeof AuthenticatedSettingsTagsRoute
   '/settings/users': typeof AuthenticatedSettingsUsersRoute
+  '/api/public/gloria-leads': typeof ApiPublicGloriaLeadsRoute
   '/api/public/pulse-funil-ia': typeof ApiPublicPulseFunilIaRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/leads': typeof AuthenticatedLeadsIndexRoute
@@ -404,6 +412,7 @@ export interface FileRoutesById {
   '/_authenticated/settings/stages': typeof AuthenticatedSettingsStagesRoute
   '/_authenticated/settings/tags': typeof AuthenticatedSettingsTagsRoute
   '/_authenticated/settings/users': typeof AuthenticatedSettingsUsersRoute
+  '/api/public/gloria-leads': typeof ApiPublicGloriaLeadsRoute
   '/api/public/pulse-funil-ia': typeof ApiPublicPulseFunilIaRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/leads/': typeof AuthenticatedLeadsIndexRoute
@@ -449,6 +458,7 @@ export interface FileRouteTypes {
     | '/settings/stages'
     | '/settings/tags'
     | '/settings/users'
+    | '/api/public/gloria-leads'
     | '/api/public/pulse-funil-ia'
     | '/admin/'
     | '/leads/'
@@ -490,6 +500,7 @@ export interface FileRouteTypes {
     | '/settings/stages'
     | '/settings/tags'
     | '/settings/users'
+    | '/api/public/gloria-leads'
     | '/api/public/pulse-funil-ia'
     | '/admin'
     | '/leads'
@@ -534,6 +545,7 @@ export interface FileRouteTypes {
     | '/_authenticated/settings/stages'
     | '/_authenticated/settings/tags'
     | '/_authenticated/settings/users'
+    | '/api/public/gloria-leads'
     | '/api/public/pulse-funil-ia'
     | '/_authenticated/admin/'
     | '/_authenticated/leads/'
@@ -552,6 +564,7 @@ export interface RootRouteChildren {
   HistoricoLeadIdRoute: typeof HistoricoLeadIdRoute
   IntegracoesRdRoute: typeof IntegracoesRdRoute
   PrivacidadeExclusaoDeDadosRoute: typeof PrivacidadeExclusaoDeDadosRoute
+  ApiPublicGloriaLeadsRoute: typeof ApiPublicGloriaLeadsRoute
   ApiPublicPulseFunilIaRoute: typeof ApiPublicPulseFunilIaRoute
 }
 
@@ -716,6 +729,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/pulse-funil-ia'
       fullPath: '/api/public/pulse-funil-ia'
       preLoaderRoute: typeof ApiPublicPulseFunilIaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/gloria-leads': {
+      id: '/api/public/gloria-leads'
+      path: '/api/public/gloria-leads'
+      fullPath: '/api/public/gloria-leads'
+      preLoaderRoute: typeof ApiPublicGloriaLeadsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/settings/users': {
@@ -958,6 +978,7 @@ const rootRouteChildren: RootRouteChildren = {
   HistoricoLeadIdRoute: HistoricoLeadIdRoute,
   IntegracoesRdRoute: IntegracoesRdRoute,
   PrivacidadeExclusaoDeDadosRoute: PrivacidadeExclusaoDeDadosRoute,
+  ApiPublicGloriaLeadsRoute: ApiPublicGloriaLeadsRoute,
   ApiPublicPulseFunilIaRoute: ApiPublicPulseFunilIaRoute,
 }
 export const routeTree = rootRouteImport
