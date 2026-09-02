@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.17"
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
@@ -2986,6 +2986,502 @@ export type Database = {
           },
         ]
       }
+      followup_attempts_v2: {
+        Row: {
+          accepted_at: string | null
+          attempt_number: number
+          confirmation_deadline_at: string | null
+          created_at: string
+          crm_delivery_notified_at: string | null
+          crm_failure_notified_at: string | null
+          delivered_at: string | null
+          dispatch_id: number
+          error_code: string | null
+          error_message: string | null
+          failed_at: string | null
+          id: number
+          meta_message_id: string | null
+          meta_response: Json
+          read_at: string | null
+          requested_at: string | null
+          sent_at: string | null
+          status: string
+          updated_at: string
+          wa_message_id: string | null
+        }
+        Insert: {
+          accepted_at?: string | null
+          attempt_number: number
+          confirmation_deadline_at?: string | null
+          created_at?: string
+          crm_delivery_notified_at?: string | null
+          crm_failure_notified_at?: string | null
+          delivered_at?: string | null
+          dispatch_id: number
+          error_code?: string | null
+          error_message?: string | null
+          failed_at?: string | null
+          id?: never
+          meta_message_id?: string | null
+          meta_response?: Json
+          read_at?: string | null
+          requested_at?: string | null
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+          wa_message_id?: string | null
+        }
+        Update: {
+          accepted_at?: string | null
+          attempt_number?: number
+          confirmation_deadline_at?: string | null
+          created_at?: string
+          crm_delivery_notified_at?: string | null
+          crm_failure_notified_at?: string | null
+          delivered_at?: string | null
+          dispatch_id?: number
+          error_code?: string | null
+          error_message?: string | null
+          failed_at?: string | null
+          id?: never
+          meta_message_id?: string | null
+          meta_response?: Json
+          read_at?: string | null
+          requested_at?: string | null
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+          wa_message_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "followup_attempts_v2_dispatch_id_fkey"
+            columns: ["dispatch_id"]
+            isOneToOne: false
+            referencedRelation: "followup_dispatches_v2"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "followup_attempts_v2_wa_message_id_fkey"
+            columns: ["wa_message_id"]
+            isOneToOne: false
+            referencedRelation: "wa_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      followup_crm_events_v2: {
+        Row: {
+          attempt_id: number
+          claimed_at: string | null
+          claimed_by: string | null
+          created_at: string
+          crm_provider: string | null
+          crm_stage_id: string | null
+          dispatch_id: number
+          event_type: string
+          id: number
+          id_empresa: number
+          last_error: string | null
+          lead_id: number
+          message_body: string
+          metadata: Json
+          processed_at: string | null
+          status: string
+          subject: string
+          updated_at: string
+          wa_message_id: string
+        }
+        Insert: {
+          attempt_id: number
+          claimed_at?: string | null
+          claimed_by?: string | null
+          created_at?: string
+          crm_provider?: string | null
+          crm_stage_id?: string | null
+          dispatch_id: number
+          event_type: string
+          id?: never
+          id_empresa: number
+          last_error?: string | null
+          lead_id: number
+          message_body: string
+          metadata?: Json
+          processed_at?: string | null
+          status?: string
+          subject: string
+          updated_at?: string
+          wa_message_id: string
+        }
+        Update: {
+          attempt_id?: number
+          claimed_at?: string | null
+          claimed_by?: string | null
+          created_at?: string
+          crm_provider?: string | null
+          crm_stage_id?: string | null
+          dispatch_id?: number
+          event_type?: string
+          id?: never
+          id_empresa?: number
+          last_error?: string | null
+          lead_id?: number
+          message_body?: string
+          metadata?: Json
+          processed_at?: string | null
+          status?: string
+          subject?: string
+          updated_at?: string
+          wa_message_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "followup_crm_events_v2_attempt_id_fkey"
+            columns: ["attempt_id"]
+            isOneToOne: false
+            referencedRelation: "followup_attempts_v2"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "followup_crm_events_v2_dispatch_id_fkey"
+            columns: ["dispatch_id"]
+            isOneToOne: false
+            referencedRelation: "followup_dispatches_v2"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "followup_crm_events_v2_id_empresa_fkey"
+            columns: ["id_empresa"]
+            isOneToOne: false
+            referencedRelation: "empresa_dados"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "followup_crm_events_v2_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "lead"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "followup_crm_events_v2_wa_message_id_fkey"
+            columns: ["wa_message_id"]
+            isOneToOne: false
+            referencedRelation: "wa_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      followup_dispatches_v2: {
+        Row: {
+          cancellation_reason: string | null
+          claimed_at: string | null
+          claimed_by: string | null
+          completed_at: string | null
+          context_snapshot: Json
+          conversation_context: string
+          created_at: string
+          delivered_at: string | null
+          dry_run: boolean
+          enrollment_id: number | null
+          failed_at: string | null
+          id: number
+          id_empreendimento: number | null
+          id_empresa: number
+          idempotency_key: string
+          lead_id: number
+          rendered_crm_message: string | null
+          scheduled_at: string
+          sent_to_meta_at: string | null
+          sequence_id: number
+          status: string
+          step_id: number
+          updated_at: string
+          variant_id: number
+        }
+        Insert: {
+          cancellation_reason?: string | null
+          claimed_at?: string | null
+          claimed_by?: string | null
+          completed_at?: string | null
+          context_snapshot?: Json
+          conversation_context: string
+          created_at?: string
+          delivered_at?: string | null
+          dry_run?: boolean
+          enrollment_id?: number | null
+          failed_at?: string | null
+          id?: never
+          id_empreendimento?: number | null
+          id_empresa: number
+          idempotency_key: string
+          lead_id: number
+          rendered_crm_message?: string | null
+          scheduled_at: string
+          sent_to_meta_at?: string | null
+          sequence_id: number
+          status?: string
+          step_id: number
+          updated_at?: string
+          variant_id: number
+        }
+        Update: {
+          cancellation_reason?: string | null
+          claimed_at?: string | null
+          claimed_by?: string | null
+          completed_at?: string | null
+          context_snapshot?: Json
+          conversation_context?: string
+          created_at?: string
+          delivered_at?: string | null
+          dry_run?: boolean
+          enrollment_id?: number | null
+          failed_at?: string | null
+          id?: never
+          id_empreendimento?: number | null
+          id_empresa?: number
+          idempotency_key?: string
+          lead_id?: number
+          rendered_crm_message?: string | null
+          scheduled_at?: string
+          sent_to_meta_at?: string | null
+          sequence_id?: number
+          status?: string
+          step_id?: number
+          updated_at?: string
+          variant_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "followup_dispatches_v2_enrollment_id_fkey"
+            columns: ["enrollment_id"]
+            isOneToOne: false
+            referencedRelation: "followup_enrollments_v2"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "followup_dispatches_v2_id_empreendimento_fkey"
+            columns: ["id_empreendimento"]
+            isOneToOne: false
+            referencedRelation: "empreendimento"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "followup_dispatches_v2_id_empresa_fkey"
+            columns: ["id_empresa"]
+            isOneToOne: false
+            referencedRelation: "empresa_dados"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "followup_dispatches_v2_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "lead"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "followup_dispatches_v2_sequence_id_fkey"
+            columns: ["sequence_id"]
+            isOneToOne: false
+            referencedRelation: "followup_sequences_v2"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "followup_dispatches_v2_step_id_fkey"
+            columns: ["step_id"]
+            isOneToOne: false
+            referencedRelation: "followup_steps_v2"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "followup_dispatches_v2_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "followup_variants_v2"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      followup_engine_settings_v2: {
+        Row: {
+          created_at: string
+          engine_mode: string
+          id_empresa: number
+          last_claimed_at: string | null
+          live_batch_size: number
+          metadata: Json
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          engine_mode?: string
+          id_empresa: number
+          last_claimed_at?: string | null
+          live_batch_size?: number
+          metadata?: Json
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          engine_mode?: string
+          id_empresa?: number
+          last_claimed_at?: string | null
+          live_batch_size?: number
+          metadata?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "followup_engine_settings_v2_id_empresa_fkey"
+            columns: ["id_empresa"]
+            isOneToOne: true
+            referencedRelation: "empresa_dados"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      followup_enrollments_v2: {
+        Row: {
+          cancellation_reason: string | null
+          cancelled_at: string | null
+          completed_at: string | null
+          context_snapshot: Json
+          created_at: string
+          enrolled_at: string
+          id: number
+          last_evaluated_at: string | null
+          lead_id: number
+          next_step_order: number
+          sequence_id: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          completed_at?: string | null
+          context_snapshot?: Json
+          created_at?: string
+          enrolled_at?: string
+          id?: never
+          last_evaluated_at?: string | null
+          lead_id: number
+          next_step_order?: number
+          sequence_id: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          completed_at?: string | null
+          context_snapshot?: Json
+          created_at?: string
+          enrolled_at?: string
+          id?: never
+          last_evaluated_at?: string | null
+          lead_id?: number
+          next_step_order?: number
+          sequence_id?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "followup_enrollments_v2_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "lead"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "followup_enrollments_v2_sequence_id_fkey"
+            columns: ["sequence_id"]
+            isOneToOne: false
+            referencedRelation: "followup_sequences_v2"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      followup_sequences_v2: {
+        Row: {
+          activated_at: string | null
+          audience_scope: string
+          created_at: string
+          delivery_timeout_minutes: number
+          eligibility_mode: string
+          eligibility_since: string | null
+          id: number
+          id_empreendimento: number | null
+          id_empresa: number
+          max_attempts: number
+          metadata: Json
+          nome: string
+          send_window_end: string | null
+          send_window_start: string | null
+          status: string
+          stop_on_failure: boolean
+          timezone: string
+          updated_at: string
+        }
+        Insert: {
+          activated_at?: string | null
+          audience_scope?: string
+          created_at?: string
+          delivery_timeout_minutes?: number
+          eligibility_mode?: string
+          eligibility_since?: string | null
+          id?: never
+          id_empreendimento?: number | null
+          id_empresa: number
+          max_attempts?: number
+          metadata?: Json
+          nome: string
+          send_window_end?: string | null
+          send_window_start?: string | null
+          status?: string
+          stop_on_failure?: boolean
+          timezone?: string
+          updated_at?: string
+        }
+        Update: {
+          activated_at?: string | null
+          audience_scope?: string
+          created_at?: string
+          delivery_timeout_minutes?: number
+          eligibility_mode?: string
+          eligibility_since?: string | null
+          id?: never
+          id_empreendimento?: number | null
+          id_empresa?: number
+          max_attempts?: number
+          metadata?: Json
+          nome?: string
+          send_window_end?: string | null
+          send_window_start?: string | null
+          status?: string
+          stop_on_failure?: boolean
+          timezone?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "followup_sequences_v2_id_empreendimento_fkey"
+            columns: ["id_empreendimento"]
+            isOneToOne: false
+            referencedRelation: "empreendimento"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "followup_sequences_v2_id_empresa_fkey"
+            columns: ["id_empresa"]
+            isOneToOne: false
+            referencedRelation: "empresa_dados"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       followup_steps: {
         Row: {
           created_at: string | null
@@ -3010,6 +3506,7 @@ export type Database = {
           template_name: string
           template_name_b: string | null
           template_name_c: string | null
+          template_name_sem_emp: string | null
           type: string | null
           updated_at: string | null
           url_imagem: string | null
@@ -3039,6 +3536,7 @@ export type Database = {
           template_name: string
           template_name_b?: string | null
           template_name_c?: string | null
+          template_name_sem_emp?: string | null
           type?: string | null
           updated_at?: string | null
           url_imagem?: string | null
@@ -3068,6 +3566,7 @@ export type Database = {
           template_name?: string
           template_name_b?: string | null
           template_name_c?: string | null
+          template_name_sem_emp?: string | null
           type?: string | null
           updated_at?: string | null
           url_imagem?: string | null
@@ -3087,6 +3586,203 @@ export type Database = {
             columns: ["id_empresa"]
             isOneToOne: false
             referencedRelation: "empresa_dados"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      followup_steps_v2: {
+        Row: {
+          created_at: string
+          delay_minutes: number
+          id: number
+          id_situacao: number | null
+          is_active: boolean
+          nome: string | null
+          sequence_id: number
+          step_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          delay_minutes: number
+          id?: never
+          id_situacao?: number | null
+          is_active?: boolean
+          nome?: string | null
+          sequence_id: number
+          step_order: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          delay_minutes?: number
+          id?: never
+          id_situacao?: number | null
+          is_active?: boolean
+          nome?: string | null
+          sequence_id?: number
+          step_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "followup_steps_v2_sequence_id_fkey"
+            columns: ["sequence_id"]
+            isOneToOne: false
+            referencedRelation: "followup_sequences_v2"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      followup_test_authorizations_v2: {
+        Row: {
+          created_at: string
+          dispatch_id: number | null
+          expected_phone: string
+          expires_at: string
+          id: string
+          id_empresa: number
+          lead_id: number
+          metadata: Json
+          sequence_id: number
+          status: string
+          step_id: number
+          updated_at: string
+          used_at: string | null
+          variant_id: number
+        }
+        Insert: {
+          created_at?: string
+          dispatch_id?: number | null
+          expected_phone: string
+          expires_at: string
+          id?: string
+          id_empresa: number
+          lead_id: number
+          metadata?: Json
+          sequence_id: number
+          status?: string
+          step_id: number
+          updated_at?: string
+          used_at?: string | null
+          variant_id: number
+        }
+        Update: {
+          created_at?: string
+          dispatch_id?: number | null
+          expected_phone?: string
+          expires_at?: string
+          id?: string
+          id_empresa?: number
+          lead_id?: number
+          metadata?: Json
+          sequence_id?: number
+          status?: string
+          step_id?: number
+          updated_at?: string
+          used_at?: string | null
+          variant_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "followup_test_authorizations_v2_dispatch_id_fkey"
+            columns: ["dispatch_id"]
+            isOneToOne: false
+            referencedRelation: "followup_dispatches_v2"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "followup_test_authorizations_v2_id_empresa_fkey"
+            columns: ["id_empresa"]
+            isOneToOne: false
+            referencedRelation: "empresa_dados"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "followup_test_authorizations_v2_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "lead"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "followup_test_authorizations_v2_sequence_id_fkey"
+            columns: ["sequence_id"]
+            isOneToOne: false
+            referencedRelation: "followup_sequences_v2"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "followup_test_authorizations_v2_step_id_fkey"
+            columns: ["step_id"]
+            isOneToOne: false
+            referencedRelation: "followup_steps_v2"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "followup_test_authorizations_v2_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "followup_variants_v2"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      followup_variants_v2: {
+        Row: {
+          conversation_context: string
+          created_at: string
+          crm_message_template: string | null
+          delay_minutes: number | null
+          id: number
+          id_situacao: number | null
+          is_active: boolean
+          media_url: string | null
+          meta_template_language: string
+          meta_template_name: string
+          metadata: Json
+          parameter_mapping: Json
+          step_id: number
+          updated_at: string
+        }
+        Insert: {
+          conversation_context: string
+          created_at?: string
+          crm_message_template?: string | null
+          delay_minutes?: number | null
+          id?: never
+          id_situacao?: number | null
+          is_active?: boolean
+          media_url?: string | null
+          meta_template_language?: string
+          meta_template_name: string
+          metadata?: Json
+          parameter_mapping?: Json
+          step_id: number
+          updated_at?: string
+        }
+        Update: {
+          conversation_context?: string
+          created_at?: string
+          crm_message_template?: string | null
+          delay_minutes?: number | null
+          id?: never
+          id_situacao?: number | null
+          is_active?: boolean
+          media_url?: string | null
+          meta_template_language?: string
+          meta_template_name?: string
+          metadata?: Json
+          parameter_mapping?: Json
+          step_id?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "followup_variants_v2_step_id_fkey"
+            columns: ["step_id"]
+            isOneToOne: false
+            referencedRelation: "followup_steps_v2"
             referencedColumns: ["id"]
           },
         ]
@@ -4181,6 +4877,172 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_followup_attempt_v2: {
+        Args: {
+          p_attempt_id: number
+          p_meta_message_id: string
+          p_meta_response?: Json
+        }
+        Returns: Json
+      }
+      activate_followup_sequence_v2: {
+        Args: { p_sequence_id: number }
+        Returns: Json
+      }
+      authorize_followup_test_v2: {
+        Args: {
+          p_expected_phone: string
+          p_expires_at?: string
+          p_lead_id: number
+          p_sequence_id: number
+          p_step_id: number
+          p_variant_id: number
+        }
+        Returns: Json
+      }
+      claim_authorized_followup_test_crm_event_v2: {
+        Args: {
+          p_authorization_id: string
+          p_event_id: number
+          p_worker_id: string
+        }
+        Returns: {
+          attempt_id: number
+          claimed_at: string | null
+          claimed_by: string | null
+          created_at: string
+          crm_provider: string | null
+          crm_stage_id: string | null
+          dispatch_id: number
+          event_type: string
+          id: number
+          id_empresa: number
+          last_error: string | null
+          lead_id: number
+          message_body: string
+          metadata: Json
+          processed_at: string | null
+          status: string
+          subject: string
+          updated_at: string
+          wa_message_id: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "followup_crm_events_v2"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      claim_authorized_followup_test_v2: {
+        Args: { p_authorization_id: string; p_worker_id: string }
+        Returns: {
+          cancellation_reason: string | null
+          claimed_at: string | null
+          claimed_by: string | null
+          completed_at: string | null
+          context_snapshot: Json
+          conversation_context: string
+          created_at: string
+          delivered_at: string | null
+          dry_run: boolean
+          enrollment_id: number | null
+          failed_at: string | null
+          id: number
+          id_empreendimento: number | null
+          id_empresa: number
+          idempotency_key: string
+          lead_id: number
+          rendered_crm_message: string | null
+          scheduled_at: string
+          sent_to_meta_at: string | null
+          sequence_id: number
+          status: string
+          step_id: number
+          updated_at: string
+          variant_id: number
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "followup_dispatches_v2"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      claim_followup_crm_events_v2: {
+        Args: { p_limit?: number; p_worker_id: string }
+        Returns: {
+          attempt_id: number
+          claimed_at: string | null
+          claimed_by: string | null
+          created_at: string
+          crm_provider: string | null
+          crm_stage_id: string | null
+          dispatch_id: number
+          event_type: string
+          id: number
+          id_empresa: number
+          last_error: string | null
+          lead_id: number
+          message_body: string
+          metadata: Json
+          processed_at: string | null
+          status: string
+          subject: string
+          updated_at: string
+          wa_message_id: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "followup_crm_events_v2"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      claim_followup_dispatches_v2: {
+        Args: { p_limit?: number; p_worker_id: string }
+        Returns: {
+          cancellation_reason: string | null
+          claimed_at: string | null
+          claimed_by: string | null
+          completed_at: string | null
+          context_snapshot: Json
+          conversation_context: string
+          created_at: string
+          delivered_at: string | null
+          dry_run: boolean
+          enrollment_id: number | null
+          failed_at: string | null
+          id: number
+          id_empreendimento: number | null
+          id_empresa: number
+          idempotency_key: string
+          lead_id: number
+          rendered_crm_message: string | null
+          scheduled_at: string
+          sent_to_meta_at: string | null
+          sequence_id: number
+          status: string
+          step_id: number
+          updated_at: string
+          variant_id: number
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "followup_dispatches_v2"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      complete_followup_crm_event_v2: {
+        Args: {
+          p_error?: string
+          p_event_id: number
+          p_success: boolean
+          p_worker_id: string
+        }
+        Returns: Json
+      }
       crm_assert_super_admin: { Args: never; Returns: undefined }
       crm_assignee_belongs_to_empresa: {
         Args: { p_crm_user_id: string; p_id_empresa: number }
@@ -4467,6 +5329,84 @@ export type Database = {
         Args: { p_id_empresa: number }
         Returns: undefined
       }
+      enqueue_authorized_followup_test_v2: {
+        Args: { p_authorization_id: string }
+        Returns: Json
+      }
+      enqueue_followup_crm_event_v2: {
+        Args: { p_attempt_id: number; p_event_type: string }
+        Returns: Json
+      }
+      enqueue_followup_dispatches_v2: {
+        Args: { p_id_empresa?: number; p_limit?: number }
+        Returns: Json
+      }
+      fail_followup_attempt_v2: {
+        Args: {
+          p_attempt_id: number
+          p_error_code: string
+          p_error_message: string
+          p_meta_response?: Json
+          p_retryable?: boolean
+        }
+        Returns: Json
+      }
+      fair_live_followup_candidates_v2: {
+        Args: { p_id_empresa?: number; p_limit?: number }
+        Returns: {
+          audience_scope: string
+          conversation_context: string
+          crm_message_template: string
+          effective_project_id: number
+          eligibility_reason: string
+          eligible_at: string
+          id_empresa: number
+          id_situacao: number
+          last_message_at: string
+          lead_id: number
+          lead_id_crm: string
+          lead_nome: string
+          lead_telefone: string
+          media_url: string
+          meta_template_language: string
+          meta_template_name: string
+          parameter_mapping: Json
+          sequence_id: number
+          sequence_name: string
+          step_id: number
+          step_order: number
+          variant_id: number
+        }[]
+      }
+      followup_context_v2: {
+        Args: { p_qtd_interacoes: number; p_status: string }
+        Returns: string
+      }
+      followup_dispatch_validation_v2: {
+        Args: { p_dispatch_id: number }
+        Returns: string
+      }
+      followup_engine_mode_v2: {
+        Args: { p_id_empresa: number }
+        Returns: string
+      }
+      followup_sequence_readiness_v2: {
+        Args: { p_sequence_id: number }
+        Returns: Json
+      }
+      followup_try_timestamptz_v2: {
+        Args: { p_value: string }
+        Returns: string
+      }
+      followup_within_send_window_v2: {
+        Args: {
+          p_instant?: string
+          p_timezone: string
+          p_window_end: string
+          p_window_start: string
+        }
+        Returns: boolean
+      }
       get_analises_para_relatorio: {
         Args: { p_id_empresa?: number }
         Returns: {
@@ -4568,6 +5508,10 @@ export type Database = {
         }[]
       }
       get_full_schema_info: { Args: never; Returns: Json }
+      import_followup_v1_config_v2: {
+        Args: { p_id_empresa: number }
+        Returns: Json
+      }
       insert_wa_status_event: {
         Args: {
           p_dedupe_key: string
@@ -4582,9 +5526,90 @@ export type Database = {
         }
         Returns: undefined
       }
+      live_followup_candidates_v2: {
+        Args: { p_id_empresa?: number; p_limit?: number }
+        Returns: {
+          audience_scope: string
+          conversation_context: string
+          crm_message_template: string
+          effective_project_id: number
+          eligibility_reason: string
+          eligible_at: string
+          id_empresa: number
+          id_situacao: number
+          last_message_at: string
+          lead_id: number
+          lead_id_crm: string
+          lead_nome: string
+          lead_telefone: string
+          media_url: string
+          meta_template_language: string
+          meta_template_name: string
+          parameter_mapping: Json
+          sequence_id: number
+          sequence_name: string
+          step_id: number
+          step_order: number
+          variant_id: number
+        }[]
+      }
+      mark_followup_confirmation_timeouts_v2: {
+        Args: { p_limit?: number }
+        Returns: Json
+      }
+      prepare_followup_attempt_v2: {
+        Args: { p_dispatch_id: number; p_worker_id: string }
+        Returns: Json
+      }
+      preview_followup_candidates_v2: {
+        Args: { p_id_empresa?: number; p_limit?: number }
+        Returns: {
+          audience_scope: string
+          conversation_context: string
+          crm_message_template: string
+          effective_project_id: number
+          eligibility_reason: string
+          eligible_at: string
+          id_empresa: number
+          id_situacao: number
+          last_message_at: string
+          lead_id: number
+          lead_nome: string
+          lead_telefone: string
+          media_url: string
+          meta_template_language: string
+          meta_template_name: string
+          parameter_mapping: Json
+          sequence_id: number
+          sequence_name: string
+          step_id: number
+          step_order: number
+          variant_id: number
+        }[]
+      }
+      preview_followup_test_v2: {
+        Args: { p_authorization_id: string }
+        Returns: Json
+      }
       purge_old_n8n_chat_conversas: { Args: never; Returns: undefined }
+      reconcile_followup_attempts_v2: {
+        Args: { p_limit?: number }
+        Returns: Json
+      }
+      revalidate_followup_dispatch_v2: {
+        Args: { p_dispatch_id: number; p_worker_id: string }
+        Returns: Json
+      }
       send_agendamento_reminder: { Args: never; Returns: undefined }
       send_followup_leads: { Args: never; Returns: Json }
+      set_followup_engine_mode_v2: {
+        Args: { p_engine_mode: string; p_id_empresa: number }
+        Returns: Json
+      }
+      simulate_followup_dispatches_v2: {
+        Args: { p_id_empresa?: number; p_limit?: number }
+        Returns: Json
+      }
       upsert_leads_batch: { Args: { leads_data: Json }; Returns: undefined }
     }
     Enums: {
@@ -4610,12 +5635,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -4639,11 +5664,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -4664,11 +5689,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -4689,11 +5714,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -4706,11 +5731,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
