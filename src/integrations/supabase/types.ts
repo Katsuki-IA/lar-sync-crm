@@ -5521,6 +5521,10 @@ export type Database = {
         }[]
       }
       get_full_schema_info: { Args: never; Returns: Json }
+      gloria_leads_por_empreendimento: {
+        Args: { p_mes: string }
+        Returns: Json
+      }
       import_followup_v1_config_v2: {
         Args: { p_id_empresa: number }
         Returns: Json
