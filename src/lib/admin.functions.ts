@@ -29,6 +29,9 @@ const CRM_DISPATCH_WITHOUT_CONTACT_STAGE_NAME_SET = new Set<string>(
 
 const AI_TECHNICAL_EMAIL_PATTERN = /^ia\+\d+@hub\.katsuki\.local$/i;
 
+const COMPANY_ACTIVITY_WINDOW_DAYS = 7;
+const COMPANY_ACTIVITY_MIN_LEADS = 2;
+
 function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
 }
@@ -310,15 +313,41 @@ export const listEmpresas = createServerFn({ method: "GET" })
       .in("id", allowed)
       .order("id", { ascending: true });
     if (error) throw new Error(error.message);
-    const { data: counts } = await supabaseAdmin
-      .from("crm_users")
-      .select("id_empresa")
-      .in("id_empresa", allowed);
+    const activityCutoff = new Date(
+      Date.now() - COMPANY_ACTIVITY_WINDOW_DAYS * 24 * 60 * 60 * 1000,
+    ).toISOString();
+    const [{ data: counts, error: countsError }, leadCounts] = await Promise.all([
+      supabaseAdmin.from("crm_users").select("id_empresa").in("id_empresa", allowed),
+      Promise.all(
+        allowed.map(async (idEmpresa) => {
+          const { count, error: leadCountError } = await supabaseAdmin
+            .from("lead")
+            .select("id", { count: "exact", head: true })
+            .eq("id_empresa", idEmpresa)
+            .gte("created_at", activityCutoff);
+
+          if (leadCountError) throw new Error(leadCountError.message);
+          return [idEmpresa, count ?? 0] as const;
+        }),
+      ),
+    ]);
+    if (countsError) throw new Error(countsError.message);
+
     const tally = new Map<number, number>();
     (counts ?? []).forEach((u: any) => {
       if (u.id_empresa != null) tally.set(u.id_empresa, (tally.get(u.id_empresa) ?? 0) + 1);
     });
-    return (data ?? []).map((e: any) => ({ ...e, total_usuarios: tally.get(e.id) ?? 0 }));
+    const leadsByCompany = new Map<number, number>(leadCounts);
+
+    return (data ?? []).map((e: any) => {
+      const leadsUltimos7Dias = leadsByCompany.get(e.id) ?? 0;
+      return {
+        ...e,
+        total_usuarios: tally.get(e.id) ?? 0,
+        leads_ultimos_7_dias: leadsUltimos7Dias,
+        atividade_ativa: leadsUltimos7Dias >= COMPANY_ACTIVITY_MIN_LEADS,
+      };
+    });
   });
 
 // -------- Empresas Hub com envio ao CRM configurável (super admin) --------
