@@ -224,38 +224,44 @@ function ConversationsPage() {
     enabled: !!me && !!activeEmpresaId,
     queryKey: ["conversations", activeEmpresaId],
     queryFn: async (): Promise<ConversationItem[]> => {
-      const { data: leadRows, error } = await supabase
+      const { data: crmRows, error: crmError } = await supabase
+        .from("crm_leads")
+        .select("id,nome,telefone,email,crm_assigned_to,lead_quente")
+        .eq("id_empresa", activeEmpresaId!);
+
+      if (crmError) throw crmError;
+
+      const companyCrmLeads = (crmRows ?? []) as CrmLeadLite[];
+      if (!companyCrmLeads.length) return [];
+
+      const crmIds = companyCrmLeads.map((row) => String(row.id));
+      const { data: leadRows, error: leadError } = await supabase
         .from("lead")
         .select(
           "id,id_empresa,nome,numero,email,id_crm,lead_quente,qtd_interacoes,ult_message,last_mesage,last_message_timestamp,crm_assigned_to,created_at,updated_at",
         )
-        .eq("id_empresa", activeEmpresaId!);
+        .eq("id_empresa", activeEmpresaId!)
+        .in("id_crm", crmIds);
 
-      if (error) throw error;
+      if (leadError) throw leadError;
 
-      const rows = ((leadRows ?? []) as LeadConversationRow[])
-        .filter((row) => row.id_crm || row.numero)
-        .sort((a, b) => timestampMs(conversationTimestamp(b)) - timestampMs(conversationTimestamp(a)));
+      const crmMap = new Map(companyCrmLeads.map((row) => [row.id, row]));
+      const latestLegacyLeadByCrmId = new Map<number, LeadConversationRow>();
 
-      const crmIds = Array.from(new Set(rows.map((row) => crmLeadId(row.id_crm)).filter((id): id is number => id != null)));
-      let crmMap = new Map<number, CrmLeadLite>();
+      for (const row of (leadRows ?? []) as LeadConversationRow[]) {
+        const id = crmLeadId(row.id_crm);
+        if (id == null || !crmMap.has(id)) continue;
 
-      if (crmIds.length) {
-        const { data: crmRows, error: crmError } = await supabase
-          .from("crm_leads")
-          .select("id,nome,telefone,email,crm_assigned_to,lead_quente")
-          .in("id", crmIds);
-
-        if (crmError) throw crmError;
-        crmMap = new Map((crmRows ?? []).map((row) => [row.id, row as CrmLeadLite]));
+        const current = latestLegacyLeadByCrmId.get(id);
+        if (!current || timestampMs(conversationTimestamp(row)) > timestampMs(conversationTimestamp(current))) {
+          latestLegacyLeadByCrmId.set(id, row);
+        }
       }
 
-      return rows
-        .map((row) => ({
-          ...row,
-          crmLead: crmMap.get(crmLeadId(row.id_crm) ?? 0) ?? null,
-        }))
-        .filter((row) => row.crmLead);
+      return Array.from(latestLegacyLeadByCrmId.entries())
+        .map(([id, row]) => ({ ...row, crmLead: crmMap.get(id) ?? null }))
+        .filter((row): row is ConversationItem => row.crmLead != null)
+        .sort((a, b) => timestampMs(conversationTimestamp(b)) - timestampMs(conversationTimestamp(a)));
     },
   });
 
