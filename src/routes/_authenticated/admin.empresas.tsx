@@ -18,12 +18,7 @@ function EmpresasPage() {
 
   return (
     <Card className="p-4">
-      <div className="mb-4">
-        <h2 className="text-lg font-medium">Empresas ({data.length})</h2>
-        <p className="text-sm text-muted-foreground">
-          Uma empresa é considerada ativa quando recebe ao menos 2 leads nos últimos 7 dias.
-        </p>
-      </div>
+      <h2 className="text-lg font-medium mb-4">Empresas ({data.length})</h2>
       {isLoading ? (
         <div className="text-sm text-muted-foreground">Carregando…</div>
       ) : (
@@ -34,7 +29,6 @@ function EmpresasPage() {
                 <th className="text-left px-4 py-2">ID</th>
                 <th className="text-left px-4 py-2">Nome</th>
                 <th className="text-left px-4 py-2">Usuários</th>
-                <th className="text-left px-4 py-2">Atividade</th>
                 <th className="text-left px-4 py-2">Criada em</th>
               </tr>
             </thead>
@@ -43,29 +37,8 @@ function EmpresasPage() {
                 <tr key={e.id} className="border-t border-border">
                   <td className="px-4 py-2 font-mono text-xs">{e.id}</td>
                   <td className="px-4 py-2 font-medium">{e.nome ?? "—"}</td>
-                  <td className="px-4 py-2">
-                    <Badge variant="secondary">{e.total_usuarios}</Badge>
-                  </td>
-                  <td className="px-4 py-2">
-                    <div className="flex items-center gap-2">
-                      <Badge
-                        variant="outline"
-                        className={
-                          e.atividade_ativa
-                            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                            : "border-red-200 bg-red-50 text-red-700"
-                        }
-                      >
-                        {e.atividade_ativa ? "Ativa" : "Inativa"}
-                      </Badge>
-                      <span className="text-xs text-muted-foreground">
-                        {e.leads_ultimos_7_dias} {e.leads_ultimos_7_dias === 1 ? "lead" : "leads"}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-2 text-muted-foreground">
-                    {e.created_at ? new Date(e.created_at).toLocaleDateString("pt-BR") : "—"}
-                  </td>
+                  <td className="px-4 py-2"><Badge variant="secondary">{e.total_usuarios}</Badge></td>
+                  <td className="px-4 py-2 text-muted-foreground">{e.created_at ? new Date(e.created_at).toLocaleDateString("pt-BR") : "—"}</td>
                 </tr>
               ))}
             </tbody>
