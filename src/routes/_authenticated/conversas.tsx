@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowUpRight,
   Bot,
@@ -76,7 +76,11 @@ function messageToText(message: Json | null): string {
   if (message == null) return "";
   if (typeof message === "string") return message;
   if (typeof message === "number" || typeof message === "boolean") return String(message);
-  if (Array.isArray(message)) return message.map((item) => messageToText(item)).filter(Boolean).join("\n");
+  if (Array.isArray(message))
+    return message
+      .map((item) => messageToText(item))
+      .filter(Boolean)
+      .join("\n");
 
   const record = message as Record<string, Json>;
   const preferredKeys = ["content", "text", "message", "output", "body"];
@@ -100,13 +104,15 @@ function extractActivityBlock(text: string, marker: string) {
   let body = text.slice(start + marker.length);
   body = body.replace(/^\s*\n?-{3,}\n?/, "");
 
-  const nextIndexes = ACTIVITY_BLOCK_MARKERS
-    .filter((candidate) => candidate !== marker)
+  const nextIndexes = ACTIVITY_BLOCK_MARKERS.filter((candidate) => candidate !== marker)
     .map((candidate) => body.indexOf(candidate))
     .filter((index) => index >= 0);
 
   const end = nextIndexes.length ? Math.min(...nextIndexes) : body.length;
-  const value = body.slice(0, end).replace(/-{3,}\s*$/, "").trim();
+  const value = body
+    .slice(0, end)
+    .replace(/-{3,}\s*$/, "")
+    .trim();
   return value || null;
 }
 
@@ -152,9 +158,10 @@ function parseDateValue(value?: string | number | null) {
   if (!raw) return "—";
 
   const numeric = Number(raw);
-  const date = Number.isFinite(numeric) && /^\d+$/.test(raw)
-    ? new Date(raw.length <= 10 ? numeric * 1000 : numeric)
-    : new Date(raw);
+  const date =
+    Number.isFinite(numeric) && /^\d+$/.test(raw)
+      ? new Date(raw.length <= 10 ? numeric * 1000 : numeric)
+      : new Date(raw);
 
   return Number.isNaN(date.getTime()) ? null : date;
 }
@@ -168,14 +175,18 @@ function formatTime(value?: string | number | null) {
 function formatDateTime(value?: string | number | null) {
   const date = parseDateValue(value);
   if (!date || date === "—") return "—";
-  return date.toLocaleDateString("pt-BR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  }) + " " + date.toLocaleTimeString("pt-BR", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return (
+    date.toLocaleDateString("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    }) +
+    " " +
+    date.toLocaleTimeString("pt-BR", {
+      hour: "2-digit",
+      minute: "2-digit",
+    })
+  );
 }
 
 function formatDateLabel(value?: string | number | null) {
@@ -223,6 +234,7 @@ function ConversationsPage() {
   const conversationsQuery = useQuery({
     enabled: !!me && !!activeEmpresaId,
     queryKey: ["conversations", activeEmpresaId],
+    refetchInterval: 30_000,
     queryFn: async (): Promise<ConversationItem[]> => {
       const { data: crmRows, error: crmError } = await supabase
         .from("crm_leads")
@@ -253,7 +265,10 @@ function ConversationsPage() {
         if (id == null || !crmMap.has(id)) continue;
 
         const current = latestLegacyLeadByCrmId.get(id);
-        if (!current || timestampMs(conversationTimestamp(row)) > timestampMs(conversationTimestamp(current))) {
+        if (
+          !current ||
+          timestampMs(conversationTimestamp(row)) > timestampMs(conversationTimestamp(current))
+        ) {
           latestLegacyLeadByCrmId.set(id, row);
         }
       }
@@ -261,12 +276,16 @@ function ConversationsPage() {
       return Array.from(latestLegacyLeadByCrmId.entries())
         .map(([id, row]) => ({ ...row, crmLead: crmMap.get(id) ?? null }))
         .filter((row): row is ConversationItem => row.crmLead != null)
-        .sort((a, b) => timestampMs(conversationTimestamp(b)) - timestampMs(conversationTimestamp(a)));
+        .sort(
+          (a, b) => timestampMs(conversationTimestamp(b)) - timestampMs(conversationTimestamp(a)),
+        );
     },
   });
 
   const conversations = conversationsQuery.data ?? [];
-  useEffect(() => { setSelectedId(null); }, [activeEmpresaId]);
+  useEffect(() => {
+    setSelectedId(null);
+  }, [activeEmpresaId]);
   useEffect(() => {
     if (!lead || !conversations.length) return;
     const leadId = Number(lead);
@@ -299,55 +318,48 @@ function ConversationsPage() {
     return filteredConversations.find((item) => item.id === selectedId) ?? filteredConversations[0];
   }, [filteredConversations, selectedId]);
 
-const messageQuery = useQuery({
-  enabled: !!selectedConversation,
-  queryKey: [
-    "conversation-messages",
-    selectedConversation?.id,
-  ],
-  staleTime: 0,
-  refetchOnMount: "always",
-  queryFn: async (): Promise<ConversationMessage[]> => {
-    if (!selectedConversation) return [];
+  const messageQuery = useQuery({
+    enabled: !!selectedConversation,
+    queryKey: ["conversation-messages", selectedConversation?.id],
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchInterval: 30_000,
+    queryFn: async (): Promise<ConversationMessage[]> => {
+      if (!selectedConversation) return [];
 
-    const sortMessages = (messages: ConversationMessage[]) =>
-      [...messages].sort((a, b) => {
-        const timeDifference =
-          timestampMs(b.time ?? b.created_at) -
-          timestampMs(a.time ?? a.created_at);
+      const sortMessages = (messages: ConversationMessage[]) =>
+        [...messages].sort((a, b) => {
+          const timeDifference =
+            timestampMs(a.time ?? a.created_at) - timestampMs(b.time ?? b.created_at);
 
-        return (
-          timeDifference ||
-          b.id.localeCompare(a.id, undefined, { numeric: true })
-        );
-      });
+          return timeDifference || a.id.localeCompare(b.id, undefined, { numeric: true });
+        });
 
-    const mapChatRows = (rows: HubConversationMessageRow[]) =>
-      rows
-        .filter((message) => !isToolMessage(message.type, message.message))
-        .map((message) => ({
-          id: `chat-${message.id}`,
-          type: message.type,
-          message: message.message,
-          time: message.time,
-          created_at: message.created_at,
-        }));
+      const mapChatRows = (rows: HubConversationMessageRow[]) =>
+        rows
+          .filter((message) => !isToolMessage(message.type, message.message))
+          .map((message) => ({
+            id: `chat-${message.id}`,
+            type: message.type,
+            message: message.message,
+            time: message.time,
+            created_at: message.created_at,
+          }));
 
-    const fetchChatMessages = async () => {
-      const { data, error } = await supabase.rpc(
-        "crm_hub_conversation_messages",
-        { p_lead_id: selectedConversation.id },
-      );
-      if (error) throw error;
+      const fetchChatMessages = async () => {
+        const { data, error } = await supabase.rpc("crm_hub_conversation_messages", {
+          p_lead_id: selectedConversation.id,
+        });
+        if (error) throw error;
 
-      return mapChatRows(data ?? []);
-    };
+        return mapChatRows(data ?? []);
+      };
 
-    const chatMessages = await fetchChatMessages();
+      const chatMessages = await fetchChatMessages();
 
-    if (chatMessages.length || !selectedConversation.crmLead?.id) {
-      return sortMessages(chatMessages);
-    }
+      if (chatMessages.length || !selectedConversation.crmLead?.id) {
+        return sortMessages(chatMessages);
+      }
 
       const { data: activityRows, error: activityError } = await supabase
         .from("crm_lead_activities")
@@ -359,21 +371,41 @@ const messageQuery = useQuery({
 
       if (activityError) throw activityError;
 
-      const followupMessages = ((activityRows ?? []) as LeadActivityRow[]).flatMap(activityToConversationMessages);
+      const followupMessages = ((activityRows ?? []) as LeadActivityRow[]).flatMap(
+        activityToConversationMessages,
+      );
 
-    return sortMessages(followupMessages);
-  },
-});
+      return sortMessages(followupMessages);
+    },
+  });
 
-  const selectedLeadName = selectedConversation?.crmLead?.nome ?? selectedConversation?.nome ?? "Conversa";
-  const selectedLeadPhone = selectedConversation?.crmLead?.telefone ?? selectedConversation?.numero ?? "Sem telefone";
+  const selectedLeadName =
+    selectedConversation?.crmLead?.nome ?? selectedConversation?.nome ?? "Conversa";
+  const selectedLeadPhone =
+    selectedConversation?.crmLead?.telefone ?? selectedConversation?.numero ?? "Sem telefone";
+  const messagesScrollRef = useRef<HTMLDivElement>(null);
+  const latestMessageId = messageQuery.data?.at(-1)?.id;
+
+  useEffect(() => {
+    if (!latestMessageId) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      const container = messagesScrollRef.current;
+      if (container) container.scrollTop = container.scrollHeight;
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [selectedConversation?.id, latestMessageId]);
+
   const messageRows = useMemo(() => {
     const messages = messageQuery.data ?? [];
 
     return messages.map((message, index) => {
       const currentDateValue = message.time ?? message.created_at;
       const previousMessage = messages[index - 1];
-      const previousDateValue = previousMessage ? previousMessage.time ?? previousMessage.created_at : null;
+      const previousDateValue = previousMessage
+        ? (previousMessage.time ?? previousMessage.created_at)
+        : null;
 
       return {
         message,
@@ -388,7 +420,9 @@ const messageQuery = useQuery({
       <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Conversas</h1>
-          <p className="text-sm text-muted-foreground">Histórico de atendimento dos leads pela IA.</p>
+          <p className="text-sm text-muted-foreground">
+            Histórico de atendimento dos leads pela IA.
+          </p>
         </div>
         <Badge variant="outline" className="hidden sm:inline-flex">
           {filteredConversations.length} conversa{filteredConversations.length === 1 ? "" : "s"}
@@ -446,13 +480,21 @@ const messageQuery = useQuery({
                               <Flame className="h-3.5 w-3.5 shrink-0 text-orange-500" />
                             ) : null}
                           </div>
-                          <p className="mt-1 truncate text-xs text-muted-foreground">{phone || "Sem telefone"}</p>
+                          <p className="mt-1 truncate text-xs text-muted-foreground">
+                            {phone || "Sem telefone"}
+                          </p>
                           {preview ? (
-                            <p className="mt-2 line-clamp-2 text-xs text-muted-foreground">{preview}</p>
+                            <p className="mt-2 line-clamp-2 text-xs text-muted-foreground">
+                              {preview}
+                            </p>
                           ) : null}
                         </div>
                         <div className="shrink-0 text-right text-[11px] text-muted-foreground">
-                          <div>{formatDateTime(conversation.last_message_timestamp ?? conversation.updated_at)}</div>
+                          <div>
+                            {formatDateTime(
+                              conversation.last_message_timestamp ?? conversation.updated_at,
+                            )}
+                          </div>
                           {conversation.crmLead?.id ? (
                             <div className="mt-2 font-medium">#{conversation.crmLead.id}</div>
                           ) : null}
@@ -477,8 +519,11 @@ const messageQuery = useQuery({
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <h2 className="truncate font-semibold">{selectedLeadName}</h2>
-                      {selectedConversation.lead_quente || selectedConversation.crmLead?.lead_quente ? (
-                        <Badge className="bg-orange-100 text-orange-700 hover:bg-orange-100">Quente</Badge>
+                      {selectedConversation.lead_quente ||
+                      selectedConversation.crmLead?.lead_quente ? (
+                        <Badge className="bg-orange-100 text-orange-700 hover:bg-orange-100">
+                          Quente
+                        </Badge>
                       ) : null}
                     </div>
                     <p className="truncate text-xs text-muted-foreground">{selectedLeadPhone}</p>
@@ -495,7 +540,7 @@ const messageQuery = useQuery({
                 ) : null}
               </header>
 
-              <div className="flex-1 overflow-y-auto bg-background p-4">
+              <div ref={messagesScrollRef} className="flex-1 overflow-y-auto bg-background p-4">
                 {messageQuery.isLoading ? (
                   <div className="rounded-lg bg-background/90 px-4 py-3 text-sm text-muted-foreground shadow-sm">
                     Carregando mensagens...
@@ -548,7 +593,10 @@ const messageQuery = useQuery({
               </div>
 
               <footer className="border-t bg-background px-4 py-3 text-xs text-muted-foreground">
-                Última mensagem: {formatDateTime(selectedConversation.last_message_timestamp ?? selectedConversation.updated_at)}
+                Última mensagem:{" "}
+                {formatDateTime(
+                  selectedConversation.last_message_timestamp ?? selectedConversation.updated_at,
+                )}
               </footer>
             </>
           ) : (
