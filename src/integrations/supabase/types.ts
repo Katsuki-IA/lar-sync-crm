@@ -5310,6 +5310,15 @@ export type Database = {
           wa_username: string
         }[]
       }
+      crm_whatsapp_conversation_windows: {
+        Args: { p_id_empresa: number; p_lead_ids?: number[] }
+        Returns: {
+          last_inbound_at: string
+          lead_id: number
+          window_expires_at: string
+          window_open: boolean
+        }[]
+      }
       crm_whatsapp_set_conversation_attendance: {
         Args: { p_enabled: boolean; p_force?: boolean; p_lead_id: number }
         Returns: {

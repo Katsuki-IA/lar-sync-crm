@@ -36,6 +36,8 @@ export const Route = createFileRoute("/_authenticated/conversas")({
 
 type ConversationItem =
   Database["public"]["Functions"]["crm_whatsapp_list_conversations"]["Returns"][number];
+type ConversationWindow =
+  Database["public"]["Functions"]["crm_whatsapp_conversation_windows"]["Returns"][number];
 type WhatsappConversationMessageRow =
   Database["public"]["Functions"]["crm_whatsapp_conversation_messages_v2"]["Returns"][number];
 
@@ -165,7 +167,12 @@ function timestampMs(value?: string | null) {
 }
 
 function previewText(row: ConversationItem) {
-  return row.last_message?.trim() || null;
+  const preview = row.last_message?.trim();
+  if (!preview) return null;
+
+  // Alguns registros legados guardaram o timestamp no campo de prévia.
+  if (/^\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2}/.test(preview)) return null;
+  return preview;
 }
 
 function ConversationsPage() {
@@ -197,6 +204,27 @@ function ConversationsPage() {
   });
 
   const conversations = useMemo(() => conversationsQuery.data ?? [], [conversationsQuery.data]);
+  const conversationLeadIds = useMemo(
+    () => conversations.map((conversation) => conversation.lead_id),
+    [conversations],
+  );
+  const windowsQuery = useQuery({
+    enabled: !!activeEmpresaId && conversationLeadIds.length > 0,
+    queryKey: ["whatsapp-conversation-windows", activeEmpresaId, conversationLeadIds],
+    refetchInterval: 30_000,
+    queryFn: async (): Promise<ConversationWindow[]> => {
+      const { data, error } = await supabase.rpc("crm_whatsapp_conversation_windows", {
+        p_id_empresa: activeEmpresaId!,
+        p_lead_ids: conversationLeadIds,
+      });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+  const windowsByLeadId = useMemo(
+    () => new Map((windowsQuery.data ?? []).map((window) => [window.lead_id, window])),
+    [windowsQuery.data],
+  );
   useEffect(() => {
     setSelectedId(null);
   }, [activeEmpresaId]);
@@ -330,7 +358,13 @@ function ConversationsPage() {
     !!selectedConversation?.assigned_to && selectedConversation.assigned_to === me?.id;
   const assignedToOther = !!selectedConversation?.assigned_to && !assignedToMe;
   const canForceAssignment = me?.role === "manager" || me?.role === "super_admin";
-  const canSendMessage = !!selectedConversation?.atendimento_humano && assignedToMe;
+  const selectedWindow = selectedConversation
+    ? windowsByLeadId.get(selectedConversation.lead_id)
+    : null;
+  const canSendMessage =
+    !!selectedConversation?.atendimento_humano &&
+    assignedToMe &&
+    selectedWindow?.window_open === true;
   const trimmedDraft = draft.trim();
   const submitMessage = () => {
     if (!selectedConversation || !canSendMessage || !trimmedDraft || trimmedDraft.length > 4096) {
@@ -423,6 +457,7 @@ function ConversationsPage() {
               <div className="divide-y">
                 {conversations.map((conversation) => {
                   const active = selectedConversation?.lead_id === conversation.lead_id;
+                  const conversationWindow = windowsByLeadId.get(conversation.lead_id);
                   const identity =
                     conversation.telefone ||
                     conversation.wa_username ||
@@ -447,15 +482,24 @@ function ConversationsPage() {
                             <p className="truncate font-medium">
                               {conversation.nome || "Sem nome"}
                             </p>
+                            {conversationWindow?.window_open ? (
+                              <span
+                                className="h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20"
+                                aria-label="Janela de 24 horas aberta"
+                                title={`Janela aberta até ${formatDateTime(conversationWindow.window_expires_at)}`}
+                              />
+                            ) : null}
                           </div>
                           <p className="mt-1 truncate text-xs text-muted-foreground">
                             {identity || "Contato sem telefone"}
                           </p>
                           {conversation.atendimento_humano ? (
                             <Badge variant="secondary" className="mt-2 max-w-full truncate">
-                              {conversation.assigned_name
-                                ? `Com ${conversation.assigned_name}`
-                                : "Aguardando atendente"}
+                              {conversation.assigned_to === me?.id
+                                ? "Com você"
+                                : conversation.assigned_name
+                                  ? `Com ${conversation.assigned_name}`
+                                  : "Aguardando atendente"}
                             </Badge>
                           ) : null}
                           {preview ? (
@@ -497,9 +541,9 @@ function ConversationsPage() {
                       ) : null}
                     </div>
                     <p className="truncate text-xs text-muted-foreground">{selectedLeadIdentity}</p>
-                    {selectedConversation.assigned_name ? (
+                    {assignedToMe || selectedConversation.assigned_name ? (
                       <p className="truncate text-xs text-muted-foreground">
-                        Responsável: {selectedConversation.assigned_name}
+                        Responsável: {assignedToMe ? "você" : selectedConversation.assigned_name}
                       </p>
                     ) : null}
                   </div>
@@ -679,7 +723,11 @@ function ConversationsPage() {
                   <div className="rounded-lg border border-dashed px-3 py-2 text-sm text-muted-foreground">
                     {assignedToOther
                       ? `Conversa em atendimento por ${selectedConversation.assigned_name || "outro atendente"}.`
-                      : "Assuma a conversa para enviar mensagens manualmente."}
+                      : assignedToMe && windowsQuery.isLoading
+                        ? "Verificando a janela de atendimento da Meta..."
+                        : assignedToMe && !selectedWindow?.window_open
+                          ? "A janela de 24 horas está fechada. Aguarde o lead enviar uma nova mensagem para responder manualmente."
+                          : "Assuma a conversa para enviar mensagens manualmente."}
                   </div>
                 )}
 

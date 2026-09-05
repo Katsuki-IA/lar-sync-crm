@@ -171,6 +171,20 @@ Deno.serve(async (req) => {
       throw new Error("Esta conversa está atribuída a outro atendente");
     }
 
+    const { data: windowData, error: windowError } = await admin.rpc(
+      "crm_whatsapp_conversation_windows",
+      {
+        p_id_empresa: lead.id_empresa,
+        p_lead_ids: [lead.id],
+      },
+    );
+    if (windowError) throw new Error(windowError.message);
+    if (!windowData?.[0]?.window_open) {
+      throw new Error(
+        "A janela de 24 horas está fechada. Aguarde o lead enviar uma nova mensagem.",
+      );
+    }
+
     let identity: IdentityRow | null = null;
     if (lead.wa_identity_id) {
       const { data, error } = await admin
@@ -298,40 +312,47 @@ Deno.serve(async (req) => {
       normalizeRecipient(identity?.wa_user_id) ??
       normalizeRecipient(lead.wa_user_id);
 
-    const { error: transportError } = await admin.from("wa_messages").upsert(
-      {
-        phone_number_id: phoneNumberId,
-        message_id: messageId,
-        client_message_id: clientMessageId,
-        direction: "outbound",
-        from_wa_id: fromWaId,
-        to_wa_id: resolvedWaId,
-        to_user_id: resolvedUserId,
-        to_username: identity?.username ?? lead.wa_username,
-        type: "text",
-        text_body: text,
-        timestamp_meta: now,
-        sent_at: now,
-        status_current: status,
-        status_last_at: now,
-        tenant_id: lead.id_empresa,
-        wa_identity_id: lead.wa_identity_id,
-        conversation_key: lead.conversation_key ?? identity?.conversation_key,
-        legacy_conversation_key: lead.legacy_conversation_key ?? identity?.legacy_conversation_key,
-        raw: {
-          source: "hub_human",
-          recipient_kind: recipientPhone ? "wa_id" : "bsuid",
-          request: requestPayload,
-          response: graphResult,
+    const { data: transportData, error: transportError } = await admin
+      .from("wa_messages")
+      .upsert(
+        {
+          phone_number_id: phoneNumberId,
+          message_id: messageId,
+          client_message_id: clientMessageId,
+          direction: "outbound",
+          from_wa_id: fromWaId,
+          to_wa_id: resolvedWaId,
+          to_user_id: resolvedUserId,
+          to_username: identity?.username ?? lead.wa_username,
+          type: "text",
+          text_body: text,
+          timestamp_meta: now,
+          sent_at: now,
+          status_current: status,
+          status_last_at: now,
+          tenant_id: lead.id_empresa,
+          wa_identity_id: lead.wa_identity_id,
+          conversation_key: lead.conversation_key ?? identity?.conversation_key,
+          legacy_conversation_key:
+            lead.legacy_conversation_key ?? identity?.legacy_conversation_key,
+          raw: {
+            source: "hub_human",
+            recipient_kind: recipientPhone ? "wa_id" : "bsuid",
+            request: requestPayload,
+            response: graphResult,
+          },
+          updated_at: now,
         },
-        updated_at: now,
-      },
-      { onConflict: "phone_number_id,message_id" },
-    );
+        { onConflict: "phone_number_id,message_id" },
+      )
+      .select("id")
+      .single();
     if (transportError)
       throw new Error(
         `Mensagem enviada, mas o histórico técnico falhou: ${transportError.message}`,
       );
+    if (!transportData?.id)
+      throw new Error("Mensagem enviada, mas o transporte não retornou o vínculo do histórico");
 
     const phone = normalizePhone(identity?.telefone) ?? normalizePhone(lead.numero);
     const { error: historyError } = await admin.from("n8n_chat_conversas").insert({
@@ -346,6 +367,7 @@ Deno.serve(async (req) => {
       wa_username: identity?.username ?? lead.wa_username,
       conversation_key: lead.conversation_key ?? identity?.conversation_key,
       legacy_conversation_key: lead.legacy_conversation_key ?? identity?.legacy_conversation_key,
+      wa_message_id: transportData.id,
     });
     if (historyError)
       throw new Error(
