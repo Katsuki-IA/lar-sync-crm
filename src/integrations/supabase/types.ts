@@ -3889,6 +3889,7 @@ export type Database = {
       lead: {
         Row: {
           atendimento_humano: boolean | null
+          atendimento_humano_desde: string | null
           ativacao: boolean | null
           conversation_key: string | null
           created_at: string | null
@@ -3919,6 +3920,8 @@ export type Database = {
           status_history: string | null
           ult_message: string | null
           updated_at: string | null
+          wa_conversation_assigned_at: string | null
+          wa_conversation_assigned_to: string | null
           wa_identity_id: string | null
           wa_parent_user_id: string | null
           wa_user_id: string | null
@@ -3926,6 +3929,7 @@ export type Database = {
         }
         Insert: {
           atendimento_humano?: boolean | null
+          atendimento_humano_desde?: string | null
           ativacao?: boolean | null
           conversation_key?: string | null
           created_at?: string | null
@@ -3956,6 +3960,8 @@ export type Database = {
           status_history?: string | null
           ult_message?: string | null
           updated_at?: string | null
+          wa_conversation_assigned_at?: string | null
+          wa_conversation_assigned_to?: string | null
           wa_identity_id?: string | null
           wa_parent_user_id?: string | null
           wa_user_id?: string | null
@@ -3963,6 +3969,7 @@ export type Database = {
         }
         Update: {
           atendimento_humano?: boolean | null
+          atendimento_humano_desde?: string | null
           ativacao?: boolean | null
           conversation_key?: string | null
           created_at?: string | null
@@ -3993,12 +4000,21 @@ export type Database = {
           status_history?: string | null
           ult_message?: string | null
           updated_at?: string | null
+          wa_conversation_assigned_at?: string | null
+          wa_conversation_assigned_to?: string | null
           wa_identity_id?: string | null
           wa_parent_user_id?: string | null
           wa_user_id?: string | null
           wa_username?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "lead_wa_conversation_assigned_to_fkey"
+            columns: ["wa_conversation_assigned_to"]
+            isOneToOne: false
+            referencedRelation: "crm_users"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "lead_crm_assigned_to_fkey"
             columns: ["crm_assigned_to"]
@@ -5225,6 +5241,64 @@ export type Database = {
           numero: string
           time: string
           type: string
+        }[]
+      }
+      crm_whatsapp_conversation_messages: {
+        Args: {
+          p_before_id?: number
+          p_lead_id: number
+          p_limit?: number
+        }
+        Returns: {
+          created_at: string
+          id: number
+          message: Json
+          numero: string
+          time: string
+          type: string
+        }[]
+      }
+      crm_whatsapp_list_conversations: {
+        Args: {
+          p_id_empresa: number
+          p_limit?: number
+          p_offset?: number
+          p_only_human?: boolean
+          p_search?: string
+        }
+        Returns: {
+          assigned_at: string
+          assigned_name: string
+          assigned_to: string
+          atendimento_humano: boolean
+          atendimento_humano_desde: string
+          conversation_key: string
+          display_name: string
+          id_crm: string
+          id_empresa: number
+          last_message: string
+          last_message_at: string
+          lead_id: number
+          legacy_conversation_key: string
+          nome: string
+          status: string
+          telefone: string
+          total_count: number
+          wa_identity_id: string
+          wa_user_id: string
+          wa_username: string
+        }[]
+      }
+      crm_whatsapp_set_conversation_attendance: {
+        Args: { p_enabled: boolean; p_force?: boolean; p_lead_id: number }
+        Returns: {
+          assigned_at: string
+          assigned_name: string
+          assigned_to: string
+          atendimento_humano: boolean
+          atendimento_humano_desde: string
+          id_empresa: number
+          lead_id: number
         }[]
       }
       crm_ingest_meta_lead: {

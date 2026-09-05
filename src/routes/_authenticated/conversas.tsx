@@ -1,16 +1,19 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowUpRight,
   Bot,
-  Flame,
+  BotOff,
   Inbox,
   MessageCircle,
   MessagesSquare,
   Search,
+  Send,
+  UserCheck,
   UserRound,
 } from "lucide-react";
+import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
 import type { Database, Json } from "@/integrations/supabase/types";
@@ -19,6 +22,7 @@ import { useCrmUser } from "@/hooks/use-crm-user";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/conversas")({
@@ -28,26 +32,10 @@ export const Route = createFileRoute("/_authenticated/conversas")({
   component: ConversationsPage,
 });
 
-type LeadConversationRow = Database["public"]["Tables"]["lead"]["Row"];
-type HubConversationMessageRow =
-  Database["public"]["Functions"]["crm_hub_conversation_messages"]["Returns"][number];
-type LeadActivityRow = Pick<
-  Database["public"]["Tables"]["crm_lead_activities"]["Row"],
-  "id" | "descricao" | "created_at" | "tipo"
->;
-
-type CrmLeadLite = {
-  id: number;
-  nome: string;
-  telefone: string;
-  email: string | null;
-  crm_assigned_to: string | null;
-  lead_quente: boolean | null;
-};
-
-type ConversationItem = LeadConversationRow & {
-  crmLead: CrmLeadLite | null;
-};
+type ConversationItem =
+  Database["public"]["Functions"]["crm_whatsapp_list_conversations"]["Returns"][number];
+type WhatsappConversationMessageRow =
+  Database["public"]["Functions"]["crm_whatsapp_conversation_messages"]["Returns"][number];
 
 type ConversationMessage = {
   id: string;
@@ -57,14 +45,11 @@ type ConversationMessage = {
   created_at: string | null;
 };
 
-const ACTIVITY_BLOCK_MARKERS = [
-  "Mensagem recebida do lead:",
-  "Resposta enviada pela IA:",
-  "Mensagem enviada pela IA:",
-  "Mensagem enviada ao lead:",
-  "Mensagem enviada:",
-  "Followup enviado:",
-];
+type SendMessageResult = {
+  ok: true;
+  messageId: string;
+  status: string | null;
+};
 
 function crmLeadId(value?: string | null) {
   if (!value) return null;
@@ -97,59 +82,17 @@ function isToolMessage(type: string | null, message: Json | null) {
   return /^calling\s+.+\s+with\s+input\s*:/i.test(messageToText(message).trim());
 }
 
-function extractActivityBlock(text: string, marker: string) {
-  const start = text.indexOf(marker);
-  if (start < 0) return null;
-
-  let body = text.slice(start + marker.length);
-  body = body.replace(/^\s*\n?-{3,}\n?/, "");
-
-  const nextIndexes = ACTIVITY_BLOCK_MARKERS.filter((candidate) => candidate !== marker)
-    .map((candidate) => body.indexOf(candidate))
-    .filter((index) => index >= 0);
-
-  const end = nextIndexes.length ? Math.min(...nextIndexes) : body.length;
-  const value = body
-    .slice(0, end)
-    .replace(/-{3,}\s*$/, "")
-    .trim();
-  return value || null;
-}
-
-function activityToConversationMessages(activity: LeadActivityRow): ConversationMessage[] {
-  const description = activity.descricao ?? "";
-  if (!description.trim()) return [];
-
-  const humanMessage = extractActivityBlock(description, "Mensagem recebida do lead:");
-  const aiMessage =
-    extractActivityBlock(description, "Resposta enviada pela IA:") ??
-    extractActivityBlock(description, "Mensagem enviada pela IA:") ??
-    extractActivityBlock(description, "Mensagem enviada ao lead:") ??
-    extractActivityBlock(description, "Mensagem enviada:") ??
-    extractActivityBlock(description, "Followup enviado:");
-
-  const messages: ConversationMessage[] = [];
-  if (humanMessage) {
-    messages.push({
-      id: `activity-${activity.id}-human`,
-      type: "human",
-      message: humanMessage,
-      time: activity.created_at,
-      created_at: activity.created_at,
-    });
+async function functionError(error: unknown, fallback: string) {
+  const context = (error as { context?: unknown } | null)?.context;
+  if (context instanceof Response) {
+    try {
+      const payload = await context.clone().json();
+      if (typeof payload?.error === "string" && payload.error.trim()) return payload.error;
+    } catch {
+      // Mantém a mensagem original do SDK abaixo.
+    }
   }
-
-  if (aiMessage) {
-    messages.push({
-      id: `activity-${activity.id}-ai`,
-      type: "ai",
-      message: aiMessage,
-      time: activity.created_at,
-      created_at: activity.created_at,
-    });
-  }
-
-  return messages;
+  return error instanceof Error && error.message ? error.message : fallback;
 }
 
 function parseDateValue(value?: string | number | null) {
@@ -214,116 +157,63 @@ function timestampMs(value?: string | null) {
   return !date || date === "—" ? 0 : date.getTime();
 }
 
-function conversationTimestamp(row: LeadConversationRow) {
-  return row.last_message_timestamp ?? row.updated_at ?? row.created_at ?? "";
-}
-
 function previewText(row: ConversationItem) {
-  const value = row.ult_message ?? row.last_mesage;
-  if (!value) return null;
-  return parseDateValue(value) ? null : value;
+  return row.last_message?.trim() || null;
 }
 
 function ConversationsPage() {
   const { lead } = Route.useSearch();
   const { data: me } = useCrmUser();
   const { activeEmpresaId } = useActiveEmpresa();
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
+  const deferredSearch = useDeferredValue(search.trim());
+  const [onlyHuman, setOnlyHuman] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [draft, setDraft] = useState("");
 
   const conversationsQuery = useQuery({
     enabled: !!me && !!activeEmpresaId,
-    queryKey: ["conversations", activeEmpresaId],
-    refetchInterval: 30_000,
+    queryKey: ["whatsapp-conversations", activeEmpresaId, deferredSearch, onlyHuman],
+    refetchInterval: 5_000,
     queryFn: async (): Promise<ConversationItem[]> => {
-      const { data: crmRows, error: crmError } = await supabase
-        .from("crm_leads")
-        .select("id,nome,telefone,email,crm_assigned_to,lead_quente")
-        .eq("id_empresa", activeEmpresaId!);
-
-      if (crmError) throw crmError;
-
-      const companyCrmLeads = (crmRows ?? []) as CrmLeadLite[];
-      if (!companyCrmLeads.length) return [];
-
-      const crmIds = companyCrmLeads.map((row) => String(row.id));
-      const { data: leadRows, error: leadError } = await supabase
-        .from("lead")
-        .select(
-          "id,id_empresa,nome,numero,email,id_crm,lead_quente,qtd_interacoes,ult_message,last_mesage,last_message_timestamp,crm_assigned_to,created_at,updated_at",
-        )
-        .eq("id_empresa", activeEmpresaId!)
-        .in("id_crm", crmIds);
-
-      if (leadError) throw leadError;
-
-      const crmMap = new Map(companyCrmLeads.map((row) => [row.id, row]));
-      const latestLegacyLeadByCrmId = new Map<number, LeadConversationRow>();
-
-      for (const row of (leadRows ?? []) as LeadConversationRow[]) {
-        const id = crmLeadId(row.id_crm);
-        if (id == null || !crmMap.has(id)) continue;
-
-        const current = latestLegacyLeadByCrmId.get(id);
-        if (
-          !current ||
-          timestampMs(conversationTimestamp(row)) > timestampMs(conversationTimestamp(current))
-        ) {
-          latestLegacyLeadByCrmId.set(id, row);
-        }
-      }
-
-      return Array.from(latestLegacyLeadByCrmId.entries())
-        .map(([id, row]) => ({ ...row, crmLead: crmMap.get(id) ?? null }))
-        .filter((row): row is ConversationItem => row.crmLead != null)
-        .sort(
-          (a, b) => timestampMs(conversationTimestamp(b)) - timestampMs(conversationTimestamp(a)),
-        );
+      const { data, error } = await supabase.rpc("crm_whatsapp_list_conversations", {
+        p_id_empresa: activeEmpresaId!,
+        p_search: deferredSearch || undefined,
+        p_only_human: onlyHuman,
+        p_limit: 100,
+        p_offset: 0,
+      });
+      if (error) throw error;
+      return data ?? [];
     },
   });
 
-  const conversations = conversationsQuery.data ?? [];
+  const conversations = useMemo(() => conversationsQuery.data ?? [], [conversationsQuery.data]);
   useEffect(() => {
     setSelectedId(null);
   }, [activeEmpresaId]);
+
   useEffect(() => {
     if (!lead || !conversations.length) return;
     const leadId = Number(lead);
     if (!Number.isFinite(leadId)) return;
 
-    const conversation = conversations.find((item) => item.crmLead?.id === leadId);
-    if (conversation) setSelectedId(conversation.id);
+    const conversation = conversations.find((item) => crmLeadId(item.id_crm) === leadId);
+    if (conversation) setSelectedId(conversation.lead_id);
   }, [lead, conversations]);
 
-  const filteredConversations = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    if (!term) return conversations;
-    return conversations.filter((item) => {
-      const fields = [
-        item.nome,
-        item.numero,
-        item.email,
-        item.crmLead?.nome,
-        item.crmLead?.telefone,
-        item.crmLead?.email,
-        item.ult_message,
-        item.last_mesage,
-      ];
-      return fields.some((field) => (field ?? "").toLowerCase().includes(term));
-    });
-  }, [conversations, search]);
-
   const selectedConversation = useMemo(() => {
-    if (!filteredConversations.length) return null;
-    return filteredConversations.find((item) => item.id === selectedId) ?? filteredConversations[0];
-  }, [filteredConversations, selectedId]);
+    if (!conversations.length) return null;
+    return conversations.find((item) => item.lead_id === selectedId) ?? conversations[0];
+  }, [conversations, selectedId]);
 
   const messageQuery = useQuery({
     enabled: !!selectedConversation,
-    queryKey: ["conversation-messages", selectedConversation?.id],
+    queryKey: ["whatsapp-conversation-messages", selectedConversation?.lead_id],
     staleTime: 0,
     refetchOnMount: "always",
-    refetchInterval: 30_000,
+    refetchInterval: 3_000,
     queryFn: async (): Promise<ConversationMessage[]> => {
       if (!selectedConversation) return [];
 
@@ -335,7 +225,7 @@ function ConversationsPage() {
           return timeDifference || a.id.localeCompare(b.id, undefined, { numeric: true });
         });
 
-      const mapChatRows = (rows: HubConversationMessageRow[]) =>
+      const mapChatRows = (rows: WhatsappConversationMessageRow[]) =>
         rows
           .filter((message) => !isToolMessage(message.type, message.message))
           .map((message) => ({
@@ -346,43 +236,96 @@ function ConversationsPage() {
             created_at: message.created_at,
           }));
 
-      const fetchChatMessages = async () => {
-        const { data, error } = await supabase.rpc("crm_hub_conversation_messages", {
-          p_lead_id: selectedConversation.id,
-        });
-        if (error) throw error;
-
-        return mapChatRows(data ?? []);
-      };
-
-      const chatMessages = await fetchChatMessages();
-
-      if (chatMessages.length || !selectedConversation.crmLead?.id) {
-        return sortMessages(chatMessages);
-      }
-
-      const { data: activityRows, error: activityError } = await supabase
-        .from("crm_lead_activities")
-        .select("id,tipo,descricao,created_at")
-        .eq("lead_id", selectedConversation.crmLead.id)
-        .eq("tipo", "whatsapp_automation")
-        .ilike("descricao", "%Followup enviado:%")
-        .order("created_at", { ascending: true });
-
-      if (activityError) throw activityError;
-
-      const followupMessages = ((activityRows ?? []) as LeadActivityRow[]).flatMap(
-        activityToConversationMessages,
-      );
-
-      return sortMessages(followupMessages);
+      const { data, error } = await supabase.rpc("crm_whatsapp_conversation_messages", {
+        p_lead_id: selectedConversation.lead_id,
+        p_limit: 100,
+      });
+      if (error) throw error;
+      return sortMessages(mapChatRows(data ?? []));
     },
   });
 
-  const selectedLeadName =
-    selectedConversation?.crmLead?.nome ?? selectedConversation?.nome ?? "Conversa";
-  const selectedLeadPhone =
-    selectedConversation?.crmLead?.telefone ?? selectedConversation?.numero ?? "Sem telefone";
+  const attendanceMutation = useMutation({
+    mutationFn: async ({
+      leadId,
+      enabled,
+      force = false,
+    }: {
+      leadId: number;
+      enabled: boolean;
+      force?: boolean;
+    }) => {
+      const { data, error } = await supabase.rpc("crm_whatsapp_set_conversation_attendance", {
+        p_lead_id: leadId,
+        p_enabled: enabled,
+        p_force: force,
+      });
+      if (error) throw error;
+      return data?.[0] ?? null;
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["whatsapp-conversations"] });
+      toast.success(
+        variables.enabled
+          ? "Conversa assumida. A IA não responderá enquanto o atendimento humano estiver ativo."
+          : "Conversa devolvida para a IA.",
+      );
+    },
+    onError: (error: Error) =>
+      toast.error("Não foi possível alterar o atendimento", {
+        description: error.message,
+      }),
+  });
+
+  const sendMessageMutation = useMutation({
+    mutationFn: async ({ leadId, text }: { leadId: number; text: string }) => {
+      const { data, error } = await supabase.functions.invoke<SendMessageResult>(
+        "whatsapp-conversation-send",
+        {
+          body: {
+            leadId,
+            text,
+            clientMessageId: crypto.randomUUID(),
+          },
+        },
+      );
+      if (error) {
+        throw new Error(await functionError(error, "Falha ao enviar a mensagem pelo WhatsApp"));
+      }
+      if (!data?.ok) throw new Error("A Meta não confirmou o envio da mensagem");
+      return data;
+    },
+    onSuccess: () => {
+      setDraft("");
+      queryClient.invalidateQueries({ queryKey: ["whatsapp-conversation-messages"] });
+      queryClient.invalidateQueries({ queryKey: ["whatsapp-conversations"] });
+      toast.success("Mensagem enviada");
+    },
+    onError: (error: Error) =>
+      toast.error("Não foi possível enviar a mensagem", { description: error.message }),
+  });
+
+  const selectedLeadName = selectedConversation?.nome || "Conversa";
+  const selectedLeadIdentity = selectedConversation
+    ? selectedConversation.telefone ||
+      selectedConversation.wa_username ||
+      selectedConversation.display_name ||
+      selectedConversation.wa_user_id ||
+      "Contato sem telefone"
+    : "";
+  const selectedCrmLeadId = crmLeadId(selectedConversation?.id_crm);
+  const assignedToMe =
+    !!selectedConversation?.assigned_to && selectedConversation.assigned_to === me?.id;
+  const assignedToOther = !!selectedConversation?.assigned_to && !assignedToMe;
+  const canForceAssignment = me?.role === "manager" || me?.role === "super_admin";
+  const canSendMessage = !!selectedConversation?.atendimento_humano && assignedToMe;
+  const trimmedDraft = draft.trim();
+  const submitMessage = () => {
+    if (!selectedConversation || !canSendMessage || !trimmedDraft || trimmedDraft.length > 4096) {
+      return;
+    }
+    sendMessageMutation.mutate({ leadId: selectedConversation.lead_id, text: trimmedDraft });
+  };
   const messagesScrollRef = useRef<HTMLDivElement>(null);
   const latestMessageId = messageQuery.data?.at(-1)?.id;
 
@@ -395,7 +338,7 @@ function ConversationsPage() {
     });
 
     return () => window.cancelAnimationFrame(frame);
-  }, [selectedConversation?.id, latestMessageId]);
+  }, [selectedConversation?.lead_id, latestMessageId]);
 
   const messageRows = useMemo(() => {
     const messages = messageQuery.data ?? [];
@@ -421,11 +364,12 @@ function ConversationsPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Conversas</h1>
           <p className="text-sm text-muted-foreground">
-            Histórico de atendimento dos leads pela IA.
+            Central de atendimento humano das conversas do WhatsApp.
           </p>
         </div>
         <Badge variant="outline" className="hidden sm:inline-flex">
-          {filteredConversations.length} conversa{filteredConversations.length === 1 ? "" : "s"}
+          {conversations[0]?.total_count ?? conversations.length} conversa
+          {(conversations[0]?.total_count ?? conversations.length) === 1 ? "" : "s"}
         </Badge>
       </div>
 
@@ -437,10 +381,20 @@ function ConversationsPage() {
               <Input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="Pesquisar conversa"
+                placeholder="Nome, telefone ou usuário"
                 className="pl-9"
               />
             </div>
+            <Button
+              type="button"
+              variant={onlyHuman ? "default" : "outline"}
+              size="sm"
+              className="mt-3 w-full"
+              onClick={() => setOnlyHuman((value) => !value)}
+            >
+              <UserCheck className="mr-2 h-4 w-4" />
+              {onlyHuman ? "Mostrando atendimento humano" : "Filtrar atendimento humano"}
+            </Button>
           </div>
 
           <div className="h-[280px] overflow-y-auto lg:h-[calc(100vh-230px)]">
@@ -448,24 +402,27 @@ function ConversationsPage() {
               <div className="p-4 text-sm text-muted-foreground">Carregando conversas...</div>
             ) : conversationsQuery.error ? (
               <div className="p-4 text-sm text-destructive">Erro ao carregar conversas.</div>
-            ) : !filteredConversations.length ? (
+            ) : !conversations.length ? (
               <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center text-sm text-muted-foreground">
                 <Inbox className="h-8 w-8" />
                 Nenhuma conversa encontrada.
               </div>
             ) : (
               <div className="divide-y">
-                {filteredConversations.map((conversation) => {
-                  const active = selectedConversation?.id === conversation.id;
-                  const name = conversation.crmLead?.nome ?? conversation.nome;
-                  const phone = conversation.crmLead?.telefone ?? conversation.numero;
+                {conversations.map((conversation) => {
+                  const active = selectedConversation?.lead_id === conversation.lead_id;
+                  const identity =
+                    conversation.telefone ||
+                    conversation.wa_username ||
+                    conversation.display_name ||
+                    conversation.wa_user_id;
                   const preview = previewText(conversation);
 
                   return (
                     <button
-                      key={conversation.id}
+                      key={conversation.lead_id}
                       type="button"
-                      onClick={() => setSelectedId(conversation.id)}
+                      onClick={() => setSelectedId(conversation.lead_id)}
                       className={cn(
                         "w-full cursor-pointer px-4 py-3 text-left transition-colors hover:bg-muted/60",
                         active && "bg-primary/10 hover:bg-primary/10",
@@ -475,14 +432,20 @@ function ConversationsPage() {
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
                             <MessageCircle className="h-4 w-4 shrink-0 text-primary" />
-                            <p className="truncate font-medium">{name || "Sem nome"}</p>
-                            {conversation.lead_quente || conversation.crmLead?.lead_quente ? (
-                              <Flame className="h-3.5 w-3.5 shrink-0 text-orange-500" />
-                            ) : null}
+                            <p className="truncate font-medium">
+                              {conversation.nome || "Sem nome"}
+                            </p>
                           </div>
                           <p className="mt-1 truncate text-xs text-muted-foreground">
-                            {phone || "Sem telefone"}
+                            {identity || "Contato sem telefone"}
                           </p>
+                          {conversation.atendimento_humano ? (
+                            <Badge variant="secondary" className="mt-2 max-w-full truncate">
+                              {conversation.assigned_name
+                                ? `Com ${conversation.assigned_name}`
+                                : "Aguardando atendente"}
+                            </Badge>
+                          ) : null}
                           {preview ? (
                             <p className="mt-2 line-clamp-2 text-xs text-muted-foreground">
                               {preview}
@@ -490,13 +453,9 @@ function ConversationsPage() {
                           ) : null}
                         </div>
                         <div className="shrink-0 text-right text-[11px] text-muted-foreground">
-                          <div>
-                            {formatDateTime(
-                              conversation.last_message_timestamp ?? conversation.updated_at,
-                            )}
-                          </div>
-                          {conversation.crmLead?.id ? (
-                            <div className="mt-2 font-medium">#{conversation.crmLead.id}</div>
+                          <div>{formatDateTime(conversation.last_message_at)}</div>
+                          {crmLeadId(conversation.id_crm) ? (
+                            <div className="mt-2 font-medium">#{conversation.id_crm}</div>
                           ) : null}
                         </div>
                       </div>
@@ -519,25 +478,70 @@ function ConversationsPage() {
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <h2 className="truncate font-semibold">{selectedLeadName}</h2>
-                      {selectedConversation.lead_quente ||
-                      selectedConversation.crmLead?.lead_quente ? (
-                        <Badge className="bg-orange-100 text-orange-700 hover:bg-orange-100">
-                          Quente
+                      {selectedConversation.atendimento_humano ? (
+                        <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">
+                          Atendimento humano
                         </Badge>
                       ) : null}
                     </div>
-                    <p className="truncate text-xs text-muted-foreground">{selectedLeadPhone}</p>
+                    <p className="truncate text-xs text-muted-foreground">{selectedLeadIdentity}</p>
+                    {selectedConversation.assigned_name ? (
+                      <p className="truncate text-xs text-muted-foreground">
+                        Responsável: {selectedConversation.assigned_name}
+                      </p>
+                    ) : null}
                   </div>
                 </div>
 
-                {selectedConversation.crmLead?.id ? (
-                  <Button asChild variant="outline" size="sm">
-                    <Link to="/leads/$id" params={{ id: String(selectedConversation.crmLead.id) }}>
-                      Abrir lead
-                      <ArrowUpRight className="ml-2 h-4 w-4" />
-                    </Link>
-                  </Button>
-                ) : null}
+                <div className="flex shrink-0 items-center gap-2">
+                  {selectedCrmLeadId ? (
+                    <Button asChild variant="outline" size="sm" className="hidden md:inline-flex">
+                      <Link to="/leads/$id" params={{ id: String(selectedCrmLeadId) }}>
+                        Abrir lead
+                        <ArrowUpRight className="ml-2 h-4 w-4" />
+                      </Link>
+                    </Button>
+                  ) : null}
+
+                  {selectedConversation.atendimento_humano && assignedToMe ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={attendanceMutation.isPending}
+                      onClick={() =>
+                        attendanceMutation.mutate({
+                          leadId: selectedConversation.lead_id,
+                          enabled: false,
+                        })
+                      }
+                    >
+                      <Bot className="mr-2 h-4 w-4" />
+                      Devolver para a IA
+                    </Button>
+                  ) : assignedToOther && !canForceAssignment ? (
+                    <Button type="button" variant="outline" size="sm" disabled>
+                      <UserRound className="mr-2 h-4 w-4" />
+                      Em atendimento
+                    </Button>
+                  ) : (
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={attendanceMutation.isPending}
+                      onClick={() =>
+                        attendanceMutation.mutate({
+                          leadId: selectedConversation.lead_id,
+                          enabled: true,
+                          force: assignedToOther && canForceAssignment,
+                        })
+                      }
+                    >
+                      <BotOff className="mr-2 h-4 w-4" />
+                      {assignedToOther ? "Assumir deste atendente" : "Assumir conversa"}
+                    </Button>
+                  )}
+                </div>
               </header>
 
               <div ref={messagesScrollRef} className="flex-1 overflow-y-auto bg-background p-4">
@@ -592,11 +596,59 @@ function ConversationsPage() {
                 )}
               </div>
 
-              <footer className="border-t bg-background px-4 py-3 text-xs text-muted-foreground">
-                Última mensagem:{" "}
-                {formatDateTime(
-                  selectedConversation.last_message_timestamp ?? selectedConversation.updated_at,
+              <footer className="space-y-3 border-t bg-background px-4 py-3">
+                {canSendMessage ? (
+                  <div className="flex items-end gap-2">
+                    <div className="min-w-0 flex-1">
+                      <Textarea
+                        value={draft}
+                        onChange={(event) => setDraft(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter" && !event.shiftKey) {
+                            event.preventDefault();
+                            submitMessage();
+                          }
+                        }}
+                        placeholder="Digite uma mensagem. Enter envia; Shift + Enter quebra a linha."
+                        maxLength={4096}
+                        rows={2}
+                        disabled={sendMessageMutation.isPending}
+                        className="min-h-16 resize-none"
+                      />
+                      <div className="mt-1 flex justify-between text-[11px] text-muted-foreground">
+                        <span>
+                          Mensagem livre disponível dentro da janela de atendimento da Meta.
+                        </span>
+                        <span>{draft.length}/4096</span>
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      size="icon"
+                      aria-label="Enviar mensagem"
+                      disabled={!trimmedDraft || sendMessageMutation.isPending}
+                      onClick={submitMessage}
+                    >
+                      <Send className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="rounded-lg border border-dashed px-3 py-2 text-sm text-muted-foreground">
+                    {assignedToOther
+                      ? `Conversa em atendimento por ${selectedConversation.assigned_name || "outro atendente"}.`
+                      : "Assuma a conversa para enviar mensagens manualmente."}
+                  </div>
                 )}
+
+                <div className="text-xs text-muted-foreground">
+                  Última mensagem: {formatDateTime(selectedConversation.last_message_at)}
+                  {selectedConversation.atendimento_humano_desde ? (
+                    <span className="ml-3">
+                      Atendimento humano desde{" "}
+                      {formatDateTime(selectedConversation.atendimento_humano_desde)}
+                    </span>
+                  ) : null}
+                </div>
               </footer>
             </>
           ) : (
