@@ -37,7 +37,7 @@ type IdentityRow = {
 };
 
 type MetaSendResult = {
-  contacts?: Array<{ input?: string; wa_id?: string }>;
+  contacts?: Array<{ input?: string; wa_id?: string; user_id?: string }>;
   messages?: Array<{ id?: string; message_status?: string }>;
   error?: { code?: number; message?: string };
 };
@@ -185,11 +185,12 @@ Deno.serve(async (req) => {
       identity = data as IdentityRow | null;
     }
 
-    const recipient =
-      normalizeRecipient(identity?.wa_user_id) ??
-      normalizeRecipient(lead.wa_user_id) ??
-      normalizePhone(identity?.telefone) ??
-      normalizePhone(lead.numero);
+    // Enquanto o webhook disponibilizar o wa_id, ele continua sendo o destino
+    // mais compatível. O BSUID é o fallback para contatos que ocultarem o telefone.
+    const recipientPhone = normalizePhone(identity?.telefone) ?? normalizePhone(lead.numero);
+    const recipientBsuid =
+      normalizeRecipient(identity?.wa_user_id) ?? normalizeRecipient(lead.wa_user_id);
+    const recipient = recipientPhone ?? recipientBsuid;
     if (!recipient) {
       throw new Error("A conversa não possui uma identidade WhatsApp válida para envio");
     }
@@ -290,7 +291,12 @@ Deno.serve(async (req) => {
     if (!messageId) throw new Error("A Meta não retornou o identificador da mensagem");
     const now = new Date().toISOString();
     const status = graphResult.messages?.[0]?.message_status ?? "accepted";
-    const resolvedRecipient = graphResult.contacts?.[0]?.wa_id ?? recipient;
+    const responseContact = graphResult.contacts?.[0];
+    const resolvedWaId = normalizePhone(responseContact?.wa_id) ?? recipientPhone;
+    const resolvedUserId =
+      normalizeRecipient(responseContact?.user_id) ??
+      normalizeRecipient(identity?.wa_user_id) ??
+      normalizeRecipient(lead.wa_user_id);
 
     const { error: transportError } = await admin.from("wa_messages").upsert(
       {
@@ -299,8 +305,8 @@ Deno.serve(async (req) => {
         client_message_id: clientMessageId,
         direction: "outbound",
         from_wa_id: fromWaId,
-        to_wa_id: resolvedRecipient,
-        to_user_id: identity?.wa_user_id ?? lead.wa_user_id,
+        to_wa_id: resolvedWaId,
+        to_user_id: resolvedUserId,
         to_username: identity?.username ?? lead.wa_username,
         type: "text",
         text_body: text,
@@ -312,7 +318,12 @@ Deno.serve(async (req) => {
         wa_identity_id: lead.wa_identity_id,
         conversation_key: lead.conversation_key ?? identity?.conversation_key,
         legacy_conversation_key: lead.legacy_conversation_key ?? identity?.legacy_conversation_key,
-        raw: { source: "hub_human", request: requestPayload, response: graphResult },
+        raw: {
+          source: "hub_human",
+          recipient_kind: recipientPhone ? "wa_id" : "bsuid",
+          request: requestPayload,
+          response: graphResult,
+        },
         updated_at: now,
       },
       { onConflict: "phone_number_id,message_id" },

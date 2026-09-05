@@ -5258,6 +5258,27 @@ export type Database = {
           type: string
         }[]
       }
+      crm_whatsapp_conversation_messages_v2: {
+        Args: {
+          p_before_id?: number
+          p_lead_id: number
+          p_limit?: number
+        }
+        Returns: {
+          created_at: string
+          delivery_status: string
+          direction: string
+          error_code: string
+          error_message: string
+          id: number
+          message: Json
+          numero: string
+          source: string
+          time: string
+          transport_message_id: string
+          type: string
+        }[]
+      }
       crm_whatsapp_list_conversations: {
         Args: {
           p_id_empresa: number

@@ -5,6 +5,8 @@ import {
   ArrowUpRight,
   Bot,
   BotOff,
+  CircleAlert,
+  CheckCheck,
   Inbox,
   MessageCircle,
   MessagesSquare,
@@ -35,7 +37,7 @@ export const Route = createFileRoute("/_authenticated/conversas")({
 type ConversationItem =
   Database["public"]["Functions"]["crm_whatsapp_list_conversations"]["Returns"][number];
 type WhatsappConversationMessageRow =
-  Database["public"]["Functions"]["crm_whatsapp_conversation_messages"]["Returns"][number];
+  Database["public"]["Functions"]["crm_whatsapp_conversation_messages_v2"]["Returns"][number];
 
 type ConversationMessage = {
   id: string;
@@ -43,6 +45,11 @@ type ConversationMessage = {
   message: Json | null;
   time: string | null;
   created_at: string | null;
+  direction: string | null;
+  source: string | null;
+  delivery_status: string | null;
+  error_code: string | null;
+  error_message: string | null;
 };
 
 type SendMessageResult = {
@@ -234,9 +241,14 @@ function ConversationsPage() {
             message: message.message,
             time: message.time,
             created_at: message.created_at,
+            direction: message.direction,
+            source: message.source,
+            delivery_status: message.delivery_status,
+            error_code: message.error_code,
+            error_message: message.error_message,
           }));
 
-      const { data, error } = await supabase.rpc("crm_whatsapp_conversation_messages", {
+      const { data, error } = await supabase.rpc("crm_whatsapp_conversation_messages_v2", {
         p_lead_id: selectedConversation.lead_id,
         p_limit: 100,
       });
@@ -299,7 +311,7 @@ function ConversationsPage() {
       setDraft("");
       queryClient.invalidateQueries({ queryKey: ["whatsapp-conversation-messages"] });
       queryClient.invalidateQueries({ queryKey: ["whatsapp-conversations"] });
-      toast.success("Mensagem enviada");
+      toast.success("Mensagem aceita pela Meta");
     },
     onError: (error: Error) =>
       toast.error("Não foi possível enviar a mensagem", { description: error.message }),
@@ -560,7 +572,9 @@ function ConversationsPage() {
                 ) : (
                   <div className="space-y-3">
                     {messageRows.map(({ message, showDate, dateLabel }) => {
-                      const isAi = message.type === "ai";
+                      const isOutgoing = message.direction === "outbound" || message.type === "ai";
+                      const isHumanAgent = message.source === "hub_human";
+                      const deliveryFailed = message.delivery_status === "failed";
                       const text = messageToText(message.message);
 
                       return (
@@ -573,19 +587,48 @@ function ConversationsPage() {
                             </div>
                           ) : null}
 
-                          <div className={cn("flex", isAi ? "justify-end" : "justify-start")}>
+                          <div className={cn("flex", isOutgoing ? "justify-end" : "justify-start")}>
                             <div
                               className={cn(
                                 "max-w-[82%] rounded-2xl px-4 py-2 text-sm shadow-sm md:max-w-[68%]",
-                                isAi
+                                isOutgoing
                                   ? "rounded-br-md bg-primary/15 text-foreground"
                                   : "rounded-bl-md bg-white text-foreground",
+                                deliveryFailed && "border border-destructive/50 bg-destructive/10",
                               )}
                             >
                               <MessageContent text={text || "Mensagem sem conteúdo"} />
-                              <div className="mt-1 flex items-center justify-end gap-1 text-[10px] text-muted-foreground">
-                                {isAi ? <Bot className="h-3 w-3" /> : null}
+                              <div
+                                className={cn(
+                                  "mt-1 flex items-center justify-end gap-1 text-[10px] text-muted-foreground",
+                                  deliveryFailed && "text-destructive",
+                                )}
+                                title={message.error_message || undefined}
+                              >
+                                {deliveryFailed ? (
+                                  <CircleAlert className="h-3 w-3" />
+                                ) : isHumanAgent ? (
+                                  <UserRound className="h-3 w-3" />
+                                ) : isOutgoing ? (
+                                  <Bot className="h-3 w-3" />
+                                ) : null}
                                 {formatTime(message.time ?? message.created_at)}
+                                {isHumanAgent && message.delivery_status ? (
+                                  <span className="ml-1 inline-flex items-center gap-1">
+                                    {deliveryFailed ? (
+                                      `Falha no envio${message.error_code ? ` (${message.error_code})` : ""}`
+                                    ) : (
+                                      <>
+                                        <CheckCheck className="h-3 w-3" />
+                                        {message.delivery_status === "read"
+                                          ? "Lida"
+                                          : message.delivery_status === "delivered"
+                                            ? "Entregue"
+                                            : "Enviada"}
+                                      </>
+                                    )}
+                                  </span>
+                                ) : null}
                               </div>
                             </div>
                           </div>
