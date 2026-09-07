@@ -160,6 +160,7 @@ export type Database = {
           facilita_crm_url: string | null
           id: number
           id_empresa: number
+          loft_corretor_id: number | null
           loft_crm_token: string | null
           loft_crm_url: string | null
           pipeline_id: string | null
@@ -192,6 +193,7 @@ export type Database = {
           facilita_crm_url?: string | null
           id?: number
           id_empresa: number
+          loft_corretor_id?: number | null
           loft_crm_token?: string | null
           loft_crm_url?: string | null
           pipeline_id?: string | null
@@ -224,6 +226,7 @@ export type Database = {
           facilita_crm_url?: string | null
           id?: number
           id_empresa?: number
+          loft_corretor_id?: number | null
           loft_crm_token?: string | null
           loft_crm_url?: string | null
           pipeline_id?: string | null
@@ -1261,6 +1264,7 @@ export type Database = {
           lead_id: number | null
           lead_quente: boolean | null
           legacy_conversation_key: string | null
+          loft_cliente_id: string | null
           loft_id_negociacao: string | null
           nome: string
           observacoes: string | null
@@ -1291,6 +1295,7 @@ export type Database = {
           lead_id?: number | null
           lead_quente?: boolean | null
           legacy_conversation_key?: string | null
+          loft_cliente_id?: string | null
           loft_id_negociacao?: string | null
           nome: string
           observacoes?: string | null
@@ -1321,6 +1326,7 @@ export type Database = {
           lead_id?: number | null
           lead_quente?: boolean | null
           legacy_conversation_key?: string | null
+          loft_cliente_id?: string | null
           loft_id_negociacao?: string | null
           nome?: string
           observacoes?: string | null
@@ -1439,6 +1445,44 @@ export type Database = {
           },
         ]
       }
+      crm_meta_connection_events: {
+        Row: {
+          connection_id: string
+          created_at: string
+          details: Json
+          event_type: string
+          id: string
+          id_empresa: number
+          message: string
+        }
+        Insert: {
+          connection_id: string
+          created_at?: string
+          details?: Json
+          event_type: string
+          id?: string
+          id_empresa: number
+          message: string
+        }
+        Update: {
+          connection_id?: string
+          created_at?: string
+          details?: Json
+          event_type?: string
+          id?: string
+          id_empresa?: number
+          message?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_meta_connection_events_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "crm_meta_connections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       crm_meta_connections: {
         Row: {
           active: boolean | null
@@ -1448,7 +1492,12 @@ export type Database = {
           id_empresa: number
           last_error: string | null
           last_health_check_at: string | null
+          recovery_backfill_completed_at: string | null
           selected_page_ids: string[]
+          token_data_access_expires_at: string | null
+          token_expires_at: string | null
+          token_last_validated_at: string | null
+          token_validation_error: string | null
           user_access_token: string
           user_id_meta: string
           user_name: string | null
@@ -1461,7 +1510,12 @@ export type Database = {
           id_empresa: number
           last_error?: string | null
           last_health_check_at?: string | null
+          recovery_backfill_completed_at?: string | null
           selected_page_ids?: string[]
+          token_data_access_expires_at?: string | null
+          token_expires_at?: string | null
+          token_last_validated_at?: string | null
+          token_validation_error?: string | null
           user_access_token: string
           user_id_meta: string
           user_name?: string | null
@@ -1474,7 +1528,12 @@ export type Database = {
           id_empresa?: number
           last_error?: string | null
           last_health_check_at?: string | null
+          recovery_backfill_completed_at?: string | null
           selected_page_ids?: string[]
+          token_data_access_expires_at?: string | null
+          token_expires_at?: string | null
+          token_last_validated_at?: string | null
+          token_validation_error?: string | null
           user_access_token?: string
           user_id_meta?: string
           user_name?: string | null
@@ -3070,6 +3129,189 @@ export type Database = {
           },
         ]
       }
+      followup_completion_events_v2: {
+        Row: {
+          attempts: number
+          claimed_at: string | null
+          claimed_by: string | null
+          classification: string
+          created_at: string
+          enrollment_id: number | null
+          final_dispatch_id: number
+          id: number
+          id_empresa: number
+          last_error: string | null
+          lead_id: number
+          max_attempts: number
+          payload_snapshot: Json
+          policy_id: number
+          processed_at: string | null
+          scheduled_at: string
+          sequence_id: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          claimed_at?: string | null
+          claimed_by?: string | null
+          classification: string
+          created_at?: string
+          enrollment_id?: number | null
+          final_dispatch_id: number
+          id?: number
+          id_empresa: number
+          last_error?: string | null
+          lead_id: number
+          max_attempts?: number
+          payload_snapshot?: Json
+          policy_id: number
+          processed_at?: string | null
+          scheduled_at?: string
+          sequence_id: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          claimed_at?: string | null
+          claimed_by?: string | null
+          classification?: string
+          created_at?: string
+          enrollment_id?: number | null
+          final_dispatch_id?: number
+          id?: number
+          id_empresa?: number
+          last_error?: string | null
+          lead_id?: number
+          max_attempts?: number
+          payload_snapshot?: Json
+          policy_id?: number
+          processed_at?: string | null
+          scheduled_at?: string
+          sequence_id?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "followup_completion_events_v2_enrollment_id_fkey"
+            columns: ["enrollment_id"]
+            isOneToOne: false
+            referencedRelation: "followup_enrollments_v2"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "followup_completion_events_v2_final_dispatch_id_fkey"
+            columns: ["final_dispatch_id"]
+            isOneToOne: true
+            referencedRelation: "followup_dispatches_v2"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "followup_completion_events_v2_id_empresa_fkey"
+            columns: ["id_empresa"]
+            isOneToOne: false
+            referencedRelation: "empresa_dados"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "followup_completion_events_v2_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "lead"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "followup_completion_events_v2_policy_id_fkey"
+            columns: ["policy_id"]
+            isOneToOne: false
+            referencedRelation: "followup_completion_policies_v2"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "followup_completion_events_v2_sequence_id_fkey"
+            columns: ["sequence_id"]
+            isOneToOne: false
+            referencedRelation: "followup_sequences_v2"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      followup_completion_policies_v2: {
+        Row: {
+          cancellation_reason_id: string | null
+          cancellation_reason_name: string | null
+          created_at: string
+          dispatch_delay_minutes: number
+          enabled: boolean
+          id: number
+          max_attempts: number
+          qualified_enabled: boolean
+          qualified_mark_as_lost: boolean
+          qualified_queue_id: string | null
+          qualified_send_to_queue: boolean
+          qualified_tags: string[]
+          sequence_id: number
+          unqualified_enabled: boolean
+          unqualified_mark_as_lost: boolean
+          unqualified_queue_id: string | null
+          unqualified_send_to_queue: boolean
+          unqualified_tags: string[]
+          updated_at: string
+        }
+        Insert: {
+          cancellation_reason_id?: string | null
+          cancellation_reason_name?: string | null
+          created_at?: string
+          dispatch_delay_minutes?: number
+          enabled?: boolean
+          id?: number
+          max_attempts?: number
+          qualified_enabled?: boolean
+          qualified_mark_as_lost?: boolean
+          qualified_queue_id?: string | null
+          qualified_send_to_queue?: boolean
+          qualified_tags?: string[]
+          sequence_id: number
+          unqualified_enabled?: boolean
+          unqualified_mark_as_lost?: boolean
+          unqualified_queue_id?: string | null
+          unqualified_send_to_queue?: boolean
+          unqualified_tags?: string[]
+          updated_at?: string
+        }
+        Update: {
+          cancellation_reason_id?: string | null
+          cancellation_reason_name?: string | null
+          created_at?: string
+          dispatch_delay_minutes?: number
+          enabled?: boolean
+          id?: number
+          max_attempts?: number
+          qualified_enabled?: boolean
+          qualified_mark_as_lost?: boolean
+          qualified_queue_id?: string | null
+          qualified_send_to_queue?: boolean
+          qualified_tags?: string[]
+          sequence_id?: number
+          unqualified_enabled?: boolean
+          unqualified_mark_as_lost?: boolean
+          unqualified_queue_id?: string | null
+          unqualified_send_to_queue?: boolean
+          unqualified_tags?: string[]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "followup_completion_policies_v2_sequence_id_fkey"
+            columns: ["sequence_id"]
+            isOneToOne: true
+            referencedRelation: "followup_sequences_v2"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       followup_crm_events_v2: {
         Row: {
           attempt_id: number
@@ -3909,9 +4151,10 @@ export type Database = {
           last_message_timestamp: string | null
           lead_quente: boolean | null
           legacy_conversation_key: string | null
+          loft_cliente_id: string | null
           loft_id_negociacao: string | null
           nome: string
-          numero: string
+          numero: string | null
           qtd_interacoes: number | null
           qualificado: number | null
           rd_client_id: string | null
@@ -3949,9 +4192,10 @@ export type Database = {
           last_message_timestamp?: string | null
           lead_quente?: boolean | null
           legacy_conversation_key?: string | null
+          loft_cliente_id?: string | null
           loft_id_negociacao?: string | null
           nome: string
-          numero: string
+          numero?: string | null
           qtd_interacoes?: number | null
           qualificado?: number | null
           rd_client_id?: string | null
@@ -3989,9 +4233,10 @@ export type Database = {
           last_message_timestamp?: string | null
           lead_quente?: boolean | null
           legacy_conversation_key?: string | null
+          loft_cliente_id?: string | null
           loft_id_negociacao?: string | null
           nome?: string
-          numero?: string
+          numero?: string | null
           qtd_interacoes?: number | null
           qualificado?: number | null
           rd_client_id?: string | null
@@ -4008,13 +4253,6 @@ export type Database = {
           wa_username?: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "lead_wa_conversation_assigned_to_fkey"
-            columns: ["wa_conversation_assigned_to"]
-            isOneToOne: false
-            referencedRelation: "crm_users"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "lead_crm_assigned_to_fkey"
             columns: ["crm_assigned_to"]
@@ -4048,6 +4286,13 @@ export type Database = {
             columns: ["interesse"]
             isOneToOne: false
             referencedRelation: "empreendimento"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_wa_conversation_assigned_to_fkey"
+            columns: ["wa_conversation_assigned_to"]
+            isOneToOne: false
+            referencedRelation: "crm_users"
             referencedColumns: ["id"]
           },
           {
@@ -4277,6 +4522,7 @@ export type Database = {
           time: string | null
           type: string | null
           wa_identity_id: string | null
+          wa_message_id: string | null
           wa_user_id: string | null
           wa_username: string | null
         }
@@ -4292,6 +4538,7 @@ export type Database = {
           time?: string | null
           type?: string | null
           wa_identity_id?: string | null
+          wa_message_id?: string | null
           wa_user_id?: string | null
           wa_username?: string | null
         }
@@ -4307,6 +4554,7 @@ export type Database = {
           time?: string | null
           type?: string | null
           wa_identity_id?: string | null
+          wa_message_id?: string | null
           wa_user_id?: string | null
           wa_username?: string | null
         }
@@ -4323,6 +4571,13 @@ export type Database = {
             columns: ["wa_identity_id"]
             isOneToOne: false
             referencedRelation: "wa_contact_identities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "n8n_chat_conversas_wa_message_id_fkey"
+            columns: ["wa_message_id"]
+            isOneToOne: true
+            referencedRelation: "wa_messages"
             referencedColumns: ["id"]
           },
         ]
@@ -4664,6 +4919,145 @@ export type Database = {
           },
         ]
       }
+      wa_contact_identity_aliases: {
+        Row: {
+          created_at: string
+          first_seen_at: string
+          id: string
+          id_empresa: number
+          is_current: boolean
+          last_seen_at: string
+          raw: Json
+          updated_at: string
+          wa_identity_id: string
+          wa_user_id: string
+        }
+        Insert: {
+          created_at?: string
+          first_seen_at?: string
+          id?: string
+          id_empresa: number
+          is_current?: boolean
+          last_seen_at?: string
+          raw?: Json
+          updated_at?: string
+          wa_identity_id: string
+          wa_user_id: string
+        }
+        Update: {
+          created_at?: string
+          first_seen_at?: string
+          id?: string
+          id_empresa?: number
+          is_current?: boolean
+          last_seen_at?: string
+          raw?: Json
+          updated_at?: string
+          wa_identity_id?: string
+          wa_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wa_contact_identity_aliases_id_empresa_fkey"
+            columns: ["id_empresa"]
+            isOneToOne: false
+            referencedRelation: "empresa_dados"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wa_contact_identity_aliases_wa_identity_id_fkey"
+            columns: ["wa_identity_id"]
+            isOneToOne: false
+            referencedRelation: "wa_contact_identities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wa_crm_sync_queue: {
+        Row: {
+          action: string
+          attempts: number
+          available_at: string | null
+          blocked_reason: string | null
+          created_at: string
+          external_id: string | null
+          id: string
+          id_empresa: number
+          last_attempt_at: string | null
+          last_error: string | null
+          lead_id: number
+          locked_at: string | null
+          payload: Json
+          processed_at: string | null
+          provider: string
+          status: string
+          updated_at: string
+          wa_identity_id: string | null
+        }
+        Insert: {
+          action?: string
+          attempts?: number
+          available_at?: string | null
+          blocked_reason?: string | null
+          created_at?: string
+          external_id?: string | null
+          id?: string
+          id_empresa: number
+          last_attempt_at?: string | null
+          last_error?: string | null
+          lead_id: number
+          locked_at?: string | null
+          payload?: Json
+          processed_at?: string | null
+          provider: string
+          status?: string
+          updated_at?: string
+          wa_identity_id?: string | null
+        }
+        Update: {
+          action?: string
+          attempts?: number
+          available_at?: string | null
+          blocked_reason?: string | null
+          created_at?: string
+          external_id?: string | null
+          id?: string
+          id_empresa?: number
+          last_attempt_at?: string | null
+          last_error?: string | null
+          lead_id?: number
+          locked_at?: string | null
+          payload?: Json
+          processed_at?: string | null
+          provider?: string
+          status?: string
+          updated_at?: string
+          wa_identity_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wa_crm_sync_queue_id_empresa_fkey"
+            columns: ["id_empresa"]
+            isOneToOne: false
+            referencedRelation: "empresa_dados"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wa_crm_sync_queue_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "lead"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wa_crm_sync_queue_wa_identity_id_fkey"
+            columns: ["wa_identity_id"]
+            isOneToOne: false
+            referencedRelation: "wa_contact_identities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       wa_message_status_events: {
         Row: {
           conversation: Json
@@ -4994,6 +5388,36 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      claim_followup_completion_events_v2: {
+        Args: { p_limit?: number; p_worker_id: string }
+        Returns: {
+          attempts: number
+          claimed_at: string | null
+          claimed_by: string | null
+          classification: string
+          created_at: string
+          enrollment_id: number | null
+          final_dispatch_id: number
+          id: number
+          id_empresa: number
+          last_error: string | null
+          lead_id: number
+          max_attempts: number
+          payload_snapshot: Json
+          policy_id: number
+          processed_at: string | null
+          scheduled_at: string
+          sequence_id: number
+          status: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "followup_completion_events_v2"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       claim_followup_crm_events_v2: {
         Args: { p_limit?: number; p_worker_id: string }
         Returns: {
@@ -5058,6 +5482,16 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      complete_followup_completion_event_v2: {
+        Args: {
+          p_error?: string
+          p_event_id: number
+          p_retryable?: boolean
+          p_success: boolean
+          p_worker_id: string
+        }
+        Returns: Json
       }
       complete_followup_crm_event_v2: {
         Args: {
@@ -5153,6 +5587,14 @@ export type Database = {
         }
         Returns: undefined
       }
+      crm_ensure_operational_lead_for_whatsapp_reentry: {
+        Args: {
+          p_crm_lead_id: number
+          p_observed_at?: string
+          p_phone?: string
+        }
+        Returns: number
+      }
       crm_extract_attribution_value: {
         Args: { p_keys: string[]; p_raw_data: Json }
         Returns: string
@@ -5241,94 +5683,6 @@ export type Database = {
           numero: string
           time: string
           type: string
-        }[]
-      }
-      crm_whatsapp_conversation_messages: {
-        Args: {
-          p_before_id?: number
-          p_lead_id: number
-          p_limit?: number
-        }
-        Returns: {
-          created_at: string
-          id: number
-          message: Json
-          numero: string
-          time: string
-          type: string
-        }[]
-      }
-      crm_whatsapp_conversation_messages_v2: {
-        Args: {
-          p_before_id?: number
-          p_lead_id: number
-          p_limit?: number
-        }
-        Returns: {
-          created_at: string
-          delivery_status: string
-          direction: string
-          error_code: string
-          error_message: string
-          id: number
-          message: Json
-          numero: string
-          source: string
-          time: string
-          transport_message_id: string
-          type: string
-        }[]
-      }
-      crm_whatsapp_list_conversations: {
-        Args: {
-          p_id_empresa: number
-          p_limit?: number
-          p_offset?: number
-          p_only_human?: boolean
-          p_search?: string
-        }
-        Returns: {
-          assigned_at: string
-          assigned_name: string
-          assigned_to: string
-          atendimento_humano: boolean
-          atendimento_humano_desde: string
-          conversation_key: string
-          display_name: string
-          id_crm: string
-          id_empresa: number
-          last_message: string
-          last_message_at: string
-          lead_id: number
-          legacy_conversation_key: string
-          nome: string
-          status: string
-          telefone: string
-          total_count: number
-          wa_identity_id: string
-          wa_user_id: string
-          wa_username: string
-        }[]
-      }
-      crm_whatsapp_conversation_windows: {
-        Args: { p_id_empresa: number; p_lead_ids?: number[] }
-        Returns: {
-          last_inbound_at: string
-          lead_id: number
-          window_expires_at: string
-          window_open: boolean
-        }[]
-      }
-      crm_whatsapp_set_conversation_attendance: {
-        Args: { p_enabled: boolean; p_force?: boolean; p_lead_id: number }
-        Returns: {
-          assigned_at: string
-          assigned_name: string
-          assigned_to: string
-          atendimento_humano: boolean
-          atendimento_humano_desde: string
-          id_empresa: number
-          lead_id: number
         }[]
       }
       crm_ingest_meta_lead: {
@@ -5441,6 +5795,86 @@ export type Database = {
       crm_sync_company_global_custom_fields: {
         Args: { p_id_empresa: number }
         Returns: undefined
+      }
+      crm_whatsapp_conversation_messages: {
+        Args: { p_before_id?: number; p_lead_id: number; p_limit?: number }
+        Returns: {
+          created_at: string
+          id: number
+          message: Json
+          numero: string
+          time: string
+          type: string
+        }[]
+      }
+      crm_whatsapp_conversation_messages_v2: {
+        Args: { p_before_id?: number; p_lead_id: number; p_limit?: number }
+        Returns: {
+          created_at: string
+          delivery_status: string
+          direction: string
+          error_code: string
+          error_message: string
+          id: number
+          message: Json
+          numero: string
+          source: string
+          time: string
+          transport_message_id: string
+          type: string
+        }[]
+      }
+      crm_whatsapp_conversation_windows: {
+        Args: { p_id_empresa: number; p_lead_ids?: number[] }
+        Returns: {
+          last_inbound_at: string
+          lead_id: number
+          window_expires_at: string
+          window_open: boolean
+        }[]
+      }
+      crm_whatsapp_list_conversations: {
+        Args: {
+          p_id_empresa: number
+          p_limit?: number
+          p_offset?: number
+          p_only_human?: boolean
+          p_search?: string
+        }
+        Returns: {
+          assigned_at: string
+          assigned_name: string
+          assigned_to: string
+          atendimento_humano: boolean
+          atendimento_humano_desde: string
+          conversation_key: string
+          display_name: string
+          id_crm: string
+          id_empresa: number
+          last_message: string
+          last_message_at: string
+          lead_id: number
+          legacy_conversation_key: string
+          nome: string
+          status: string
+          telefone: string
+          total_count: number
+          wa_identity_id: string
+          wa_user_id: string
+          wa_username: string
+        }[]
+      }
+      crm_whatsapp_set_conversation_attendance: {
+        Args: { p_enabled: boolean; p_force?: boolean; p_lead_id: number }
+        Returns: {
+          assigned_at: string
+          assigned_name: string
+          assigned_to: string
+          atendimento_humano: boolean
+          atendimento_humano_desde: string
+          id_empresa: number
+          lead_id: number
+        }[]
       }
       enqueue_authorized_followup_test_v2: {
         Args: { p_authorization_id: string }
@@ -5712,10 +6146,18 @@ export type Database = {
         Args: { p_authorization_id: string }
         Returns: Json
       }
+      project_followup_wa_message_to_chat_v2: {
+        Args: { p_wa_message_id: string }
+        Returns: boolean
+      }
       purge_old_n8n_chat_conversas: { Args: never; Returns: undefined }
       reconcile_followup_attempts_v2: {
         Args: { p_limit?: number }
         Returns: Json
+      }
+      render_followup_crm_message_v2: {
+        Args: { p_lead_nome: string; p_template: string }
+        Returns: string
       }
       revalidate_followup_dispatch_v2: {
         Args: { p_dispatch_id: number; p_worker_id: string }
@@ -5732,6 +6174,170 @@ export type Database = {
         Returns: Json
       }
       upsert_leads_batch: { Args: { leads_data: Json }; Returns: undefined }
+      wa_claim_crm_sync: {
+        Args: { p_queue_id: string }
+        Returns: {
+          attempts: number
+          claimed: boolean
+          decision: string
+          id_empresa: number
+          lead_id: number
+          provider: string
+          queue_id: string
+        }[]
+      }
+      wa_complete_crm_sync: {
+        Args: {
+          p_external_id: string
+          p_id_empreendimento?: number
+          p_id_empresa: number
+          p_lead_id: number
+          p_queue_id: string
+          p_rd_client_id?: string
+        }
+        Returns: Json
+      }
+      wa_finalize_crm_lead_record: {
+        Args: {
+          p_id_crm?: string
+          p_id_empreendimento?: number
+          p_id_empresa: number
+          p_nome?: string
+          p_rd_client_id?: string
+          p_telefone?: string
+          p_wa_parent_user_id?: string
+          p_wa_user_id?: string
+          p_wa_username?: string
+        }
+        Returns: {
+          active_session_key: string
+          conversation_key: string
+          created: boolean
+          lead_data: Json
+          lead_id: number
+          legacy_conversation_key: string
+          outcome: string
+          telefone: string
+          wa_identity_id: string
+          wa_user_id: string
+        }[]
+      }
+      wa_get_or_create_lead: {
+        Args: {
+          p_allow_without_phone?: boolean
+          p_create_if_missing?: boolean
+          p_id_crm?: string
+          p_id_empreendimento?: number
+          p_id_empresa: number
+          p_nome?: string
+          p_telefone?: string
+          p_wa_user_id?: string
+        }
+        Returns: {
+          active_session_key: string
+          conversation_key: string
+          created: boolean
+          lead_id: number
+          legacy_conversation_key: string
+          outcome: string
+          telefone: string
+          wa_identity_id: string
+          wa_user_id: string
+        }[]
+      }
+      wa_get_or_create_lead_record: {
+        Args: {
+          p_allow_without_phone?: boolean
+          p_create_if_missing?: boolean
+          p_id_crm?: string
+          p_id_empreendimento?: number
+          p_id_empresa: number
+          p_nome?: string
+          p_telefone?: string
+          p_wa_user_id?: string
+        }
+        Returns: {
+          active_session_key: string
+          conversation_key: string
+          created: boolean
+          lead_data: Json
+          lead_id: number
+          legacy_conversation_key: string
+          outcome: string
+          telefone: string
+          wa_identity_id: string
+          wa_user_id: string
+        }[]
+      }
+      wa_prepare_crm_sync: {
+        Args: {
+          p_action?: string
+          p_id_empresa: number
+          p_lead_id: number
+          p_payload?: Json
+          p_provider: string
+        }
+        Returns: {
+          action: string
+          blocked_reason: string
+          decision: string
+          external_id: string
+          lead_id: number
+          provider: string
+          queue_id: string
+          telefone: string
+          wa_identity_id: string
+        }[]
+      }
+      wa_resolve_conversation_identity: {
+        Args: {
+          p_id_empresa: number
+          p_telefone?: string
+          p_wa_user_id?: string
+        }
+        Returns: {
+          active_session_key: string
+          atendimento_humano: boolean
+          conversation_key: string
+          crm_lead_id: number
+          id_empresa: number
+          lead_id: number
+          legacy_conversation_key: string
+          resolution_source: string
+          telefone: string
+          wa_identity_id: string
+          wa_parent_user_id: string
+          wa_user_id: string
+          wa_username: string
+        }[]
+      }
+      wa_set_human_attendance: {
+        Args: {
+          p_enabled?: boolean
+          p_id_empresa: number
+          p_lead_id?: number
+          p_status?: string
+          p_telefone?: string
+          p_wa_identity_id?: string
+          p_wa_user_id?: string
+        }
+        Returns: {
+          active_session_key: string
+          atendimento_humano: boolean
+          atendimento_humano_desde: string
+          conversation_key: string
+          id_crm: string
+          id_empresa: number
+          lead_id: number
+          legacy_conversation_key: string
+          nome: string
+          numero: string
+          resolution_source: string
+          status: string
+          wa_identity_id: string
+          wa_user_id: string
+        }[]
+      }
     }
     Enums: {
       crm_task_priority: "baixa" | "normal" | "alta"
