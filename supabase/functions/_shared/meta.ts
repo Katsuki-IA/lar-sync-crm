@@ -352,6 +352,34 @@ async function fetchMetaPages(args: {
   return { pages: Array.from(pagesById.values()), sources };
 }
 
+export async function refreshMetaPageAccessTokens(args: {
+  userAccessToken: string;
+  graphVersion: string;
+  pageIds: string[];
+}) {
+  const requestedPageIds = Array.from(new Set(args.pageIds.map(String).filter(Boolean)));
+  if (requestedPageIds.length === 0) {
+    return { tokens: {} as Record<string, string>, missingPageIds: [] as string[], sources: [] };
+  }
+
+  const { pages, sources } = await fetchMetaPages({
+    userAccessToken: args.userAccessToken,
+    graphVersion: args.graphVersion,
+  });
+  const requestedPageSet = new Set(requestedPageIds);
+  const tokens = Object.fromEntries(
+    pages
+      .filter((page) => requestedPageSet.has(page.id) && Boolean(page.access_token))
+      .map((page) => [page.id, page.access_token!]),
+  );
+
+  return {
+    tokens,
+    missingPageIds: requestedPageIds.filter((pageId) => !tokens[pageId]),
+    sources,
+  };
+}
+
 export async function syncMetaFormsForConnection(args: {
   idEmpresa: number;
   connectionId: string;

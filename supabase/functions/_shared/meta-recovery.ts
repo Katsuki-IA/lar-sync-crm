@@ -20,6 +20,7 @@ type MetaLead = {
 
 export type MetaConfiguredForm = {
   form_id: string;
+  page_id: string;
   page_access_token: string | null;
   id_empreendimento: number | null;
   id_funnel: number | null;
@@ -31,7 +32,27 @@ export type MetaRecoveryResult = {
   duplicates: number;
   failed: Array<{ formId: string; message: string }>;
   warnings: Array<{ formId: string; leadId?: string; message: string }>;
+  attemptedUserTokenFallback: boolean;
+  usedUserTokenFallback: boolean;
 };
+
+function describeMetaAccessError(form: MetaConfiguredForm, error: unknown) {
+  const message = error instanceof Error ? error.message : "Falha ao consultar formulario";
+  const normalizedMessage = message.toLowerCase();
+  const isFormAccessError =
+    normalizedMessage.includes("unsupported get request") ||
+    normalizedMessage.includes("does not exist, cannot be loaded due to missing permissions") ||
+    normalizedMessage.includes("page token impersonation permissions") ||
+    normalizedMessage.includes("permission(s) must be granted");
+
+  if (!isFormAccessError) return message;
+
+  return [
+    `A Meta recusou o acesso ao formulario ${form.form_id} da Pagina ${form.page_id}.`,
+    "No Gerenciador de Negocios da Meta, conceda Acesso a Leads dessa Pagina ao usuario que autorizou e ao aplicativo do Hub; depois reconecte a integracao.",
+    `Detalhe da Meta: ${message}`,
+  ].join(" ");
+}
 
 async function getRouting(supabaseAdmin: SupabaseAdmin, idEmpresa: number, funnelId: number) {
   const [{ data: manager, error: managerError }, { data: stage, error: stageError }] =
@@ -77,6 +98,8 @@ export async function recoverMetaLeadsForForm(args: {
     duplicates: 0,
     failed: [],
     warnings: [],
+    attemptedUserTokenFallback: false,
+    usedUserTokenFallback: false,
   };
   const { form } = args;
   if (!form.id_empreendimento || !form.id_funnel) {
@@ -85,12 +108,28 @@ export async function recoverMetaLeadsForForm(args: {
   }
 
   try {
-    const accessToken = form.page_access_token || args.userAccessToken;
-    const url = new URL(`https://graph.facebook.com/${args.graphVersion}/${form.form_id}/leads`);
-    url.searchParams.set("fields", "id,created_time,ad_id,form_id,field_data");
-    url.searchParams.set("limit", "100");
-    url.searchParams.set("access_token", accessToken);
-    const leads = (await fetchGraphCollection<MetaLead>(url))
+    const accessTokens = Array.from(
+      new Set([form.page_access_token, args.userAccessToken].filter(Boolean) as string[]),
+    );
+    let leadsFromMeta: MetaLead[] | null = null;
+    let lastAccessError: unknown = null;
+    for (const [index, accessToken] of accessTokens.entries()) {
+      if (index > 0) result.attemptedUserTokenFallback = true;
+      const url = new URL(`https://graph.facebook.com/${args.graphVersion}/${form.form_id}/leads`);
+      url.searchParams.set("fields", "id,created_time,ad_id,form_id,field_data");
+      url.searchParams.set("limit", "100");
+      url.searchParams.set("access_token", accessToken);
+      try {
+        leadsFromMeta = await fetchGraphCollection<MetaLead>(url);
+        result.usedUserTokenFallback = index > 0;
+        break;
+      } catch (error) {
+        lastAccessError = error;
+      }
+    }
+    if (!leadsFromMeta) throw lastAccessError ?? new Error("Falha ao acessar leads na Meta");
+
+    const leads = leadsFromMeta
       .filter((lead) => {
         const createdAt = new Date(lead.created_time ?? "");
         return (
@@ -196,7 +235,7 @@ export async function recoverMetaLeadsForForm(args: {
   } catch (error) {
     result.failed.push({
       formId: form.form_id,
-      message: error instanceof Error ? error.message : "Falha ao consultar formulario",
+      message: describeMetaAccessError(form, error),
     });
   }
 

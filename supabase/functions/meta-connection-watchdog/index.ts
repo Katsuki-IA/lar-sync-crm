@@ -2,6 +2,7 @@ import {
   createSupabaseAdmin,
   getMetaConfig,
   jsonResponse,
+  refreshMetaPageAccessTokens,
   withErrorHandling,
 } from "../_shared/meta.ts";
 import { checkMetaTokenPermissions } from "../_shared/meta-attribution.ts";
@@ -90,12 +91,14 @@ Deno.serve((req) =>
 
       let recovered = 0;
       let failedRecoveries = 0;
+      let userTokenFallbackAttempts = 0;
+      let userTokenFallbacks = 0;
       let hadConfiguredForms = false;
       let needsInitialBackfill = false;
       if (permission.isValid && permission.scopes.includes("leads_retrieval")) {
         const { data: forms, error: formsError } = await supabaseAdmin
           .from("crm_meta_forms")
-          .select("form_id,page_access_token,id_empreendimento,id_funnel")
+          .select("form_id,page_id,page_access_token,id_empreendimento,id_funnel")
           .eq("id_empresa", connection.id_empresa)
           .eq("connection_id", connection.id)
           .eq("active", true)
@@ -109,6 +112,31 @@ Deno.serve((req) =>
           hadConfiguredForms = (forms ?? []).length > 0;
           needsInitialBackfill = !connection.recovery_backfill_completed_at;
           const since = needsInitialBackfill ? hoursAgo(72) : hoursAgo(1);
+          let refreshedPageTokens: Record<string, string> = {};
+          try {
+            const tokenRefresh = await refreshMetaPageAccessTokens({
+              userAccessToken: connection.user_access_token,
+              graphVersion,
+              pageIds: (forms ?? []).map((form) => form.page_id),
+            });
+            refreshedPageTokens = tokenRefresh.tokens;
+            for (const [pageId, pageAccessToken] of Object.entries(refreshedPageTokens)) {
+              const { error: pageTokenUpdateError } = await supabaseAdmin
+                .from("crm_meta_forms")
+                .update({ page_access_token: pageAccessToken })
+                .eq("id_empresa", connection.id_empresa)
+                .eq("connection_id", connection.id)
+                .eq("page_id", pageId);
+              if (pageTokenUpdateError) problems.push(pageTokenUpdateError.message);
+            }
+          } catch (error) {
+            console.error("Falha ao renovar tokens das Paginas Meta", {
+              connectionId: connection.id,
+              idEmpresa: connection.id_empresa,
+              error,
+            });
+          }
+
           for (const form of forms ?? []) {
             const recovery = await recoverMetaLeadsForForm({
               supabaseAdmin,
@@ -116,13 +144,18 @@ Deno.serve((req) =>
               connectionId: connection.id,
               userAccessToken: connection.user_access_token,
               graphVersion,
-              form,
+              form: {
+                ...form,
+                page_access_token: refreshedPageTokens[form.page_id] ?? form.page_access_token,
+              },
               since,
               until: new Date(),
               limit: 500,
             });
             recovered += recovery.recovered;
             failedRecoveries += recovery.failed.length;
+            if (recovery.attemptedUserTokenFallback) userTokenFallbackAttempts += 1;
+            if (recovery.usedUserTokenFallback) userTokenFallbacks += 1;
             for (const failed of recovery.failed)
               problems.push(`${failed.formId}: ${failed.message}`);
           }
@@ -169,7 +202,13 @@ Deno.serve((req) =>
               ? "recovery_failed"
               : "degraded",
           message: lastError,
-          details: { scopes: permission.scopes, recovered, failedRecoveries },
+          details: {
+            scopes: permission.scopes,
+            recovered,
+            failedRecoveries,
+            userTokenFallbackAttempts,
+            userTokenFallbacks,
+          },
         });
       }
     }
