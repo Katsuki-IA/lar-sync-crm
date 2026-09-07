@@ -3,6 +3,9 @@ project_id = "tswdxgefmhjvjwafaxjl"
 [functions.meta-webhook]
 verify_jwt = false
 
+[functions.meta-connection-watchdog]
+verify_jwt = true
+
 [functions.rd-webhook]
 verify_jwt = false
 

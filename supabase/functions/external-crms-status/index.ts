@@ -11,7 +11,7 @@ const PROVIDERS = [
   { provider: "katsuki_crm", label: "Katsuki CRM", available: true },
   { provider: "cv_crm", label: "CV CRM", available: false },
   { provider: "c2s", label: "C2S", available: true },
-  { provider: "kommo", label: "Kommo", available: false },
+  { provider: "kommo", label: "Kommo", available: true },
   { provider: "loft", label: "Loft", available: false },
   { provider: "custom", label: "API personalizada", available: false },
 ] as const;

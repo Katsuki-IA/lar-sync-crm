@@ -43,7 +43,21 @@ Deno.serve(async (req) => {
 
     const longRes = await fetch(longUrl.toString());
     const longJson = await longRes.json();
-    const accessToken: string = longJson?.access_token ?? tokenJson.access_token;
+    if (!longRes.ok || !longJson?.access_token) {
+      console.error("Meta long-lived token exchange error", longJson);
+      throw new Error(
+        longJson?.error?.message ??
+          "A Meta não confirmou o token de longa duração. Tente conectar novamente.",
+      );
+    }
+    const tokenExpiresAt =
+      typeof longJson.expires_in === "number" && longJson.expires_in > 0
+        ? new Date(Date.now() + longJson.expires_in * 1000).toISOString()
+        : null;
+    if (!tokenExpiresAt) {
+      throw new Error("A Meta não informou a validade do token de longa duração.");
+    }
+    const accessToken: string = longJson.access_token;
 
     const meUrl = new URL(`https://graph.facebook.com/${graphVersion}/me`);
     meUrl.searchParams.set("fields", "id,name");
@@ -64,6 +78,11 @@ Deno.serve(async (req) => {
           user_id_meta: metaUser.id,
           user_name: metaUser.name ?? null,
           user_access_token: accessToken,
+          token_expires_at: tokenExpiresAt,
+          token_data_access_expires_at: null,
+          token_last_validated_at: new Date().toISOString(),
+          token_validation_error: null,
+          recovery_backfill_completed_at: null,
           connected_at: new Date().toISOString(),
           active: true,
           health_status: "unknown",

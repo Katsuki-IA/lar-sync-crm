@@ -59,7 +59,7 @@ async function authenticate(
   if (crmToken) {
     const { data, error } = await admin
       .from("credentials")
-      .select("cv_crm_token,c2s_crm_token,rd_crm_access_token,rd_hub_access_token")
+      .select("cv_crm_token,c2s_crm_token,rd_crm_access_token,rd_hub_access_token,loft_crm_token")
       .eq("id_empresa", idEmpresa)
       .maybeSingle();
     if (error) throw new Error(error.message);
@@ -68,6 +68,7 @@ async function authenticate(
       data?.c2s_crm_token,
       data?.rd_crm_access_token,
       data?.rd_hub_access_token,
+      data?.loft_crm_token,
     ]
       .map((value) => String(value ?? "").trim())
       .filter(Boolean);

@@ -13,6 +13,7 @@ type DispatchPayload = {
   leadId: number;
   idEmpresa: number;
   idEmpreendimento?: number;
+  cvDistributionQueueId?: string | number;
   additionalTags?: string[];
   conversationSummary?: string;
   cancellationReasonId?: string | number;
@@ -44,6 +45,10 @@ type CvCredentials = {
   cv_crm_email: string | null;
   c2s_crm_url: string | null;
   c2s_crm_token: string | null;
+  pipeline_id: string | null;
+  loft_crm_url: string | null;
+  loft_crm_token: string | null;
+  loft_corretor_id: string | number | null;
   default_crm: string | null;
 };
 
@@ -364,8 +369,17 @@ function toScalarId(value?: string | null) {
 }
 
 function inferExternalId(payload: any): string | null {
+  if (Array.isArray(payload)) {
+    for (const item of payload) {
+      const inferred = inferExternalId(item);
+      if (inferred) return inferred;
+    }
+    return null;
+  }
   if (!payload || typeof payload !== "object") return null;
   const candidates = [
+    payload.Codigo,
+    payload.codigo,
     payload.id,
     payload.lead_id,
     payload.idlead,
@@ -381,6 +395,75 @@ function inferExternalId(payload: any): string | null {
     if (normalized) return normalized;
   }
   return null;
+}
+
+function inferLoftDuplicateClientId(payload: unknown): string | null {
+  if (payload == null) return null;
+  if (Array.isArray(payload)) {
+    for (const item of payload) {
+      const inferred = inferLoftDuplicateClientId(item);
+      if (inferred) return inferred;
+    }
+    return null;
+  }
+  if (typeof payload === "string") {
+    try {
+      return inferLoftDuplicateClientId(JSON.parse(payload));
+    } catch {
+      const match = payload.match(/Cliente_codigo[\\"']?\s*[:=]\s*[\\"']?(\d+)/i);
+      return match?.[1] ?? null;
+    }
+  }
+  if (typeof payload !== "object") return null;
+  const record = payload as Record<string, unknown>;
+  const direct = record.Cliente_codigo ?? record.cliente_codigo;
+  if (direct != null && String(direct).trim()) return String(direct).trim();
+  for (const value of Object.values(record)) {
+    const inferred = inferLoftDuplicateClientId(value);
+    if (inferred) return inferred;
+  }
+  return null;
+}
+
+function loftDateTimeParts() {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date());
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((item) => item.type === type)?.value ?? "";
+  return {
+    date: `${part("year")}-${part("month")}-${part("day")}`,
+    time: `${part("hour")}:${part("minute")}`,
+  };
+}
+
+async function requestToLoft(
+  baseUrl: string,
+  token: string,
+  path: string,
+  method: "POST" | "PUT",
+  body?: Record<string, unknown>,
+  extraQuery?: Record<string, string>,
+) {
+  const url = new URL(`${baseUrl}/${path.replace(/^\/+/, "")}`);
+  url.searchParams.set("key", token);
+  for (const [key, value] of Object.entries(extraQuery ?? {})) {
+    url.searchParams.set(key, value);
+  }
+  return fetch(url, {
+    method,
+    headers: {
+      Accept: "application/json",
+      ...(body ? { "Content-Type": "application/json" } : {}),
+    },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
 }
 
 function isSuccessfulExportActivity(activity: { descricao?: string | null; metadata?: any }) {
@@ -406,10 +489,31 @@ async function parseResponsePayload(response: Response) {
 }
 
 function externalApiError(payload: any, fallback: string) {
-  const direct = [payload?.message, payload?.error, payload?.errors?.[0]?.message].find(
-    (value) => typeof value === "string" && value.trim(),
-  );
-  return direct ? String(direct) : fallback;
+  const stringifyErrorValue = (value: unknown): string => {
+    if (typeof value === "string") return value.trim();
+    if (Array.isArray(value)) {
+      return value.map(stringifyErrorValue).filter(Boolean).join("; ");
+    }
+    if (value && typeof value === "object") {
+      const record = value as Record<string, unknown>;
+      const nested =
+        stringifyErrorValue(record.message) ||
+        stringifyErrorValue(record.Message) ||
+        stringifyErrorValue(record.error) ||
+        stringifyErrorValue(record.Erro);
+      if (nested) return nested;
+      try {
+        return JSON.stringify(record);
+      } catch {
+        return "";
+      }
+    }
+    return value == null ? "" : String(value).trim();
+  };
+  const direct = [payload?.message, payload?.error, payload?.errors, payload?.raw]
+    .map(stringifyErrorValue)
+    .find(Boolean);
+  return direct ? direct.slice(0, 2000) : fallback;
 }
 
 function requireRdCredential(value: string | null | undefined, label: string) {
@@ -652,7 +756,7 @@ async function authenticateDispatchRequest(
   if (crmDispatchToken) {
     const { data: credentials, error: credentialsError } = await supabaseAdmin
       .from("credentials")
-      .select("cv_crm_token,c2s_crm_token,rd_crm_access_token,rd_hub_access_token")
+      .select("cv_crm_token,c2s_crm_token,rd_crm_access_token,rd_hub_access_token,loft_crm_token")
       .eq("id_empresa", idEmpresa)
       .maybeSingle();
     if (credentialsError) throw new Error(credentialsError.message);
@@ -661,6 +765,7 @@ async function authenticateDispatchRequest(
       credentials?.c2s_crm_token,
       credentials?.rd_crm_access_token,
       credentials?.rd_hub_access_token,
+      credentials?.loft_crm_token,
     ]
       .map((value) => String(value ?? "").trim())
       .filter(Boolean);
@@ -966,9 +1071,9 @@ Deno.serve(async (req) => {
       .eq("tipo", "crm_export");
     if (previousExportActivitiesError) throw new Error(previousExportActivitiesError.message);
 
-    if ((previousExportActivities ?? []).some(isSuccessfulExportActivity)) {
-      throw new Error("Este lead já foi enviado para o CRM.");
-    }
+    const hasPreviousExportActivity = (previousExportActivities ?? []).some(
+      isSuccessfulExportActivity,
+    );
 
     const { data: previousSuccessfulSends, error: previousSuccessfulSendsError } = await admin
       .from("crm_external_crm_send_logs")
@@ -977,9 +1082,7 @@ Deno.serve(async (req) => {
       .eq("status", "sent")
       .limit(1);
     if (previousSuccessfulSendsError) throw new Error(previousSuccessfulSendsError.message);
-    if (previousSuccessfulSends?.length) {
-      throw new Error("Este lead já possui um envio confirmado para o CRM externo.");
-    }
+    const hasPreviousSuccessfulSend = Boolean(previousSuccessfulSends?.length);
 
     const [{ data: empresa, error: empresaError }, { data: credentials, error: credentialsError }] =
       await Promise.all([
@@ -991,7 +1094,7 @@ Deno.serve(async (req) => {
         admin
           .from("credentials")
           .select(
-            `cv_crm_url,cv_crm_token,cv_crm_email,c2s_crm_url,c2s_crm_token,${RD_CREDENTIALS_SELECT}`,
+            `cv_crm_url,cv_crm_token,cv_crm_email,c2s_crm_url,c2s_crm_token,pipeline_id,loft_crm_url,loft_crm_token,loft_corretor_id,${RD_CREDENTIALS_SELECT}`,
           )
           .eq("id_empresa", lead.id_empresa)
           .maybeSingle(),
@@ -1006,10 +1109,20 @@ Deno.serve(async (req) => {
       normalizeCrmKey((credentials as CvCredentials | null)?.default_crm);
     const isCvCrm = ["cv", "cv_crm"].includes(crmKey);
     const isC2sCrm = ["c2s", "c2s_crm"].includes(crmKey);
+    const isKommoCrm = ["kommo", "kommo_crm"].includes(crmKey);
+    const isLoftCrm = ["loft", "vista", "vista_crm"].includes(crmKey);
     const isRdCrm = ["rd", "rd_crm", "rdstation", "rd_station"].includes(crmKey);
     const isKatsukiCrm = ["katsuki", "katsuki_crm"].includes(crmKey);
-    if (!isCvCrm && !isC2sCrm && !isRdCrm && !isKatsukiCrm) {
+    if (!isCvCrm && !isC2sCrm && !isKommoCrm && !isLoftCrm && !isRdCrm && !isKatsukiCrm) {
       throw new Error("O CRM padrão desta empresa não é suportado para envio.");
+    }
+
+    const isScheduledLoftUpdate = body.enforceScheduledRule === true && isLoftCrm;
+    if (hasPreviousExportActivity && !isScheduledLoftUpdate) {
+      throw new Error("Este lead já foi enviado para o CRM.");
+    }
+    if (hasPreviousSuccessfulSend && !isScheduledLoftUpdate) {
+      throw new Error("Este lead já possui um envio confirmado para o CRM externo.");
     }
 
     const cvCredentials = credentials as CvCredentials | null;
@@ -1018,12 +1131,27 @@ Deno.serve(async (req) => {
     const cvEmail = String(cvCredentials?.cv_crm_email ?? "").trim();
     const c2sUrl = trimTrailingSlash(String(cvCredentials?.c2s_crm_url ?? "").trim());
     const c2sToken = String(cvCredentials?.c2s_crm_token ?? "").trim();
+    const kommoPipelineId = Number(cvCredentials?.pipeline_id);
+    const loftUrl = trimTrailingSlash(String(cvCredentials?.loft_crm_url ?? "").trim());
+    const loftToken = String(cvCredentials?.loft_crm_token ?? "").trim();
+    const loftCorretorId = String(cvCredentials?.loft_corretor_id ?? "").trim();
 
     if (isCvCrm && (!cvUrl || !cvToken || !cvEmail)) {
       throw new Error("As credenciais do CV CRM estão incompletas para esta empresa.");
     }
     if (isC2sCrm && (!c2sUrl || !c2sToken)) {
       throw new Error("A URL ou o token do C2S não está configurado em credentials.");
+    }
+    if (isKommoCrm && (!cvUrl || !cvToken)) {
+      throw new Error("A URL ou o token do Kommo não está configurado em credentials.");
+    }
+    if (isKommoCrm && (!Number.isSafeInteger(kommoPipelineId) || kommoPipelineId <= 0)) {
+      throw new Error("O pipeline_id do Kommo não está configurado em credentials.");
+    }
+    if (isLoftCrm && (!loftUrl || !loftToken || !loftCorretorId)) {
+      throw new Error(
+        "A URL, o token ou o loft_corretor_id do Loft não está configurado em credentials.",
+      );
     }
 
     const katsukiApiKey = cvToken;
@@ -1118,15 +1246,29 @@ Deno.serve(async (req) => {
       ? "cv_crm"
       : isC2sCrm
         ? "c2s"
-        : isKatsukiCrm
-          ? "katsuki_crm"
-          : "rd_crm";
-    const providerLabel = isCvCrm ? "CV" : isC2sCrm ? "C2S" : isKatsukiCrm ? "Katsuki" : "RD";
+        : isKommoCrm
+          ? "kommo"
+          : isLoftCrm
+            ? "loft"
+            : isKatsukiCrm
+              ? "katsuki_crm"
+              : "rd_crm";
+    const providerLabel = isCvCrm
+      ? "CV"
+      : isC2sCrm
+        ? "C2S"
+        : isKommoCrm
+          ? "Kommo"
+          : isLoftCrm
+            ? "Loft"
+            : isKatsukiCrm
+              ? "Katsuki"
+              : "RD";
     const email = String(lead.email ?? "").trim();
     const phone = String(lead.telefone ?? "").trim();
     const requestedTags = normalizeDispatchTags(body.additionalTags);
     const tags =
-      isCvCrm || isC2sCrm || isKatsukiCrm
+      isCvCrm || isC2sCrm || isKommoCrm || isLoftCrm || isKatsukiCrm
         ? normalizeDispatchTags([...leadTagNames, ...requestedTags])
         : requestedTags;
     let requestPayload: Record<string, unknown> = {};
@@ -1179,6 +1321,12 @@ Deno.serve(async (req) => {
         };
         if (email) requestPayload.email = email;
         if (cvEmpreendimentoId != null) requestPayload.idempreendimento = cvEmpreendimentoId;
+        const cvDistributionQueueId = toScalarId(
+          body.cvDistributionQueueId == null ? null : String(body.cvDistributionQueueId),
+        );
+        if (cvDistributionQueueId != null) {
+          requestPayload.idfila_distribuicao_leads = cvDistributionQueueId;
+        }
 
         if (summaryPayload?.summary) {
           requestPayload.interacoes = [{ descricao: summaryPayload.summary, tipo: "W" }];
@@ -1312,6 +1460,460 @@ Deno.serve(async (req) => {
                 : "Falha de rede ao registrar a mensagem no C2S.";
           }
         }
+      } else if (isKommoCrm) {
+        if (!phone && !email) {
+          throw new Error("O lead precisa ter telefone ou e-mail para ser enviado ao Kommo.");
+        }
+
+        const contactCustomFields: Array<Record<string, unknown>> = [];
+        if (phone) {
+          contactCustomFields.push({
+            field_code: "PHONE",
+            values: [{ value: onlyDigits(phone) }],
+          });
+        }
+        if (email) {
+          contactCustomFields.push({
+            field_code: "EMAIL",
+            values: [{ value: email }],
+          });
+        }
+
+        const kommoLeadPayload: Record<string, unknown> = {
+          name: String(lead.nome ?? "").trim() || "Lead sem nome",
+          pipeline_id: kommoPipelineId,
+          _embedded: {
+            tags: tags.map((name) => ({ name })),
+            contacts: [
+              {
+                name: String(lead.nome ?? "").trim() || "Lead sem nome",
+                custom_fields_values: contactCustomFields,
+              },
+            ],
+          },
+        };
+
+        const kommoStatusId = Number(externalStageId);
+        if (Number.isSafeInteger(kommoStatusId) && kommoStatusId > 0) {
+          kommoLeadPayload.status_id = kommoStatusId;
+        }
+
+        const createLeadPayload = [kommoLeadPayload];
+        requestPayload = { create_lead: createLeadPayload };
+
+        let createLeadResponse: Response;
+        try {
+          createLeadResponse = await fetch(`${cvUrl}/api/v4/leads/complex`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${cvToken}`,
+            },
+            body: JSON.stringify(createLeadPayload),
+          });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Falha de rede";
+          throw new DispatchRequestError(
+            `Falha de rede ao enviar para o Kommo: ${message}. Reenvio automático bloqueado para evitar duplicidade.`,
+            false,
+          );
+        }
+
+        const createLeadResult = await parseResponsePayload(createLeadResponse);
+        responsePayload = { create_lead: createLeadResult };
+        if (!createLeadResponse.ok) {
+          throw new DispatchRequestError(
+            externalApiError(
+              createLeadResult,
+              `Kommo retornou ${createLeadResponse.status} ao criar o lead.`,
+            ),
+            createLeadResponse.status === 429 || createLeadResponse.status >= 500,
+          );
+        }
+
+        externalId = inferExternalId(createLeadResult);
+        if (!externalId) throw new Error("O Kommo não retornou o ID do lead criado.");
+
+        const summary = String(summaryPayload?.summary ?? "").trim();
+        if (summary) {
+          const createNotePayload = [
+            {
+              entity_id: Number(externalId),
+              note_type: "common",
+              params: { text: summary },
+            },
+          ];
+          requestPayload = {
+            create_lead: createLeadPayload,
+            create_lead_note: createNotePayload,
+          };
+          try {
+            const createNoteResponse = await fetch(`${cvUrl}/api/v4/leads/notes`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${cvToken}`,
+              },
+              body: JSON.stringify(createNotePayload),
+            });
+            const createNoteResult = await parseResponsePayload(createNoteResponse);
+            responsePayload = {
+              create_lead: createLeadResult,
+              create_lead_note: createNoteResult,
+            };
+            if (!createNoteResponse.ok) {
+              summaryErrorMessage = externalApiError(
+                createNoteResult,
+                `Kommo retornou ${createNoteResponse.status} ao registrar o resumo.`,
+              );
+            } else {
+              conversationSummarySynced = true;
+            }
+          } catch (error) {
+            summaryErrorMessage =
+              error instanceof Error
+                ? `Falha de rede ao registrar o resumo no Kommo: ${error.message}`
+                : "Falha de rede ao registrar o resumo no Kommo.";
+          }
+        }
+      } else if (isLoftCrm) {
+        if (!phone) throw new Error("O lead precisa ter telefone para ser enviado ao Loft.");
+
+        const loftStageName = String(externalStageId ?? "").trim();
+        if (!loftStageName) {
+          throw new Error("A etapa externa do Loft não está configurada para este estágio do HUB.");
+        }
+
+        const [
+          { data: loftSteps, error: loftStepsError },
+          { data: legacyLead, error: legacyLeadError },
+        ] = await Promise.all([
+          admin
+            .from("loft_steps")
+            .select("contato_feito")
+            .eq("id_empresa", lead.id_empresa)
+            .maybeSingle(),
+          admin
+            .from("lead")
+            .select("id,loft_cliente_id,loft_id_negociacao")
+            .eq("id_empresa", lead.id_empresa)
+            .eq("id_crm", String(lead.id))
+            .limit(1)
+            .maybeSingle(),
+        ]);
+        if (loftStepsError) throw new Error(loftStepsError.message);
+        if (legacyLeadError) throw new Error(legacyLeadError.message);
+        if (!legacyLead) {
+          throw new Error("O vínculo do lead do HUB com a tabela lead não foi encontrado.");
+        }
+
+        const contatoFeitoStage = String(loftSteps?.contato_feito ?? "").trim();
+        if (!contatoFeitoStage) {
+          throw new Error("A etapa contato_feito do Loft não está configurada para esta empresa.");
+        }
+
+        const leadName = String(lead.nome ?? "").trim() || "Lead sem nome";
+        const empreendimentoPrefix = String(empreendimentoNome ?? "")
+          .trim()
+          .split(/\s+/)
+          .filter(Boolean)
+          .slice(0, 2)
+          .join(" ");
+        const businessName = empreendimentoPrefix
+          ? `${empreendimentoPrefix} - ${leadName}`
+          : leadName;
+
+        let loftClientId = String(legacyLead.loft_cliente_id ?? "").trim();
+        let loftDealId = String(
+          legacyLead.loft_id_negociacao ?? previousSuccessfulSends?.[0]?.external_id ?? "",
+        ).trim();
+        if (
+          isScheduledLoftUpdate &&
+          (hasPreviousExportActivity || hasPreviousSuccessfulSend) &&
+          !loftDealId
+        ) {
+          throw new Error(
+            "O lead já foi enviado ao Loft, mas não possui loft_id_negociacao para uma atualização segura.",
+          );
+        }
+        let createClientResult: unknown = null;
+        let createDealResult: unknown = null;
+        let updateStageResult: unknown = null;
+        let createActivityResult: unknown = null;
+
+        const createClientPayload = {
+          cadastro: {
+            fields: {
+              Nome: leadName,
+              FonePrincipal: onlyDigits(phone),
+              VeiculoCaptacao: "IA",
+              Interesse: "Venda",
+            },
+          },
+        };
+        requestPayload = { create_client: createClientPayload };
+
+        if (!loftClientId) {
+          let createClientResponse: Response;
+          try {
+            createClientResponse = await requestToLoft(
+              loftUrl,
+              loftToken,
+              "clientes/detalhes",
+              "POST",
+              createClientPayload,
+            );
+          } catch (error) {
+            const message = error instanceof Error ? error.message : "Falha de rede";
+            throw new DispatchRequestError(
+              `Falha de rede ao criar o cliente no Loft: ${message}`,
+              true,
+            );
+          }
+          createClientResult = await parseResponsePayload(createClientResponse);
+          loftClientId = inferExternalId(createClientResult) ?? "";
+          if (!createClientResponse.ok && !loftClientId) {
+            loftClientId = inferLoftDuplicateClientId(createClientResult) ?? "";
+          }
+          if (!loftClientId) {
+            throw new DispatchRequestError(
+              externalApiError(
+                createClientResult,
+                `Loft retornou ${createClientResponse.status} ao criar o cliente.`,
+              ),
+              createClientResponse.status === 429 || createClientResponse.status >= 500,
+            );
+          }
+
+          const persistClient = await admin
+            .from("lead")
+            .update({ loft_cliente_id: loftClientId, updated_at: new Date().toISOString() })
+            .eq("id", legacyLead.id);
+          if (persistClient.error) throw new Error(persistClient.error.message);
+        }
+
+        const createDealPayload = {
+          cadastro: {
+            fields: {
+              CodigoCliente: loftClientId,
+              NomeNegocio: businessName,
+              VeiculoCaptacao: "WhatsApp",
+              CorretorNegocio: loftCorretorId,
+              CodigoPipe: "1",
+              EtapaAtual: contatoFeitoStage,
+            },
+          },
+        };
+        requestPayload = {
+          create_client: createClientPayload,
+          create_deal: createDealPayload,
+        };
+
+        if (!loftDealId) {
+          let createDealResponse: Response;
+          try {
+            createDealResponse = await requestToLoft(
+              loftUrl,
+              loftToken,
+              "negocios/detalhes",
+              "POST",
+              createDealPayload,
+            );
+          } catch (error) {
+            const message = error instanceof Error ? error.message : "Falha de rede";
+            throw new DispatchRequestError(
+              `Falha de rede ao criar o negócio no Loft: ${message}. O cliente ${loftClientId} já foi preservado para uma nova tentativa.`,
+              true,
+            );
+          }
+          createDealResult = await parseResponsePayload(createDealResponse);
+          if (!createDealResponse.ok) {
+            throw new DispatchRequestError(
+              externalApiError(
+                createDealResult,
+                `Loft retornou ${createDealResponse.status} ao criar o negócio.`,
+              ),
+              createDealResponse.status === 429 || createDealResponse.status >= 500,
+            );
+          }
+          loftDealId = inferExternalId(createDealResult) ?? "";
+          if (!loftDealId) throw new Error("O Loft não retornou o Código do negócio criado.");
+
+          const persistDeal = await admin
+            .from("lead")
+            .update({ loft_id_negociacao: loftDealId, updated_at: new Date().toISOString() })
+            .eq("id", legacyLead.id);
+          if (persistDeal.error) throw new Error(persistDeal.error.message);
+        }
+
+        let updateStagePayload = {
+          codigo_negocio: loftDealId,
+          nome_etapa: loftStageName,
+        };
+        requestPayload = {
+          create_client: createClientPayload,
+          create_deal: createDealPayload,
+          update_stage: updateStagePayload,
+        };
+        let updateStageResponse = await requestToLoft(
+          loftUrl,
+          loftToken,
+          "negocios/etapas",
+          "PUT",
+          updateStagePayload,
+        );
+        updateStageResult = await parseResponsePayload(updateStageResponse);
+        if (!updateStageResponse.ok) {
+          const updateStageError = externalApiError(
+            updateStageResult,
+            `Loft retornou ${updateStageResponse.status} ao atualizar a etapa do negócio.`,
+          );
+          const missingExistingDeal =
+            isScheduledLoftUpdate &&
+            normalizeLabel(updateStageError).includes("codigo do negocio informado nao existe");
+
+          if (!missingExistingDeal) {
+            throw new DispatchRequestError(
+              updateStageError,
+              updateStageResponse.status === 429 || updateStageResponse.status >= 500,
+            );
+          }
+
+          let replacementDealResponse: Response;
+          try {
+            replacementDealResponse = await requestToLoft(
+              loftUrl,
+              loftToken,
+              "negocios/detalhes",
+              "POST",
+              createDealPayload,
+            );
+          } catch (error) {
+            const message = error instanceof Error ? error.message : "Falha de rede";
+            throw new DispatchRequestError(
+              `O negócio anterior não existe no Loft e houve falha de rede ao recriá-lo: ${message}`,
+              true,
+            );
+          }
+
+          createDealResult = await parseResponsePayload(replacementDealResponse);
+          if (!replacementDealResponse.ok) {
+            throw new DispatchRequestError(
+              externalApiError(
+                createDealResult,
+                `Loft retornou ${replacementDealResponse.status} ao recriar o negócio inexistente.`,
+              ),
+              replacementDealResponse.status === 429 || replacementDealResponse.status >= 500,
+            );
+          }
+
+          loftDealId = inferExternalId(createDealResult) ?? "";
+          if (!loftDealId) {
+            throw new Error("O Loft não retornou o Código do negócio recriado.");
+          }
+
+          const persistReplacementDeal = await admin
+            .from("lead")
+            .update({ loft_id_negociacao: loftDealId, updated_at: new Date().toISOString() })
+            .eq("id", legacyLead.id);
+          if (persistReplacementDeal.error) {
+            throw new Error(persistReplacementDeal.error.message);
+          }
+
+          updateStagePayload = {
+            codigo_negocio: loftDealId,
+            nome_etapa: loftStageName,
+          };
+          requestPayload = {
+            create_client: createClientPayload,
+            create_deal: createDealPayload,
+            update_stage: updateStagePayload,
+          };
+          updateStageResponse = await requestToLoft(
+            loftUrl,
+            loftToken,
+            "negocios/etapas",
+            "PUT",
+            updateStagePayload,
+          );
+          updateStageResult = await parseResponsePayload(updateStageResponse);
+          if (!updateStageResponse.ok) {
+            throw new DispatchRequestError(
+              externalApiError(
+                updateStageResult,
+                `Loft retornou ${updateStageResponse.status} ao atualizar a etapa do negócio recriado.`,
+              ),
+              updateStageResponse.status === 429 || updateStageResponse.status >= 500,
+            );
+          }
+        }
+
+        if (String(legacyLead.loft_id_negociacao ?? "").trim() !== loftDealId) {
+          const persistConfirmedDeal = await admin
+            .from("lead")
+            .update({ loft_id_negociacao: loftDealId, updated_at: new Date().toISOString() })
+            .eq("id", legacyLead.id);
+          if (persistConfirmedDeal.error) throw new Error(persistConfirmedDeal.error.message);
+        }
+
+        const summary = String(summaryPayload?.summary ?? "").trim();
+        if (summary) {
+          const now = loftDateTimeParts();
+          const activityFields = {
+            CodigoCliente: loftClientId,
+            Corretor: loftCorretorId,
+            Responsavel: loftCorretorId,
+            CodigoNegocio: loftDealId,
+            Assunto: "Atendimento IA - WhatsApp",
+            Texto: summary,
+            Data: now.date,
+            Hora: now.time,
+            Duracao: "1",
+            TipoAtividade: "WhatsApp",
+            Realizada: "Sim",
+          };
+          const activityQuery = JSON.stringify({ fields: activityFields });
+          requestPayload = {
+            create_client: createClientPayload,
+            create_deal: createDealPayload,
+            update_stage: updateStagePayload,
+            create_activity: { cadastro: { fields: activityFields } },
+          };
+          try {
+            const activityResponse = await requestToLoft(
+              loftUrl,
+              loftToken,
+              "negocios/atividades",
+              "POST",
+              undefined,
+              { cadastro: activityQuery },
+            );
+            createActivityResult = await parseResponsePayload(activityResponse);
+            if (!activityResponse.ok) {
+              summaryErrorMessage = externalApiError(
+                createActivityResult,
+                `Loft retornou ${activityResponse.status} ao registrar a atividade.`,
+              );
+            } else {
+              conversationSummarySynced = true;
+            }
+          } catch (error) {
+            summaryErrorMessage =
+              error instanceof Error
+                ? `Falha de rede ao registrar a atividade no Loft: ${error.message}`
+                : "Falha de rede ao registrar a atividade no Loft.";
+          }
+        }
+
+        externalId = loftDealId;
+        responsePayload = {
+          create_client: createClientResult,
+          create_deal: createDealResult,
+          update_stage: updateStageResult,
+          create_activity: createActivityResult,
+          loft_cliente_id: loftClientId,
+          loft_id_negociacao: loftDealId,
+        };
       } else if (isKatsukiCrm) {
         const campaignName = String(
           attribution?.meta_campaign_name ?? attribution?.utm_campaign ?? "",
@@ -1583,6 +2185,10 @@ Deno.serve(async (req) => {
         cv_cancellation_reason_id: cvCancellationReasonId,
         cv_cancellation_reason_name: cvCancellationReasonName,
         cv_cancellation_reason_source: cvCancellationReasonSource,
+        cv_distribution_queue_id:
+          isCvCrm && body.cvDistributionQueueId != null
+            ? toScalarId(String(body.cvDistributionQueueId))
+            : null,
         qualified_by_tag: leadTagNames.some((tagName) => normalizeLabel(tagName) === "qualificado"),
         conversation_summary_synced: conversationSummarySynced,
         conversation_summary_error: summaryErrorMessage,

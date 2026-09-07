@@ -11,6 +11,10 @@ type GraphError = {
 type DebugTokenResponse = GraphError & {
   data?: {
     scopes?: string[];
+    is_valid?: boolean;
+    expires_at?: number;
+    data_access_expires_at?: number;
+    user_id?: string;
   };
 };
 
@@ -77,10 +81,20 @@ type AttributionRow = {
 };
 
 export type MetaTokenPermissionCheck = {
+  isValid: boolean;
   hasAdsRead: boolean;
   scopes: string[];
   error: string | null;
+  expiresAt: string | null;
+  dataAccessExpiresAt: string | null;
+  userId: string | null;
 };
+
+function unixTimestampToIso(value: unknown) {
+  if (typeof value !== "number" || value <= 0) return null;
+  const date = new Date(value * 1000);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
 
 export type MetaAttributionEnrichmentResult = {
   checked: number;
@@ -112,10 +126,15 @@ export async function checkMetaTokenPermissions(args: {
       debugUrl.searchParams.set("access_token", `${args.appId}|${args.appSecret}`);
       const debug = await fetchGraphJson<DebugTokenResponse>(debugUrl);
       for (const scope of debug.data?.scopes ?? []) scopes.add(scope);
+      const isValid = debug.data?.is_valid === true;
       return {
-        hasAdsRead: scopes.has("ads_read"),
+        isValid,
+        hasAdsRead: isValid && scopes.has("ads_read"),
         scopes: Array.from(scopes).sort(),
-        error: null,
+        error: isValid ? null : "Token Meta invalido ou expirado",
+        expiresAt: unixTimestampToIso(debug.data?.expires_at),
+        dataAccessExpiresAt: unixTimestampToIso(debug.data?.data_access_expires_at),
+        userId: debug.data?.user_id ?? null,
       };
     } catch (error) {
       console.warn("Falha ao checar permissoes Meta via debug_token", error);
@@ -123,7 +142,9 @@ export async function checkMetaTokenPermissions(args: {
   }
 
   try {
-    const permissionsUrl = new URL(`https://graph.facebook.com/${args.graphVersion}/me/permissions`);
+    const permissionsUrl = new URL(
+      `https://graph.facebook.com/${args.graphVersion}/me/permissions`,
+    );
     permissionsUrl.searchParams.set("access_token", args.userAccessToken);
     const permissions = await fetchGraphJson<PermissionResponse>(permissionsUrl);
     for (const permission of permissions.data ?? []) {
@@ -132,32 +153,40 @@ export async function checkMetaTokenPermissions(args: {
       }
     }
     return {
+      isValid: true,
       hasAdsRead: scopes.has("ads_read"),
       scopes: Array.from(scopes).sort(),
       error: null,
+      expiresAt: null,
+      dataAccessExpiresAt: null,
+      userId: null,
     };
   } catch (error) {
     return {
+      isValid: false,
       hasAdsRead: false,
       scopes: Array.from(scopes).sort(),
       error: error instanceof Error ? error.message : "Falha ao checar permissoes Meta",
+      expiresAt: null,
+      dataAccessExpiresAt: null,
+      userId: null,
     };
   }
 }
 
-async function fetchAdDetails(args: {
-  accessToken: string;
-  graphVersion: string;
-  adId: string;
-}) {
+async function fetchAdDetails(args: { accessToken: string; graphVersion: string; adId: string }) {
   try {
     return await fetchAdDetailsById(args);
   } catch (directError) {
     try {
       return await fetchAdDetailsFromAdAccounts(args);
     } catch (accountError) {
-      const directMessage = directError instanceof Error ? directError.message : "Falha na busca direta";
-      const accountMessage = accountError instanceof Error ? accountError.message : "Falha na busca por contas de anuncio";
+      const directMessage =
+        directError instanceof Error ? directError.message : "Falha na busca direta";
+      const accountMessage =
+        accountError instanceof Error
+          ? accountError.message
+          : "Falha na busca por contas de anuncio";
       throw new Error(`${directMessage} | fallback contas de anuncio: ${accountMessage}`);
     }
   }
@@ -240,7 +269,8 @@ async function hydrateAdDetails(args: {
   const { ad } = args;
   let adsetId = ad.adset?.id ?? ad.adset_id ?? null;
   let adsetName = ad.adset?.name ?? null;
-  let campaignId = ad.campaign?.id ?? ad.adset?.campaign?.id ?? ad.campaign_id ?? ad.adset?.campaign_id ?? null;
+  let campaignId =
+    ad.campaign?.id ?? ad.adset?.campaign?.id ?? ad.campaign_id ?? ad.adset?.campaign_id ?? null;
   let campaignName = ad.campaign?.name ?? ad.adset?.campaign?.name ?? null;
 
   if (adsetId && (!adsetName || !campaignId || !campaignName)) {
