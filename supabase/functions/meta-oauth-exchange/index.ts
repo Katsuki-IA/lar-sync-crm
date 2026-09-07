@@ -50,13 +50,13 @@ Deno.serve(async (req) => {
           "A Meta não confirmou o token de longa duração. Tente conectar novamente.",
       );
     }
+    const expiresInSeconds = Number(longJson.expires_in);
+    // A Meta pode confirmar a troca e omitir `expires_in`. Nesse caso o
+    // watchdog consulta `debug_token` depois, em vez de bloquear a conexão.
     const tokenExpiresAt =
-      typeof longJson.expires_in === "number" && longJson.expires_in > 0
-        ? new Date(Date.now() + longJson.expires_in * 1000).toISOString()
+      Number.isFinite(expiresInSeconds) && expiresInSeconds > 0
+        ? new Date(Date.now() + expiresInSeconds * 1000).toISOString()
         : null;
-    if (!tokenExpiresAt) {
-      throw new Error("A Meta não informou a validade do token de longa duração.");
-    }
     const accessToken: string = longJson.access_token;
 
     const meUrl = new URL(`https://graph.facebook.com/${graphVersion}/me`);
