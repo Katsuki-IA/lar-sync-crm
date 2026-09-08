@@ -39,6 +39,8 @@ type ExternalStageOverride = {
   external_stage_visit_scheduled_id: string;
   external_stage_lost_id: string;
   external_stage_without_whatsapp_id: string;
+  cv_distribution_queue_without_whatsapp_id: string;
+  cv_distribution_queue_blocked_send_id: string;
 };
 
 const EMPTY_VALUE = "__none__";
@@ -60,6 +62,8 @@ function AdminCrmDispatchPage() {
   const [visitScheduledExternalStageId, setVisitScheduledExternalStageId] = useState("");
   const [lostExternalStageId, setLostExternalStageId] = useState("");
   const [withoutWhatsappExternalStageId, setWithoutWhatsappExternalStageId] = useState("");
+  const [withoutWhatsappQueueId, setWithoutWhatsappQueueId] = useState("");
+  const [blockedSendQueueId, setBlockedSendQueueId] = useState("");
   const [stageOverrides, setStageOverrides] = useState<Record<number, ExternalStageOverride>>({});
 
   const { data: companies = [], isLoading: companiesLoading } = useQuery({
@@ -98,6 +102,10 @@ function AdminCrmDispatchPage() {
     setVisitScheduledExternalStageId(configData.settings.external_stage_visit_scheduled_id ?? "");
     setLostExternalStageId(configData.settings.external_stage_lost_id ?? "");
     setWithoutWhatsappExternalStageId(configData.settings.external_stage_without_whatsapp_id ?? "");
+    setWithoutWhatsappQueueId(
+      configData.settings.cv_distribution_queue_without_whatsapp_id ?? "",
+    );
+    setBlockedSendQueueId(configData.settings.cv_distribution_queue_blocked_send_id ?? "");
     setStageOverrides(
       Object.fromEntries(
         (configData.stage_overrides ?? []).map((override: any) => [
@@ -109,6 +117,10 @@ function AdminCrmDispatchPage() {
             external_stage_visit_scheduled_id: override.external_stage_visit_scheduled_id ?? "",
             external_stage_lost_id: override.external_stage_lost_id ?? "",
             external_stage_without_whatsapp_id: override.external_stage_without_whatsapp_id ?? "",
+            cv_distribution_queue_without_whatsapp_id:
+              override.cv_distribution_queue_without_whatsapp_id ?? "",
+            cv_distribution_queue_blocked_send_id:
+              override.cv_distribution_queue_blocked_send_id ?? "",
           },
         ]),
       ),
@@ -127,6 +139,8 @@ function AdminCrmDispatchPage() {
       external_stage_visit_scheduled_id: "",
       external_stage_lost_id: "",
       external_stage_without_whatsapp_id: "",
+      cv_distribution_queue_without_whatsapp_id: "",
+      cv_distribution_queue_blocked_send_id: "",
     };
     setStageOverrides((current) => ({
       ...current,
@@ -159,6 +173,8 @@ function AdminCrmDispatchPage() {
           external_stage_visit_scheduled_id: visitScheduledExternalStageId.trim() || null,
           external_stage_lost_id: lostExternalStageId.trim() || null,
           external_stage_without_whatsapp_id: withoutWhatsappExternalStageId.trim() || null,
+          cv_distribution_queue_without_whatsapp_id: withoutWhatsappQueueId.trim() || null,
+          cv_distribution_queue_blocked_send_id: blockedSendQueueId.trim() || null,
           stage_overrides: ((configData?.empreendimentos ?? []) as EmpreendimentoOption[]).map((project) => {
             const override = stageOverrides[project.id];
             return {
@@ -169,6 +185,10 @@ function AdminCrmDispatchPage() {
               external_stage_visit_scheduled_id: override?.external_stage_visit_scheduled_id.trim() || null,
               external_stage_lost_id: override?.external_stage_lost_id.trim() || null,
               external_stage_without_whatsapp_id: override?.external_stage_without_whatsapp_id.trim() || null,
+              cv_distribution_queue_without_whatsapp_id:
+                override?.cv_distribution_queue_without_whatsapp_id.trim() || null,
+              cv_distribution_queue_blocked_send_id:
+                override?.cv_distribution_queue_blocked_send_id.trim() || null,
             };
           }),
         },
@@ -387,6 +407,39 @@ function AdminCrmDispatchPage() {
 
           <div className="space-y-4 border-t border-dashed pt-4">
             <div className="space-y-1">
+              <h3 className="font-medium">Filas de distribuição do CV</h3>
+              <p className="text-sm text-muted-foreground">
+                Opcional. Quando preenchido, o lead também é encaminhado à fila do CV após o evento correspondente. Campos vazios mantêm o envio atual, sem distribuição automática.
+              </p>
+            </div>
+
+            <div className="grid gap-4 lg:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="cv-queue-without-whatsapp">ID da fila — Sem WhatsApp</Label>
+                <Input
+                  id="cv-queue-without-whatsapp"
+                  value={withoutWhatsappQueueId}
+                  onChange={(event) => setWithoutWhatsappQueueId(event.target.value)}
+                  placeholder="Ex.: 12345"
+                  disabled={isLoading}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="cv-queue-blocked-send">ID da fila — Bloqueio IA</Label>
+                <Input
+                  id="cv-queue-blocked-send"
+                  value={blockedSendQueueId}
+                  onChange={(event) => setBlockedSendQueueId(event.target.value)}
+                  placeholder="Ex.: 12345"
+                  disabled={isLoading}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-4 border-t border-dashed pt-4">
+            <div className="space-y-1">
               <h3 className="font-medium">Etapas por empreendimento</h3>
               <p className="text-sm text-muted-foreground">
                 Opcional. Preencha somente quando esse empreendimento usar IDs diferentes no CRM externo. Campos vazios mantêm o padrão da empresa acima.
@@ -458,6 +511,30 @@ function AdminCrmDispatchPage() {
                             value={override?.external_stage_blocked_send_id ?? ""}
                             onChange={(event) => updateStageOverride(project.id, "external_stage_blocked_send_id", event.target.value)}
                             placeholder={blockedSendExternalStageId || "Usar padrão da empresa"}
+                            disabled={isLoading}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor={`project-${project.id}-queue-without-whatsapp`}>
+                            Fila CV: Sem WhatsApp
+                          </Label>
+                          <Input
+                            id={`project-${project.id}-queue-without-whatsapp`}
+                            value={override?.cv_distribution_queue_without_whatsapp_id ?? ""}
+                            onChange={(event) => updateStageOverride(project.id, "cv_distribution_queue_without_whatsapp_id", event.target.value)}
+                            placeholder={withoutWhatsappQueueId || "Usar padrão da empresa"}
+                            disabled={isLoading}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor={`project-${project.id}-queue-blocked-send`}>
+                            Fila CV: Bloqueio IA
+                          </Label>
+                          <Input
+                            id={`project-${project.id}-queue-blocked-send`}
+                            value={override?.cv_distribution_queue_blocked_send_id ?? ""}
+                            onChange={(event) => updateStageOverride(project.id, "cv_distribution_queue_blocked_send_id", event.target.value)}
+                            placeholder={blockedSendQueueId || "Usar padrão da empresa"}
                             disabled={isLoading}
                           />
                         </div>

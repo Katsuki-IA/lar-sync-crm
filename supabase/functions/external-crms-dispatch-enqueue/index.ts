@@ -17,6 +17,11 @@ type EnqueuePayload = {
   conversationSummary?: string;
 };
 
+type QueueRoutingSettings = {
+  cv_distribution_queue_without_whatsapp_id: string | null;
+  cv_distribution_queue_blocked_send_id: string | null;
+};
+
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -86,6 +91,29 @@ function normalizeTags(value: unknown) {
   );
 }
 
+function normalizeExternalStageKind(value: unknown) {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
+}
+
+function resolveCvDistributionQueueId(
+  externalStageKind: string | null,
+  settings: QueueRoutingSettings | null,
+  override: QueueRoutingSettings | null,
+) {
+  const kind = normalizeExternalStageKind(externalStageKind);
+  const key = kind === "without_whatsapp"
+    ? "cv_distribution_queue_without_whatsapp_id"
+    : ["blocked_send", "blocked", "meta_blocked", "bloqueio_envio"].includes(kind)
+      ? "cv_distribution_queue_blocked_send_id"
+      : null;
+  if (!key) return null;
+
+  return String(override?.[key] ?? settings?.[key] ?? "").trim() || null;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return jsonResponse({ error: "Método não permitido" }, 405);
@@ -111,10 +139,30 @@ Deno.serve(async (req) => {
     const conversationSummary = String(payload.conversationSummary ?? "").trim() || null;
     const { data: dispatchSettings, error: dispatchSettingsError } = await admin
       .from("crm_lead_dispatch_settings")
-      .select("dispatch_delay_minutes")
+      .select(
+        "dispatch_delay_minutes,cv_distribution_queue_without_whatsapp_id,cv_distribution_queue_blocked_send_id",
+      )
       .eq("id_empresa", idEmpresa)
       .maybeSingle();
     if (dispatchSettingsError) throw new Error(dispatchSettingsError.message);
+
+    const stageOverrideResult = Number.isSafeInteger(idEmpreendimento) && idEmpreendimento > 0
+      ? await admin
+          .from("crm_lead_dispatch_stage_overrides")
+          .select(
+            "cv_distribution_queue_without_whatsapp_id,cv_distribution_queue_blocked_send_id",
+          )
+          .eq("id_empresa", idEmpresa)
+          .eq("id_empreendimento", idEmpreendimento)
+          .maybeSingle()
+      : { data: null, error: null };
+    if (stageOverrideResult.error) throw new Error(stageOverrideResult.error.message);
+
+    const cvDistributionQueueId = resolveCvDistributionQueueId(
+      externalStageKind,
+      dispatchSettings as QueueRoutingSettings | null,
+      stageOverrideResult.data as QueueRoutingSettings | null,
+    );
 
     const configuredDelayMinutes = Number(dispatchSettings?.dispatch_delay_minutes ?? 60);
     const dispatchDelayMinutes =
@@ -141,6 +189,7 @@ Deno.serve(async (req) => {
         additionalTags,
         ...(externalStageKind ? { externalStageKind } : {}),
         ...(conversationSummary ? { conversationSummary } : {}),
+        ...(cvDistributionQueueId ? { cvDistributionQueueId } : {}),
       },
       p_max_attempts: 3,
     });

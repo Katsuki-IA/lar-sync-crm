@@ -465,7 +465,7 @@ export const getCrmDispatchSettings = createServerFn({ method: "GET" })
       supabaseAdmin
         .from("crm_lead_dispatch_settings")
         .select(
-          "stage_without_contact_id,stage_with_contact_id,dispatch_delay_minutes,external_stage_blocked_send_id,external_stage_qualified_id,external_stage_unqualified_id,external_stage_visit_scheduled_id,external_stage_lost_id,external_stage_without_whatsapp_id,updated_at",
+          "stage_without_contact_id,stage_with_contact_id,dispatch_delay_minutes,external_stage_blocked_send_id,external_stage_qualified_id,external_stage_unqualified_id,external_stage_visit_scheduled_id,external_stage_lost_id,external_stage_without_whatsapp_id,cv_distribution_queue_without_whatsapp_id,cv_distribution_queue_blocked_send_id,updated_at",
         )
         .eq("id_empresa", data.id_empresa)
         .maybeSingle(),
@@ -477,7 +477,7 @@ export const getCrmDispatchSettings = createServerFn({ method: "GET" })
       supabaseAdmin
         .from("crm_lead_dispatch_stage_overrides")
         .select(
-          "id_empreendimento,external_stage_blocked_send_id,external_stage_qualified_id,external_stage_unqualified_id,external_stage_visit_scheduled_id,external_stage_lost_id,external_stage_without_whatsapp_id",
+          "id_empreendimento,external_stage_blocked_send_id,external_stage_qualified_id,external_stage_unqualified_id,external_stage_visit_scheduled_id,external_stage_lost_id,external_stage_without_whatsapp_id,cv_distribution_queue_without_whatsapp_id,cv_distribution_queue_blocked_send_id",
         )
         .eq("id_empresa", data.id_empresa),
       supabaseAdmin
@@ -512,6 +512,10 @@ export const getCrmDispatchSettings = createServerFn({ method: "GET" })
         external_stage_visit_scheduled_id: settings?.external_stage_visit_scheduled_id ?? null,
         external_stage_lost_id: settings?.external_stage_lost_id ?? null,
         external_stage_without_whatsapp_id: settings?.external_stage_without_whatsapp_id ?? null,
+        cv_distribution_queue_without_whatsapp_id:
+          settings?.cv_distribution_queue_without_whatsapp_id ?? null,
+        cv_distribution_queue_blocked_send_id:
+          settings?.cv_distribution_queue_blocked_send_id ?? null,
         updated_at: settings?.updated_at ?? null,
       },
       empreendimentos: empreendimentosResult.data ?? [],
@@ -539,6 +543,8 @@ export const saveCrmDispatchSettings = createServerFn({ method: "POST" })
         external_stage_visit_scheduled_id: z.string().trim().max(120).nullable(),
         external_stage_lost_id: z.string().trim().max(120).nullable(),
         external_stage_without_whatsapp_id: z.string().trim().max(120).nullable(),
+        cv_distribution_queue_without_whatsapp_id: z.string().trim().max(120).nullable(),
+        cv_distribution_queue_blocked_send_id: z.string().trim().max(120).nullable(),
         stage_overrides: z
           .array(
             z.object({
@@ -549,6 +555,8 @@ export const saveCrmDispatchSettings = createServerFn({ method: "POST" })
               external_stage_visit_scheduled_id: z.string().trim().max(120).nullable(),
               external_stage_lost_id: z.string().trim().max(120).nullable(),
               external_stage_without_whatsapp_id: z.string().trim().max(120).nullable(),
+              cv_distribution_queue_without_whatsapp_id: z.string().trim().max(120).nullable(),
+              cv_distribution_queue_blocked_send_id: z.string().trim().max(120).nullable(),
             }),
           )
           .default([]),
@@ -638,6 +646,9 @@ export const saveCrmDispatchSettings = createServerFn({ method: "POST" })
         external_stage_visit_scheduled_id: data.external_stage_visit_scheduled_id,
         external_stage_lost_id: data.external_stage_lost_id,
         external_stage_without_whatsapp_id: data.external_stage_without_whatsapp_id,
+        cv_distribution_queue_without_whatsapp_id:
+          data.cv_distribution_queue_without_whatsapp_id,
+        cv_distribution_queue_blocked_send_id: data.cv_distribution_queue_blocked_send_id,
         updated_at: new Date().toISOString(),
       },
       { onConflict: "id_empresa" },
@@ -653,6 +664,8 @@ export const saveCrmDispatchSettings = createServerFn({ method: "POST" })
         override.external_stage_visit_scheduled_id,
         override.external_stage_lost_id,
         override.external_stage_without_whatsapp_id,
+        override.cv_distribution_queue_without_whatsapp_id,
+        override.cv_distribution_queue_blocked_send_id,
       ].some(Boolean),
     );
     const overridesToClear = data.stage_overrides
