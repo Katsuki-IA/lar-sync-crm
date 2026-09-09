@@ -1022,6 +1022,8 @@ export type Database = {
       crm_lead_dispatch_settings: {
         Row: {
           created_at: string
+          cv_distribution_queue_blocked_send_id: string | null
+          cv_distribution_queue_without_whatsapp_id: string | null
           dispatch_delay_minutes: number
           external_stage_blocked_send_id: string | null
           external_stage_lost_id: string | null
@@ -1029,8 +1031,6 @@ export type Database = {
           external_stage_unqualified_id: string | null
           external_stage_visit_scheduled_id: string | null
           external_stage_without_whatsapp_id: string | null
-          cv_distribution_queue_blocked_send_id: string | null
-          cv_distribution_queue_without_whatsapp_id: string | null
           id: string
           id_empresa: number
           stage_with_contact_id: number | null
@@ -1039,6 +1039,8 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          cv_distribution_queue_blocked_send_id?: string | null
+          cv_distribution_queue_without_whatsapp_id?: string | null
           dispatch_delay_minutes?: number
           external_stage_blocked_send_id?: string | null
           external_stage_lost_id?: string | null
@@ -1046,8 +1048,6 @@ export type Database = {
           external_stage_unqualified_id?: string | null
           external_stage_visit_scheduled_id?: string | null
           external_stage_without_whatsapp_id?: string | null
-          cv_distribution_queue_blocked_send_id?: string | null
-          cv_distribution_queue_without_whatsapp_id?: string | null
           id?: string
           id_empresa: number
           stage_with_contact_id?: number | null
@@ -1056,6 +1056,8 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          cv_distribution_queue_blocked_send_id?: string | null
+          cv_distribution_queue_without_whatsapp_id?: string | null
           dispatch_delay_minutes?: number
           external_stage_blocked_send_id?: string | null
           external_stage_lost_id?: string | null
@@ -1063,8 +1065,6 @@ export type Database = {
           external_stage_unqualified_id?: string | null
           external_stage_visit_scheduled_id?: string | null
           external_stage_without_whatsapp_id?: string | null
-          cv_distribution_queue_blocked_send_id?: string | null
-          cv_distribution_queue_without_whatsapp_id?: string | null
           id?: string
           id_empresa?: number
           stage_with_contact_id?: number | null
@@ -1098,14 +1098,14 @@ export type Database = {
       crm_lead_dispatch_stage_overrides: {
         Row: {
           created_at: string
+          cv_distribution_queue_blocked_send_id: string | null
+          cv_distribution_queue_without_whatsapp_id: string | null
           external_stage_blocked_send_id: string | null
           external_stage_lost_id: string | null
           external_stage_qualified_id: string | null
           external_stage_unqualified_id: string | null
           external_stage_visit_scheduled_id: string | null
           external_stage_without_whatsapp_id: string | null
-          cv_distribution_queue_blocked_send_id: string | null
-          cv_distribution_queue_without_whatsapp_id: string | null
           id: string
           id_empreendimento: number
           id_empresa: number
@@ -1113,14 +1113,14 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          cv_distribution_queue_blocked_send_id?: string | null
+          cv_distribution_queue_without_whatsapp_id?: string | null
           external_stage_blocked_send_id?: string | null
           external_stage_lost_id?: string | null
           external_stage_qualified_id?: string | null
           external_stage_unqualified_id?: string | null
           external_stage_visit_scheduled_id?: string | null
           external_stage_without_whatsapp_id?: string | null
-          cv_distribution_queue_blocked_send_id?: string | null
-          cv_distribution_queue_without_whatsapp_id?: string | null
           id?: string
           id_empreendimento: number
           id_empresa: number
@@ -1128,14 +1128,14 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          cv_distribution_queue_blocked_send_id?: string | null
+          cv_distribution_queue_without_whatsapp_id?: string | null
           external_stage_blocked_send_id?: string | null
           external_stage_lost_id?: string | null
           external_stage_qualified_id?: string | null
           external_stage_unqualified_id?: string | null
           external_stage_visit_scheduled_id?: string | null
           external_stage_without_whatsapp_id?: string | null
-          cv_distribution_queue_blocked_send_id?: string | null
-          cv_distribution_queue_without_whatsapp_id?: string | null
           id?: string
           id_empreendimento?: number
           id_empresa?: number
@@ -5611,6 +5611,10 @@ export type Database = {
         Args: { p_keys: string[]; p_raw_data: Json }
         Returns: string
       }
+      crm_find_lead_by_phone_alias: {
+        Args: { p_id_empresa: number; p_phone: string }
+        Returns: number
+      }
       crm_generate_hub_access_code: { Args: never; Returns: string }
       crm_get_lead_attribution: {
         Args: { p_lead_id: number }
@@ -5717,6 +5721,26 @@ export type Database = {
           was_inserted: boolean
         }[]
       }
+      crm_ingest_meta_lead_exact_v1: {
+        Args: {
+          p_crm_assigned_to: string
+          p_crm_stage_id: number
+          p_email: string
+          p_form_id: string
+          p_id_empreendimento: number
+          p_id_empresa: number
+          p_lead_id_meta: string
+          p_nome: string
+          p_observacoes: string
+          p_origem: string
+          p_raw_data: Json
+          p_telefone: string
+        }
+        Returns: {
+          created_lead_id: number
+          was_inserted: boolean
+        }[]
+      }
       crm_ingest_site_lead: {
         Args: {
           p_email?: string
@@ -5744,6 +5768,7 @@ export type Database = {
         Args: { p_lead_id: number }
         Returns: undefined
       }
+      crm_phone_match_key: { Args: { p_phone: string }; Returns: string }
       crm_process_next_prospeccao_leads: {
         Args: { p_id_empresa?: number; p_limit?: number }
         Returns: {
