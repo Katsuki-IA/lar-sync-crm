@@ -1,8 +1,4 @@
-import {
-  createSupabaseAdmin,
-  getMetaConfig,
-  jsonResponse,
-} from "../_shared/meta.ts";
+import { createSupabaseAdmin, getMetaConfig, jsonResponse } from "../_shared/meta.ts";
 import {
   createMetaFieldValueMap,
   getMappedMetaValue,
@@ -32,6 +28,61 @@ type MetaWebhookPayload = {
     }>;
   }>;
 };
+
+type WebhookEvent = {
+  entryId: string | null;
+  entryTime: number | null;
+  value: LeadgenValue;
+};
+
+async function createWebhookReceipt(event: WebhookEvent) {
+  const leadId = event.value.leadgen_id;
+  const formId = event.value.form_id;
+  const pageId = event.value.page_id;
+  if (!leadId || !formId || !pageId) return null;
+
+  const supabaseAdmin = createSupabaseAdmin();
+  const { data, error } = await supabaseAdmin
+    .from("crm_meta_webhook_receipts")
+    .insert({
+      leadgen_id: leadId,
+      form_id: formId,
+      page_id: pageId,
+      entry_id: event.entryId,
+      entry_time: event.entryTime,
+      status: "received",
+    })
+    .select("id")
+    .single();
+  if (error) {
+    // A auditoria nunca deve impedir a captura do lead.
+    console.error("Falha ao registrar recebimento do webhook Meta", error);
+    return null;
+  }
+  return data.id as string;
+}
+
+async function updateWebhookReceipt(args: {
+  receiptId: string | null;
+  status: "processed" | "ignored" | "failed";
+  idEmpresa?: number | null;
+  crmLeadId?: number | null;
+  error?: string | null;
+}) {
+  if (!args.receiptId) return;
+  const supabaseAdmin = createSupabaseAdmin();
+  const { error } = await supabaseAdmin
+    .from("crm_meta_webhook_receipts")
+    .update({
+      status: args.status,
+      id_empresa: args.idEmpresa ?? null,
+      crm_lead_id: args.crmLeadId ?? null,
+      error: args.error?.slice(0, 2000) ?? null,
+      processed_at: new Date().toISOString(),
+    })
+    .eq("id", args.receiptId);
+  if (error) console.error("Falha ao atualizar recebimento do webhook Meta", error);
+}
 
 type MetaLeadResponse = {
   id?: string;
@@ -168,7 +219,7 @@ async function processLeadgenEvent(args: {
   if (formError) throw new Error(formError.message);
   if (!form) {
     console.info(`Evento Meta ignorado: formulário ${formId} não está ativo no CRM`);
-    return { ignored: true, inserted: false, leadId: null };
+    return { ignored: true, inserted: false, leadId: null, idEmpresa: null };
   }
   if (!form.id_empreendimento) {
     throw new Error(`Formulário ${formId} sem empreendimento configurado`);
@@ -183,7 +234,7 @@ async function processLeadgenEvent(args: {
   if (connectionError) throw new Error(connectionError.message);
   if (!connection?.active) {
     console.info(`Evento Meta ignorado: conexão da empresa ${form.id_empresa} está inativa`);
-    return { ignored: true, inserted: false, leadId: null };
+    return { ignored: true, inserted: false, leadId: null, idEmpresa: form.id_empresa };
   }
 
   const accessToken = form.page_access_token ?? connection.user_access_token;
@@ -318,6 +369,7 @@ async function processLeadgenEvent(args: {
     ignored: false,
     inserted: Boolean(result?.was_inserted),
     leadId: result?.created_lead_id ?? null,
+    idEmpresa: form.id_empresa,
     attributionEnrichment,
   };
 }
@@ -339,7 +391,7 @@ async function handlePost(req: Request) {
     return jsonResponse({ received: true, ignored: true });
   }
 
-  const events = (payload.entry ?? []).flatMap((entry) =>
+  const events: WebhookEvent[] = (payload.entry ?? []).flatMap((entry) =>
     (entry.changes ?? [])
       .filter((change) => change.field === "leadgen" && change.value)
       .map((change) => ({
@@ -352,7 +404,24 @@ async function handlePost(req: Request) {
   try {
     const results = [];
     for (const event of events) {
-      results.push(await processLeadgenEvent(event));
+      const receiptId = await createWebhookReceipt(event);
+      try {
+        const result = await processLeadgenEvent(event);
+        await updateWebhookReceipt({
+          receiptId,
+          status: result.ignored ? "ignored" : "processed",
+          idEmpresa: result.idEmpresa,
+          crmLeadId: result.leadId,
+        });
+        results.push(result);
+      } catch (error) {
+        await updateWebhookReceipt({
+          receiptId,
+          status: "failed",
+          error: error instanceof Error ? error.message : "Falha ao processar webhook Meta",
+        });
+        throw error;
+      }
     }
     return jsonResponse({ received: true, events: events.length, results });
   } catch (error) {

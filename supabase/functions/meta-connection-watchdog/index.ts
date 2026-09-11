@@ -22,6 +22,16 @@ type MetaConnection = {
 
 type WatchdogMode = "health" | "daily_recovery";
 
+type RecoveredFormSummary = {
+  pageId: string;
+  pageName: string;
+  formId: string;
+  formName: string;
+  recovered: number;
+  minimumDelayMinutes: number | null;
+  maximumDelayMinutes: number | null;
+};
+
 function safeEqual(left: string, right: string) {
   const leftBytes = new TextEncoder().encode(left);
   const rightBytes = new TextEncoder().encode(right);
@@ -140,13 +150,14 @@ Deno.serve((req) =>
       let recoveryWarnings = 0;
       let userTokenFallbackAttempts = 0;
       let userTokenFallbacks = 0;
+      const recoveredForms: RecoveredFormSummary[] = [];
       let hadConfiguredForms = false;
       let needsInitialBackfill = false;
       if (runRecovery && permission.isValid && permission.scopes.includes("leads_retrieval")) {
         const { data: forms, error: formsError } = await supabaseAdmin
           .from("crm_meta_forms")
           .select(
-            "form_id,page_id,page_name,page_access_token,id_empreendimento,id_funnel,last_recovered_at",
+            "form_id,form_name,page_id,page_name,page_access_token,id_empreendimento,id_funnel,last_recovered_at",
           )
           .eq("id_empresa", connection.id_empresa)
           .eq("connection_id", connection.id)
@@ -258,6 +269,20 @@ Deno.serve((req) =>
               limit: 500,
             });
             recovered += recovery.recovered;
+            if (recovery.recovered > 0) {
+              const delays = recovery.recoveredLeads
+                .map((lead) => lead.delayMinutes)
+                .filter((delay): delay is number => delay !== null);
+              recoveredForms.push({
+                pageId: form.page_id,
+                pageName: form.page_name ?? form.page_id,
+                formId: form.form_id,
+                formName: form.form_name ?? form.form_id,
+                recovered: recovery.recovered,
+                minimumDelayMinutes: delays.length > 0 ? Math.min(...delays) : null,
+                maximumDelayMinutes: delays.length > 0 ? Math.max(...delays) : null,
+              });
+            }
             failedRecoveries += recovery.failed.length;
             recoveryWarnings += recovery.warnings.length;
             if (recovery.attemptedUserTokenFallback) userTokenFallbackAttempts += 1;
@@ -329,6 +354,20 @@ Deno.serve((req) =>
         .eq("id", connection.id)
         .eq("id_empresa", connection.id_empresa);
       if (updateError) throw new Error(updateError.message);
+
+      if (runRecovery && recovered > 0) {
+        await writeEvent({
+          supabaseAdmin,
+          connection,
+          eventType: "leads_recovered",
+          message: `A recuperação automática encontrou ${recovered} lead(s) que não haviam chegado ao Hub em tempo real.`,
+          details: {
+            mode,
+            recovered,
+            forms: recoveredForms,
+          },
+        });
+      }
 
       if (healthStatus === "healthy") summary.healthy += 1;
       else if (healthStatus === "degraded") summary.degraded += 1;

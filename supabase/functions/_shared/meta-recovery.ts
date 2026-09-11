@@ -20,15 +20,25 @@ type MetaLead = {
 
 export type MetaConfiguredForm = {
   form_id: string;
+  form_name?: string | null;
   page_id: string;
+  page_name?: string | null;
   page_access_token: string | null;
   id_empreendimento: number | null;
   id_funnel: number | null;
 };
 
+export type MetaRecoveredLead = {
+  leadId: string;
+  metaCreatedAt: string | null;
+  recoveredAt: string;
+  delayMinutes: number | null;
+};
+
 export type MetaRecoveryResult = {
   checked: number;
   recovered: number;
+  recoveredLeads: MetaRecoveredLead[];
   duplicates: number;
   failed: Array<{ formId: string; message: string }>;
   warnings: Array<{ formId: string; leadId?: string; message: string }>;
@@ -106,6 +116,7 @@ export async function recoverMetaLeadsForForm(args: {
   const result: MetaRecoveryResult = {
     checked: 0,
     recovered: 0,
+    recoveredLeads: [],
     duplicates: 0,
     failed: [],
     warnings: [],
@@ -171,6 +182,7 @@ export async function recoverMetaLeadsForForm(args: {
     for (const lead of leads) {
       result.checked += 1;
       try {
+        const recoveredAt = new Date();
         const values = createMetaFieldValueMap(lead.field_data ?? []);
         const nome = getMappedMetaValue({ values, mapping, crmField: "nome" }).trim();
         const phone = normalizeBrazilPhone(
@@ -198,7 +210,7 @@ export async function recoverMetaLeadsForForm(args: {
             p_raw_data: {
               source: "meta_recovery",
               lead,
-              recovered_at: new Date().toISOString(),
+              recovered_at: recoveredAt.toISOString(),
               destination: {
                 id_empresa: args.idEmpresa,
                 id_empreendimento: form.id_empreendimento,
@@ -214,8 +226,21 @@ export async function recoverMetaLeadsForForm(args: {
         );
         if (ingestionError) throw new Error(ingestionError.message);
         const ingestionResult = Array.isArray(ingestion) ? ingestion[0] : ingestion;
-        if (ingestionResult?.was_inserted) result.recovered += 1;
-        else result.duplicates += 1;
+        if (ingestionResult?.was_inserted) {
+          result.recovered += 1;
+          const metaCreatedAt = lead.created_time ? new Date(lead.created_time) : null;
+          const metaCreatedAtMs = metaCreatedAt?.getTime() ?? Number.NaN;
+          const hasValidMetaCreatedAt = !Number.isNaN(metaCreatedAtMs);
+          result.recoveredLeads.push({
+            leadId: lead.id,
+            metaCreatedAt:
+              hasValidMetaCreatedAt && metaCreatedAt ? metaCreatedAt.toISOString() : null,
+            recoveredAt: recoveredAt.toISOString(),
+            delayMinutes: hasValidMetaCreatedAt
+              ? Math.max(0, Math.round((recoveredAt.getTime() - metaCreatedAtMs) / 60000))
+              : null,
+          });
+        } else result.duplicates += 1;
 
         if (lead.ad_id && ingestionResult?.created_lead_id) {
           const enrichment = await enrichMetaAttributionForCompany({
