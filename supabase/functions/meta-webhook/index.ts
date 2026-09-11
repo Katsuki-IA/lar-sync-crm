@@ -237,15 +237,20 @@ async function processLeadgenEvent(args: {
     return { ignored: true, inserted: false, leadId: null, idEmpresa: form.id_empresa };
   }
 
-  const accessToken = form.page_access_token ?? connection.user_access_token;
-  if (!accessToken) throw new Error(`Token de acesso ausente para a página ${pageId}`);
+  const leadAccessToken = form.page_access_token ?? connection.user_access_token;
+  if (!leadAccessToken) throw new Error(`Token de acesso ausente para a página ${pageId}`);
+
+  // A leitura do lead pertence à Página, mas os objetos de anúncios e a lista
+  // de contas de anúncio são autorizados pelo usuário (`ads_read`). Usar o
+  // token da Página no enriquecimento faz a Graph API negar esses objetos.
+  const adsAccessToken = connection.user_access_token ?? leadAccessToken;
 
   const leadUrl = new URL(`https://graph.facebook.com/${graphVersion}/${leadId}`);
   leadUrl.searchParams.set(
     "fields",
     "id,created_time,ad_id,form_id,field_data,custom_disclaimer_responses",
   );
-  leadUrl.searchParams.set("access_token", accessToken);
+  leadUrl.searchParams.set("access_token", leadAccessToken);
   const leadResponse = await fetch(leadUrl.toString());
   const lead = (await leadResponse.json()) as MetaLeadResponse;
   if (!leadResponse.ok || lead.error || !lead.id) {
@@ -347,7 +352,7 @@ async function processLeadgenEvent(args: {
       const enrichment = await enrichMetaAttributionForCompany({
         supabaseAdmin,
         idEmpresa: form.id_empresa,
-        accessToken,
+        accessToken: adsAccessToken,
         graphVersion,
         leadId: result?.created_lead_id ?? null,
         metaLeadgenId: leadId,
