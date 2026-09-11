@@ -78,13 +78,30 @@ Deno.serve((req) =>
 
     const { appId, appSecret, graphVersion } = getMetaConfig();
     const supabaseAdmin = createSupabaseAdmin();
-    const { data: connections, error: connectionsError } = await supabaseAdmin
-      .from("crm_meta_connections")
-      .select(
-        "id,id_empresa,user_access_token,connected_at,recovery_backfill_completed_at,health_status,last_error,token_validation_error",
-      )
-      .eq("active", true);
-    if (connectionsError) throw new Error(connectionsError.message);
+    const { data: hubCredentials, error: hubCredentialsError } = await supabaseAdmin
+      .from("credentials")
+      .select("id_empresa")
+      .eq("default_crm", "hub")
+      .not("id_empresa", "is", null);
+    if (hubCredentialsError) throw new Error(hubCredentialsError.message);
+
+    const hubCompanyIds = Array.from(
+      new Set(
+        (hubCredentials ?? []).map((item) => Number(item.id_empresa)).filter(Number.isFinite),
+      ),
+    );
+    let connections: MetaConnection[] = [];
+    if (hubCompanyIds.length > 0) {
+      const { data, error } = await supabaseAdmin
+        .from("crm_meta_connections")
+        .select(
+          "id,id_empresa,user_access_token,connected_at,recovery_backfill_completed_at,health_status,last_error,token_validation_error",
+        )
+        .eq("active", true)
+        .in("id_empresa", hubCompanyIds);
+      if (error) throw new Error(error.message);
+      connections = (data ?? []) as MetaConnection[];
+    }
 
     const summary = {
       mode,
@@ -94,7 +111,7 @@ Deno.serve((req) =>
       errors: 0,
       recovered: 0,
     };
-    for (const connection of (connections ?? []) as MetaConnection[]) {
+    for (const connection of connections) {
       summary.checked += 1;
       const permission = await checkMetaTokenPermissions({
         appId,
