@@ -1,4 +1,4 @@
-import { createSupabaseAdmin, fetchGraphCollection } from "./meta.ts";
+import { createSupabaseAdmin, fetchGraphCollection, isMetaRateLimitError } from "./meta.ts";
 import {
   createMetaFieldValueMap,
   getMappedMetaValue,
@@ -34,7 +34,18 @@ export type MetaRecoveryResult = {
   warnings: Array<{ formId: string; leadId?: string; message: string }>;
   attemptedUserTokenFallback: boolean;
   usedUserTokenFallback: boolean;
+  rateLimited: boolean;
 };
+
+function pageReachedRecoveryBoundary(leads: MetaLead[], since: Date) {
+  if (leads.length === 0) return true;
+  const timestamps = leads.map((lead) => new Date(lead.created_time ?? "").getTime());
+  if (timestamps.some((timestamp) => Number.isNaN(timestamp))) return false;
+  const isDescending = timestamps.every(
+    (timestamp, index) => index === 0 || timestamp <= timestamps[index - 1],
+  );
+  return isDescending && timestamps[timestamps.length - 1] < since.getTime();
+}
 
 function describeMetaAccessError(form: MetaConfiguredForm, error: unknown) {
   const message = error instanceof Error ? error.message : "Falha ao consultar formulario";
@@ -100,6 +111,7 @@ export async function recoverMetaLeadsForForm(args: {
     warnings: [],
     attemptedUserTokenFallback: false,
     usedUserTokenFallback: false,
+    rateLimited: false,
   };
   const { form } = args;
   if (!form.id_empreendimento || !form.id_funnel) {
@@ -120,11 +132,18 @@ export async function recoverMetaLeadsForForm(args: {
       url.searchParams.set("limit", "100");
       url.searchParams.set("access_token", accessToken);
       try {
-        leadsFromMeta = await fetchGraphCollection<MetaLead>(url);
+        leadsFromMeta = await fetchGraphCollection<MetaLead>(url, {
+          maxItems: args.limit,
+          stopAfterPage: (pageItems) => pageReachedRecoveryBoundary(pageItems, args.since),
+        });
         result.usedUserTokenFallback = index > 0;
         break;
       } catch (error) {
         lastAccessError = error;
+        if (isMetaRateLimitError(error)) {
+          result.rateLimited = true;
+          break;
+        }
       }
     }
     if (!leadsFromMeta) throw lastAccessError ?? new Error("Falha ao acessar leads na Meta");

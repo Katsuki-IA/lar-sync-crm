@@ -82,6 +82,7 @@ type AttributionRow = {
 
 export type MetaTokenPermissionCheck = {
   isValid: boolean;
+  rateLimited: boolean;
   hasAdsRead: boolean;
   scopes: string[];
   error: string | null;
@@ -129,6 +130,7 @@ export async function checkMetaTokenPermissions(args: {
       const isValid = debug.data?.is_valid === true;
       return {
         isValid,
+        rateLimited: false,
         hasAdsRead: isValid && scopes.has("ads_read"),
         scopes: Array.from(scopes).sort(),
         error: isValid ? null : "Token Meta invalido ou expirado",
@@ -154,6 +156,7 @@ export async function checkMetaTokenPermissions(args: {
     }
     return {
       isValid: true,
+      rateLimited: false,
       hasAdsRead: scopes.has("ads_read"),
       scopes: Array.from(scopes).sort(),
       error: null,
@@ -162,11 +165,13 @@ export async function checkMetaTokenPermissions(args: {
       userId: null,
     };
   } catch (error) {
+    const message = error instanceof Error ? error.message : "Falha ao checar permissoes Meta";
     return {
       isValid: false,
+      rateLimited: /\(#4\)|application request limit reached/i.test(message),
       hasAdsRead: false,
       scopes: Array.from(scopes).sort(),
-      error: error instanceof Error ? error.message : "Falha ao checar permissoes Meta",
+      error: message,
       expiresAt: null,
       dataAccessExpiresAt: null,
       userId: null,

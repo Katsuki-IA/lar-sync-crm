@@ -70,8 +70,17 @@ type GraphCollection<T> = {
   };
   error?: {
     message?: string;
+    code?: number;
+    error_subcode?: number;
   };
 };
+
+export function isMetaRateLimitError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  return /\(#(?:4|17|32|613)\)|application request limit reached|too many (?:api )?calls|rate limit/i.test(
+    message,
+  );
+}
 
 export function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -256,21 +265,34 @@ export function buildMetaOAuthUrl(args: {
   return url.toString();
 }
 
-export async function fetchGraphCollection<T>(initialUrl: URL | string): Promise<T[]> {
+export async function fetchGraphCollection<T>(
+  initialUrl: URL | string,
+  options: {
+    maxItems?: number;
+    stopAfterPage?: (pageItems: T[]) => boolean;
+  } = {},
+): Promise<T[]> {
   const items: T[] = [];
   let nextUrl: string | null = initialUrl.toString();
   let pageCount = 0;
+  const maxItems =
+    typeof options.maxItems === "number" && options.maxItems > 0
+      ? Math.floor(options.maxItems)
+      : Number.POSITIVE_INFINITY;
 
-  while (nextUrl && pageCount < 20) {
+  while (nextUrl && pageCount < 20 && items.length < maxItems) {
     pageCount += 1;
     const response = await fetch(nextUrl);
     const json = (await response.json()) as GraphCollection<T>;
 
     if (!response.ok || json.error) {
-      throw new Error(json.error?.message ?? "Falha ao consultar a Graph API");
+      const code = json.error?.code ? ` (#${json.error.code})` : "";
+      throw new Error(`${json.error?.message ?? "Falha ao consultar a Graph API"}${code}`);
     }
 
-    items.push(...(json.data ?? []));
+    const pageItems = (json.data ?? []).slice(0, maxItems - items.length);
+    items.push(...pageItems);
+    if (options.stopAfterPage?.(pageItems)) break;
     nextUrl = json.paging?.next ?? null;
   }
 
@@ -380,6 +402,27 @@ export async function refreshMetaPageAccessTokens(args: {
   };
 }
 
+export async function ensureMetaPageLeadgenSubscription(args: {
+  pageId: string;
+  pageAccessToken: string;
+  graphVersion: string;
+}) {
+  const subscriptionUrl = new URL(
+    `https://graph.facebook.com/${args.graphVersion}/${args.pageId}/subscribed_apps`,
+  );
+  subscriptionUrl.searchParams.set("subscribed_fields", "leadgen");
+  subscriptionUrl.searchParams.set("access_token", args.pageAccessToken);
+  const subscriptionResponse = await fetch(subscriptionUrl.toString(), { method: "POST" });
+  const subscriptionJson = await subscriptionResponse.json();
+  const subscriptionSucceeded =
+    subscriptionJson?.success === true || subscriptionJson?.success === "true";
+  if (!subscriptionResponse.ok || subscriptionJson?.error || !subscriptionSucceeded) {
+    throw new Error(
+      subscriptionJson?.error?.message ?? "A Meta não confirmou a assinatura do webhook",
+    );
+  }
+}
+
 export async function syncMetaFormsForConnection(args: {
   idEmpresa: number;
   connectionId: string;
@@ -439,21 +482,12 @@ export async function syncMetaFormsForConnection(args: {
     let webhookSubscribed = false;
     let webhookError: string | null = null;
     if (selected) {
-      const subscriptionUrl = new URL(
-        `https://graph.facebook.com/${args.graphVersion}/${page.id}/subscribed_apps`,
-      );
-      subscriptionUrl.searchParams.set("subscribed_fields", "leadgen");
-      subscriptionUrl.searchParams.set("access_token", page.access_token);
       try {
-        const subscriptionResponse = await fetch(subscriptionUrl.toString(), { method: "POST" });
-        const subscriptionJson = await subscriptionResponse.json();
-        const subscriptionSucceeded =
-          subscriptionJson?.success === true || subscriptionJson?.success === "true";
-        if (!subscriptionResponse.ok || subscriptionJson?.error || !subscriptionSucceeded) {
-          throw new Error(
-            subscriptionJson?.error?.message ?? "A Meta não confirmou a assinatura do webhook",
-          );
-        }
+        await ensureMetaPageLeadgenSubscription({
+          pageId: page.id,
+          pageAccessToken: page.access_token,
+          graphVersion: args.graphVersion,
+        });
         webhookSubscribed = true;
       } catch (error) {
         webhookError = error instanceof Error ? error.message : "Falha ao inscrever a pagina";

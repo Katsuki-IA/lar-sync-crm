@@ -66,7 +66,13 @@ Deno.serve(async (req) => {
     const metaUser = await meRes.json();
     if (!meRes.ok || !metaUser?.id) {
       console.error("Meta /me error", metaUser);
-      throw new Error("Não foi possível obter dados do usuário Meta");
+      const metaMessage = String(metaUser?.error?.message ?? "");
+      if (/\(#4\)|application request limit reached/i.test(metaMessage)) {
+        throw new Error(
+          "A Meta limitou temporariamente as chamadas do aplicativo. Aguarde a cota normalizar e tente conectar novamente.",
+        );
+      }
+      throw new Error(metaMessage || "Não foi possível obter dados do usuário Meta");
     }
 
     const supabaseAdmin = createSupabaseAdmin();

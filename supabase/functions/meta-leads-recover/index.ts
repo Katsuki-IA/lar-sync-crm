@@ -66,16 +66,19 @@ Deno.serve(async (req) => {
       until,
       limit: Math.min(Math.max(Number(body.limitPerForm) || 500, 1), 500),
     });
-    if (result.failed.length > 0) {
+    if (result.failed.length > 0 || result.warnings.length > 0) {
+      const recoveryProblems = [
+        ...result.failed.map((item) => `${item.formId}: ${item.message}`),
+        ...result.warnings.map(
+          (item) => `${item.formId}${item.leadId ? ` lead ${item.leadId}` : ""}: ${item.message}`,
+        ),
+      ];
       await supabaseAdmin
         .from("crm_meta_connections")
         .update({
           health_status: "degraded",
           last_health_check_at: new Date().toISOString(),
-          last_error: result.failed
-            .map((item) => `${item.formId}: ${item.message}`)
-            .join(" | ")
-            .slice(0, 2000),
+          last_error: recoveryProblems.join(" | ").slice(0, 2000),
         })
         .eq("id", connection.id)
         .eq("id_empresa", crmUser.id_empresa);
