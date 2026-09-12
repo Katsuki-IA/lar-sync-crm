@@ -1493,6 +1493,13 @@ export type Database = {
             referencedRelation: "crm_meta_connections"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "crm_meta_connection_events_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "crm_meta_connections_monitor"
+            referencedColumns: ["id"]
+          },
         ]
       }
       crm_meta_connections: {
@@ -1662,6 +1669,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "crm_meta_forms_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "crm_meta_connections_monitor"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "crm_meta_forms_id_empreendimento_fkey"
             columns: ["id_empreendimento"]
             isOneToOne: false
@@ -1737,6 +1751,51 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      crm_meta_webhook_receipts: {
+        Row: {
+          crm_lead_id: number | null
+          entry_id: string | null
+          entry_time: number | null
+          error: string | null
+          form_id: string
+          id: string
+          id_empresa: number | null
+          leadgen_id: string
+          page_id: string
+          processed_at: string | null
+          received_at: string
+          status: string
+        }
+        Insert: {
+          crm_lead_id?: number | null
+          entry_id?: string | null
+          entry_time?: number | null
+          error?: string | null
+          form_id: string
+          id?: string
+          id_empresa?: number | null
+          leadgen_id: string
+          page_id: string
+          processed_at?: string | null
+          received_at?: string
+          status?: string
+        }
+        Update: {
+          crm_lead_id?: number | null
+          entry_id?: string | null
+          entry_time?: number | null
+          error?: string | null
+          form_id?: string
+          id?: string
+          id_empresa?: number | null
+          leadgen_id?: string
+          page_id?: string
+          processed_at?: string | null
+          received_at?: string
+          status?: string
+        }
+        Relationships: []
       }
       crm_metricas_sync_control: {
         Row: {
@@ -4173,6 +4232,7 @@ export type Database = {
           rd_deal_id: string | null
           status: string | null
           status_history: string | null
+          tipo_agendamento: string | null
           ult_message: string | null
           updated_at: string | null
           wa_conversation_assigned_at: string | null
@@ -4214,6 +4274,7 @@ export type Database = {
           rd_deal_id?: string | null
           status?: string | null
           status_history?: string | null
+          tipo_agendamento?: string | null
           ult_message?: string | null
           updated_at?: string | null
           wa_conversation_assigned_at?: string | null
@@ -4255,6 +4316,7 @@ export type Database = {
           rd_deal_id?: string | null
           status?: string | null
           status_history?: string | null
+          tipo_agendamento?: string | null
           ult_message?: string | null
           updated_at?: string | null
           wa_conversation_assigned_at?: string | null
@@ -5296,7 +5358,67 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      crm_meta_connections_monitor: {
+        Row: {
+          active: boolean | null
+          connected_at: string | null
+          health_status: string | null
+          id: string | null
+          id_empresa: number | null
+          last_error: string | null
+          last_health_check_at: string | null
+          token_data_access_expires_at: string | null
+          token_expires_at: string | null
+          token_last_validated_at: string | null
+          token_validation_error: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          connected_at?: string | null
+          health_status?: string | null
+          id?: string | null
+          id_empresa?: number | null
+          last_error?: string | null
+          last_health_check_at?: string | null
+          token_data_access_expires_at?: string | null
+          token_expires_at?: string | null
+          token_last_validated_at?: string | null
+          token_validation_error?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          connected_at?: string | null
+          health_status?: string | null
+          id?: string | null
+          id_empresa?: number | null
+          last_error?: string | null
+          last_health_check_at?: string | null
+          token_data_access_expires_at?: string | null
+          token_expires_at?: string | null
+          token_last_validated_at?: string | null
+          token_validation_error?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_meta_connections_id_empresa_fkey"
+            columns: ["id_empresa"]
+            isOneToOne: true
+            referencedRelation: "empresa_dados"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_meta_recovery_alerts_monitor: {
+        Row: {
+          company_name: string | null
+          created_at: string | null
+          details: Json | null
+          id: string | null
+          id_empresa: number | null
+          message: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       accept_followup_attempt_v2: {
