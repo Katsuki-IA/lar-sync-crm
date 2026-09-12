@@ -60,10 +60,10 @@ function SetupPage() {
       <Card className="w-full max-w-md rounded-2xl shadow-sm">
         <CardHeader className="text-center">
           <img
-            src="/katsuki-logo.svg"
-            alt="Katsuki"
+            src="/katsuki-ia-logo.svg"
+            alt="Katsuki.IA"
             className="mx-auto mb-4 object-contain"
-            style={{ height: 110, width: "auto" }}
+            style={{ maxWidth: 220, width: "100%", height: "auto" }}
           />
           <CardTitle className="text-2xl">Primeiro Acesso</CardTitle>
           <CardDescription>
