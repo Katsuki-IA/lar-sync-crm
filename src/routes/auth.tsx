@@ -71,8 +71,8 @@ function AuthPage() {
           <img
             src="/katsuki-ia-logo.svg"
             alt="Katsuki.IA"
-            className="login-logo mx-auto mb-4 object-contain"
-            style={{ maxWidth: 220, width: "100%", height: "auto" }}
+            className="login-logo mx-auto object-contain"
+            style={{ width: 240, maxWidth: "100%", height: "auto", marginBottom: 20 }}
           />
           <CardDescription className="login-fade-up login-delay-1">
             Entre na sua conta para continuar
