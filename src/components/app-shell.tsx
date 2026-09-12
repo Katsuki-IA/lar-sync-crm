@@ -103,7 +103,7 @@ function AppShellContent({ children }: { children: ReactNode }) {
             {isSuperAdmin ? (
               <Select value={activeEmpresaId ? String(activeEmpresaId) : ""} onValueChange={(value) => setActiveEmpresaId(Number(value))}>
                 <SelectTrigger className="hidden sm:flex h-9 w-[220px] text-xs">
-                  <Building2 className="mr-2 h-4 w-4 shrink-0" />
+                  <img src="/favicon.svg" alt="" className="mr-2 h-4 w-4 shrink-0 rounded-[3px]" />
                   <SelectValue placeholder="Selecionar empresa" />
                 </SelectTrigger>
                 <SelectContent>
