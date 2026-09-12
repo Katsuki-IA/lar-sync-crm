@@ -50,13 +50,13 @@ export function AppSidebar() {
     >
       <div
         className="flex items-center justify-center px-5 border-b"
-        style={{ height: 64, borderColor: "var(--border)" }}
+        style={{ height: 72, borderColor: "var(--border)" }}
       >
         <img
           src="/katsuki-ia-logo-branco.svg"
           alt="Katsuki.IA"
           className="object-contain"
-          style={{ height: 26, width: "auto", maxWidth: "100%" }}
+          style={{ height: 30, width: "auto", maxWidth: "100%" }}
         />
       </div>
 
