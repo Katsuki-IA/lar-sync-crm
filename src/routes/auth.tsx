@@ -69,10 +69,10 @@ function AuthPage() {
       <Card className="login-card w-full max-w-md rounded-2xl border-white/70 bg-white/90 shadow-sm">
         <CardHeader className="text-center">
           <img
-            src="/katsuki-logo.svg"
-            alt="Katsuki"
+            src="/katsuki-ia-logo.svg"
+            alt="Katsuki.IA"
             className="login-logo mx-auto mb-4 object-contain"
-            style={{ height: 110, width: "auto" }}
+            style={{ maxWidth: 220, width: "100%", height: "auto" }}
           />
           <CardDescription className="login-fade-up login-delay-1">
             Entre na sua conta para continuar
