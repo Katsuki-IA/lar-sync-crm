@@ -13,7 +13,7 @@ export function LegalPageLayout({ title, description, updatedAt, children }: Leg
       <header className="border-b border-border bg-white">
         <div className="mx-auto flex w-full max-w-4xl items-center justify-between px-5 py-5 sm:px-8">
           <a href="https://katsuki.com.br" aria-label="Ir para o site da Katsuki">
-            <img src="/katsuki-logo.svg" alt="Katsuki" className="h-12 w-auto object-contain" />
+            <img src="/katsuki-ia-logo.svg" alt="Katsuki.IA" className="h-auto w-full max-w-[220px] object-contain" />
           </a>
           <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
             Hub Katsuki
