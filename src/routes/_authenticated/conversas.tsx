@@ -91,6 +91,10 @@ function isToolMessage(type: string | null, message: Json | null) {
   return /^calling\s+.+\s+with\s+input\s*:/i.test(messageToText(message).trim());
 }
 
+function isEmptyInternalAiMessage(type: string | null, message: Json | null) {
+  return type?.trim().toLowerCase() === "ai" && !messageToText(message).trim();
+}
+
 async function functionError(error: unknown, fallback: string) {
   const context = (error as { context?: unknown } | null)?.context;
   if (context instanceof Response) {
@@ -262,7 +266,11 @@ function ConversationsPage() {
 
       const mapChatRows = (rows: WhatsappConversationMessageRow[]) =>
         rows
-          .filter((message) => !isToolMessage(message.type, message.message))
+          .filter(
+            (message) =>
+              !isToolMessage(message.type, message.message) &&
+              !isEmptyInternalAiMessage(message.type, message.message),
+          )
           .map((message) => ({
             id: `chat-${message.id}`,
             type: message.type,
