@@ -15,10 +15,10 @@ function ExclusaoDeDadosPage() {
     <div className="flex min-h-screen flex-col items-center bg-background px-4 py-12 text-foreground">
       <div className="w-full max-w-2xl">
         <img
-          src="/katsuki-logo.svg"
-          alt="Katsuki"
-          className="mb-6 object-contain"
-          style={{ height: 83, width: "auto" }}
+          src="/katsuki-ia-logo.svg"
+          alt="Katsuki.IA"
+          className="mx-auto mb-6 object-contain"
+          style={{ maxWidth: 220, width: "100%", height: "auto" }}
         />
         <h1 className="mb-6 text-3xl font-bold tracking-tight">Solicitação de Exclusão de Dados</h1>
 
