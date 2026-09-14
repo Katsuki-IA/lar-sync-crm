@@ -1,4 +1,9 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.48.1";
+import {
+  selectCvCancellationReason,
+  type CvCancellationReason,
+  type CvCancellationSelection,
+} from "./cancellation-reasons.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -19,18 +24,9 @@ type DispatchPayload = {
   cancellationReasonId?: string | number;
   cancellationReasonName?: string;
   cancellationReasonDescription?: string;
+  cancellationReasonKind?: string;
   enforceScheduledRule?: boolean;
   externalStageKind?: string;
-};
-
-type CvCancellationReason = {
-  id: string | number;
-  nome: string;
-};
-
-type CvCancellationSelection = {
-  reason: CvCancellationReason;
-  source: "provided" | "rules";
 };
 
 type CrmUser = {
@@ -200,87 +196,6 @@ function parseCvCancellationReasons(payload: unknown): CvCancellationReason[] {
       return { id, nome };
     })
     .filter((item): item is CvCancellationReason => item != null);
-}
-
-function fallbackCvCancellationReason(
-  reasons: CvCancellationReason[],
-  context: string,
-): CvCancellationReason {
-  const normalizedContext = normalizeLabel(context);
-  const rules: Array<{ context: string[]; reason: string[] }> = [
-    {
-      context: ["sem interesse", "nao tem interesse", "nao possui interesse"],
-      reason: ["nao tem interesse no momento", "sem interesse", "nao tem interesse", "desistencia"],
-    },
-    {
-      context: ["financeir", "credito", "renda", "valor", "caro"],
-      reason: ["sem condicoes financeiras", "credito reprovado", "financeir"],
-    },
-    {
-      context: ["localizacao", "bairro", "distante"],
-      reason: ["localizacao"],
-    },
-    {
-      context: ["tipologia", "planta", "metragem", "quartos", "suites"],
-      reason: ["tipologia", "produto nao atende"],
-    },
-    {
-      context: ["outro imovel", "ja comprou", "ja alugou"],
-      reason: ["comprou outro imovel", "alugou o imovel"],
-    },
-    {
-      context: ["contato invalido", "numero invalido", "telefone invalido"],
-      reason: ["dados de contato invalido"],
-    },
-  ];
-
-  for (const rule of rules) {
-    if (!rule.context.some((term) => normalizedContext.includes(term))) continue;
-    for (const expected of rule.reason) {
-      const match = reasons.find((reason) => normalizeLabel(reason.nome).includes(expected));
-      if (match) return match;
-    }
-  }
-
-  const genericOrder = [
-    "nao tem interesse no momento",
-    "sem interesse",
-    "nao tem interesse",
-    "desistencia",
-    "apenas curioso e pesquisando",
-  ];
-  for (const expected of genericOrder) {
-    const match = reasons.find((reason) => normalizeLabel(reason.nome).includes(expected));
-    if (match) return match;
-  }
-
-  return reasons[0];
-}
-
-function selectCvCancellationReason(args: {
-  reasons: CvCancellationReason[];
-  context: string;
-  providedId?: string | number;
-  providedName?: string;
-}): CvCancellationSelection {
-  const providedId = String(args.providedId ?? "").trim();
-  const providedName = normalizeLabel(args.providedName);
-  if (providedId || providedName) {
-    const providedMatch = args.reasons.find(
-      (reason) =>
-        (providedId && String(reason.id) === providedId) ||
-        (providedName && normalizeLabel(reason.nome) === providedName),
-    );
-    if (!providedMatch) {
-      throw new Error("O motivo de cancelamento informado não está ativo no CV.");
-    }
-    return { reason: providedMatch, source: "provided" };
-  }
-
-  return {
-    reason: fallbackCvCancellationReason(args.reasons, args.context),
-    source: "rules",
-  };
 }
 
 async function loadCvCancellationReasons(args: {
@@ -1344,9 +1259,16 @@ Deno.serve(async (req) => {
             context: cancellationContext,
             providedId: body.cancellationReasonId,
             providedName: body.cancellationReasonName,
+            reasonKind: body.cancellationReasonKind,
           });
+          const isFollowupNoResponse =
+            normalizeLabel(body.cancellationReasonKind).replace(/[\s-]+/g, "_") ===
+            "followup_no_response";
           const cancellationDescription = String(
             body.cancellationReasonDescription ||
+              (isFollowupNoResponse
+                ? "Lead não respondeu após a última etapa da cadência de follow-up."
+                : "") ||
               suppliedSummary ||
               summaryPayload?.summary ||
               "Cliente relatou que não tem interesse.",
