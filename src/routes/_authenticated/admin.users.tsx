@@ -37,6 +37,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 
 export const Route = createFileRoute("/_authenticated/admin/users")({
   component: AdminUsersPage,
@@ -49,6 +50,7 @@ type AdminUserRow = {
   role: "agent" | "manager" | "super_admin" | string;
   active: boolean | null;
   id_empresa: number | null;
+  empresa_ids: number[];
   auth_user_id: string | null;
 };
 
@@ -63,10 +65,51 @@ function emptyCreateForm() {
   return {
     nome: "",
     email: "",
-    role: "agent" as "agent" | "manager" | "super_admin",
+    role: "agent" as "agent" | "manager" | "super_admin" | "analyst",
     password: "",
     id_empresa: "",
+    empresa_ids: [] as number[],
   };
+}
+
+function CompanyMultiSelect({
+  empresas,
+  selected,
+  onChange,
+}: {
+  empresas: EmpresaRow[];
+  selected: number[];
+  onChange: (empresaIds: number[]) => void;
+}) {
+  return (
+    <div className="space-y-2">
+      <Label>Empresas com acesso</Label>
+      <div className="max-h-48 space-y-2 overflow-y-auto rounded-md border p-3">
+        {empresas.map((empresa) => {
+          const checked = selected.includes(empresa.id);
+          return (
+            <label key={empresa.id} className="flex cursor-pointer items-center gap-2 text-sm">
+              <Checkbox
+                checked={checked}
+                onCheckedChange={(value) =>
+                  onChange(
+                    value ? [...selected, empresa.id] : selected.filter((id) => id !== empresa.id),
+                  )
+                }
+              />
+              <span>{empresa.nome?.trim() || `Empresa ${empresa.id}`}</span>
+            </label>
+          );
+        })}
+        {!empresas.length && (
+          <p className="text-sm text-muted-foreground">Nenhuma empresa disponível.</p>
+        )}
+      </div>
+      <p className="text-xs text-muted-foreground">
+        O analista poderá consultar dados e relatórios somente destas empresas.
+      </p>
+    </div>
+  );
 }
 
 function AdminUsersPage() {
@@ -89,8 +132,9 @@ function AdminUsersPage() {
   const [editForm, setEditForm] = useState({
     nome: "",
     email: "",
-    role: "agent" as "agent" | "manager" | "super_admin",
+    role: "agent" as "agent" | "manager" | "super_admin" | "analyst",
     id_empresa: "",
+    empresa_ids: [] as number[],
     password: "",
     confirmPassword: "",
   });
@@ -129,7 +173,9 @@ function AdminUsersPage() {
   const filteredUsers = useMemo(() => {
     if (selectedEmpresa === "all") return data as AdminUserRow[];
     const empresaId = Number(selectedEmpresa);
-    return (data as AdminUserRow[]).filter((user) => user.id_empresa === empresaId);
+    return (data as AdminUserRow[]).filter(
+      (user) => user.id_empresa === empresaId || user.empresa_ids?.includes(empresaId),
+    );
   }, [data, selectedEmpresa]);
 
   const createPasswordError = createForm.password
@@ -156,7 +202,11 @@ function AdminUsersPage() {
           email: createForm.email,
           role: createForm.role,
           password: createForm.password || undefined,
-          id_empresa: createForm.role === "super_admin" ? undefined : Number(createForm.id_empresa),
+          id_empresa:
+            createForm.role === "super_admin" || createForm.role === "analyst"
+              ? undefined
+              : Number(createForm.id_empresa),
+          empresa_ids: createForm.role === "analyst" ? createForm.empresa_ids : undefined,
         },
       }),
     onSuccess: async (result) => {
@@ -177,7 +227,11 @@ function AdminUsersPage() {
           nome: editForm.nome,
           email: editForm.email,
           role: editForm.role,
-          id_empresa: editForm.role === "super_admin" ? null : Number(editForm.id_empresa),
+          id_empresa:
+            editForm.role === "super_admin" || editForm.role === "analyst"
+              ? null
+              : Number(editForm.id_empresa),
+          empresa_ids: editForm.role === "analyst" ? editForm.empresa_ids : undefined,
           password: editForm.password || undefined,
         },
       });
@@ -327,7 +381,9 @@ function AdminUsersPage() {
                       onValueChange={(value) =>
                         setCreateForm((prev) => ({
                           ...prev,
-                          role: value as "agent" | "manager" | "super_admin",
+                          role: value as "agent" | "manager" | "super_admin" | "analyst",
+                          id_empresa: "",
+                          empresa_ids: [],
                         }))
                       }
                     >
@@ -337,11 +393,20 @@ function AdminUsersPage() {
                       <SelectContent>
                         <SelectItem value="agent">Corretor</SelectItem>
                         <SelectItem value="manager">Gestor</SelectItem>
+                        <SelectItem value="analyst">Analista</SelectItem>
                         <SelectItem value="super_admin">Super Admin</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
-                  {createForm.role !== "super_admin" ? (
+                  {createForm.role === "analyst" ? (
+                    <CompanyMultiSelect
+                      empresas={empresas}
+                      selected={createForm.empresa_ids}
+                      onChange={(empresaIds) =>
+                        setCreateForm((prev) => ({ ...prev, empresa_ids: empresaIds }))
+                      }
+                    />
+                  ) : createForm.role !== "super_admin" ? (
                     <div className="space-y-1.5">
                       <Label>Empresa</Label>
                       <Select
@@ -414,7 +479,10 @@ function AdminUsersPage() {
                         !createForm.nome ||
                         !createForm.email ||
                         createEmailReserved ||
-                        (createForm.role !== "super_admin" && !createForm.id_empresa) ||
+                        (createForm.role !== "super_admin" &&
+                          createForm.role !== "analyst" &&
+                          !createForm.id_empresa) ||
+                        (createForm.role === "analyst" && !createForm.empresa_ids.length) ||
                         !!createPasswordError ||
                         createMutation.isPending
                       }
@@ -452,7 +520,15 @@ function AdminUsersPage() {
                     <td className="px-4 py-2 font-medium">{user.nome}</td>
                     <td className="px-4 py-2 text-muted-foreground">{user.email}</td>
                     <td className="px-4 py-2">
-                      {user.id_empresa != null ? (
+                      {user.role === "analyst" ? (
+                        <div className="flex flex-wrap gap-1">
+                          {user.empresa_ids?.map((empresaId) => (
+                            <Badge key={empresaId} variant="outline">
+                              {empresaNameMap.get(empresaId) ?? `Empresa ${empresaId}`}
+                            </Badge>
+                          ))}
+                        </div>
+                      ) : user.id_empresa != null ? (
                         <div className="flex flex-col">
                           <span>
                             {empresaNameMap.get(user.id_empresa) ?? `Empresa ${user.id_empresa}`}
@@ -473,7 +549,9 @@ function AdminUsersPage() {
                             ? "Gestor"
                             : user.role === "super_admin"
                               ? "Super Admin"
-                              : "Corretor"}
+                              : user.role === "analyst"
+                                ? "Analista"
+                                : "Corretor"}
                       </Badge>
                     </td>
                     <td className="px-4 py-2">
@@ -512,11 +590,14 @@ function AdminUsersPage() {
                                 setEditForm({
                                   nome: user.nome ?? "",
                                   email: user.email ?? "",
-                                  role: (user.role === "manager" || user.role === "super_admin"
+                                  role: (user.role === "manager" ||
+                                  user.role === "super_admin" ||
+                                  user.role === "analyst"
                                     ? user.role
-                                    : "agent") as "agent" | "manager" | "super_admin",
+                                    : "agent") as "agent" | "manager" | "super_admin" | "analyst",
                                   id_empresa:
                                     user.id_empresa != null ? String(user.id_empresa) : "",
+                                  empresa_ids: user.empresa_ids ?? [],
                                   password: "",
                                   confirmPassword: "",
                                 });
@@ -586,7 +667,9 @@ function AdminUsersPage() {
                 onValueChange={(value) =>
                   setEditForm((prev) => ({
                     ...prev,
-                    role: value as "agent" | "manager" | "super_admin",
+                    role: value as "agent" | "manager" | "super_admin" | "analyst",
+                    id_empresa: "",
+                    empresa_ids: [],
                   }))
                 }
               >
@@ -596,11 +679,20 @@ function AdminUsersPage() {
                 <SelectContent>
                   <SelectItem value="agent">Corretor</SelectItem>
                   <SelectItem value="manager">Gestor</SelectItem>
+                  <SelectItem value="analyst">Analista</SelectItem>
                   <SelectItem value="super_admin">Super Admin</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            {editForm.role !== "super_admin" ? (
+            {editForm.role === "analyst" ? (
+              <CompanyMultiSelect
+                empresas={empresas}
+                selected={editForm.empresa_ids}
+                onChange={(empresaIds) =>
+                  setEditForm((prev) => ({ ...prev, empresa_ids: empresaIds }))
+                }
+              />
+            ) : editForm.role !== "super_admin" ? (
               <div className="space-y-1.5">
                 <Label>Empresa</Label>
                 <Select
@@ -667,7 +759,10 @@ function AdminUsersPage() {
               disabled={
                 !editForm.nome ||
                 !editForm.email ||
-                (editForm.role !== "super_admin" && !editForm.id_empresa) ||
+                (editForm.role !== "super_admin" &&
+                  editForm.role !== "analyst" &&
+                  !editForm.id_empresa) ||
+                (editForm.role === "analyst" && !editForm.empresa_ids.length) ||
                 !!editPasswordError ||
                 !!editPasswordMismatch ||
                 (!!editForm.password && !editForm.confirmPassword) ||

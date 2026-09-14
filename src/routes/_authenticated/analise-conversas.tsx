@@ -14,8 +14,18 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { calculateJourneyFunnel, createJourneySessionIds, type JourneyFunnelCounts } from "@/lib/journey-funnel";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  calculateJourneyFunnel,
+  createJourneySessionIds,
+  type JourneyFunnelCounts,
+} from "@/lib/journey-funnel";
 import { createJourneyFunnelReportImage } from "@/lib/journey-report-image";
 import { sendJourneyFunnelReport } from "@/lib/journey-report.functions";
 import { cn } from "@/lib/utils";
@@ -32,15 +42,13 @@ function WhatsAppIcon({ className }: { className?: string }) {
   );
 }
 
-type EmpreendimentoRow = Pick<Database["public"]["Tables"]["empreendimento"]["Row"], "id" | "nome" | "id_empresa">;
+type EmpreendimentoRow = Pick<
+  Database["public"]["Tables"]["empreendimento"]["Row"],
+  "id" | "nome" | "id_empresa"
+>;
 type LeadRow = Pick<
   Database["public"]["Tables"]["lead"]["Row"],
-  | "id"
-  | "numero"
-  | "qtd_interacoes"
-  | "qualificado"
-  | "status_history"
-  | "ativacao"
+  "id" | "numero" | "qtd_interacoes" | "qualificado" | "status_history" | "ativacao"
 >;
 type CrmLeadRow = Pick<
   Database["public"]["Tables"]["crm_leads"]["Row"],
@@ -87,7 +95,8 @@ function percentage(part: number, total: number) {
 
 function chunk<T>(items: T[], size: number) {
   const chunks: T[][] = [];
-  for (let index = 0; index < items.length; index += size) chunks.push(items.slice(index, index + size));
+  for (let index = 0; index < items.length; index += size)
+    chunks.push(items.slice(index, index + size));
   return chunks;
 }
 
@@ -116,13 +125,15 @@ function ConversationAnalysisPage() {
   const { data: me } = useCrmUser();
   const { activeEmpresaId: companyId, activeEmpresa, isSuperAdmin } = useActiveEmpresa();
   const sendReportFn = useServerFn(sendJourneyFunnelReport);
-  const canView = me?.role === "manager" || me?.role === "super_admin";
+  const canView = me?.role === "manager" || me?.role === "super_admin" || me?.role === "analyst";
   const [empreendimentoId, setEmpreendimentoId] = useState<string>(ALL);
   const [typeFilter, setTypeFilter] = useState<string>(TYPE_ALL);
   const [dateFrom, setDateFrom] = useState(defaultStartDate);
   const [dateTo, setDateTo] = useState(defaultEndDate);
 
-  useEffect(() => { setEmpreendimentoId(ALL); }, [companyId]);
+  useEffect(() => {
+    setEmpreendimentoId(ALL);
+  }, [companyId]);
 
   const empreendimentosQuery = useQuery({
     enabled: !!companyId && canView,
@@ -152,7 +163,8 @@ function ConversationAnalysisPage() {
         .eq("id_empresa", companyId)
         .gte("created_at", `${dateFrom}T00:00:00`)
         .lte("created_at", `${dateTo}T23:59:59.999`);
-      if (empreendimentoId !== ALL) crmLeadQuery = crmLeadQuery.eq("id_empreendimento", Number(empreendimentoId));
+      if (empreendimentoId !== ALL)
+        crmLeadQuery = crmLeadQuery.eq("id_empreendimento", Number(empreendimentoId));
 
       const { data: crmLeadRows, error: crmLeadError } = await crmLeadQuery;
       if (crmLeadError) throw crmLeadError;
@@ -179,12 +191,19 @@ function ConversationAnalysisPage() {
             .from("crm_conversation_classifications")
             .select("lead_id,cliente_respondeu,qualificado")
             .eq("id_empresa", companyId)
-            .in("lead_id", legacyLeads.map((lead) => lead.id))
+            .in(
+              "lead_id",
+              legacyLeads.map((lead) => lead.id),
+            )
         : { data: [], error: null };
       if (classificationsResult.error) {
         const code = (classificationsResult.error as { code?: string }).code;
         const message = classificationsResult.error.message ?? "";
-        if (code !== "42P01" && code !== "PGRST205" && !message.includes("crm_conversation_classifications")) {
+        if (
+          code !== "42P01" &&
+          code !== "PGRST205" &&
+          !message.includes("crm_conversation_classifications")
+        ) {
           throw classificationsResult.error;
         }
       }
@@ -224,9 +243,10 @@ function ConversationAnalysisPage() {
           ativacao: legacyLead?.ativacao,
         };
       });
-      const journeyLeads = mappedLeads.filter((lead) =>
-        typeFilter === TYPE_ALL ||
-        (typeFilter === TYPE_INBOUND ? lead.ativacao === false : lead.ativacao === true),
+      const journeyLeads = mappedLeads.filter(
+        (lead) =>
+          typeFilter === TYPE_ALL ||
+          (typeFilter === TYPE_INBOUND ? lead.ativacao === false : lead.ativacao === true),
       );
       const sessionIds = [
         ...new Set(
@@ -236,11 +256,16 @@ function ConversationAnalysisPage() {
         ),
       ];
       const crmLeadIds = journeyLeads.map((lead) => lead.id);
-      const legacyLeadIds = journeyLeads.flatMap((lead) => lead.leadId === null ? [] : [lead.leadId]);
+      const legacyLeadIds = journeyLeads.flatMap((lead) =>
+        lead.leadId === null ? [] : [lead.leadId],
+      );
       const [messages, activitiesResult, appointmentsResult] = await Promise.all([
         fetchMessages(sessionIds),
         crmLeadIds.length
-          ? supabase.from("crm_lead_activities").select("lead_id,metadata,descricao").in("lead_id", crmLeadIds)
+          ? supabase
+              .from("crm_lead_activities")
+              .select("lead_id,metadata,descricao")
+              .in("lead_id", crmLeadIds)
           : Promise.resolve({ data: [], error: null }),
         legacyLeadIds.length
           ? supabase
@@ -277,11 +302,18 @@ function ConversationAnalysisPage() {
   const selectedEmpreendimentoName =
     empreendimentoId === ALL
       ? "todos os empreendimentos"
-      : empreendimentos.find((item) => String(item.id) === empreendimentoId)?.nome ?? "empreendimento";
-  const selectedTypeLabel = typeFilter === TYPE_ALL ? "Todos os tipos" : typeFilter === TYPE_INBOUND ? "Atendimento" : "Ativação";
+      : (empreendimentos.find((item) => String(item.id) === empreendimentoId)?.nome ??
+        "empreendimento");
+  const selectedTypeLabel =
+    typeFilter === TYPE_ALL
+      ? "Todos os tipos"
+      : typeFilter === TYPE_INBOUND
+        ? "Atendimento"
+        : "Ativação";
   const sendReportMutation = useMutation({
     mutationFn: async () => {
-      if (!companyId || totals.received === 0) throw new Error("Não há leads para enviar neste período.");
+      if (!companyId || totals.received === 0)
+        throw new Error("Não há leads para enviar neste período.");
       const imageDataUrl = await createJourneyFunnelReportImage({
         companyName: selectedCompanyName,
         empreendimentoName: selectedEmpreendimentoName,
@@ -327,7 +359,12 @@ function ConversationAnalysisPage() {
         <Button
           variant="outline"
           onClick={() => sendReportMutation.mutate()}
-          disabled={!companyId || analysisQuery.isLoading || totals.received === 0 || sendReportMutation.isPending}
+          disabled={
+            !companyId ||
+            analysisQuery.isLoading ||
+            totals.received === 0 ||
+            sendReportMutation.isPending
+          }
         >
           <WhatsAppIcon className="mr-2 h-4 w-4 text-[#25D366]" />
           {sendReportMutation.isPending ? "Enviando relatório..." : "Enviar relatório"}
@@ -337,7 +374,13 @@ function ConversationAnalysisPage() {
       <Card className="rounded-xl">
         <CardContent className="space-y-4 p-4">
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-            {isSuperAdmin && <LabeledSelect label="Empresa"><div className="h-10 rounded-md border bg-muted/30 px-3 flex items-center text-sm">{selectedCompanyName}</div></LabeledSelect>}
+            {isSuperAdmin && (
+              <LabeledSelect label="Empresa">
+                <div className="h-10 rounded-md border bg-muted/30 px-3 flex items-center text-sm">
+                  {selectedCompanyName}
+                </div>
+              </LabeledSelect>
+            )}
 
             <LabeledSelect label="Empreendimento">
               <Select value={empreendimentoId} onValueChange={setEmpreendimentoId}>
@@ -376,11 +419,15 @@ function ConversationAnalysisPage() {
                     variant="outline"
                     className={cn(
                       "h-9 w-full min-w-[150px] justify-start border-border bg-white text-left text-xs font-normal normal-case tracking-normal hover:bg-surface",
-                      !dateFrom && "text-muted-foreground"
+                      !dateFrom && "text-muted-foreground",
                     )}
                   >
                     <CalendarIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
-                    {dateFrom ? format(new Date(dateFrom + "T12:00:00"), "dd/MM/yyyy") : <span>De:</span>}
+                    {dateFrom ? (
+                      format(new Date(dateFrom + "T12:00:00"), "dd/MM/yyyy")
+                    ) : (
+                      <span>De:</span>
+                    )}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
@@ -405,11 +452,15 @@ function ConversationAnalysisPage() {
                     variant="outline"
                     className={cn(
                       "h-9 w-full min-w-[150px] justify-start border-border bg-white text-left text-xs font-normal normal-case tracking-normal hover:bg-surface",
-                      !dateTo && "text-muted-foreground"
+                      !dateTo && "text-muted-foreground",
                     )}
                   >
                     <CalendarIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
-                    {dateTo ? format(new Date(dateTo + "T12:00:00"), "dd/MM/yyyy") : <span>Até:</span>}
+                    {dateTo ? (
+                      format(new Date(dateTo + "T12:00:00"), "dd/MM/yyyy")
+                    ) : (
+                      <span>Até:</span>
+                    )}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
@@ -426,7 +477,6 @@ function ConversationAnalysisPage() {
               </Popover>
             </label>
           </div>
-
         </CardContent>
       </Card>
 
@@ -520,7 +570,10 @@ function FunnelMetricRow({
         </div>
       </div>
       <div className="h-2 overflow-hidden rounded-full bg-muted">
-        <div className={cn("h-full rounded-full", color)} style={{ width: `${Math.min(pct, 100)}%` }} />
+        <div
+          className={cn("h-full rounded-full", color)}
+          style={{ width: `${Math.min(pct, 100)}%` }}
+        />
       </div>
     </div>
   );

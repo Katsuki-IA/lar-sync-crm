@@ -1,4 +1,12 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -30,7 +38,8 @@ function getStoredEmpresaId(userId?: string) {
 export function ActiveEmpresaProvider({ children }: { children: ReactNode }) {
   const { data: me } = useCrmUser();
   const { data: allowed, isLoading: loadingAllowed } = useAllowedEmpresas();
-  const isSuperAdmin = me?.role === "super_admin";
+  // Super admins and analysts may switch between every company granted to them.
+  const isSuperAdmin = me?.role === "super_admin" || me?.role === "analyst";
   const [activeEmpresaId, setActiveEmpresaIdState] = useState<number | null>(null);
 
   const { data: empresas = [], isLoading: loadingEmpresas } = useQuery({
@@ -64,23 +73,31 @@ export function ActiveEmpresaProvider({ children }: { children: ReactNode }) {
     });
   }, [allowed, empresas, isSuperAdmin, me]);
 
-  const setActiveEmpresaId = useCallback((id: number) => {
-    if (!empresas.some((empresa) => empresa.id === id)) return;
-    setActiveEmpresaIdState(id);
-    if (typeof window !== "undefined" && me?.id) {
-      window.localStorage.setItem(`${storageKey}.${me.id}`, String(id));
-    }
-  }, [empresas, me?.id]);
+  const setActiveEmpresaId = useCallback(
+    (id: number) => {
+      if (!empresas.some((empresa) => empresa.id === id)) return;
+      setActiveEmpresaIdState(id);
+      if (typeof window !== "undefined" && me?.id) {
+        window.localStorage.setItem(`${storageKey}.${me.id}`, String(id));
+      }
+    },
+    [empresas, me?.id],
+  );
 
-  const value = useMemo<ActiveEmpresaContextValue>(() => ({
-    activeEmpresaId,
-    activeEmpresa: empresas.find((empresa) => empresa.id === activeEmpresaId) ?? null,
-    empresas,
-    isLoading: loadingAllowed || loadingEmpresas,
-    requiresSelection: Boolean(isSuperAdmin && !activeEmpresaId && !loadingAllowed && !loadingEmpresas && empresas.length),
-    isSuperAdmin: Boolean(isSuperAdmin),
-    setActiveEmpresaId,
-  }), [activeEmpresaId, empresas, isSuperAdmin, loadingAllowed, loadingEmpresas, setActiveEmpresaId]);
+  const value = useMemo<ActiveEmpresaContextValue>(
+    () => ({
+      activeEmpresaId,
+      activeEmpresa: empresas.find((empresa) => empresa.id === activeEmpresaId) ?? null,
+      empresas,
+      isLoading: loadingAllowed || loadingEmpresas,
+      requiresSelection: Boolean(
+        isSuperAdmin && !activeEmpresaId && !loadingAllowed && !loadingEmpresas && empresas.length,
+      ),
+      isSuperAdmin: Boolean(isSuperAdmin),
+      setActiveEmpresaId,
+    }),
+    [activeEmpresaId, empresas, isSuperAdmin, loadingAllowed, loadingEmpresas, setActiveEmpresaId],
+  );
 
   return <ActiveEmpresaContext.Provider value={value}>{children}</ActiveEmpresaContext.Provider>;
 }

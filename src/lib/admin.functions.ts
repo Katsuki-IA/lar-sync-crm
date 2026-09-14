@@ -57,6 +57,28 @@ async function getMe(supabase: any, userId: string) {
   return data as { id: string; id_empresa: number | null; role: string };
 }
 
+async function managerCanManageTarget(
+  supabaseAdmin: any,
+  managerEmpresa: number | null,
+  targetUserId: string,
+) {
+  if (!managerEmpresa) return false;
+  const { data: target, error } = await supabaseAdmin
+    .from("crm_users")
+    .select("id_empresa,role")
+    .eq("id", targetUserId)
+    .maybeSingle();
+  if (error || !target) return false;
+  if (target.id_empresa === managerEmpresa) return true;
+  if (target.role !== "analyst") return false;
+  const { data: access, error: accessError } = await supabaseAdmin
+    .from("crm_user_company_access")
+    .select("id_empresa")
+    .eq("crm_user_id", targetUserId);
+  if (accessError || !access?.length) return false;
+  return access.every((entry: { id_empresa: number }) => entry.id_empresa === managerEmpresa);
+}
+
 // -------- Criar usuário CRM (gestor cria na própria empresa; super_admin em qualquer) --------
 export const createCrmUser = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -65,8 +87,9 @@ export const createCrmUser = createServerFn({ method: "POST" })
       .object({
         nome: z.string().min(2),
         email: z.string().email(),
-        role: z.enum(["agent", "manager", "super_admin"]),
+        role: z.enum(["agent", "manager", "super_admin", "analyst"]),
         id_empresa: z.number().optional(),
+        empresa_ids: z.array(z.number().int().positive()).max(100).optional(),
         password: z
           .string()
           .refine((password) => !getPasswordPolicyError(password), PASSWORD_POLICY_MESSAGE)
@@ -80,11 +103,19 @@ export const createCrmUser = createServerFn({ method: "POST" })
       throw new Error("Apenas gestores podem criar usuários");
     }
     let targetEmpresa = data.id_empresa ?? me.id_empresa;
+    let analystEmpresaIds = Array.from(new Set(data.empresa_ids ?? []));
     if (me.role === "manager") {
       targetEmpresa = me.id_empresa;
+      analystEmpresaIds = me.id_empresa ? [me.id_empresa] : [];
       if (data.role === "super_admin") throw new Error("Gestor não pode criar super admin");
     }
-    if (!targetEmpresa && data.role !== "super_admin") throw new Error("Empresa obrigatória");
+    if (data.role === "analyst") {
+      if (!analystEmpresaIds.length)
+        throw new Error("Selecione ao menos uma empresa para o analista");
+      targetEmpresa = null;
+    } else if (!targetEmpresa && data.role !== "super_admin") {
+      throw new Error("Empresa obrigatória");
+    }
 
     const normalizedEmail = normalizeEmail(data.email);
     if (AI_TECHNICAL_EMAIL_PATTERN.test(normalizedEmail)) {
@@ -96,6 +127,16 @@ export const createCrmUser = createServerFn({ method: "POST" })
     const password = data.password ?? generateTemporaryPassword();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
+    if (data.role === "analyst" && me.role === "super_admin") {
+      const { data: companies, error: companyError } = await supabaseAdmin
+        .from("empresa_dados")
+        .select("id")
+        .in("id", analystEmpresaIds);
+      if (companyError || (companies ?? []).length !== analystEmpresaIds.length) {
+        throw new Error("Uma ou mais empresas selecionadas são inválidas");
+      }
+    }
+
     const { data: authData, error: authErr } = await supabaseAdmin.auth.admin.createUser({
       email: normalizedEmail,
       password,
@@ -104,17 +145,36 @@ export const createCrmUser = createServerFn({ method: "POST" })
     });
     if (authErr || !authData.user) throw new Error(authErr?.message ?? "Falha ao criar usuário");
 
-    const { error: insErr } = await supabaseAdmin.from("crm_users").insert({
-      auth_user_id: authData.user.id,
-      id_empresa: targetEmpresa,
-      nome: data.nome,
-      email: normalizedEmail,
-      role: data.role,
-      active: true,
-    });
-    if (insErr) {
+    const { data: crmUser, error: insErr } = await supabaseAdmin
+      .from("crm_users")
+      .insert({
+        auth_user_id: authData.user.id,
+        id_empresa: targetEmpresa,
+        nome: data.nome,
+        email: normalizedEmail,
+        role: data.role,
+        active: true,
+      })
+      .select("id")
+      .single();
+    if (insErr || !crmUser) {
       await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
-      throw new Error(insErr.message);
+      throw new Error(insErr?.message ?? "Falha ao criar usuário no CRM");
+    }
+
+    if (data.role === "analyst") {
+      const { error: accessError } = await supabaseAdmin.from("crm_user_company_access").insert(
+        analystEmpresaIds.map((idEmpresa) => ({
+          crm_user_id: crmUser.id,
+          id_empresa: idEmpresa,
+          created_by: me.id,
+        })),
+      );
+      if (accessError) {
+        await supabaseAdmin.from("crm_users").delete().eq("id", crmUser.id);
+        await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
+        throw new Error(accessError.message);
+      }
     }
     return { ok: true, password };
   });
@@ -133,7 +193,10 @@ export const resetCrmUserPassword = createServerFn({ method: "POST" })
       .eq("id", data.user_id)
       .maybeSingle();
     if (tErr || !target) throw new Error("Usuário não encontrado");
-    if (me.role === "manager" && target.id_empresa !== me.id_empresa)
+    if (
+      me.role === "manager" &&
+      !(await managerCanManageTarget(supabaseAdmin, me.id_empresa, data.user_id))
+    )
       throw new Error("Sem permissão");
     if (!target.auth_user_id) throw new Error("Usuário sem auth vinculado");
     const password = generateTemporaryPassword();
@@ -158,7 +221,10 @@ export const setCrmUserActive = createServerFn({ method: "POST" })
       .eq("id", data.user_id)
       .maybeSingle();
     if (!target) throw new Error("Usuário não encontrado");
-    if (me.role === "manager" && target.id_empresa !== me.id_empresa)
+    if (
+      me.role === "manager" &&
+      !(await managerCanManageTarget(supabaseAdmin, me.id_empresa, data.user_id))
+    )
       throw new Error("Sem permissão");
     if (isAiTechnicalUser(target)) {
       throw new Error("O Atendente IA é um usuário técnico e permanece inativo para login");
@@ -180,8 +246,9 @@ export const updateCrmUser = createServerFn({ method: "POST" })
         user_id: z.string().uuid(),
         nome: z.string().min(2),
         email: z.string().email(),
-        role: z.enum(["agent", "manager", "super_admin"]),
+        role: z.enum(["agent", "manager", "super_admin", "analyst"]),
         id_empresa: z.number().nullable().optional(),
+        empresa_ids: z.array(z.number().int().positive()).max(100).optional(),
         password: z
           .string()
           .refine((password) => !getPasswordPolicyError(password), PASSWORD_POLICY_MESSAGE)
@@ -208,7 +275,11 @@ export const updateCrmUser = createServerFn({ method: "POST" })
       throw new Error("Use a edição específica para renomear o atendente IA");
     }
 
-    if (data.role !== "super_admin" && !data.id_empresa) {
+    const analystEmpresaIds = Array.from(new Set(data.empresa_ids ?? []));
+    if (data.role === "analyst" && !analystEmpresaIds.length) {
+      throw new Error("Selecione ao menos uma empresa para o analista");
+    }
+    if (data.role !== "super_admin" && data.role !== "analyst" && !data.id_empresa) {
       throw new Error("Empresa obrigatória para gestor ou corretor");
     }
 
@@ -217,6 +288,16 @@ export const updateCrmUser = createServerFn({ method: "POST" })
       throw new Error(
         "Este e-mail é reservado ao Atendente IA e é criado automaticamente pelo sistema",
       );
+    }
+
+    if (data.role === "analyst") {
+      const { data: companies, error: companyError } = await supabaseAdmin
+        .from("empresa_dados")
+        .select("id")
+        .in("id", analystEmpresaIds);
+      if (companyError || (companies ?? []).length !== analystEmpresaIds.length) {
+        throw new Error("Uma ou mais empresas selecionadas são inválidas");
+      }
     }
 
     if (target.auth_user_id) {
@@ -237,11 +318,29 @@ export const updateCrmUser = createServerFn({ method: "POST" })
         nome: data.nome.trim(),
         email: normalizedEmail,
         role: data.role,
-        id_empresa: data.role === "super_admin" ? null : (data.id_empresa ?? null),
+        id_empresa:
+          data.role === "super_admin" || data.role === "analyst" ? null : (data.id_empresa ?? null),
       })
       .eq("id", data.user_id);
 
     if (updateError) throw new Error(updateError.message);
+
+    const { error: deleteAccessError } = await supabaseAdmin
+      .from("crm_user_company_access")
+      .delete()
+      .eq("crm_user_id", data.user_id);
+    if (deleteAccessError) throw new Error(deleteAccessError.message);
+
+    if (data.role === "analyst") {
+      const { error: accessError } = await supabaseAdmin.from("crm_user_company_access").insert(
+        analystEmpresaIds.map((idEmpresa) => ({
+          crm_user_id: data.user_id,
+          id_empresa: idEmpresa,
+          created_by: me.id,
+        })),
+      );
+      if (accessError) throw new Error(accessError.message);
+    }
     return { ok: true };
   });
 
@@ -368,11 +467,26 @@ export const listAllCrmUsers = createServerFn({ method: "GET" })
       .select("id,nome,email,role,active,id_empresa,created_at,auth_user_id")
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
-    return (data ?? []).filter((user: any) => {
-      if (user.role === "super_admin") return true;
-      if (user.id_empresa == null) return false;
-      return allowed.includes(user.id_empresa);
-    });
+    const { data: analystAccess, error: accessError } = await supabaseAdmin
+      .from("crm_user_company_access")
+      .select("crm_user_id,id_empresa");
+    if (accessError) throw new Error(accessError.message);
+    const companiesByAnalyst = new Map<string, number[]>();
+    for (const access of analystAccess ?? []) {
+      const values = companiesByAnalyst.get(access.crm_user_id) ?? [];
+      values.push(access.id_empresa);
+      companiesByAnalyst.set(access.crm_user_id, values);
+    }
+
+    return (data ?? [])
+      .filter((user: any) => {
+        if (user.role === "super_admin") return true;
+        if (user.role === "analyst")
+          return (companiesByAnalyst.get(user.id) ?? []).some((id) => allowed.includes(id));
+        if (user.id_empresa == null) return false;
+        return allowed.includes(user.id_empresa);
+      })
+      .map((user: any) => ({ ...user, empresa_ids: companiesByAnalyst.get(user.id) ?? [] }));
   });
 
 // -------- Configuração de envio ao CRM por empresa (super admin) --------
@@ -461,7 +575,13 @@ export const getCrmDispatchSettings = createServerFn({ method: "GET" })
       stages = await loadStages();
     }
 
-    const [settingsResult, empreendimentosResult, overridesResult, companyResult, credentialsResult] = await Promise.all([
+    const [
+      settingsResult,
+      empreendimentosResult,
+      overridesResult,
+      companyResult,
+      credentialsResult,
+    ] = await Promise.all([
       supabaseAdmin
         .from("crm_lead_dispatch_settings")
         .select(
@@ -646,8 +766,7 @@ export const saveCrmDispatchSettings = createServerFn({ method: "POST" })
         external_stage_visit_scheduled_id: data.external_stage_visit_scheduled_id,
         external_stage_lost_id: data.external_stage_lost_id,
         external_stage_without_whatsapp_id: data.external_stage_without_whatsapp_id,
-        cv_distribution_queue_without_whatsapp_id:
-          data.cv_distribution_queue_without_whatsapp_id,
+        cv_distribution_queue_without_whatsapp_id: data.cv_distribution_queue_without_whatsapp_id,
         cv_distribution_queue_blocked_send_id: data.cv_distribution_queue_blocked_send_id,
         updated_at: new Date().toISOString(),
       },

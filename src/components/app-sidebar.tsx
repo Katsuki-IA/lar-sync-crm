@@ -1,10 +1,18 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, Users, Settings, Shield, BarChart2, Plug, MessagesSquare, ChartNoAxesCombined } from "lucide-react";
+import {
+  LayoutDashboard,
+  Users,
+  Settings,
+  Shield,
+  BarChart2,
+  Plug,
+  MessagesSquare,
+  ChartNoAxesCombined,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCrmUser } from "@/hooks/use-crm-user";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { getInitials, colorFromString } from "@/lib/lead-visuals";
-
 
 type Item = { title: string; url: string; match: string; icon: typeof LayoutDashboard };
 
@@ -12,6 +20,7 @@ function roleLabel(role?: string | null) {
   if (role === "super_admin") return "Super Admin";
   if (role === "manager") return "Gestor";
   if (role === "agent") return "Corretor";
+  if (role === "analyst") return "Analista";
   return "Usuário";
 }
 
@@ -21,23 +30,49 @@ export function AppSidebar() {
 
   const mainItems: Item[] = [
     { title: "Dashboard", url: "/dashboard", match: "/dashboard", icon: LayoutDashboard },
-    { title: "Leads", url: "/leads", match: "/leads", icon: Users },
-    { title: "Conversas", url: "/conversas", match: "/conversas", icon: MessagesSquare },
-    ...(me?.role === "manager" || me?.role === "super_admin"
-      ? [{ title: "Análise de Funil", url: "/analise-conversas", match: "/analise-conversas", icon: ChartNoAxesCombined }]
+    ...(me?.role === "analyst"
+      ? []
+      : [
+          { title: "Leads", url: "/leads", match: "/leads", icon: Users },
+          { title: "Conversas", url: "/conversas", match: "/conversas", icon: MessagesSquare },
+        ]),
+    ...(me?.role === "manager" || me?.role === "super_admin" || me?.role === "analyst"
+      ? [
+          {
+            title: "Análise de Funil",
+            url: "/analise-conversas",
+            match: "/analise-conversas",
+            icon: ChartNoAxesCombined,
+          },
+        ]
       : []),
     { title: "Relatórios", url: "/relatorios", match: "/relatorios", icon: BarChart2 },
   ];
 
   const adminItems: Item[] = [];
   if (me?.role === "manager" || me?.role === "super_admin") {
-    adminItems.push({ title: "Configurações", url: "/settings/users", match: "/settings", icon: Settings });
+    adminItems.push({
+      title: "Configurações",
+      url: "/settings/users",
+      match: "/settings",
+      icon: Settings,
+    });
   }
   if (me?.role === "manager") {
-    adminItems.push({ title: "Integrações", url: "/configuracoes/integracoes", match: "/configuracoes", icon: Plug });
+    adminItems.push({
+      title: "Integrações",
+      url: "/configuracoes/integracoes",
+      match: "/configuracoes",
+      icon: Plug,
+    });
   }
   if (me?.role === "super_admin") {
-    adminItems.push({ title: "Super Admin", url: "/admin/empresas", match: "/admin", icon: Shield });
+    adminItems.push({
+      title: "Super Admin",
+      url: "/admin/empresas",
+      match: "/admin",
+      icon: Shield,
+    });
   }
 
   const initials = getInitials(me?.nome ?? me?.email, "U");
@@ -82,7 +117,9 @@ export function AppSidebar() {
             </AvatarFallback>
           </Avatar>
           <div className="min-w-0 flex-1 leading-tight">
-            <div className="text-sm font-medium text-foreground truncate">{me?.nome ?? "Usuário"}</div>
+            <div className="text-sm font-medium text-foreground truncate">
+              {me?.nome ?? "Usuário"}
+            </div>
             <div className="text-[11px] text-muted-foreground truncate">{roleLabel(me?.role)}</div>
           </div>
         </div>
@@ -118,11 +155,7 @@ function SidebarGroup({
                   ? "text-primary font-medium"
                   : "text-sidebar-foreground hover:bg-white/[0.04] hover:text-foreground",
               )}
-              style={
-                active
-                  ? { backgroundColor: "var(--sidebar-active-bg)" }
-                  : undefined
-              }
+              style={active ? { backgroundColor: "var(--sidebar-active-bg)" } : undefined}
             >
               {active && (
                 <span

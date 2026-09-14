@@ -7,7 +7,7 @@ export type CrmUser = {
   id_empresa: number | null;
   nome: string;
   email: string;
-  role: "super_admin" | "manager" | "agent";
+  role: "super_admin" | "manager" | "agent" | "analyst";
   active: boolean | null;
 };
 

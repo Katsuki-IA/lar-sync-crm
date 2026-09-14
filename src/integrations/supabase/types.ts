@@ -2520,6 +2520,49 @@ export type Database = {
           },
         ]
       }
+      crm_user_company_access: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          crm_user_id: string
+          id_empresa: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          crm_user_id: string
+          id_empresa: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          crm_user_id?: string
+          id_empresa?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_user_company_access_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "crm_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_user_company_access_crm_user_id_fkey"
+            columns: ["crm_user_id"]
+            isOneToOne: false
+            referencedRelation: "crm_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_user_company_access_id_empresa_fkey"
+            columns: ["id_empresa"]
+            isOneToOne: false
+            referencedRelation: "empresa_dados"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       crm_users: {
         Row: {
           active: boolean | null
@@ -5759,6 +5802,7 @@ export type Database = {
           utm_term: string
         }[]
       }
+      crm_get_allowed_empresas: { Args: never; Returns: number[] }
       crm_get_my_empresa: { Args: never; Returns: number }
       crm_get_my_id: { Args: never; Returns: string }
       crm_get_my_role: { Args: never; Returns: string }
