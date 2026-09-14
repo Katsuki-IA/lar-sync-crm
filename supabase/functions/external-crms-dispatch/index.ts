@@ -1226,6 +1226,9 @@ Deno.serve(async (req) => {
       .select("meta_campaign_name,meta_ad_name,utm_source,utm_medium,utm_campaign,utm_content")
       .eq("crm_lead_id", lead.id)
       .eq("id_empresa", lead.id_empresa)
+      .order("updated_at", { ascending: false })
+      .order("created_at", { ascending: false })
+      .limit(1)
       .maybeSingle();
     if (attributionError) throw new Error(attributionError.message);
     const attribution = attributionData as LeadAttribution | null;
