@@ -2520,6 +2520,54 @@ export type Database = {
           },
         ]
       }
+      crm_analyst_connector_tokens: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          crm_user_id: string
+          expires_at: string | null
+          id: string
+          nome: string
+          revoked_at: string | null
+          token_hash: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          crm_user_id: string
+          expires_at?: string | null
+          id?: string
+          nome?: string
+          revoked_at?: string | null
+          token_hash: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          crm_user_id?: string
+          expires_at?: string | null
+          id?: string
+          nome?: string
+          revoked_at?: string | null
+          token_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_analyst_connector_tokens_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "crm_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_analyst_connector_tokens_crm_user_id_fkey"
+            columns: ["crm_user_id"]
+            isOneToOne: false
+            referencedRelation: "crm_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       crm_user_company_access: {
         Row: {
           created_at: string
