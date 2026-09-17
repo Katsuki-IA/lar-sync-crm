@@ -24,6 +24,7 @@ const tabs = [
   { to: "/admin/custom-fields", label: "Campos do lead" },
   { to: "/admin/crm-dispatch", label: "Envio ao CRM" },
   { to: "/admin/site-forms", label: "Formulários externos" },
+  { to: "/admin/reporting-api", label: "API de relatórios" },
   { to: "/admin/notifications", label: "Notificações" },
   { to: "/admin/paginas-legais", label: "Páginas legais" },
 ] as const;
@@ -36,7 +37,7 @@ function AdminLayout() {
         <h1 className="text-2xl font-semibold tracking-tight">Super Admin</h1>
         <p className="text-sm text-muted-foreground">Gestão global da plataforma.</p>
       </div>
-      <div className="flex gap-1 border-b border-border">
+      <div className="flex gap-1 overflow-x-auto border-b border-border">
         {tabs.map((t) => {
           const active = pathname === t.to;
           return (
@@ -44,7 +45,7 @@ function AdminLayout() {
               key={t.to}
               to={t.to}
               className={cn(
-                "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors",
+                "shrink-0 px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors",
                 active
                   ? "border-primary text-foreground"
                   : "border-transparent text-muted-foreground hover:text-foreground",

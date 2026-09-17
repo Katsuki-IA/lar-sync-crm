@@ -35,6 +35,7 @@ import { Route as AuthenticatedAdminEmpresasRouteImport } from './routes/_authen
 import { Route as AuthenticatedAdminFunnelRouteImport } from './routes/_authenticated/admin.funnel'
 import { Route as AuthenticatedAdminNotificationsRouteImport } from './routes/_authenticated/admin.notifications'
 import { Route as AuthenticatedAdminPaginasLegaisRouteImport } from './routes/_authenticated/admin.paginas-legais'
+import { Route as AuthenticatedAdminReportingApiRouteImport } from './routes/_authenticated/admin.reporting-api'
 import { Route as AuthenticatedAdminSiteFormsRouteImport } from './routes/_authenticated/admin.site-forms'
 import { Route as AuthenticatedAdminTagsRouteImport } from './routes/_authenticated/admin.tags'
 import { Route as AuthenticatedAdminUsersRouteImport } from './routes/_authenticated/admin.users'
@@ -50,6 +51,7 @@ import { Route as AuthenticatedSettingsHubRouteImport } from './routes/_authenti
 import { Route as AuthenticatedSettingsStagesRouteImport } from './routes/_authenticated/settings.stages'
 import { Route as AuthenticatedSettingsTagsRouteImport } from './routes/_authenticated/settings.tags'
 import { Route as AuthenticatedSettingsUsersRouteImport } from './routes/_authenticated/settings.users'
+import { Route as ApiIntegrationsLeadsRouteImport } from './routes/api/integrations/leads'
 import { Route as ApiMcpAnalystRouteImport } from './routes/api/mcp/analyst'
 import { Route as ApiPublicGloriaLeadsRouteImport } from './routes/api/public/gloria-leads'
 import { Route as ApiPublicPulseFunilIaRouteImport } from './routes/api/public/pulse-funil-ia'
@@ -191,6 +193,12 @@ const AuthenticatedAdminPaginasLegaisRoute =
     path: '/paginas-legais',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminReportingApiRoute =
+  AuthenticatedAdminReportingApiRouteImport.update({
+    id: '/reporting-api',
+    path: '/reporting-api',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 const AuthenticatedAdminSiteFormsRoute =
   AuthenticatedAdminSiteFormsRouteImport.update({
     id: '/site-forms',
@@ -276,6 +284,11 @@ const AuthenticatedSettingsUsersRoute =
     path: '/users',
     getParentRoute: () => AuthenticatedSettingsRoute,
   } as any)
+const ApiIntegrationsLeadsRoute = ApiIntegrationsLeadsRouteImport.update({
+  id: '/api/integrations/leads',
+  path: '/api/integrations/leads',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiMcpAnalystRoute = ApiMcpAnalystRouteImport.update({
   id: '/api/mcp/analyst',
   path: '/api/mcp/analyst',
@@ -317,6 +330,7 @@ export interface FileRoutesByFullPath {
   '/admin/funnel': typeof AuthenticatedAdminFunnelRoute
   '/admin/notifications': typeof AuthenticatedAdminNotificationsRoute
   '/admin/paginas-legais': typeof AuthenticatedAdminPaginasLegaisRoute
+  '/admin/reporting-api': typeof AuthenticatedAdminReportingApiRoute
   '/admin/site-forms': typeof AuthenticatedAdminSiteFormsRoute
   '/admin/tags': typeof AuthenticatedAdminTagsRoute
   '/admin/users': typeof AuthenticatedAdminUsersRoute
@@ -330,6 +344,7 @@ export interface FileRoutesByFullPath {
   '/settings/stages': typeof AuthenticatedSettingsStagesRoute
   '/settings/tags': typeof AuthenticatedSettingsTagsRoute
   '/settings/users': typeof AuthenticatedSettingsUsersRoute
+  '/api/integrations/leads': typeof ApiIntegrationsLeadsRoute
   '/api/mcp/analyst': typeof ApiMcpAnalystRoute
   '/api/public/gloria-leads': typeof ApiPublicGloriaLeadsRoute
   '/api/public/pulse-funil-ia': typeof ApiPublicPulseFunilIaRoute
@@ -360,6 +375,7 @@ export interface FileRoutesByTo {
   '/admin/funnel': typeof AuthenticatedAdminFunnelRoute
   '/admin/notifications': typeof AuthenticatedAdminNotificationsRoute
   '/admin/paginas-legais': typeof AuthenticatedAdminPaginasLegaisRoute
+  '/admin/reporting-api': typeof AuthenticatedAdminReportingApiRoute
   '/admin/site-forms': typeof AuthenticatedAdminSiteFormsRoute
   '/admin/tags': typeof AuthenticatedAdminTagsRoute
   '/admin/users': typeof AuthenticatedAdminUsersRoute
@@ -373,6 +389,7 @@ export interface FileRoutesByTo {
   '/settings/stages': typeof AuthenticatedSettingsStagesRoute
   '/settings/tags': typeof AuthenticatedSettingsTagsRoute
   '/settings/users': typeof AuthenticatedSettingsUsersRoute
+  '/api/integrations/leads': typeof ApiIntegrationsLeadsRoute
   '/api/mcp/analyst': typeof ApiMcpAnalystRoute
   '/api/public/gloria-leads': typeof ApiPublicGloriaLeadsRoute
   '/api/public/pulse-funil-ia': typeof ApiPublicPulseFunilIaRoute
@@ -407,6 +424,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/funnel': typeof AuthenticatedAdminFunnelRoute
   '/_authenticated/admin/notifications': typeof AuthenticatedAdminNotificationsRoute
   '/_authenticated/admin/paginas-legais': typeof AuthenticatedAdminPaginasLegaisRoute
+  '/_authenticated/admin/reporting-api': typeof AuthenticatedAdminReportingApiRoute
   '/_authenticated/admin/site-forms': typeof AuthenticatedAdminSiteFormsRoute
   '/_authenticated/admin/tags': typeof AuthenticatedAdminTagsRoute
   '/_authenticated/admin/users': typeof AuthenticatedAdminUsersRoute
@@ -420,6 +438,7 @@ export interface FileRoutesById {
   '/_authenticated/settings/stages': typeof AuthenticatedSettingsStagesRoute
   '/_authenticated/settings/tags': typeof AuthenticatedSettingsTagsRoute
   '/_authenticated/settings/users': typeof AuthenticatedSettingsUsersRoute
+  '/api/integrations/leads': typeof ApiIntegrationsLeadsRoute
   '/api/mcp/analyst': typeof ApiMcpAnalystRoute
   '/api/public/gloria-leads': typeof ApiPublicGloriaLeadsRoute
   '/api/public/pulse-funil-ia': typeof ApiPublicPulseFunilIaRoute
@@ -454,6 +473,7 @@ export interface FileRouteTypes {
     | '/admin/funnel'
     | '/admin/notifications'
     | '/admin/paginas-legais'
+    | '/admin/reporting-api'
     | '/admin/site-forms'
     | '/admin/tags'
     | '/admin/users'
@@ -467,6 +487,7 @@ export interface FileRouteTypes {
     | '/settings/stages'
     | '/settings/tags'
     | '/settings/users'
+    | '/api/integrations/leads'
     | '/api/mcp/analyst'
     | '/api/public/gloria-leads'
     | '/api/public/pulse-funil-ia'
@@ -497,6 +518,7 @@ export interface FileRouteTypes {
     | '/admin/funnel'
     | '/admin/notifications'
     | '/admin/paginas-legais'
+    | '/admin/reporting-api'
     | '/admin/site-forms'
     | '/admin/tags'
     | '/admin/users'
@@ -510,6 +532,7 @@ export interface FileRouteTypes {
     | '/settings/stages'
     | '/settings/tags'
     | '/settings/users'
+    | '/api/integrations/leads'
     | '/api/mcp/analyst'
     | '/api/public/gloria-leads'
     | '/api/public/pulse-funil-ia'
@@ -543,6 +566,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/funnel'
     | '/_authenticated/admin/notifications'
     | '/_authenticated/admin/paginas-legais'
+    | '/_authenticated/admin/reporting-api'
     | '/_authenticated/admin/site-forms'
     | '/_authenticated/admin/tags'
     | '/_authenticated/admin/users'
@@ -556,6 +580,7 @@ export interface FileRouteTypes {
     | '/_authenticated/settings/stages'
     | '/_authenticated/settings/tags'
     | '/_authenticated/settings/users'
+    | '/api/integrations/leads'
     | '/api/mcp/analyst'
     | '/api/public/gloria-leads'
     | '/api/public/pulse-funil-ia'
@@ -576,6 +601,7 @@ export interface RootRouteChildren {
   HistoricoLeadIdRoute: typeof HistoricoLeadIdRoute
   IntegracoesRdRoute: typeof IntegracoesRdRoute
   PrivacidadeExclusaoDeDadosRoute: typeof PrivacidadeExclusaoDeDadosRoute
+  ApiIntegrationsLeadsRoute: typeof ApiIntegrationsLeadsRoute
   ApiMcpAnalystRoute: typeof ApiMcpAnalystRoute
   ApiPublicGloriaLeadsRoute: typeof ApiPublicGloriaLeadsRoute
   ApiPublicPulseFunilIaRoute: typeof ApiPublicPulseFunilIaRoute
@@ -765,6 +791,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminPaginasLegaisRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/reporting-api': {
+      id: '/_authenticated/admin/reporting-api'
+      path: '/reporting-api'
+      fullPath: '/admin/reporting-api'
+      preLoaderRoute: typeof AuthenticatedAdminReportingApiRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/admin/site-forms': {
       id: '/_authenticated/admin/site-forms'
       path: '/site-forms'
@@ -870,6 +903,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsUsersRouteImport
       parentRoute: typeof AuthenticatedSettingsRoute
     }
+    '/api/integrations/leads': {
+      id: '/api/integrations/leads'
+      path: '/api/integrations/leads'
+      fullPath: '/api/integrations/leads'
+      preLoaderRoute: typeof ApiIntegrationsLeadsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/mcp/analyst': {
       id: '/api/mcp/analyst'
       path: '/api/mcp/analyst'
@@ -901,6 +941,7 @@ interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminFunnelRoute: typeof AuthenticatedAdminFunnelRoute
   AuthenticatedAdminNotificationsRoute: typeof AuthenticatedAdminNotificationsRoute
   AuthenticatedAdminPaginasLegaisRoute: typeof AuthenticatedAdminPaginasLegaisRoute
+  AuthenticatedAdminReportingApiRoute: typeof AuthenticatedAdminReportingApiRoute
   AuthenticatedAdminSiteFormsRoute: typeof AuthenticatedAdminSiteFormsRoute
   AuthenticatedAdminTagsRoute: typeof AuthenticatedAdminTagsRoute
   AuthenticatedAdminUsersRoute: typeof AuthenticatedAdminUsersRoute
@@ -914,6 +955,7 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminFunnelRoute: AuthenticatedAdminFunnelRoute,
   AuthenticatedAdminNotificationsRoute: AuthenticatedAdminNotificationsRoute,
   AuthenticatedAdminPaginasLegaisRoute: AuthenticatedAdminPaginasLegaisRoute,
+  AuthenticatedAdminReportingApiRoute: AuthenticatedAdminReportingApiRoute,
   AuthenticatedAdminSiteFormsRoute: AuthenticatedAdminSiteFormsRoute,
   AuthenticatedAdminTagsRoute: AuthenticatedAdminTagsRoute,
   AuthenticatedAdminUsersRoute: AuthenticatedAdminUsersRoute,
@@ -998,6 +1040,7 @@ const rootRouteChildren: RootRouteChildren = {
   HistoricoLeadIdRoute: HistoricoLeadIdRoute,
   IntegracoesRdRoute: IntegracoesRdRoute,
   PrivacidadeExclusaoDeDadosRoute: PrivacidadeExclusaoDeDadosRoute,
+  ApiIntegrationsLeadsRoute: ApiIntegrationsLeadsRoute,
   ApiMcpAnalystRoute: ApiMcpAnalystRoute,
   ApiPublicGloriaLeadsRoute: ApiPublicGloriaLeadsRoute,
   ApiPublicPulseFunilIaRoute: ApiPublicPulseFunilIaRoute,
