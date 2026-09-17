@@ -33,9 +33,10 @@ export const listReportingIntegrations = createServerFn({ method: "GET" })
     return { integrations: integrations.data ?? [], companies: companies.data ?? [] };
   });
 
+// Keep inputValidator: the Lovable bun.lock runtime predates the validator alias.
 export const saveReportingIntegration = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator((input: unknown) => inputSchema.parse(input))
+  .inputValidator((input: unknown) => inputSchema.parse(input))
   .handler(async ({ data, context }) => {
     const { reportingDb, requireReportingAdmin } = await import("./reporting-db.server");
     const creator = await requireReportingAdmin(context.userId);
@@ -80,7 +81,7 @@ export const saveReportingIntegration = createServerFn({ method: "POST" })
 
 export const changeReportingToken = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator((input: unknown) =>
+  .inputValidator((input: unknown) =>
     z.object({ id: z.string().uuid(), action: z.enum(["rotate", "revoke"]) }).parse(input),
   )
   .handler(async ({ data, context }) => {
