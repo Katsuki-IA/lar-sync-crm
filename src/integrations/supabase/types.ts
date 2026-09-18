@@ -1021,6 +1021,8 @@ export type Database = {
       }
       crm_lead_dispatch_settings: {
         Row: {
+          send_when_qualified: boolean
+          cv_distribution_queue_qualified_id: string | null
           created_at: string
           cv_distribution_queue_blocked_send_id: string | null
           cv_distribution_queue_without_whatsapp_id: string | null
@@ -1038,6 +1040,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          send_when_qualified?: boolean
+          cv_distribution_queue_qualified_id?: string | null
           created_at?: string
           cv_distribution_queue_blocked_send_id?: string | null
           cv_distribution_queue_without_whatsapp_id?: string | null
@@ -1055,6 +1059,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          send_when_qualified?: boolean
+          cv_distribution_queue_qualified_id?: string | null
           created_at?: string
           cv_distribution_queue_blocked_send_id?: string | null
           cv_distribution_queue_without_whatsapp_id?: string | null

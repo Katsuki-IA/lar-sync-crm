@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export const Route = createFileRoute("/_authenticated/admin/crm-dispatch")({
@@ -56,6 +57,8 @@ function AdminCrmDispatchPage() {
   const [withoutContactStageId, setWithoutContactStageId] = useState<string>(EMPTY_VALUE);
   const [withContactStageId, setWithContactStageId] = useState<string>(EMPTY_VALUE);
   const [dispatchDelayMinutes, setDispatchDelayMinutes] = useState("60");
+  const [sendWhenQualified, setSendWhenQualified] = useState(false);
+  const [qualifiedQueueId, setQualifiedQueueId] = useState("");
   const [blockedSendExternalStageId, setBlockedSendExternalStageId] = useState("");
   const [qualifiedExternalStageId, setQualifiedExternalStageId] = useState("");
   const [unqualifiedExternalStageId, setUnqualifiedExternalStageId] = useState("");
@@ -96,6 +99,8 @@ function AdminCrmDispatchPage() {
         : EMPTY_VALUE,
     );
     setDispatchDelayMinutes(String(configData.settings.dispatch_delay_minutes ?? 60));
+    setSendWhenQualified(configData.settings.send_when_qualified ?? false);
+    setQualifiedQueueId(configData.settings.cv_distribution_queue_qualified_id ?? "");
     setBlockedSendExternalStageId(configData.settings.external_stage_blocked_send_id ?? "");
     setQualifiedExternalStageId(configData.settings.external_stage_qualified_id ?? "");
     setUnqualifiedExternalStageId(configData.settings.external_stage_unqualified_id ?? "");
@@ -167,6 +172,8 @@ function AdminCrmDispatchPage() {
           stage_with_contact_id:
             withContactStageId === EMPTY_VALUE ? null : Number(withContactStageId),
           dispatch_delay_minutes: Number(dispatchDelayMinutes),
+          send_when_qualified: sendWhenQualified,
+          cv_distribution_queue_qualified_id: qualifiedQueueId.trim() || null,
           external_stage_blocked_send_id: blockedSendExternalStageId.trim() || null,
           external_stage_qualified_id: qualifiedExternalStageId.trim() || null,
           external_stage_unqualified_id: unqualifiedExternalStageId.trim() || null,
@@ -296,6 +303,23 @@ function AdminCrmDispatchPage() {
             </Select>
           </div>
         </div>
+      </div>
+
+      <div className="flex items-start justify-between gap-4 rounded-lg border border-border p-4">
+        <div className="space-y-1">
+          <Label htmlFor="send-when-qualified">Enviar ao CRM quando qualificado</Label>
+          <p className="text-sm text-muted-foreground">
+            Envia o lead quando ele passa a Qualificado, além das regras de follow-up e visita. O
+            envio entra na fila imediatamente, sem o tempo de espera dos follow-ups. Leads já
+            enviados não são cadastrados novamente. Ativar não envia leads antigos.
+          </p>
+        </div>
+        <Switch
+          id="send-when-qualified"
+          checked={sendWhenQualified}
+          onCheckedChange={setSendWhenQualified}
+          disabled={isLoading}
+        />
       </div>
 
       <div className="rounded-lg border border-border p-4">
@@ -434,6 +458,20 @@ function AdminCrmDispatchPage() {
                   placeholder="Ex.: 12345"
                   disabled={isLoading}
                 />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="cv-queue-qualified">ID da fila — Qualificado</Label>
+                <Input
+                  id="cv-queue-qualified"
+                  value={qualifiedQueueId}
+                  onChange={(event) => setQualifiedQueueId(event.target.value)}
+                  placeholder="Ex.: 12345"
+                  disabled={isLoading}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Usada no envio por qualificação quando o CRM externo é CV. Vazio envia ao CRM sem
+                  distribuição automática.
+                </p>
               </div>
             </div>
           </div>

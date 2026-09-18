@@ -85,6 +85,18 @@ Deno.serve(async (req) => {
 
     for (const job of jobs) {
       try {
+        let dispatchPayload = job.payload;
+        if (job.payload?.enforceQualificationRule === true) {
+          const { data: prepared, error: prepareError } = await admin.rpc(
+            "crm_prepare_qualified_dispatch", { p_job_id: job.id },
+          );
+          if (prepareError) throw new Error(prepareError.message);
+          if (prepared?.action !== "send") {
+            results.push({ id: job.id, status: prepared?.action ?? "skipped" });
+            continue;
+          }
+          dispatchPayload = prepared.payload;
+        }
         const headers: Record<string, string> = { "Content-Type": "application/json" };
         if (internalSecret) {
           headers["x-internal-secret"] = internalSecret;
@@ -96,7 +108,7 @@ Deno.serve(async (req) => {
         const response = await fetch(`${supabaseUrl}/functions/v1/external-crms-dispatch`, {
           method: "POST",
           headers,
-          body: JSON.stringify(job.payload ?? {
+          body: JSON.stringify(dispatchPayload ?? {
             leadId: job.crm_lead_id,
             idEmpresa: job.id_empresa,
           }),
