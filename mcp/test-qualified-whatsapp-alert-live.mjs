@@ -24,6 +24,7 @@ finish.parameters.query="select ($1::uuid is not null and $2::uuid is not null a
 const echo={id:crypto.randomUUID(),name:'Mock Evolution HTTP',type:'n8n-nodes-base.webhook',typeVersion:2,position:[0,400],webhookId:crypto.randomUUID(),parameters:{httpMethod:'POST',path:echoPath,responseMode:'lastNode',options:{}}};
 const echoResult={id:crypto.randomUUID(),name:'Recibo sintético',type:'n8n-nodes-base.code',typeVersion:2,position:[260,400],parameters:{jsCode:"const body=$json.body;if(body.number!=='120363000000000000@g.us'||!body.text.includes('Novo lead qualificado')) throw new Error('Invalid mock request');return [{json:{key:{id:'qa-receipt',fromMe:true},status:'PENDING'}}];"}};
 nodes.push(echo,echoResult);connections[echo.name]={main:[[{node:echoResult.name,type:'main',index:0}]]};
+assert(send.parameters.jsonBody.includes('linkPreview:false'),'Link preview must be disabled');
 assert(!JSON.stringify(nodes).includes('evolution.henaweb.com.br'));
 assert(!JSON.stringify(send).includes('apikey'));
 let qaId;

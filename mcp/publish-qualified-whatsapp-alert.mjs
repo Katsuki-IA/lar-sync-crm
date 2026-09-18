@@ -12,7 +12,7 @@ claim.credentials=structuredClone(reference.nodes.find(n=>n.name==='Create a row
 const prepare=mk('Preparar alerta','n8n-nodes-base.code',{mode:'runOnceForEachItem',jsCode:`const prepareAlert=${prepareAlert.toString()}; return {json:prepareAlert($json)};`});
 const send=structuredClone(reference.nodes.find(n=>n.name==='Enviar Mensagem Grupo'));
 send.id=crypto.randomUUID();send.name='Evolution - Novo lead qualificado';
-send.parameters.jsonBody='={{ {number:$json.number,text:$json.text} }}';
+send.parameters.jsonBody='={{ {number:$json.number,text:$json.text,linkPreview:false} }}';
 send.parameters.options={timeout:20000,response:{response:{fullResponse:true,neverError:true,responseFormat:'json'}}};
 send.onError='continueRegularOutput';send.retryOnFail=false;delete send.continueOnFail;
 const result=mk('Conferir recibo Evolution','n8n-nodes-base.code',{mode:'runOnceForEachItem',jsCode:`const classifyAlertResponse=${classifyAlertResponse.toString()}; const source=$('Preparar alerta').item.json; return {json:{alert_id:source.alert_id,claim_token:source.claim_token,...classifyAlertResponse($json)}};`});
