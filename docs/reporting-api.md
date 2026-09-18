@@ -41,6 +41,14 @@ em cache público. Não envie tokens para o navegador.
 Cada item em `leads` contém identificação, nome, origem e descrição (`UK = Desconhecido`), criação,
 empreendimento, status, etapa CRM, chave de pessoa, atribuições e contexto de atendimento.
 
+- `tags` é um array de objetos `{ id, nome, cor, global_tag_id }` com as tags atuais do lead,
+  restritas à empresa consultada, ordenadas por ID. Sem tags, retorna `[]`.
+  Na Inocoop, “Sem Whatsapp” tem `id=48` e `global_tag_id=11`.
+  O ID local muda por empresa; `global_tag_id` pode ser nulo em tags próprias.
+  A presença da tag é um registro do Hub, não uma checagem em tempo real do WhatsApp;
+  sua ausência não comprova que o telefone possui WhatsApp. Não representa a situação histórica
+  da tag na semana de criação do lead.
+
 - `source_type`, `meta_ad_id/name`, `meta_adset_id/name`, `meta_campaign_id/name` e `meta_leadgen_id`
   representam a atribuição principal. Priorizamos uma atribuição com ID de anúncio, depois com
   leadgen_id, depois a mais recente. `atribuicoes` preserva todas as entradas e seus horários.

@@ -40,6 +40,14 @@ describe("reporting data semantics", () => {
     );
     expect(await reportPersonKey(null)).toBeNull();
   });
+  it("keeps distinct digits distinct, including insertion and transposition", async () => {
+    // Synthetic numbers reproduce the reported shapes without storing personal data.
+    expect(await reportPersonKey("552291234567")).not.toBe(await reportPersonKey("5522912234567"));
+    expect(await reportPersonKey("5527991794320")).not.toBe(await reportPersonKey("5527991974320"));
+    expect(await reportPersonKey("5527991794320")).toBe(
+      await reportPersonKey("+55 (27) 99179-4320"),
+    );
+  });
   it("uses explicit inclusive calendar days with an exclusive upper bound", () => {
     expect(reportPeriod("2026-09-09", "2026-09-15", "America/Sao_Paulo")).toEqual({
       start: "2026-09-09T03:00:00.000Z",

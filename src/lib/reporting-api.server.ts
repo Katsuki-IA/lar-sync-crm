@@ -75,11 +75,16 @@ export async function getReportingLeads(
   const rows = z.array(leadSchema).parse(data);
   const hasMore = rows.length > input.limite;
   const page = rows.slice(0, input.limite);
+  const tagsByLead = await getReportingTags(
+    input.id_empresa,
+    page.map((lead) => lead.crm_lead_id),
+  );
   const leads = await Promise.all(
     page.map(async ({ telefone, ...lead }) => {
       const attribution = chooseAttribution(lead.atribuicoes);
       return {
         ...lead,
+        tags: tagsByLead.get(lead.crm_lead_id) ?? [],
         ...(includePhone ? { telefone } : {}),
         status_crm: lead.status,
         origem_descricao: getLeadOriginLabel(lead.origem),
@@ -125,9 +130,46 @@ export async function getReportingLeads(
       chave_pessoa:
         "phone_v1_ + SHA-256 UTF-8 de phone:v1:<telefone normalizado>; consulte a documentação",
       cv: "IDs extraídos das respostas de envios bem-sucedidos ao CV; múltiplos IDs ficam no array",
+      tags: "tags atuais vinculadas ao lead na mesma empresa; ausência de Sem Whatsapp não comprova que o telefone possui WhatsApp",
     },
     leads,
   };
+}
+
+export async function getReportingTags(companyId: number, leadIds: number[]) {
+  const tagSchema = z.object({
+    id: z.number(),
+    nome: z.string(),
+    cor: nullableText,
+    global_tag_id: z.number().nullable(),
+  });
+  const tagsByLead = new Map<number, z.infer<typeof tagSchema>[]>();
+  if (!leadIds.length) return tagsByLead;
+  // Scope both the owning lead and the tag. A malformed cross-company link must not leak.
+  const result = await reportingDb
+    .from("crm_leads")
+    .select("id,crm_lead_tags(crm_tags!inner(id,nome,cor,global_tag_id))")
+    .eq("id_empresa", companyId)
+    .eq("crm_lead_tags.crm_tags.id_empresa", companyId)
+    .in("id", leadIds)
+    .limit(100);
+  if (result.error) throw new Error("Falha ao consultar tags dos leads");
+  const rows = z
+    .array(
+      z.object({
+        id: z.number(),
+        crm_lead_tags: z.array(z.object({ crm_tags: tagSchema.nullable() })),
+      }),
+    )
+    .parse(result.data);
+  for (const row of rows) {
+    const tags = row.crm_lead_tags.flatMap((link) => (link.crm_tags ? [link.crm_tags] : []));
+    tagsByLead.set(
+      row.id,
+      [...new Map(tags.map((tag) => [tag.id, tag])).values()].sort((a, b) => a.id - b.id),
+    );
+  }
+  return tagsByLead;
 }
 
 export async function getCvLeadIds(companyId: number, crmLeadId: number) {
