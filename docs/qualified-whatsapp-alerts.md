@@ -5,6 +5,12 @@ Publicado em 18/09/2026. Workflow n8n: `evy0eBHNq7pbLVwv`
 
 - Somente novas transições da fila CRM para `sent`, com
   `payload.enforceQualificationRule=true`, geram alerta. Não há backfill.
+- O envio por qualificação aguarda 24 horas contínuas, registradas em
+  `crm_leads.qualification_dispatch_started_at`. O worker confere novamente o
+  estado e a opção da empresa antes de enviar. Perder a qualificação encerra a
+  janela; requalificar inicia outra. Repetir a mesma qualificação não reinicia.
+- O alerta vem após esse envio confirmado, sem mais 24 horas adicionais.
+  A janela fixa de qualificação independe do atraso configurado para follow-up.
 - Usa `empresa_dados.id_group` e a mesma chamada Evolution do fluxo
   `Service Agent -> Schedule`, sem alterar o fluxo de visitas.
 - O agendador consulta a outbox privada a cada minuto, até 10 alertas por lote.
@@ -29,6 +35,7 @@ Publicado em 18/09/2026. Workflow n8n: `evy0eBHNq7pbLVwv`
 
 `node --test mcp/qualified-whatsapp-alert.test.mjs`: 4 testes.
 `mcp/qualified-whatsapp-alert-db-tests.sql`: executar somente em BEGIN/ROLLBACK.
+`mcp/qualification-24h-db-tests.sql`: testes da janela, também em BEGIN/ROLLBACK.
 `node mcp/test-qualified-whatsapp-alert-live.mjs`: replica a cadeia n8n e substitui
 o destino Evolution por webhook simulado. Nenhuma mensagem WhatsApp real.
 

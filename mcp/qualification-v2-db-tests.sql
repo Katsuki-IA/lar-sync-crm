@@ -31,6 +31,7 @@ begin
   perform public.crm_sync_lead_qualification(25,-91820262,'test-v2');
   select count(*),min(id::text)::uuid into v_count,v_job from public.crm_external_dispatch_queue where crm_lead_id=-91820261;
   assert v_count=1,'field and tag events deduplicate';
+  update public.crm_leads set qualification_dispatch_started_at=now()-interval '24 hours' where id=-91820261;
   update public.crm_external_dispatch_queue set status='processing' where id=v_job;
   v_result:=public.crm_prepare_qualified_dispatch(v_job);
   assert v_result->>'action'='send','qualified sends';

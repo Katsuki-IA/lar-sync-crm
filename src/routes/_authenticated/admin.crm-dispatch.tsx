@@ -309,9 +309,10 @@ function AdminCrmDispatchPage() {
         <div className="space-y-1">
           <Label htmlFor="send-when-qualified">Enviar ao CRM quando qualificado</Label>
           <p className="text-sm text-muted-foreground">
-            Envia o lead quando ele passa a Qualificado, além das regras de follow-up e visita. O
-            envio entra na fila imediatamente, sem o tempo de espera dos follow-ups. Leads já
-            enviados não são cadastrados novamente. Ativar não envia leads antigos.
+            Envia o lead após 24 horas contínuas como Qualificado, além das regras de follow-up e
+            visita. A qualificação é conferida novamente antes do envio. O alerta ao grupo vem após
+            a confirmação do CRM. Leads já enviados não são cadastrados novamente. Ativar não envia
+            leads antigos.
           </p>
         </div>
         <Switch
