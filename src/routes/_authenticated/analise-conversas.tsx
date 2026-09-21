@@ -229,7 +229,7 @@ function ConversationAnalysisPage() {
 
         return {
           id: lead.id,
-          leadId: lead.lead_id,
+          leadId: lead.lead_id ?? legacyLead?.id ?? null,
           telefones: [legacyLead?.numero, lead.telefone],
           idEmpresa: lead.id_empresa,
           leadQuente: lead.lead_quente,
