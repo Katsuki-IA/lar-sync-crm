@@ -6,6 +6,7 @@ export type JourneyFunnelLead = {
   leadQuente: boolean | null;
   legacyEngaged?: boolean;
   legacyQualified?: boolean;
+  scheduled?: boolean;
 };
 
 export type JourneyFunnelInput = {
@@ -92,7 +93,8 @@ export function calculateJourneyFunnelLeadStages({
       engaged: hasHumanMessage ? 1 : 0,
       hot: lead.leadQuente || lead.legacyQualified ? 1 : 0,
       sentToCrm: sentToCrmLeadIds.has(lead.id) ? 1 : 0,
-      scheduled: lead.leadId !== null && scheduledLegacyLeadIds.has(lead.leadId) ? 1 : 0,
+      scheduled:
+        lead.scheduled || (lead.leadId !== null && scheduledLegacyLeadIds.has(lead.leadId)) ? 1 : 0,
     };
   });
 }

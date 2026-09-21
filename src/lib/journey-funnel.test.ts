@@ -129,4 +129,24 @@ describe("journey funnel", () => {
 
     expect(result.hot).toBe(1);
   });
+
+  it("counts a CRM lead marked as scheduled even without a legacy lead link", () => {
+    const result = calculateJourneyFunnel({
+      leads: [
+        {
+          id: 1,
+          leadId: null,
+          telefones: [],
+          idEmpresa: 9,
+          leadQuente: false,
+          scheduled: true,
+        },
+      ],
+      messages: [],
+      activities: [],
+      appointments: [],
+    });
+
+    expect(result.scheduled).toBe(1);
+  });
 });

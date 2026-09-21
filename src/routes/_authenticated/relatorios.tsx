@@ -84,6 +84,10 @@ function isLostStage(name?: string | null) {
   return /perd|lost/i.test(name ?? "");
 }
 
+function isScheduledVisitLabel(name?: string | null) {
+  return /visita.*agend/i.test(name ?? "");
+}
+
 function chunk<T>(items: T[], size: number) {
   const chunks: T[][] = [];
   for (let index = 0; index < items.length; index += size)
@@ -139,6 +143,7 @@ function ReportsPage() {
         { data: leads, error: leadsError },
         { data: stages, error: stagesError },
         { data: emps, error: empsError },
+        { data: tags, error: tagsError },
       ] = await Promise.all([
         lq,
         supabase
@@ -148,13 +153,23 @@ function ReportsPage() {
           .eq("ativo", true)
           .order("ordem"),
         supabase.from("empreendimento").select("id, nome").in("id_empresa", empresaIds),
+        supabase.from("crm_tags").select("id, nome").eq("id_empresa", activeEmpresaId!),
       ]);
       if (leadsError) throw leadsError;
       if (stagesError) throw stagesError;
       if (empsError) throw empsError;
+      if (tagsError) throw tagsError;
 
       const cohort = leads ?? [];
       const crmLeadIds = cohort.map((lead) => lead.id);
+      const scheduledStageIds = new Set(
+        (stages ?? [])
+          .filter((stage) => isScheduledVisitLabel(stage.nome))
+          .map((stage) => stage.id),
+      );
+      const scheduledTagIds = (tags ?? [])
+        .filter((tag) => isScheduledVisitLabel(tag.nome))
+        .map((tag) => tag.id);
       const attributionResults = (
         await Promise.all(
           chunk(crmLeadIds, 20).map((leadIdGroup) =>
@@ -170,14 +185,27 @@ function ReportsPage() {
           ),
         )
       ).flat();
-      const legacyLeadsResult = await supabase
-        .from("lead")
-        .select("id,numero,qtd_interacoes,qualificado,status_history")
-        .eq("id_empresa", activeEmpresaId!)
-        .limit(1000);
+      const [legacyLeadsResult, scheduledTagLinksResult] = await Promise.all([
+        supabase
+          .from("lead")
+          .select("id,numero,qtd_interacoes,qualificado,status_history")
+          .eq("id_empresa", activeEmpresaId!)
+          .limit(1000),
+        crmLeadIds.length && scheduledTagIds.length
+          ? supabase
+              .from("crm_lead_tags")
+              .select("lead_id")
+              .in("lead_id", crmLeadIds)
+              .in("tag_id", scheduledTagIds)
+          : Promise.resolve({ data: [], error: null }),
+      ]);
       if (legacyLeadsResult.error) throw legacyLeadsResult.error;
+      if (scheduledTagLinksResult.error) throw scheduledTagLinksResult.error;
 
       const legacyLeadIds = (legacyLeadsResult.data ?? []).map((lead) => lead.id);
+      const scheduledTaggedLeadIds = new Set(
+        (scheduledTagLinksResult.data ?? []).map((link) => link.lead_id),
+      );
 
       const classificationsResult = legacyLeadIds.length
         ? await supabase
@@ -240,6 +268,9 @@ function ReportsPage() {
             Boolean(legacyLead && classifiedQualifiedLeadIds.has(legacyLead.id)) ||
             legacyLead?.qualificado === 1 ||
             (history.includes("qualificado") && !history.includes("desqualificado")),
+          scheduled:
+            scheduledTaggedLeadIds.has(lead.id) ||
+            (lead.crm_stage_id !== null && scheduledStageIds.has(lead.crm_stage_id)),
         };
       });
       const resolvedLegacyLeadIds = [
@@ -1183,6 +1214,9 @@ function KpiMini({ label, value }: { label: string; value: string }) {
 function EmpreendimentoPanel({ data }: { data: ReportData }) {
   const stageById = new Map(data.stages.map((s) => [s.id, s]));
   const empMap = new Map(data.emps.map((e) => [e.id, e.nome]));
+  const scheduledByLeadId = new Map(
+    data.journeyLeadStages.map((stages) => [stages.leadId, stages.scheduled > 0]),
+  );
   type Row = {
     id: number;
     nome: string;
@@ -1198,7 +1232,7 @@ function EmpreendimentoPanel({ data }: { data: ReportData }) {
     const st = l.crm_stage_id ? stageById.get(l.crm_stage_id) : null;
     const cur = map.get(id) ?? { id, nome, total: 0, andamento: 0, convertidos: 0, perdidos: 0 };
     cur.total += 1;
-    if (isConvertedStage(st?.nome)) cur.convertidos += 1;
+    if (scheduledByLeadId.get(l.id)) cur.convertidos += 1;
     else if (isLostStage(st?.nome)) cur.perdidos += 1;
     else cur.andamento += 1;
     map.set(id, cur);
@@ -1269,6 +1303,7 @@ function EmpreendimentoPanel({ data }: { data: ReportData }) {
     <Card className="rounded-2xl">
       <CardHeader>
         <CardTitle>Leads por Empreendimento</CardTitle>
+        <p className="text-sm text-muted-foreground">Conversão = visita agendada.</p>
       </CardHeader>
       <CardContent>
         <div className="grid gap-6 md:grid-cols-2">
