@@ -155,9 +155,6 @@ function ReportsPage() {
 
       const cohort = leads ?? [];
       const crmLeadIds = cohort.map((lead) => lead.id);
-      const cohortLegacyLeadIds = cohort.flatMap((lead) =>
-        lead.lead_id === null ? [] : [lead.lead_id],
-      );
       const attributionResults = (
         await Promise.all(
           chunk(crmLeadIds, 20).map((leadIdGroup) =>
@@ -245,6 +242,9 @@ function ReportsPage() {
             (history.includes("qualificado") && !history.includes("desqualificado")),
         };
       });
+      const resolvedLegacyLeadIds = [
+        ...new Set(journeyLeads.flatMap((lead) => (lead.leadId === null ? [] : [lead.leadId]))),
+      ];
       const sessionIds = [
         ...new Set(
           journeyLeads.flatMap((lead) =>
