@@ -1,13 +1,13 @@
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
-import {prepareAlert,classifyAlertResponse} from './qualified-whatsapp-alert.mjs';
+import {prepareAlert,classifyAlertResponse,alertClaimQuery} from './qualified-whatsapp-alert.mjs';
 
 // Reference contains secrets and stays in ignored backups. Never copy it into Git.
 const reference=JSON.parse(fs.readFileSync('mcp/backups/2026-09-18T17-04-33-980Z-reference_qualified_whatsapp_alert-SbrnKQgQ5S6yqZuf.json','utf8'));
 const mk=(name,type,parameters,version=2)=>({id:crypto.randomUUID(),name,type,typeVersion:version,position:[0,0],parameters});
 const trigger=mk('A cada minuto','n8n-nodes-base.scheduleTrigger',{rule:{interval:[{field:'minutes',minutesInterval:1}]}},1.2);
-const claim=mk('Reservar alertas confirmados','n8n-nodes-base.postgres',{operation:'executeQuery',query:'select * from private.claim_qualified_whatsapp_alerts(10);',options:{}},2.6);
+const claim=mk('Reservar alertas confirmados','n8n-nodes-base.postgres',{operation:'executeQuery',query:alertClaimQuery,options:{}},2.6);
 claim.credentials=structuredClone(reference.nodes.find(n=>n.name==='Create a row').credentials);
 const prepare=mk('Preparar alerta','n8n-nodes-base.code',{mode:'runOnceForEachItem',jsCode:`const prepareAlert=${prepareAlert.toString()}; return {json:prepareAlert($json)};`});
 const send=structuredClone(reference.nodes.find(n=>n.name==='Enviar Mensagem Grupo'));

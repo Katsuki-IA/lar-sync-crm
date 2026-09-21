@@ -16,8 +16,10 @@ Publicado em 18/09/2026. Workflow n8n: `evy0eBHNq7pbLVwv`
 - O agendador consulta a outbox privada a cada minuto, até 10 alertas por lote.
   `FOR UPDATE SKIP LOCKED` e token de reserva impedem dois consumidores de
   enviarem o mesmo alerta. A unicidade é por empresa/lead.
-- Mensagem: nome, telefone, empreendimento, confirmação do envio CRM e link Hub.
-  Não inclui histórico nem informações financeiras.
+- Mensagem: nome, telefone, empreendimento, motivo breve, confirmação do envio CRM e link Hub.
+  O motivo vem da última atividade de qualificação registrada antes do alerta,
+  limitado a 220 caracteres, sem outra chamada de IA e sem enviar o histórico.
+  Se não houver motivo salvo, a ausência é informada. A prévia do link fica desligada.
 - A fila de alertas é independente: falha no WhatsApp não reenvia o lead ao CRM.
 - `sent` significa aceite da Evolution com ID da mensagem; não comprova leitura.
   HTTP 4xx registra `failed`; timeout, 5xx ou resposta sem recibo registra

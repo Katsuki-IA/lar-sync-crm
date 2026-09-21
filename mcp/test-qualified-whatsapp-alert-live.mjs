@@ -14,7 +14,8 @@ trigger.type='n8n-nodes-base.webhook';trigger.typeVersion=2;trigger.webhookId=cr
 trigger.parameters={httpMethod:'POST',path:testPath,responseMode:'lastNode',options:{}};
 const claim=nodes.find(n=>n.name==='Reservar alertas confirmados');
 claim.parameters.query=`select gen_random_uuid() as alert_id,gen_random_uuid() as claim_token,'120363000000000000@g.us' as group_id,
-  'Lead Sintético' as lead_name,'5500000000000' as lead_phone,'Empreendimento Teste' as project_name,123::bigint as lead_id
+  'Lead Sintético' as lead_name,'5500000000000' as lead_phone,'Empreendimento Teste' as project_name,123::bigint as lead_id,
+  'Cliente aceitou agendar uma visita.' as qualification_reason
   where has_table_privilege(current_user,'private.qualified_whatsapp_alerts','SELECT,UPDATE');`;
 const send=nodes.find(n=>n.name==='Evolution - Novo lead qualificado');
 send.parameters.url=base+'/webhook/'+echoPath;send.parameters.headerParameters={parameters:[{name:'Content-Type',value:'application/json'}]};
@@ -22,7 +23,7 @@ delete send.credentials;delete send.parameters.authentication;delete send.parame
 const finish=nodes.find(n=>n.name==='Registrar resultado do alerta');
 finish.parameters.query="select ($1::uuid is not null and $2::uuid is not null and $3::text='sent' and $4::text='qa-receipt' and $5::text is null) as recorded;";
 const echo={id:crypto.randomUUID(),name:'Mock Evolution HTTP',type:'n8n-nodes-base.webhook',typeVersion:2,position:[0,400],webhookId:crypto.randomUUID(),parameters:{httpMethod:'POST',path:echoPath,responseMode:'lastNode',options:{}}};
-const echoResult={id:crypto.randomUUID(),name:'Recibo sintético',type:'n8n-nodes-base.code',typeVersion:2,position:[260,400],parameters:{jsCode:"const body=$json.body;if(body.number!=='120363000000000000@g.us'||!body.text.includes('Novo lead qualificado')) throw new Error('Invalid mock request');return [{json:{key:{id:'qa-receipt',fromMe:true},status:'PENDING'}}];"}};
+const echoResult={id:crypto.randomUUID(),name:'Recibo sintético',type:'n8n-nodes-base.code',typeVersion:2,position:[260,400],parameters:{jsCode:"const body=$json.body;if(body.number!=='120363000000000000@g.us'||!body.text.includes('Novo lead qualificado')||!body.text.includes('Motivo: Cliente aceitou agendar uma visita.')||body.linkPreview!==false) throw new Error('Invalid mock request');return [{json:{key:{id:'qa-receipt',fromMe:true},status:'PENDING'}}];"}};
 nodes.push(echo,echoResult);connections[echo.name]={main:[[{node:echoResult.name,type:'main',index:0}]]};
 assert(send.parameters.jsonBody.includes('linkPreview:false'),'Link preview must be disabled');
 assert(!JSON.stringify(nodes).includes('evolution.henaweb.com.br'));

@@ -1,0 +1,21 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import {prepareAlert,alertClaimQuery} from './qualified-whatsapp-alert.mjs';
+const base=process.env.N8N_API_URL?.replace(/\/$/,'');
+const headers={'X-N8N-API-KEY':process.env.N8N_API_KEY,'Content-Type':'application/json'};
+assert(base&&headers['X-N8N-API-KEY']);
+const id='evy0eBHNq7pbLVwv';
+async function read(){const r=await fetch(`${base}/api/v1/workflows/${id}`,{headers});assert(r.ok);return r.json();}
+const original=await read();
+fs.writeFileSync(`mcp/backups/qualified-alert-before-reason-${Date.now()}.json`,JSON.stringify(original));
+const w=structuredClone(original);
+w.nodes.find(n=>n.name==='Reservar alertas confirmados').parameters.query=alertClaimQuery;
+w.nodes.find(n=>n.name==='Preparar alerta').parameters.jsCode=`const prepareAlert=${prepareAlert.toString()}; return {json:prepareAlert($json)};`;
+assert.deepEqual(w.connections,original.connections);
+for(const n of w.nodes)if(!['Reservar alertas confirmados','Preparar alerta'].includes(n.name))assert.deepEqual(n,original.nodes.find(x=>x.id===n.id));
+assert.equal((await read()).versionId,original.versionId,'Concurrent workflow change');
+const r=await fetch(`${base}/api/v1/workflows/${id}`,{method:'PUT',headers,body:JSON.stringify({name:w.name,nodes:w.nodes,connections:w.connections,settings:w.settings})});assert(r.ok,`Update ${r.status}`);
+const v=await read();assert(v.active&&v.activeVersionId===v.versionId);
+assert.equal(v.nodes.find(n=>n.name==='Reservar alertas confirmados').parameters.query,alertClaimQuery);
+assert.equal(v.nodes.find(n=>n.name==='Preparar alerta').parameters.jsCode,w.nodes.find(n=>n.name==='Preparar alerta').parameters.jsCode);
+console.log(JSON.stringify({published:true,active:v.active,version:v.versionId}));
