@@ -232,7 +232,7 @@ function ReportsPage() {
 
         return {
           id: lead.id,
-          leadId: lead.lead_id,
+          leadId: lead.lead_id ?? legacyLead?.id ?? null,
           telefones: [legacyLead?.numero, lead.telefone],
           idEmpresa: lead.id_empresa,
           leadQuente: lead.lead_quente,
@@ -265,13 +265,13 @@ function ReportsPage() {
               .select("lead_id,metadata,descricao")
               .in("lead_id", crmLeadIds)
           : Promise.resolve({ data: [], error: null }),
-        cohortLegacyLeadIds.length
+        resolvedLegacyLeadIds.length
           ? supabase
               .from("agendamento")
               .select("id_lead")
               .eq("id_empresa", activeEmpresaId!)
               .is("deleted_at", null)
-              .in("id_lead", cohortLegacyLeadIds)
+              .in("id_lead", resolvedLegacyLeadIds)
           : Promise.resolve({ data: [], error: null }),
       ]);
 
