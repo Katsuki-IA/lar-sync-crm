@@ -8,6 +8,7 @@ import {
   Plug,
   MessagesSquare,
   ChartNoAxesCombined,
+  FileSpreadsheet,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCrmUser } from "@/hooks/use-crm-user";
@@ -43,6 +44,12 @@ export function AppSidebar() {
             url: "/analise-conversas",
             match: "/analise-conversas",
             icon: ChartNoAxesCombined,
+          },
+          {
+            title: "Relatório de Leads",
+            url: "/relatorio-leads",
+            match: "/relatorio-leads",
+            icon: FileSpreadsheet,
           },
         ]
       : []),
