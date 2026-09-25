@@ -1074,6 +1074,8 @@ export type Database = {
           cv_distribution_queue_qualified_id: string | null
           cv_distribution_queue_without_whatsapp_id: string | null
           dispatch_delay_minutes: number
+          external_qualification_enabled: boolean
+          external_qualification_enabled_at: string | null
           external_stage_blocked_send_id: string | null
           external_stage_lost_id: string | null
           external_stage_qualified_id: string | null
@@ -1093,6 +1095,8 @@ export type Database = {
           cv_distribution_queue_qualified_id?: string | null
           cv_distribution_queue_without_whatsapp_id?: string | null
           dispatch_delay_minutes?: number
+          external_qualification_enabled?: boolean
+          external_qualification_enabled_at?: string | null
           external_stage_blocked_send_id?: string | null
           external_stage_lost_id?: string | null
           external_stage_qualified_id?: string | null
@@ -1112,6 +1116,8 @@ export type Database = {
           cv_distribution_queue_qualified_id?: string | null
           cv_distribution_queue_without_whatsapp_id?: string | null
           dispatch_delay_minutes?: number
+          external_qualification_enabled?: boolean
+          external_qualification_enabled_at?: string | null
           external_stage_blocked_send_id?: string | null
           external_stage_lost_id?: string | null
           external_stage_qualified_id?: string | null
@@ -4797,6 +4803,9 @@ export type Database = {
           qualificacao_message_id: string | null
           qualificacao_motivo: string | null
           qualificado: number | null
+          qualification_changed_at: string | null
+          qualification_evaluated_at: string | null
+          qualification_started_at: string | null
           rd_client_id: string | null
           rd_deal_id: string | null
           status: string | null
@@ -4842,6 +4851,9 @@ export type Database = {
           qualificacao_message_id?: string | null
           qualificacao_motivo?: string | null
           qualificado?: number | null
+          qualification_changed_at?: string | null
+          qualification_evaluated_at?: string | null
+          qualification_started_at?: string | null
           rd_client_id?: string | null
           rd_deal_id?: string | null
           status?: string | null
@@ -4887,6 +4899,9 @@ export type Database = {
           qualificacao_message_id?: string | null
           qualificacao_motivo?: string | null
           qualificado?: number | null
+          qualification_changed_at?: string | null
+          qualification_evaluated_at?: string | null
+          qualification_started_at?: string | null
           rd_client_id?: string | null
           rd_deal_id?: string | null
           status?: string | null
@@ -6804,6 +6819,10 @@ export type Database = {
         Args: { p_id_empresa: number }
         Returns: string
       }
+      followup_semantic_dispatch_validation_v2: {
+        Args: { p_dispatch_id: number; p_now?: string }
+        Returns: string
+      }
       followup_sequence_readiness_v2: {
         Args: { p_sequence_id: number }
         Returns: Json
@@ -6921,6 +6940,10 @@ export type Database = {
           tenant_norm: string
         }[]
       }
+      get_external_qualification_settings: {
+        Args: { p_company: number }
+        Returns: Json
+      }
       get_full_schema_info: { Args: never; Returns: Json }
       gloria_leads_por_empreendimento: {
         Args: { p_mes: string }
@@ -6943,6 +6966,33 @@ export type Database = {
           p_timestamp_meta: string
         }
         Returns: undefined
+      }
+      legacy_live_followup_candidates_v2: {
+        Args: { p_id_empresa?: number; p_limit?: number }
+        Returns: {
+          audience_scope: string
+          conversation_context: string
+          crm_message_template: string
+          effective_project_id: number
+          eligibility_reason: string
+          eligible_at: string
+          id_empresa: number
+          id_situacao: number
+          last_message_at: string
+          lead_id: number
+          lead_id_crm: string
+          lead_nome: string
+          lead_telefone: string
+          media_url: string
+          meta_template_language: string
+          meta_template_name: string
+          parameter_mapping: Json
+          sequence_id: number
+          sequence_name: string
+          step_id: number
+          step_order: number
+          variant_id: number
+        }[]
       }
       live_followup_candidates_v2: {
         Args: { p_id_empresa?: number; p_limit?: number }
@@ -7040,8 +7090,38 @@ export type Database = {
         Args: { p_lead_nome: string; p_template: string }
         Returns: string
       }
+      resolve_followup_semantic_enforcement_v2: {
+        Args: {
+          p_enrollment_id: number
+          p_id_empresa: number
+          p_lead_id: number
+          p_legacy_context: string
+          p_now?: string
+          p_sequence_id: number
+          p_step_order: number
+        }
+        Returns: {
+          allow_dispatch: boolean
+          classifier_version: string
+          is_enforced: boolean
+          meta_template_language: string
+          meta_template_name: string
+          parameter_mapping: Json
+          reason: string
+          route_id: number
+          semantic_action: string
+          semantic_context: string
+          semantic_eligible_at: string
+          source_event_key: string
+          use_semantic_route: boolean
+        }[]
+      }
       revalidate_followup_dispatch_v2: {
         Args: { p_dispatch_id: number; p_worker_id: string }
+        Returns: Json
+      }
+      save_external_qualification_settings: {
+        Args: { p_company: number; p_enabled: boolean; p_queue_id: string }
         Returns: Json
       }
       schedule_visit_safe: {
