@@ -22,7 +22,6 @@ import { Route as IntegracoesRdRouteImport } from './routes/integracoes_.rd'
 import { Route as HistoricoLeadIdRouteImport } from './routes/historico.$leadId'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedRelatoriosRouteImport } from './routes/_authenticated/relatorios'
-import { Route as AuthenticatedRelatorioLeadsRouteImport } from './routes/_authenticated/relatorio-leads'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
 import { Route as AuthenticatedKanbanRouteImport } from './routes/_authenticated/kanban'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
@@ -122,12 +121,6 @@ const AuthenticatedRelatoriosRoute = AuthenticatedRelatoriosRouteImport.update({
   path: '/relatorios',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedRelatorioLeadsRoute =
-  AuthenticatedRelatorioLeadsRouteImport.update({
-    id: '/relatorio-leads',
-    path: '/relatorio-leads',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
 const AuthenticatedProfileRoute = AuthenticatedProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
@@ -326,7 +319,6 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/kanban': typeof AuthenticatedKanbanRoute
   '/profile': typeof AuthenticatedProfileRoute
-  '/relatorio-leads': typeof AuthenticatedRelatorioLeadsRoute
   '/relatorios': typeof AuthenticatedRelatoriosRoute
   '/settings': typeof AuthenticatedSettingsRouteWithChildren
   '/historico/$leadId': typeof HistoricoLeadIdRoute
@@ -373,7 +365,6 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/kanban': typeof AuthenticatedKanbanRoute
   '/profile': typeof AuthenticatedProfileRoute
-  '/relatorio-leads': typeof AuthenticatedRelatorioLeadsRoute
   '/relatorios': typeof AuthenticatedRelatoriosRoute
   '/historico/$leadId': typeof HistoricoLeadIdRoute
   '/integracoes/rd': typeof IntegracoesRdRoute
@@ -422,7 +413,6 @@ export interface FileRoutesById {
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/kanban': typeof AuthenticatedKanbanRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
-  '/_authenticated/relatorio-leads': typeof AuthenticatedRelatorioLeadsRoute
   '/_authenticated/relatorios': typeof AuthenticatedRelatoriosRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRouteWithChildren
   '/historico/$leadId': typeof HistoricoLeadIdRoute
@@ -472,7 +462,6 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/kanban'
     | '/profile'
-    | '/relatorio-leads'
     | '/relatorios'
     | '/settings'
     | '/historico/$leadId'
@@ -519,7 +508,6 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/kanban'
     | '/profile'
-    | '/relatorio-leads'
     | '/relatorios'
     | '/historico/$leadId'
     | '/integracoes/rd'
@@ -567,7 +555,6 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard'
     | '/_authenticated/kanban'
     | '/_authenticated/profile'
-    | '/_authenticated/relatorio-leads'
     | '/_authenticated/relatorios'
     | '/_authenticated/settings'
     | '/historico/$leadId'
@@ -711,13 +698,6 @@ declare module '@tanstack/react-router' {
       path: '/relatorios'
       fullPath: '/relatorios'
       preLoaderRoute: typeof AuthenticatedRelatoriosRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/relatorio-leads': {
-      id: '/_authenticated/relatorio-leads'
-      path: '/relatorio-leads'
-      fullPath: '/relatorio-leads'
-      preLoaderRoute: typeof AuthenticatedRelatorioLeadsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/profile': {
@@ -1019,7 +999,6 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedKanbanRoute: typeof AuthenticatedKanbanRoute
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
-  AuthenticatedRelatorioLeadsRoute: typeof AuthenticatedRelatorioLeadsRoute
   AuthenticatedRelatoriosRoute: typeof AuthenticatedRelatoriosRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRouteWithChildren
   AuthenticatedConfiguracoesIntegracoesRoute: typeof AuthenticatedConfiguracoesIntegracoesRoute
@@ -1036,7 +1015,6 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedKanbanRoute: AuthenticatedKanbanRoute,
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
-  AuthenticatedRelatorioLeadsRoute: AuthenticatedRelatorioLeadsRoute,
   AuthenticatedRelatoriosRoute: AuthenticatedRelatoriosRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRouteWithChildren,
   AuthenticatedConfiguracoesIntegracoesRoute:
