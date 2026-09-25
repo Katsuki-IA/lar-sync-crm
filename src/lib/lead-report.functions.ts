@@ -159,7 +159,7 @@ export const getLeadReport = createServerFn({ method: "POST" })
         idExterno: l.id_crm,
         nome: l.nome,
         numero: l.numero,
-        createdAt: l.created_at,
+        createdAt: l.created_at ?? "",
         empreendimentoId: l.id_empreendimento,
         empreendimento: l.id_empreendimento ? empName.get(l.id_empreendimento) ?? `#${l.id_empreendimento}` : null,
         estado,
