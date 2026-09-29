@@ -6742,6 +6742,17 @@ export type Database = {
           wa_username: string
         }[]
       }
+      crm_whatsapp_list_conversations_v2: {
+        Args: {
+          p_id_empresa: number
+          p_id_empreendimento?: number
+          p_limit?: number
+          p_offset?: number
+          p_only_human?: boolean
+          p_search?: string
+        }
+        Returns: Database["public"]["Functions"]["crm_whatsapp_list_conversations"]["Returns"]
+      }
       crm_whatsapp_set_conversation_attendance: {
         Args: { p_enabled: boolean; p_force?: boolean; p_lead_id: number }
         Returns: {

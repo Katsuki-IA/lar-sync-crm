@@ -24,6 +24,13 @@ import { useCrmUser } from "@/hooks/use-crm-user";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
@@ -187,16 +194,37 @@ function ConversationsPage() {
   const [search, setSearch] = useState("");
   const deferredSearch = useDeferredValue(search.trim());
   const [onlyHuman, setOnlyHuman] = useState(false);
+  const [projectFilter, setProjectFilter] = useState<{ companyId: number | null; value: string }>({
+    companyId: null,
+    value: "all",
+  });
+  // Never reuse a project selection when switching companies.
+  const projectId = projectFilter.companyId === activeEmpresaId ? projectFilter.value : "all";
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [draft, setDraft] = useState("");
 
+  const projectsQuery = useQuery({
+    enabled: !!me && !!activeEmpresaId,
+    queryKey: ["conversation-projects", activeEmpresaId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("empreendimento")
+        .select("id,nome")
+        .eq("id_empresa", activeEmpresaId!)
+        .order("nome");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
   const conversationsQuery = useQuery({
     enabled: !!me && !!activeEmpresaId,
-    queryKey: ["whatsapp-conversations", activeEmpresaId, deferredSearch, onlyHuman],
+    queryKey: ["whatsapp-conversations", activeEmpresaId, deferredSearch, onlyHuman, projectId],
     refetchInterval: 5_000,
     queryFn: async (): Promise<ConversationItem[]> => {
-      const { data, error } = await supabase.rpc("crm_whatsapp_list_conversations", {
+      const { data, error } = await supabase.rpc("crm_whatsapp_list_conversations_v2", {
         p_id_empresa: activeEmpresaId!,
+        p_id_empreendimento: projectId === "all" ? undefined : Number(projectId),
         p_search: deferredSearch || undefined,
         p_only_human: onlyHuman,
         p_limit: 100,
@@ -439,6 +467,41 @@ function ConversationsPage() {
                 className="pl-9"
               />
             </div>
+            {(projectsQuery.data?.length ?? 0) > 1 && (
+              <div className="mt-3">
+                <Select
+                  value={projectId}
+                  onValueChange={(value) => {
+                    setProjectFilter({ companyId: activeEmpresaId, value });
+                    setSelectedId(null);
+                  }}
+                >
+                  <SelectTrigger
+                    aria-label="Filtrar por empreendimento"
+                    className="w-full min-w-0 [&>span]:truncate"
+                  >
+                    <SelectValue placeholder="Todos os empreendimentos" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os empreendimentos</SelectItem>
+                    {(projectsQuery.data ?? []).map((project) => (
+                      <SelectItem key={project.id} value={String(project.id)}>
+                        {project.nome || `Empreendimento ${project.id}`}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            {projectsQuery.isError && (
+              <button
+                type="button"
+                className="mt-3 text-sm text-destructive"
+                onClick={() => void projectsQuery.refetch()}
+              >
+                Erro ao carregar empreendimentos. Tentar novamente.
+              </button>
+            )}
             <Button
               type="button"
               variant={onlyHuman ? "default" : "outline"}
