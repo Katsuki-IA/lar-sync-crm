@@ -5,6 +5,8 @@ import { canManageNegotiation } from "@/lib/negotiation";
 
 const companySchema = z.object({ companyId: z.number().int().positive() });
 
+// Keep inputValidator: the Start runtime deployed by Lovable does not yet expose validator.
+
 async function authorize(supabase: any, userId: string, companyId: number) {
   const { data: me, error } = await supabase
     .from("crm_users")
@@ -18,7 +20,7 @@ async function authorize(supabase: any, userId: string, companyId: number) {
 
 export const getNegotiationConfig = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .validator(companySchema)
+  .inputValidator((input) => companySchema.parse(input))
   .handler(async ({ context, data }) => {
     await authorize(context.supabase, context.userId, data.companyId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -41,11 +43,13 @@ export const getNegotiationConfig = createServerFn({ method: "GET" })
 
 export const saveNegotiationConfig = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator(
-    companySchema.extend({
-      projectId: z.number().int().positive().optional(),
-      mode: z.enum(["venda", "locacao", "ambos"]),
-    }),
+  .inputValidator((input) =>
+    companySchema
+      .extend({
+        projectId: z.number().int().positive().optional(),
+        mode: z.enum(["venda", "locacao", "ambos"]),
+      })
+      .parse(input),
   )
   .handler(async ({ context, data }) => {
     await authorize(context.supabase, context.userId, data.companyId);
