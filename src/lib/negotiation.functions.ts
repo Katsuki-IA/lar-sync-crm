@@ -27,7 +27,7 @@ export const getNegotiationConfig = createServerFn({ method: "GET" })
     const [company, projects] = await Promise.all([
       supabaseAdmin
         .from("empresa_dados")
-        .select("id,nome,modalidade_negociacao,c2s_fila_venda_id,c2s_fila_locacao_id")
+        .select("id,nome,default_crm,modalidade_negociacao,c2s_fila_venda_id,c2s_fila_locacao_id")
         .eq("id", data.companyId)
         .single(),
       supabaseAdmin

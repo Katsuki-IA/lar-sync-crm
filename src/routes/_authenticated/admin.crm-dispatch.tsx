@@ -4,14 +4,25 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 
-import { listCrmDispatchEmpresas, getCrmDispatchSettings, saveCrmDispatchSettings } from "@/lib/admin.functions";
+import {
+  listCrmDispatchEmpresas,
+  getCrmDispatchSettings,
+  saveCrmDispatchSettings,
+} from "@/lib/admin.functions";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NegotiationSettings } from "@/components/negotiation-settings";
+import { useActiveEmpresa } from "@/hooks/use-active-empresa";
 import { Switch } from "@/components/ui/switch";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export const Route = createFileRoute("/_authenticated/admin/crm-dispatch")({
   component: AdminCrmDispatchPage,
@@ -46,10 +57,16 @@ type ExternalStageOverride = {
 };
 
 const EMPTY_VALUE = "__none__";
-const WITHOUT_CONTACT_STAGE_NAMES = new Set(["Follow Up 1", "Follow Up 2", "Follow Up 3", "Follow Up 4"]);
+const WITHOUT_CONTACT_STAGE_NAMES = new Set([
+  "Follow Up 1",
+  "Follow Up 2",
+  "Follow Up 3",
+  "Follow Up 4",
+]);
 
 function AdminCrmDispatchPage() {
   const qc = useQueryClient();
+  const { activeEmpresaId } = useActiveEmpresa();
   const listCrmDispatchEmpresasFn = useServerFn(listCrmDispatchEmpresas);
   const getSettingsFn = useServerFn(getCrmDispatchSettings);
   const saveSettingsFn = useServerFn(saveCrmDispatchSettings);
@@ -77,9 +94,10 @@ function AdminCrmDispatchPage() {
 
   useEffect(() => {
     if (!selectedCompanyId && companies.length > 0) {
-      setSelectedCompanyId(String((companies[0] as Empresa).id));
+      const activeCompany = companies.find((company: Empresa) => company.id === activeEmpresaId);
+      setSelectedCompanyId(String((activeCompany ?? companies[0]).id));
     }
-  }, [companies, selectedCompanyId]);
+  }, [companies, selectedCompanyId, activeEmpresaId]);
 
   const { data: configData, isLoading: configLoading } = useQuery({
     queryKey: ["admin_crm_dispatch_settings", selectedCompanyId],
@@ -108,9 +126,7 @@ function AdminCrmDispatchPage() {
     setVisitScheduledExternalStageId(configData.settings.external_stage_visit_scheduled_id ?? "");
     setLostExternalStageId(configData.settings.external_stage_lost_id ?? "");
     setWithoutWhatsappExternalStageId(configData.settings.external_stage_without_whatsapp_id ?? "");
-    setWithoutWhatsappQueueId(
-      configData.settings.cv_distribution_queue_without_whatsapp_id ?? "",
-    );
+    setWithoutWhatsappQueueId(configData.settings.cv_distribution_queue_without_whatsapp_id ?? "");
     setBlockedSendQueueId(configData.settings.cv_distribution_queue_blocked_send_id ?? "");
     setStageOverrides(
       Object.fromEntries(
@@ -183,22 +199,28 @@ function AdminCrmDispatchPage() {
           external_stage_without_whatsapp_id: withoutWhatsappExternalStageId.trim() || null,
           cv_distribution_queue_without_whatsapp_id: withoutWhatsappQueueId.trim() || null,
           cv_distribution_queue_blocked_send_id: blockedSendQueueId.trim() || null,
-          stage_overrides: ((configData?.empreendimentos ?? []) as EmpreendimentoOption[]).map((project) => {
-            const override = stageOverrides[project.id];
-            return {
-              id_empreendimento: project.id,
-              external_stage_blocked_send_id: override?.external_stage_blocked_send_id.trim() || null,
-              external_stage_qualified_id: override?.external_stage_qualified_id.trim() || null,
-              external_stage_unqualified_id: override?.external_stage_unqualified_id.trim() || null,
-              external_stage_visit_scheduled_id: override?.external_stage_visit_scheduled_id.trim() || null,
-              external_stage_lost_id: override?.external_stage_lost_id.trim() || null,
-              external_stage_without_whatsapp_id: override?.external_stage_without_whatsapp_id.trim() || null,
-              cv_distribution_queue_without_whatsapp_id:
-                override?.cv_distribution_queue_without_whatsapp_id.trim() || null,
-              cv_distribution_queue_blocked_send_id:
-                override?.cv_distribution_queue_blocked_send_id.trim() || null,
-            };
-          }),
+          stage_overrides: ((configData?.empreendimentos ?? []) as EmpreendimentoOption[]).map(
+            (project) => {
+              const override = stageOverrides[project.id];
+              return {
+                id_empreendimento: project.id,
+                external_stage_blocked_send_id:
+                  override?.external_stage_blocked_send_id.trim() || null,
+                external_stage_qualified_id: override?.external_stage_qualified_id.trim() || null,
+                external_stage_unqualified_id:
+                  override?.external_stage_unqualified_id.trim() || null,
+                external_stage_visit_scheduled_id:
+                  override?.external_stage_visit_scheduled_id.trim() || null,
+                external_stage_lost_id: override?.external_stage_lost_id.trim() || null,
+                external_stage_without_whatsapp_id:
+                  override?.external_stage_without_whatsapp_id.trim() || null,
+                cv_distribution_queue_without_whatsapp_id:
+                  override?.cv_distribution_queue_without_whatsapp_id.trim() || null,
+                cv_distribution_queue_blocked_send_id:
+                  override?.cv_distribution_queue_blocked_send_id.trim() || null,
+              };
+            },
+          ),
         },
       }),
     onSuccess: async () => {
@@ -212,7 +234,9 @@ function AdminCrmDispatchPage() {
 
   const stages = (configData?.stages ?? []) as StageOption[];
   const empreendimentos = (configData?.empreendimentos ?? []) as EmpreendimentoOption[];
-  const withoutContactStages = stages.filter((stage) => WITHOUT_CONTACT_STAGE_NAMES.has(stage.nome));
+  const withoutContactStages = stages.filter((stage) =>
+    WITHOUT_CONTACT_STAGE_NAMES.has(stage.nome),
+  );
   const isLoading = companiesLoading || (!!selectedCompanyId && configLoading);
   const parsedDispatchDelayMinutes = Number(dispatchDelayMinutes);
   const dispatchDelayIsValid =
@@ -222,17 +246,11 @@ function AdminCrmDispatchPage() {
 
   return (
     <Card className="p-4 space-y-5">
-      {selectedCompanyId && (
-        <details className="rounded-lg border p-4" key={selectedCompanyId}>
-          <summary className="cursor-pointer font-medium">Venda, locação e filas C2S por empreendimento</summary>
-          <div className="mt-4"><NegotiationSettings companyId={Number(selectedCompanyId)} /></div>
-        </details>
-      )}
       <div className="space-y-1">
         <h2 className="text-lg font-medium">Envio ao CRM</h2>
         <p className="text-sm text-muted-foreground">
           Defina em qual etapa o lead passa a ficar elegível para envio ao CRM externo da empresa.
-          Neste passo, a configuração apenas registra a regra; o envio em si ainda não é executado.
+          Selecione a empresa e abra a seção que deseja configurar.
         </p>
       </div>
 
@@ -260,348 +278,470 @@ function AdminCrmDispatchPage() {
         )}
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <div className="space-y-2 rounded-lg border border-border p-4">
-          <div className="space-y-1">
-            <h3 className="font-medium">Lead sem contato</h3>
-            <p className="text-sm text-muted-foreground">
-              Escolha a etapa em que um lead sem interação registrada deve ser considerado pronto para envio ao CRM.
-            </p>
+      {selectedCompanyId && (
+        <details className="rounded-lg border p-4" key={selectedCompanyId}>
+          <summary className="cursor-pointer font-medium">
+            Venda e locação por empreendimento
+          </summary>
+          <div className="mt-4">
+            <NegotiationSettings companyId={Number(selectedCompanyId)} />
           </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="without-contact-stage">Etapa de envio</Label>
-            <Select value={withoutContactStageId} onValueChange={setWithoutContactStageId} disabled={isLoading}>
-              <SelectTrigger id="without-contact-stage" className="bg-white">
-                <SelectValue placeholder="Selecionar etapa" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={EMPTY_VALUE}>Não configurado</SelectItem>
-                {withoutContactStages.map((stage) => (
-                  <SelectItem key={stage.id} value={String(stage.id)}>
-                    {stage.nome} (ID #{stage.id})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        </details>
+      )}
+
+      <details className="rounded-lg border p-4">
+        <summary className="cursor-pointer font-medium">
+          Lead sem contato e lead com contato
+        </summary>
+        <div className="mt-4">
+          <div className="grid gap-4 lg:grid-cols-2">
+            <div className="space-y-2 rounded-lg border border-border p-4">
+              <div className="space-y-1">
+                <h3 className="font-medium">Lead sem contato</h3>
+                <p className="text-sm text-muted-foreground">
+                  Escolha a etapa em que um lead sem interação registrada deve ser considerado
+                  pronto para envio ao CRM.
+                </p>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="without-contact-stage">Etapa de envio</Label>
+                <Select
+                  value={withoutContactStageId}
+                  onValueChange={setWithoutContactStageId}
+                  disabled={isLoading}
+                >
+                  <SelectTrigger id="without-contact-stage" className="bg-white">
+                    <SelectValue placeholder="Selecionar etapa" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={EMPTY_VALUE}>Não configurado</SelectItem>
+                    {withoutContactStages.map((stage) => (
+                      <SelectItem key={stage.id} value={String(stage.id)}>
+                        {stage.nome} (ID #{stage.id})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-2 rounded-lg border border-border p-4">
+              <div className="space-y-1">
+                <h3 className="font-medium">Lead com contato</h3>
+                <p className="text-sm text-muted-foreground">
+                  Escolha a etapa em que um lead que já interagiu deve ser considerado pronto para
+                  envio ao CRM.
+                </p>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="with-contact-stage">Etapa de envio</Label>
+                <Select
+                  value={withContactStageId}
+                  onValueChange={setWithContactStageId}
+                  disabled={isLoading}
+                >
+                  <SelectTrigger id="with-contact-stage" className="bg-white">
+                    <SelectValue placeholder="Selecionar etapa" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={EMPTY_VALUE}>Não configurado</SelectItem>
+                    {stages.map((stage) => (
+                      <SelectItem key={stage.id} value={String(stage.id)}>
+                        {stage.nome} (ID #{stage.id})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
           </div>
         </div>
+      </details>
 
-        <div className="space-y-2 rounded-lg border border-border p-4">
-          <div className="space-y-1">
-            <h3 className="font-medium">Lead com contato</h3>
-            <p className="text-sm text-muted-foreground">
-              Escolha a etapa em que um lead que já interagiu deve ser considerado pronto para envio ao CRM.
-            </p>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="with-contact-stage">Etapa de envio</Label>
-            <Select value={withContactStageId} onValueChange={setWithContactStageId} disabled={isLoading}>
-              <SelectTrigger id="with-contact-stage" className="bg-white">
-                <SelectValue placeholder="Selecionar etapa" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={EMPTY_VALUE}>Não configurado</SelectItem>
-                {stages.map((stage) => (
-                  <SelectItem key={stage.id} value={String(stage.id)}>
-                    {stage.nome} (ID #{stage.id})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      </div>
-
-      <div className="flex items-start justify-between gap-4 rounded-lg border border-border p-4">
-        <div className="space-y-1">
-          <Label htmlFor="send-when-qualified">Enviar ao CRM quando qualificado</Label>
-          <p className="text-sm text-muted-foreground">
-            Envia o lead após 24 horas contínuas como Qualificado, além das regras de follow-up e
-            visita. A qualificação é conferida novamente antes do envio. O alerta ao grupo vem após
-            a confirmação do CRM. Leads já enviados não são cadastrados novamente. Ativar não envia
-            leads antigos.
-          </p>
-        </div>
-        <Switch
-          id="send-when-qualified"
-          checked={sendWhenQualified}
-          onCheckedChange={setSendWhenQualified}
-          disabled={isLoading}
-        />
-      </div>
-
-      <div className="rounded-lg border border-border p-4">
-        <div className="max-w-md space-y-2">
-          <div className="space-y-1">
-            <h3 className="font-medium">Tempo para envio ao CRM externo</h3>
-            <p className="text-sm text-muted-foreground">
-              Define quantos minutos o sistema aguarda após o gatilho dos follow-ups antes de enviar
-              o lead. Use 0 para envio imediato. O padrão é 60 minutos.
-            </p>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="dispatch-delay-minutes">Tempo de espera (minutos)</Label>
-            <Input
-              id="dispatch-delay-minutes"
-              type="number"
-              min={0}
-              max={10080}
-              step={1}
-              value={dispatchDelayMinutes}
-              onChange={(event) => setDispatchDelayMinutes(event.target.value)}
+      <details className="rounded-lg border p-4">
+        <summary className="cursor-pointer font-medium">Envio quando qualificado</summary>
+        <div className="mt-4">
+          <div className="flex items-start justify-between gap-4 rounded-lg border border-border p-4">
+            <div className="space-y-1">
+              <Label htmlFor="send-when-qualified">Enviar ao CRM quando qualificado</Label>
+              <p className="text-sm text-muted-foreground">
+                Envia o lead após 24 horas contínuas como Qualificado, além das regras de follow-up
+                e visita. A qualificação é conferida novamente antes do envio. O alerta ao grupo vem
+                após a confirmação do CRM. Leads já enviados não são cadastrados novamente. Ativar
+                não envia leads antigos.
+              </p>
+            </div>
+            <Switch
+              id="send-when-qualified"
+              checked={sendWhenQualified}
+              onCheckedChange={setSendWhenQualified}
               disabled={isLoading}
             />
-            {!dispatchDelayIsValid ? (
-              <p className="text-xs text-destructive">
-                Informe um número inteiro entre 0 e 10.080 minutos.
-              </p>
-            ) : null}
           </div>
         </div>
-      </div>
+      </details>
 
-      <div className="flex items-center justify-between gap-3 rounded-lg border border-dashed border-border p-4">
-        <div className="w-full space-y-4">
-          <div className="space-y-1">
-            <h3 className="font-medium">Etapas Padrão</h3>
-            <p className="text-sm text-muted-foreground">
-              Configure os IDs externos usados em cada situação; campos vazios usam o ID Não qualificado como fallback.
-            </p>
-          </div>
-
-          <div className="grid gap-4 lg:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label htmlFor="external-stage-unqualified">ID Não qualificado</Label>
-              <Input
-                id="external-stage-unqualified"
-                value={unqualifiedExternalStageId}
-                onChange={(event) => setUnqualifiedExternalStageId(event.target.value)}
-                placeholder="Ex.: 23456"
-                disabled={isLoading}
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="external-stage-qualified">ID Qualificado</Label>
-              <Input
-                id="external-stage-qualified"
-                value={qualifiedExternalStageId}
-                onChange={(event) => setQualifiedExternalStageId(event.target.value)}
-                placeholder="Ex.: 34567"
-                disabled={isLoading}
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="external-stage-visit">ID Visita agendada</Label>
-              <Input
-                id="external-stage-visit"
-                value={visitScheduledExternalStageId}
-                onChange={(event) => setVisitScheduledExternalStageId(event.target.value)}
-                placeholder="Ex.: 67890"
-                disabled={isLoading}
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="external-stage-lost">ID Perdido</Label>
-              <Input
-                id="external-stage-lost"
-                value={lostExternalStageId}
-                onChange={(event) => setLostExternalStageId(event.target.value)}
-                placeholder="Ex.: 99999"
-                disabled={isLoading}
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="external-stage-without-whatsapp">ID Sem WhatsApp</Label>
-              <Input
-                id="external-stage-without-whatsapp"
-                value={withoutWhatsappExternalStageId}
-                onChange={(event) => setWithoutWhatsappExternalStageId(event.target.value)}
-                placeholder="Ex.: 88888"
-                disabled={isLoading}
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="external-stage-blocked-send">ID Bloqueio Envio</Label>
-              <Input
-                id="external-stage-blocked-send"
-                value={blockedSendExternalStageId}
-                onChange={(event) => setBlockedSendExternalStageId(event.target.value)}
-                placeholder="Ex.: 12345"
-                disabled={isLoading}
-              />
+      <details className="rounded-lg border p-4">
+        <summary className="cursor-pointer font-medium">Tempo para envio ao CRM externo</summary>
+        <div className="mt-4">
+          <div className="rounded-lg border border-border p-4">
+            <div className="max-w-md space-y-2">
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">
+                  Define quantos minutos o sistema aguarda após o gatilho dos follow-ups antes de
+                  enviar o lead. Use 0 para envio imediato. O padrão é 60 minutos.
+                </p>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="dispatch-delay-minutes">Tempo de espera (minutos)</Label>
+                <Input
+                  id="dispatch-delay-minutes"
+                  type="number"
+                  min={0}
+                  max={10080}
+                  step={1}
+                  value={dispatchDelayMinutes}
+                  onChange={(event) => setDispatchDelayMinutes(event.target.value)}
+                  disabled={isLoading}
+                />
+                {!dispatchDelayIsValid ? (
+                  <p className="text-xs text-destructive">
+                    Informe um número inteiro entre 0 e 10.080 minutos.
+                  </p>
+                ) : null}
+              </div>
             </div>
           </div>
+        </div>
+      </details>
 
-          <div className="space-y-4 border-t border-dashed pt-4">
+      <div className="space-y-5">
+        <details className="rounded-lg border p-4">
+          <summary className="cursor-pointer font-medium">Etapas padrão</summary>
+          <div className="mt-4 space-y-4">
             <div className="space-y-1">
-              <h3 className="font-medium">Filas de distribuição do CV</h3>
               <p className="text-sm text-muted-foreground">
-                Opcional. Quando preenchido, o lead também é encaminhado à fila do CV após o evento correspondente. Campos vazios mantêm o envio atual, sem distribuição automática.
+                Configure os IDs externos usados em cada situação; campos vazios usam o ID Não
+                qualificado como fallback.
               </p>
             </div>
 
             <div className="grid gap-4 lg:grid-cols-2">
               <div className="space-y-1.5">
-                <Label htmlFor="cv-queue-without-whatsapp">ID da fila — Sem WhatsApp</Label>
+                <Label htmlFor="external-stage-unqualified">ID Não qualificado</Label>
                 <Input
-                  id="cv-queue-without-whatsapp"
-                  value={withoutWhatsappQueueId}
-                  onChange={(event) => setWithoutWhatsappQueueId(event.target.value)}
-                  placeholder="Ex.: 12345"
+                  id="external-stage-unqualified"
+                  value={unqualifiedExternalStageId}
+                  onChange={(event) => setUnqualifiedExternalStageId(event.target.value)}
+                  placeholder="Ex.: 23456"
                   disabled={isLoading}
                 />
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="cv-queue-blocked-send">ID da fila — Bloqueio IA</Label>
+                <Label htmlFor="external-stage-qualified">ID Qualificado</Label>
                 <Input
-                  id="cv-queue-blocked-send"
-                  value={blockedSendQueueId}
-                  onChange={(event) => setBlockedSendQueueId(event.target.value)}
+                  id="external-stage-qualified"
+                  value={qualifiedExternalStageId}
+                  onChange={(event) => setQualifiedExternalStageId(event.target.value)}
+                  placeholder="Ex.: 34567"
+                  disabled={isLoading}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="external-stage-visit">ID Visita agendada</Label>
+                <Input
+                  id="external-stage-visit"
+                  value={visitScheduledExternalStageId}
+                  onChange={(event) => setVisitScheduledExternalStageId(event.target.value)}
+                  placeholder="Ex.: 67890"
+                  disabled={isLoading}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="external-stage-lost">ID Perdido</Label>
+                <Input
+                  id="external-stage-lost"
+                  value={lostExternalStageId}
+                  onChange={(event) => setLostExternalStageId(event.target.value)}
+                  placeholder="Ex.: 99999"
+                  disabled={isLoading}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="external-stage-without-whatsapp">ID Sem WhatsApp</Label>
+                <Input
+                  id="external-stage-without-whatsapp"
+                  value={withoutWhatsappExternalStageId}
+                  onChange={(event) => setWithoutWhatsappExternalStageId(event.target.value)}
+                  placeholder="Ex.: 88888"
+                  disabled={isLoading}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="external-stage-blocked-send">ID Bloqueio Envio</Label>
+                <Input
+                  id="external-stage-blocked-send"
+                  value={blockedSendExternalStageId}
+                  onChange={(event) => setBlockedSendExternalStageId(event.target.value)}
                   placeholder="Ex.: 12345"
                   disabled={isLoading}
                 />
               </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="cv-queue-qualified">ID da fila — Qualificado</Label>
-                <Input
-                  id="cv-queue-qualified"
-                  value={qualifiedQueueId}
-                  onChange={(event) => setQualifiedQueueId(event.target.value)}
-                  placeholder="Ex.: 12345"
-                  disabled={isLoading}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Usada no envio por qualificação quando o CRM externo é CV. Vazio envia ao CRM sem
-                  distribuição automática.
+            </div>
+          </div>
+        </details>
+
+        <details className="rounded-lg border p-4">
+          <summary className="cursor-pointer font-medium">Filas de distribuição do CV</summary>
+          <div className="mt-4">
+            <div className="space-y-4 border-t border-dashed pt-4">
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">
+                  Opcional. Quando preenchido, o lead também é encaminhado à fila do CV após o
+                  evento correspondente. Campos vazios mantêm o envio atual, sem distribuição
+                  automática.
                 </p>
               </div>
+
+              <div className="grid gap-4 lg:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="cv-queue-without-whatsapp">ID da fila — Sem WhatsApp</Label>
+                  <Input
+                    id="cv-queue-without-whatsapp"
+                    value={withoutWhatsappQueueId}
+                    onChange={(event) => setWithoutWhatsappQueueId(event.target.value)}
+                    placeholder="Ex.: 12345"
+                    disabled={isLoading}
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="cv-queue-blocked-send">ID da fila — Bloqueio IA</Label>
+                  <Input
+                    id="cv-queue-blocked-send"
+                    value={blockedSendQueueId}
+                    onChange={(event) => setBlockedSendQueueId(event.target.value)}
+                    placeholder="Ex.: 12345"
+                    disabled={isLoading}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="cv-queue-qualified">ID da fila — Qualificado</Label>
+                  <Input
+                    id="cv-queue-qualified"
+                    value={qualifiedQueueId}
+                    onChange={(event) => setQualifiedQueueId(event.target.value)}
+                    placeholder="Ex.: 12345"
+                    disabled={isLoading}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Usada no envio por qualificação quando o CRM externo é CV. Vazio envia ao CRM
+                    sem distribuição automática.
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
+        </details>
 
-          <div className="space-y-4 border-t border-dashed pt-4">
-            <div className="space-y-1">
-              <h3 className="font-medium">Etapas por empreendimento</h3>
-              <p className="text-sm text-muted-foreground">
-                Opcional. Preencha somente quando esse empreendimento usar IDs diferentes no CRM externo. Campos vazios mantêm o padrão da empresa acima.
-              </p>
-            </div>
+        <details className="rounded-lg border p-4">
+          <summary className="cursor-pointer font-medium">Etapas por empreendimento</summary>
+          <div className="mt-4">
+            <div className="space-y-4 border-t border-dashed pt-4">
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">
+                  Opcional. Preencha somente quando esse empreendimento usar IDs diferentes no CRM
+                  externo. Campos vazios mantêm o padrão da empresa acima.
+                </p>
+              </div>
 
-            {empreendimentos.length ? (
-              <div className="space-y-3">
-                {empreendimentos.map((project) => {
-                  const override = stageOverrides[project.id];
-                  return (
-                    <div key={project.id} className="space-y-3 rounded-lg border border-border p-4">
-                      <h4 className="font-medium">{project.nome ?? `Empreendimento ${project.id}`}</h4>
-                      <div className="grid gap-4 lg:grid-cols-2">
-                        <div className="space-y-1.5">
-                          <Label htmlFor={`project-${project.id}-unqualified`}>ID: Não qualificado</Label>
-                          <Input
-                            id={`project-${project.id}-unqualified`}
-                            value={override?.external_stage_unqualified_id ?? ""}
-                            onChange={(event) => updateStageOverride(project.id, "external_stage_unqualified_id", event.target.value)}
-                            placeholder={unqualifiedExternalStageId || "Usar padrão da empresa"}
-                            disabled={isLoading}
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label htmlFor={`project-${project.id}-qualified`}>ID: Qualificado</Label>
-                          <Input
-                            id={`project-${project.id}-qualified`}
-                            value={override?.external_stage_qualified_id ?? ""}
-                            onChange={(event) => updateStageOverride(project.id, "external_stage_qualified_id", event.target.value)}
-                            placeholder={qualifiedExternalStageId || "Usar padrão da empresa"}
-                            disabled={isLoading}
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label htmlFor={`project-${project.id}-visit`}>ID: Visita agendada</Label>
-                          <Input
-                            id={`project-${project.id}-visit`}
-                            value={override?.external_stage_visit_scheduled_id ?? ""}
-                            onChange={(event) => updateStageOverride(project.id, "external_stage_visit_scheduled_id", event.target.value)}
-                            placeholder={visitScheduledExternalStageId || "Usar padrão da empresa"}
-                            disabled={isLoading}
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label htmlFor={`project-${project.id}-lost`}>ID: Perdido</Label>
-                          <Input
-                            id={`project-${project.id}-lost`}
-                            value={override?.external_stage_lost_id ?? ""}
-                            onChange={(event) => updateStageOverride(project.id, "external_stage_lost_id", event.target.value)}
-                            placeholder={lostExternalStageId || "Usar padrão da empresa"}
-                            disabled={isLoading}
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label htmlFor={`project-${project.id}-without-whatsapp`}>ID: Sem WhatsApp</Label>
-                          <Input
-                            id={`project-${project.id}-without-whatsapp`}
-                            value={override?.external_stage_without_whatsapp_id ?? ""}
-                            onChange={(event) => updateStageOverride(project.id, "external_stage_without_whatsapp_id", event.target.value)}
-                            placeholder={withoutWhatsappExternalStageId || "Usar padrão da empresa"}
-                            disabled={isLoading}
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label htmlFor={`project-${project.id}-blocked-send`}>ID: Bloqueio Envio</Label>
-                          <Input
-                            id={`project-${project.id}-blocked-send`}
-                            value={override?.external_stage_blocked_send_id ?? ""}
-                            onChange={(event) => updateStageOverride(project.id, "external_stage_blocked_send_id", event.target.value)}
-                            placeholder={blockedSendExternalStageId || "Usar padrão da empresa"}
-                            disabled={isLoading}
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label htmlFor={`project-${project.id}-queue-without-whatsapp`}>
-                            Fila CV: Sem WhatsApp
-                          </Label>
-                          <Input
-                            id={`project-${project.id}-queue-without-whatsapp`}
-                            value={override?.cv_distribution_queue_without_whatsapp_id ?? ""}
-                            onChange={(event) => updateStageOverride(project.id, "cv_distribution_queue_without_whatsapp_id", event.target.value)}
-                            placeholder={withoutWhatsappQueueId || "Usar padrão da empresa"}
-                            disabled={isLoading}
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label htmlFor={`project-${project.id}-queue-blocked-send`}>
-                            Fila CV: Bloqueio IA
-                          </Label>
-                          <Input
-                            id={`project-${project.id}-queue-blocked-send`}
-                            value={override?.cv_distribution_queue_blocked_send_id ?? ""}
-                            onChange={(event) => updateStageOverride(project.id, "cv_distribution_queue_blocked_send_id", event.target.value)}
-                            placeholder={blockedSendQueueId || "Usar padrão da empresa"}
-                            disabled={isLoading}
-                          />
+              {empreendimentos.length ? (
+                <div className="space-y-3">
+                  {empreendimentos.map((project) => {
+                    const override = stageOverrides[project.id];
+                    return (
+                      <div
+                        key={project.id}
+                        className="space-y-3 rounded-lg border border-border p-4"
+                      >
+                        <h4 className="font-medium">
+                          {project.nome ?? `Empreendimento ${project.id}`}
+                        </h4>
+                        <div className="grid gap-4 lg:grid-cols-2">
+                          <div className="space-y-1.5">
+                            <Label htmlFor={`project-${project.id}-unqualified`}>
+                              ID: Não qualificado
+                            </Label>
+                            <Input
+                              id={`project-${project.id}-unqualified`}
+                              value={override?.external_stage_unqualified_id ?? ""}
+                              onChange={(event) =>
+                                updateStageOverride(
+                                  project.id,
+                                  "external_stage_unqualified_id",
+                                  event.target.value,
+                                )
+                              }
+                              placeholder={unqualifiedExternalStageId || "Usar padrão da empresa"}
+                              disabled={isLoading}
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label htmlFor={`project-${project.id}-qualified`}>
+                              ID: Qualificado
+                            </Label>
+                            <Input
+                              id={`project-${project.id}-qualified`}
+                              value={override?.external_stage_qualified_id ?? ""}
+                              onChange={(event) =>
+                                updateStageOverride(
+                                  project.id,
+                                  "external_stage_qualified_id",
+                                  event.target.value,
+                                )
+                              }
+                              placeholder={qualifiedExternalStageId || "Usar padrão da empresa"}
+                              disabled={isLoading}
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label htmlFor={`project-${project.id}-visit`}>
+                              ID: Visita agendada
+                            </Label>
+                            <Input
+                              id={`project-${project.id}-visit`}
+                              value={override?.external_stage_visit_scheduled_id ?? ""}
+                              onChange={(event) =>
+                                updateStageOverride(
+                                  project.id,
+                                  "external_stage_visit_scheduled_id",
+                                  event.target.value,
+                                )
+                              }
+                              placeholder={
+                                visitScheduledExternalStageId || "Usar padrão da empresa"
+                              }
+                              disabled={isLoading}
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label htmlFor={`project-${project.id}-lost`}>ID: Perdido</Label>
+                            <Input
+                              id={`project-${project.id}-lost`}
+                              value={override?.external_stage_lost_id ?? ""}
+                              onChange={(event) =>
+                                updateStageOverride(
+                                  project.id,
+                                  "external_stage_lost_id",
+                                  event.target.value,
+                                )
+                              }
+                              placeholder={lostExternalStageId || "Usar padrão da empresa"}
+                              disabled={isLoading}
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label htmlFor={`project-${project.id}-without-whatsapp`}>
+                              ID: Sem WhatsApp
+                            </Label>
+                            <Input
+                              id={`project-${project.id}-without-whatsapp`}
+                              value={override?.external_stage_without_whatsapp_id ?? ""}
+                              onChange={(event) =>
+                                updateStageOverride(
+                                  project.id,
+                                  "external_stage_without_whatsapp_id",
+                                  event.target.value,
+                                )
+                              }
+                              placeholder={
+                                withoutWhatsappExternalStageId || "Usar padrão da empresa"
+                              }
+                              disabled={isLoading}
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label htmlFor={`project-${project.id}-blocked-send`}>
+                              ID: Bloqueio Envio
+                            </Label>
+                            <Input
+                              id={`project-${project.id}-blocked-send`}
+                              value={override?.external_stage_blocked_send_id ?? ""}
+                              onChange={(event) =>
+                                updateStageOverride(
+                                  project.id,
+                                  "external_stage_blocked_send_id",
+                                  event.target.value,
+                                )
+                              }
+                              placeholder={blockedSendExternalStageId || "Usar padrão da empresa"}
+                              disabled={isLoading}
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label htmlFor={`project-${project.id}-queue-without-whatsapp`}>
+                              Fila CV: Sem WhatsApp
+                            </Label>
+                            <Input
+                              id={`project-${project.id}-queue-without-whatsapp`}
+                              value={override?.cv_distribution_queue_without_whatsapp_id ?? ""}
+                              onChange={(event) =>
+                                updateStageOverride(
+                                  project.id,
+                                  "cv_distribution_queue_without_whatsapp_id",
+                                  event.target.value,
+                                )
+                              }
+                              placeholder={withoutWhatsappQueueId || "Usar padrão da empresa"}
+                              disabled={isLoading}
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label htmlFor={`project-${project.id}-queue-blocked-send`}>
+                              Fila CV: Bloqueio IA
+                            </Label>
+                            <Input
+                              id={`project-${project.id}-queue-blocked-send`}
+                              value={override?.cv_distribution_queue_blocked_send_id ?? ""}
+                              onChange={(event) =>
+                                updateStageOverride(
+                                  project.id,
+                                  "cv_distribution_queue_blocked_send_id",
+                                  event.target.value,
+                                )
+                              }
+                              placeholder={blockedSendQueueId || "Usar padrão da empresa"}
+                              disabled={isLoading}
+                            />
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">Nenhum empreendimento cadastrado para esta empresa.</p>
-            )}
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Nenhum empreendimento cadastrado para esta empresa.
+                </p>
+              )}
+            </div>
           </div>
+        </details>
 
-          <div className="flex justify-end">
-            <Button
-              onClick={() => saveMutation.mutate()}
-              disabled={!selectedCompanyId || saveMutation.isPending || isLoading || !dispatchDelayIsValid}
-            >
-              {saveMutation.isPending ? "Salvando..." : "Salvar configuração"}
-            </Button>
-          </div>
+        <div className="flex justify-end">
+          <Button
+            onClick={() => saveMutation.mutate()}
+            disabled={
+              !selectedCompanyId || saveMutation.isPending || isLoading || !dispatchDelayIsValid
+            }
+          >
+            {saveMutation.isPending ? "Salvando..." : "Salvar configuração"}
+          </Button>
         </div>
       </div>
     </Card>

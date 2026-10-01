@@ -50,28 +50,32 @@ export function NegotiationSettings({ companyId }: { companyId: number }) {
       ) : (
         <p className="text-sm text-muted-foreground">Nenhum empreendimento cadastrado.</p>
       )}
-      <h3 className="font-medium">Filas de atendimento C2S</h3>
-      <p className="text-sm text-muted-foreground">
-        O empreendimento tem prioridade. Campos vazios usam a fila da empresa. Venda e locação usam
-        filas diferentes conforme a intenção do lead; Ambos precisa de intenção definida.
-      </p>
-      <QueueRow
-        key={`queues-company-${companyId}-${data.company.c2s_fila_venda_id}-${data.company.c2s_fila_locacao_id}`}
-        companyId={companyId}
-        name="Padrão da empresa"
-        saleQueue={data.company.c2s_fila_venda_id}
-        rentalQueue={data.company.c2s_fila_locacao_id}
-      />
-      {data.projects.map((project) => (
-        <QueueRow
-          key={`queues-${companyId}-${project.id}-${project.c2s_fila_venda_id}-${project.c2s_fila_locacao_id}`}
-          companyId={companyId}
-          projectId={project.id}
-          name={project.nome}
-          saleQueue={project.c2s_fila_venda_id}
-          rentalQueue={project.c2s_fila_locacao_id}
-        />
-      ))}
+      {["c2s", "c2s_crm"].includes(data.company.default_crm?.trim().toLowerCase() ?? "") && (
+        <>
+          <h3 className="font-medium">Filas de atendimento C2S</h3>
+          <p className="text-sm text-muted-foreground">
+            O empreendimento tem prioridade. Campos vazios usam a fila da empresa. Venda e locação
+            usam filas diferentes conforme a intenção do lead; Ambos precisa de intenção definida.
+          </p>
+          <QueueRow
+            key={`queues-company-${companyId}-${data.company.c2s_fila_venda_id}-${data.company.c2s_fila_locacao_id}`}
+            companyId={companyId}
+            name="Padrão da empresa"
+            saleQueue={data.company.c2s_fila_venda_id}
+            rentalQueue={data.company.c2s_fila_locacao_id}
+          />
+          {data.projects.map((project) => (
+            <QueueRow
+              key={`queues-${companyId}-${project.id}-${project.c2s_fila_venda_id}-${project.c2s_fila_locacao_id}`}
+              companyId={companyId}
+              projectId={project.id}
+              name={project.nome}
+              saleQueue={project.c2s_fila_venda_id}
+              rentalQueue={project.c2s_fila_locacao_id}
+            />
+          ))}
+        </>
+      )}
     </div>
   );
 }
