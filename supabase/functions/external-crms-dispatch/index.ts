@@ -1148,7 +1148,7 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (attributionError) throw new Error(attributionError.message);
     const attribution = attributionData as LeadAttribution | null;
-    const externalStageId = resolveExternalStageId(
+    const externalStageId = isC2sCrm ? "" : resolveExternalStageId(
       currentStageName,
       dispatchSettings,
       stageOverrideResult.data as DispatchStageOverride | null,
