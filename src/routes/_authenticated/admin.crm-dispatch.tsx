@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { NegotiationSettings } from "@/components/negotiation-settings";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -221,6 +222,12 @@ function AdminCrmDispatchPage() {
 
   return (
     <Card className="p-4 space-y-5">
+      {selectedCompanyId && (
+        <details className="rounded-lg border p-4" key={selectedCompanyId}>
+          <summary className="cursor-pointer font-medium">Venda, locação e filas C2S por empreendimento</summary>
+          <div className="mt-4"><NegotiationSettings companyId={Number(selectedCompanyId)} /></div>
+        </details>
+      )}
       <div className="space-y-1">
         <h2 className="text-lg font-medium">Envio ao CRM</h2>
         <p className="text-sm text-muted-foreground">

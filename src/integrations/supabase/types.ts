@@ -1323,6 +1323,8 @@ export type Database = {
       }
       crm_leads: {
         Row: {
+          tipo_negociacao: "venda" | "locacao" | "indefinido"
+          tipo_negociacao_origem: string | null
           conversation_key: string | null
           created_at: string | null
           crm_assigned_to: string | null
@@ -1356,6 +1358,8 @@ export type Database = {
           wa_username: string | null
         }
         Insert: {
+          tipo_negociacao?: "venda" | "locacao" | "indefinido"
+          tipo_negociacao_origem?: string | null
           conversation_key?: string | null
           created_at?: string | null
           crm_assigned_to?: string | null
@@ -1389,6 +1393,8 @@ export type Database = {
           wa_username?: string | null
         }
         Update: {
+          tipo_negociacao?: "venda" | "locacao" | "indefinido"
+          tipo_negociacao_origem?: string | null
           conversation_key?: string | null
           created_at?: string | null
           crm_assigned_to?: string | null
@@ -2963,6 +2969,8 @@ export type Database = {
       }
       empreendimento: {
         Row: {
+          c2s_fila_venda_id: number | null
+          c2s_fila_locacao_id: number | null
           modalidade_negociacao: "venda" | "locacao" | "ambos"
           area_lazer: string | null
           c2s_keywords_empreendimento: string | null
@@ -2998,6 +3006,8 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          c2s_fila_venda_id?: number | null
+          c2s_fila_locacao_id?: number | null
           modalidade_negociacao?: "venda" | "locacao" | "ambos"
           area_lazer?: string | null
           c2s_keywords_empreendimento?: string | null
@@ -3033,6 +3043,8 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          c2s_fila_venda_id?: number | null
+          c2s_fila_locacao_id?: number | null
           modalidade_negociacao?: "venda" | "locacao" | "ambos"
           area_lazer?: string | null
           c2s_keywords_empreendimento?: string | null
@@ -3079,6 +3091,8 @@ export type Database = {
       }
       empresa_dados: {
         Row: {
+          c2s_fila_venda_id: number | null
+          c2s_fila_locacao_id: number | null
           modalidade_negociacao: "venda" | "locacao" | "ambos"
           booking_rules: Json | null
           booking_rules_text: string | null
@@ -3105,6 +3119,8 @@ export type Database = {
           webhook_status: boolean | null
         }
         Insert: {
+          c2s_fila_venda_id?: number | null
+          c2s_fila_locacao_id?: number | null
           modalidade_negociacao?: "venda" | "locacao" | "ambos"
           booking_rules?: Json | null
           booking_rules_text?: string | null
@@ -3131,6 +3147,8 @@ export type Database = {
           webhook_status?: boolean | null
         }
         Update: {
+          c2s_fila_venda_id?: number | null
+          c2s_fila_locacao_id?: number | null
           modalidade_negociacao?: "venda" | "locacao" | "ambos"
           booking_rules?: Json | null
           booking_rules_text?: string | null
@@ -4782,6 +4800,7 @@ export type Database = {
       }
       lead: {
         Row: {
+          tipo_negociacao: "venda" | "locacao" | "indefinido"
           atendimento_humano: boolean | null
           atendimento_humano_desde: string | null
           ativacao: boolean | null
@@ -4830,6 +4849,7 @@ export type Database = {
           wa_username: string | null
         }
         Insert: {
+          tipo_negociacao?: "venda" | "locacao" | "indefinido"
           atendimento_humano?: boolean | null
           atendimento_humano_desde?: string | null
           ativacao?: boolean | null
@@ -4878,6 +4898,7 @@ export type Database = {
           wa_username?: string | null
         }
         Update: {
+          tipo_negociacao?: "venda" | "locacao" | "indefinido"
           atendimento_humano?: boolean | null
           atendimento_humano_desde?: string | null
           ativacao?: boolean | null
@@ -6337,6 +6358,7 @@ export type Database = {
         }
         Returns: Json
       }
+      crm_resolve_c2s_routing: { Args: { p_id_empresa: number; p_crm_lead_id?: number | null; p_legacy_lead_id?: number | null; p_id_empreendimento?: number | null }; Returns: Json }
       crm_assert_super_admin: { Args: never; Returns: undefined }
       crm_assignee_belongs_to_empresa: {
         Args: { p_crm_user_id: string; p_id_empresa: number }

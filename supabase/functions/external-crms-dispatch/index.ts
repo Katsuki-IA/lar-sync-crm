@@ -1024,6 +1024,7 @@ Deno.serve(async (req) => {
       normalizeCrmKey((credentials as CvCredentials | null)?.default_crm);
     const isCvCrm = ["cv", "cv_crm"].includes(crmKey);
     const isC2sCrm = ["c2s", "c2s_crm"].includes(crmKey);
+    let c2sRouting: { tipo_negociacao: string; fila_id: number | null; type_negotiation: string | null; requires_queue: boolean } | null = null;
     const isKommoCrm = ["kommo", "kommo_crm"].includes(crmKey);
     const isLoftCrm = ["loft", "vista", "vista_crm"].includes(crmKey);
     const isRdCrm = ["rd", "rd_crm", "rdstation", "rd_station"].includes(crmKey);
@@ -1300,6 +1301,20 @@ Deno.serve(async (req) => {
         externalId = inferExternalId(responsePayload);
       } else if (isC2sCrm) {
         if (!phone) throw new Error("O lead precisa ter telefone para ser enviado ao C2S.");
+        const { data: routing, error: routingError } = await admin.rpc("crm_resolve_c2s_routing", {
+          p_id_empresa: lead.id_empresa, p_crm_lead_id: lead.id,
+          p_id_empreendimento: localEmpreendimentoId,
+        });
+        if (routingError) throw new Error(routingError.message);
+        c2sRouting = routing;
+        if (!c2sRouting || c2sRouting.tipo_negociacao === "indefinido") throw new DispatchRequestError("Defina se o lead procura venda ou locação antes do envio ao C2S.", false);
+        const hasQueueConfiguration = c2sRouting.fila_id != null;
+        // Preserve integrations that have no explicit queues and use C2S distribution rules.
+        if (c2sRouting.requires_queue && !hasQueueConfiguration) throw new DispatchRequestError("Configure a fila C2S para esta modalidade antes do envio.", false);
+        const { data: incompleteSends, error: incompleteError } = await admin.from("crm_external_crm_send_logs")
+          .select("external_id").eq("id_empresa",lead.id_empresa).eq("lead_id",lead.id).eq("provider","c2s").eq("status","failed").not("external_id","is",null).limit(1);
+        if (incompleteError) throw new Error(incompleteError.message);
+        if (incompleteSends?.length) throw new DispatchRequestError("Lead já criado no C2S com envio incompleto. Revisar o vínculo antes de repetir.", false);
 
         // Mantém o contrato já utilizado no fluxo "Prospect JMF - Primeira Mensagem":
         // cria o lead e, depois, registra a conversa como mensagem no C2S.
@@ -1312,6 +1327,8 @@ Deno.serve(async (req) => {
               phone: onlyDigits(phone),
               description: c2sKeywordsEmpreendimento ?? "",
               price: "0",
+              type_negotiation: c2sRouting.type_negotiation,
+              body: String(summaryPayload?.summary ?? "").slice(0,15000),
               tags,
             },
           },
@@ -1349,10 +1366,23 @@ Deno.serve(async (req) => {
         externalId = inferExternalId(createLeadResult);
         if (!externalId) throw new Error("O C2S não retornou o lead_id criado.");
 
+        if (c2sRouting.fila_id) {
+          const distributionPayload = { id: externalId };
+          requestPayload = { ...requestPayload, distribution_queue_id: c2sRouting.fila_id, tipo_negociacao: c2sRouting.tipo_negociacao, redistribute_lead: distributionPayload };
+          try {
+            const response = await fetch(`${c2sUrl}/distribution_queues/${c2sRouting.fila_id}/redistribute_lead`, {
+              method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${c2sToken}` }, body: JSON.stringify(distributionPayload),
+            });
+            const distribution = await parseResponsePayload(response);
+            responsePayload = { create_lead: createLeadResult, redistribute_lead: distribution };
+            if (!response.ok || distribution?.success !== true || String(distribution?.lead_id ?? "") !== externalId) throw new Error("C2S não confirmou a distribuição na fila configurada");
+          } catch (error) { throw new DispatchRequestError(`${error instanceof Error ? error.message : "Falha na distribuição C2S"}. Lead já criado; revisão necessária, sem recriar.`, false); }
+        }
+
         const summary = String(summaryPayload?.summary ?? "").trim();
         if (summary) {
           const createMessagePayload = { body: summary };
-          requestPayload = { create_lead: createLeadPayload, create_message: createMessagePayload };
+          requestPayload = { ...requestPayload, create_message: createMessagePayload };
           try {
             const createMessageResponse = await fetch(
               `${c2sUrl}/leads/${encodeURIComponent(externalId)}/create_message`,
@@ -1367,6 +1397,7 @@ Deno.serve(async (req) => {
             );
             const createMessageResult = await parseResponsePayload(createMessageResponse);
             responsePayload = {
+              ...(responsePayload as Record<string, unknown>),
               create_lead: createLeadResult,
               create_message: createMessageResult,
             };
@@ -2039,6 +2070,7 @@ Deno.serve(async (req) => {
         provider,
         request_payload: requestPayload,
         status: "failed",
+        external_id: externalId,
         response_payload: responsePayload,
         error_message: errorMessage,
       });
@@ -2104,6 +2136,8 @@ Deno.serve(async (req) => {
         event: "external_crm_sent",
         provider,
         external_id: externalId,
+        tipo_negociacao: c2sRouting?.tipo_negociacao ?? null,
+        c2s_distribution_queue_id: c2sRouting?.fila_id ?? null,
         id_empreendimento_local: localEmpreendimentoId,
         external_empreendimento_id: isCvCrm || isKatsukiCrm ? cvEmpreendimentoId : null,
         external_stage_id: isCvCrm ? toScalarId(externalStageId) : externalStageId,
