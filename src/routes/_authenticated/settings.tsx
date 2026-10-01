@@ -22,16 +22,19 @@ export const Route = createFileRoute("/_authenticated/settings")({
 function SettingsLayout() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { data: me } = useCrmUser();
-  const tabs = me?.role === "super_admin"
-    ? [
-        { to: "/admin/funnel", label: "Funil e etapas" },
-        { to: "/admin/tags", label: "Tags" },
-        { to: "/admin/custom-fields", label: "Campos do lead" },
-        { to: "/settings/users", label: "Usuários" },
-      ]
-    : [
-        { to: "/settings/users", label: "Usuários" },
-      ];
+  const tabs =
+    me?.role === "super_admin"
+      ? [
+          { to: "/admin/funnel", label: "Funil e etapas" },
+          { to: "/admin/tags", label: "Tags" },
+          { to: "/admin/custom-fields", label: "Campos do lead" },
+          { to: "/settings/users", label: "Usuários" },
+          { to: "/settings/empreendimentos", label: "Venda e locação" },
+        ]
+      : [
+          { to: "/settings/users", label: "Usuários" },
+          { to: "/settings/empreendimentos", label: "Venda e locação" },
+        ];
 
   return (
     <div className="space-y-6">

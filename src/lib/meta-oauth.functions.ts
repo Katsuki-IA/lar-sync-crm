@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import type { NegotiationMode } from "@/lib/negotiation";
 
 export type MetaConnectionStatus = {
   id: string;
@@ -13,6 +14,7 @@ export type MetaConnectionStatus = {
 };
 
 export type MetaFormStatus = {
+  modalidade_negociacao: NegotiationMode;
   id: string;
   form_id: string;
   form_name: string | null;
@@ -76,6 +78,7 @@ export type MetaFormField = {
 
 export type MetaFormFieldsResult = {
   form: {
+    modalidade_negociacao: NegotiationMode;
     form_id: string;
     form_name: string | null;
     page_id: string;
@@ -97,6 +100,7 @@ export type MetaFormFieldsResult = {
 };
 
 export type MetaSaveFieldMappingInput = {
+  modalidadeNegociacao: NegotiationMode;
   formId: string;
   empreendimentoId: number;
   funnelId: number;

@@ -28,6 +28,8 @@ import {
   syncMetaForms,
 } from "@/lib/meta-oauth.functions";
 import { useActiveEmpresa } from "@/hooks/use-active-empresa";
+import { NegotiationSelect } from "@/components/negotiation-select";
+import { negotiationLabel, type NegotiationMode } from "@/lib/negotiation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -100,6 +102,7 @@ type MetaConnection = {
 };
 
 type MetaForm = {
+  modalidade_negociacao: NegotiationMode;
   id: string;
   form_id: string;
   form_name: string | null;
@@ -196,6 +199,7 @@ function IntegracoesPage() {
   const [fieldMapping, setFieldMapping] = useState<Record<string, string>>({});
   const [selectedEmpreendimentoId, setSelectedEmpreendimentoId] = useState("");
   const [selectedFunnelId, setSelectedFunnelId] = useState("");
+  const [formNegotiation, setFormNegotiation] = useState<NegotiationMode>("venda");
   const [testValues, setTestValues] = useState<Record<string, string>>({});
   const [savingMapping, setSavingMapping] = useState(false);
 
@@ -369,6 +373,7 @@ function IntegracoesPage() {
 
   useEffect(() => {
     if (!formFields) return;
+    setFormNegotiation(formFields.form.modalidade_negociacao ?? "venda");
 
     const nextMapping: Record<string, string> = {};
     const nextValues: Record<string, string> = {};
@@ -589,6 +594,7 @@ function IntegracoesPage() {
     try {
       setSavingMapping(true);
       await saveMetaFieldMapping({
+        modalidadeNegociacao: formNegotiation,
         formId: selectedFormId,
         empreendimentoId,
         funnelId,
@@ -1059,6 +1065,9 @@ function IntegracoesPage() {
                             <div className="truncate text-sm font-medium text-foreground">
                               {form.form_name ?? form.form_id}
                             </div>
+                            <div className="text-xs text-muted-foreground">
+                              {negotiationLabel(form.modalidade_negociacao ?? "venda")}
+                            </div>
                             <div className="truncate text-xs text-muted-foreground">
                               {typeof form.leads_count === "number"
                                 ? `${form.leads_count} leads na Meta`
@@ -1137,6 +1146,18 @@ function IntegracoesPage() {
                             Nenhum empreendimento disponível para esta empresa.
                           </p>
                         ) : null}
+                      </div>
+                      <div className="mt-4 max-w-md space-y-2">
+                        <Label htmlFor="meta-negotiation">Finalidade do formulário</Label>
+                        <NegotiationSelect
+                          id="meta-negotiation"
+                          value={formNegotiation}
+                          onChange={setFormNegotiation}
+                          disabled={savingMapping}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Use Ambos quando o formulário atende venda e locação. Venda é o padrão.
+                        </p>
                       </div>
                       {formFields.funnels.length > 1 ? (
                         <div className="mt-4 max-w-md space-y-2">

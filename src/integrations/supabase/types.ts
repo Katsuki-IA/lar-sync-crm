@@ -1670,6 +1670,7 @@ export type Database = {
       }
       crm_meta_forms: {
         Row: {
+          modalidade_negociacao: "venda" | "locacao" | "ambos"
           active: boolean | null
           connection_id: string | null
           created_at: string | null
@@ -1689,6 +1690,7 @@ export type Database = {
           webhook_subscribed: boolean
         }
         Insert: {
+          modalidade_negociacao?: "venda" | "locacao" | "ambos"
           active?: boolean | null
           connection_id?: string | null
           created_at?: string | null
@@ -1708,6 +1710,7 @@ export type Database = {
           webhook_subscribed?: boolean
         }
         Update: {
+          modalidade_negociacao?: "venda" | "locacao" | "ambos"
           active?: boolean | null
           connection_id?: string | null
           created_at?: string | null
@@ -2960,6 +2963,7 @@ export type Database = {
       }
       empreendimento: {
         Row: {
+          modalidade_negociacao: "venda" | "locacao" | "ambos"
           area_lazer: string | null
           c2s_keywords_empreendimento: string | null
           condicao: string | null
@@ -2994,6 +2998,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          modalidade_negociacao?: "venda" | "locacao" | "ambos"
           area_lazer?: string | null
           c2s_keywords_empreendimento?: string | null
           condicao?: string | null
@@ -3028,6 +3033,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          modalidade_negociacao?: "venda" | "locacao" | "ambos"
           area_lazer?: string | null
           c2s_keywords_empreendimento?: string | null
           condicao?: string | null
@@ -3073,6 +3079,7 @@ export type Database = {
       }
       empresa_dados: {
         Row: {
+          modalidade_negociacao: "venda" | "locacao" | "ambos"
           booking_rules: Json | null
           booking_rules_text: string | null
           c2s_company_id: string | null
@@ -3098,6 +3105,7 @@ export type Database = {
           webhook_status: boolean | null
         }
         Insert: {
+          modalidade_negociacao?: "venda" | "locacao" | "ambos"
           booking_rules?: Json | null
           booking_rules_text?: string | null
           c2s_company_id?: string | null
@@ -3123,6 +3131,7 @@ export type Database = {
           webhook_status?: boolean | null
         }
         Update: {
+          modalidade_negociacao?: "venda" | "locacao" | "ambos"
           booking_rules?: Json | null
           booking_rules_text?: string | null
           c2s_company_id?: string | null

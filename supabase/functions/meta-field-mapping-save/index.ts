@@ -6,13 +6,7 @@ import {
   withErrorHandling,
 } from "../_shared/meta.ts";
 
-const ALLOWED_CRM_FIELDS = new Set([
-  "nome",
-  "telefone",
-  "email",
-  "origem",
-  "observacoes",
-]);
+const ALLOWED_CRM_FIELDS = new Set(["nome", "telefone", "email", "origem", "observacoes"]);
 
 type MappingInput = {
   metaFieldKey?: string;
@@ -24,18 +18,26 @@ Deno.serve(async (req) => {
   if (options) return options;
 
   return withErrorHandling(async () => {
-    const { formId, empreendimentoId, funnelId, mapping } = (await req.json()) as {
-      formId?: string;
-      empreendimentoId?: number;
-      funnelId?: number;
-      mapping?: MappingInput[];
-    };
+    const { formId, empreendimentoId, funnelId, mapping, modalidadeNegociacao } =
+      (await req.json()) as {
+        formId?: string;
+        empreendimentoId?: number;
+        funnelId?: number;
+        mapping?: MappingInput[];
+        modalidadeNegociacao?: string;
+      };
 
     if (!formId || typeof formId !== "string") {
       throw new Error("Formulário Meta ausente");
     }
     if (!Array.isArray(mapping)) {
       throw new Error("Mapeamento inválido");
+    }
+    if (
+      modalidadeNegociacao !== undefined &&
+      !["venda", "locacao", "ambos"].includes(modalidadeNegociacao)
+    ) {
+      throw new Error("Modalidade de negociação inválida");
     }
     if (!Number.isSafeInteger(empreendimentoId) || Number(empreendimentoId) <= 0) {
       throw new Error("Empreendimento inválido");
@@ -137,7 +139,13 @@ Deno.serve(async (req) => {
 
     const { error: formUpdateError } = await supabaseAdmin
       .from("crm_meta_forms")
-      .update({ id_empreendimento: empreendimento.id, id_funnel: funnel.id })
+      .update({
+        id_empreendimento: empreendimento.id,
+        id_funnel: funnel.id,
+        ...(modalidadeNegociacao !== undefined
+          ? { modalidade_negociacao: modalidadeNegociacao }
+          : {}),
+      })
       .eq("id_empresa", crmUser.id_empresa)
       .eq("form_id", form.form_id);
     if (formUpdateError) throw new Error(formUpdateError.message);

@@ -39,7 +39,9 @@ Deno.serve(async (req) => {
 
     const { data: form, error: formError } = await supabaseAdmin
       .from("crm_meta_forms")
-      .select("form_id,form_name,page_id,page_name,page_access_token,connection_id,id_empreendimento,id_funnel")
+      .select(
+        "form_id,form_name,page_id,page_name,page_access_token,connection_id,id_empreendimento,id_funnel,modalidade_negociacao",
+      )
       .eq("id_empresa", crmUser.id_empresa)
       .eq("form_id", formId)
       .eq("active", true)
@@ -115,6 +117,7 @@ Deno.serve(async (req) => {
         page_name: form.page_name ?? null,
         id_empreendimento: form.id_empreendimento ?? null,
         id_funnel: form.id_funnel ?? null,
+        modalidade_negociacao: form.modalidade_negociacao,
       },
       empreendimentos: empreendimentos ?? [],
       funnels: funnels ?? [],
