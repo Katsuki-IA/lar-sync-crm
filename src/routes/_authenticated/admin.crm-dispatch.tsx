@@ -179,6 +179,10 @@ function AdminCrmDispatchPage() {
     [companies, selectedCompanyId],
   );
 
+  const isCvCrm = ["cv", "cv_crm"].includes(
+    selectedCompany?.default_crm?.trim().toLowerCase() ?? "",
+  );
+
   const saveMutation = useMutation({
     mutationFn: async () =>
       saveSettingsFn({
@@ -496,58 +500,60 @@ function AdminCrmDispatchPage() {
           </div>
         </details>
 
-        <details className="rounded-lg border p-4">
-          <summary className="cursor-pointer font-medium">Filas de distribuição do CV</summary>
-          <div className="mt-4">
-            <div className="space-y-4 border-t border-dashed pt-4">
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">
-                  Opcional. Quando preenchido, o lead também é encaminhado à fila do CV após o
-                  evento correspondente. Campos vazios mantêm o envio atual, sem distribuição
-                  automática.
-                </p>
-              </div>
-
-              <div className="grid gap-4 lg:grid-cols-2">
-                <div className="space-y-1.5">
-                  <Label htmlFor="cv-queue-without-whatsapp">ID da fila — Sem WhatsApp</Label>
-                  <Input
-                    id="cv-queue-without-whatsapp"
-                    value={withoutWhatsappQueueId}
-                    onChange={(event) => setWithoutWhatsappQueueId(event.target.value)}
-                    placeholder="Ex.: 12345"
-                    disabled={isLoading}
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label htmlFor="cv-queue-blocked-send">ID da fila — Bloqueio IA</Label>
-                  <Input
-                    id="cv-queue-blocked-send"
-                    value={blockedSendQueueId}
-                    onChange={(event) => setBlockedSendQueueId(event.target.value)}
-                    placeholder="Ex.: 12345"
-                    disabled={isLoading}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="cv-queue-qualified">ID da fila — Qualificado</Label>
-                  <Input
-                    id="cv-queue-qualified"
-                    value={qualifiedQueueId}
-                    onChange={(event) => setQualifiedQueueId(event.target.value)}
-                    placeholder="Ex.: 12345"
-                    disabled={isLoading}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Usada no envio por qualificação quando o CRM externo é CV. Vazio envia ao CRM
-                    sem distribuição automática.
+        {isCvCrm && (
+          <details className="rounded-lg border p-4">
+            <summary className="cursor-pointer font-medium">Filas de distribuição do CV</summary>
+            <div className="mt-4">
+              <div className="space-y-4 border-t border-dashed pt-4">
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">
+                    Opcional. Quando preenchido, o lead também é encaminhado à fila do CV após o
+                    evento correspondente. Campos vazios mantêm o envio atual, sem distribuição
+                    automática.
                   </p>
+                </div>
+
+                <div className="grid gap-4 lg:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="cv-queue-without-whatsapp">ID da fila — Sem WhatsApp</Label>
+                    <Input
+                      id="cv-queue-without-whatsapp"
+                      value={withoutWhatsappQueueId}
+                      onChange={(event) => setWithoutWhatsappQueueId(event.target.value)}
+                      placeholder="Ex.: 12345"
+                      disabled={isLoading}
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="cv-queue-blocked-send">ID da fila — Bloqueio IA</Label>
+                    <Input
+                      id="cv-queue-blocked-send"
+                      value={blockedSendQueueId}
+                      onChange={(event) => setBlockedSendQueueId(event.target.value)}
+                      placeholder="Ex.: 12345"
+                      disabled={isLoading}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="cv-queue-qualified">ID da fila — Qualificado</Label>
+                    <Input
+                      id="cv-queue-qualified"
+                      value={qualifiedQueueId}
+                      onChange={(event) => setQualifiedQueueId(event.target.value)}
+                      placeholder="Ex.: 12345"
+                      disabled={isLoading}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Usada no envio por qualificação quando o CRM externo é CV. Vazio envia ao CRM
+                      sem distribuição automática.
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        </details>
+          </details>
+        )}
 
         <details className="rounded-lg border p-4">
           <summary className="cursor-pointer font-medium">Etapas por empreendimento</summary>
@@ -683,42 +689,46 @@ function AdminCrmDispatchPage() {
                               disabled={isLoading}
                             />
                           </div>
-                          <div className="space-y-1.5">
-                            <Label htmlFor={`project-${project.id}-queue-without-whatsapp`}>
-                              Fila CV: Sem WhatsApp
-                            </Label>
-                            <Input
-                              id={`project-${project.id}-queue-without-whatsapp`}
-                              value={override?.cv_distribution_queue_without_whatsapp_id ?? ""}
-                              onChange={(event) =>
-                                updateStageOverride(
-                                  project.id,
-                                  "cv_distribution_queue_without_whatsapp_id",
-                                  event.target.value,
-                                )
-                              }
-                              placeholder={withoutWhatsappQueueId || "Usar padrão da empresa"}
-                              disabled={isLoading}
-                            />
-                          </div>
-                          <div className="space-y-1.5">
-                            <Label htmlFor={`project-${project.id}-queue-blocked-send`}>
-                              Fila CV: Bloqueio IA
-                            </Label>
-                            <Input
-                              id={`project-${project.id}-queue-blocked-send`}
-                              value={override?.cv_distribution_queue_blocked_send_id ?? ""}
-                              onChange={(event) =>
-                                updateStageOverride(
-                                  project.id,
-                                  "cv_distribution_queue_blocked_send_id",
-                                  event.target.value,
-                                )
-                              }
-                              placeholder={blockedSendQueueId || "Usar padrão da empresa"}
-                              disabled={isLoading}
-                            />
-                          </div>
+                          {isCvCrm && (
+                            <>
+                              <div className="space-y-1.5">
+                                <Label htmlFor={`project-${project.id}-queue-without-whatsapp`}>
+                                  Fila CV: Sem WhatsApp
+                                </Label>
+                                <Input
+                                  id={`project-${project.id}-queue-without-whatsapp`}
+                                  value={override?.cv_distribution_queue_without_whatsapp_id ?? ""}
+                                  onChange={(event) =>
+                                    updateStageOverride(
+                                      project.id,
+                                      "cv_distribution_queue_without_whatsapp_id",
+                                      event.target.value,
+                                    )
+                                  }
+                                  placeholder={withoutWhatsappQueueId || "Usar padrão da empresa"}
+                                  disabled={isLoading}
+                                />
+                              </div>
+                              <div className="space-y-1.5">
+                                <Label htmlFor={`project-${project.id}-queue-blocked-send`}>
+                                  Fila CV: Bloqueio IA
+                                </Label>
+                                <Input
+                                  id={`project-${project.id}-queue-blocked-send`}
+                                  value={override?.cv_distribution_queue_blocked_send_id ?? ""}
+                                  onChange={(event) =>
+                                    updateStageOverride(
+                                      project.id,
+                                      "cv_distribution_queue_blocked_send_id",
+                                      event.target.value,
+                                    )
+                                  }
+                                  placeholder={blockedSendQueueId || "Usar padrão da empresa"}
+                                  disabled={isLoading}
+                                />
+                              </div>
+                            </>
+                          )}
                         </div>
                       </div>
                     );
