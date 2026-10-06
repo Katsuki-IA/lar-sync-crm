@@ -85,6 +85,7 @@ async function updateWebhookReceipt(args: {
 }
 
 type MetaLeadResponse = {
+  platform?: string;
   id?: string;
   created_time?: string;
   ad_id?: string;
@@ -248,7 +249,7 @@ async function processLeadgenEvent(args: {
   const leadUrl = new URL(`https://graph.facebook.com/${graphVersion}/${leadId}`);
   leadUrl.searchParams.set(
     "fields",
-    "id,created_time,ad_id,form_id,field_data,custom_disclaimer_responses",
+    "id,created_time,ad_id,form_id,platform,field_data,custom_disclaimer_responses",
   );
   leadUrl.searchParams.set("access_token", leadAccessToken);
   const leadResponse = await fetch(leadUrl.toString());

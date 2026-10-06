@@ -6471,6 +6471,7 @@ export type Database = {
           meta_ad_name: string
           meta_adset_name: string
           meta_campaign_name: string
+          meta_platform: string | null
           meta_enriched_at: string
           meta_form_id: string
           meta_page_id: string

@@ -50,6 +50,7 @@ type LeadActivity = {
 };
 
 type LeadAttribution = {
+  meta_platform: string | null;
   source_type: string | null;
   meta_form_id: string | null;
   meta_page_id: string | null;
@@ -593,6 +594,7 @@ function LeadDetail() {
               </CardHeader>
               <CardContent className="space-y-4 text-sm">
                 {attributionSource && <Field label="Canal" value={attributionSource} />}
+                {attribution.meta_platform && <Field label="Plataforma" value={({ fb: "Facebook", facebook: "Facebook", ig: "Instagram", instagram: "Instagram" } as Record<string, string>)[attribution.meta_platform.toLowerCase()] ?? attribution.meta_platform} />}
                 {attribution.meta_campaign_name && <Field label="Campanha" value={attribution.meta_campaign_name} />}
                 {attribution.meta_adset_name && <Field label="Conjunto de anúncios" value={attribution.meta_adset_name} />}
                 {attribution.meta_ad_name && <Field label="Anúncio" value={attribution.meta_ad_name} />}
