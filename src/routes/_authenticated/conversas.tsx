@@ -637,6 +637,7 @@ function ConversationsPage() {
                     <ConversationTemplateDialog
                       key={`${activeEmpresaId}:${selectedConversation.lead_id}:template`}
                       leadId={selectedConversation.lead_id}
+                      leadName={selectedConversation.nome}
                       companyId={activeEmpresaId!}
                       label={assignedToMe ? "Enviar template" : "Assumir e enviar template"}
                       disabled={attendanceMutation.isPending}

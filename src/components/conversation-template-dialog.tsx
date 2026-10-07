@@ -48,12 +48,14 @@ async function invoke<T>(body: Record<string, unknown>): Promise<T> {
 
 export function ConversationTemplateDialog({
   leadId,
+  leadName,
   companyId,
   assume,
   disabled = false,
   label = "Assumir e enviar template",
 }: {
   leadId: number;
+  leadName: string | null;
   companyId: number;
   assume?: () => Promise<unknown>;
   disabled?: boolean;
@@ -85,6 +87,12 @@ export function ConversationTemplateDialog({
       return { fields: [], error: error instanceof Error ? error.message : "Modelo não suportado" };
     }
   }, [selected]);
+  const isCustomerNameField = (key: string) =>
+    selected?.name === "assumir_conversa_1" && key === "body:1";
+  const resolvedValues: Record<string, string> = {
+    ...(selected?.name === "assumir_conversa_1" ? { "body:1": leadName?.trim() ?? "" } : {}),
+    ...values,
+  };
   const send = useMutation({
     mutationFn: async () => {
       if (!selected) throw new Error("Selecione um template");
@@ -98,7 +106,7 @@ export function ConversationTemplateDialog({
         leadId,
         templateName: selected.name,
         templateLanguage: selected.language,
-        templateValues: values,
+        templateValues: resolvedValues,
         clientMessageId: requestId.current,
       });
     },
@@ -185,9 +193,12 @@ export function ConversationTemplateDialog({
             ) : (
               form.fields.map((field) => (
                 <label key={field.key} className="space-y-1 text-sm">
-                  <span>{field.label}</span>
+                  <span>{isCustomerNameField(field.key) ? "Nome do cliente" : field.label}</span>
                   <Input
-                    value={values[field.key] ?? ""}
+                    value={resolvedValues[field.key] ?? ""}
+                    placeholder={
+                      isCustomerNameField(field.key) ? "Informe o nome do cliente" : undefined
+                    }
                     disabled={send.isPending}
                     maxLength={1024}
                     onChange={(event) => {
@@ -203,7 +214,7 @@ export function ConversationTemplateDialog({
               <div className="space-y-2">
                 <p className="text-sm font-medium">Prévia da mensagem</p>
                 <div className="whitespace-pre-wrap rounded-lg border bg-muted p-3 text-sm">
-                  {templatePreview(selected, values) || selected.name}
+                  {templatePreview(selected, resolvedValues) || selected.name}
                 </div>
               </div>
             )}
@@ -226,7 +237,7 @@ export function ConversationTemplateDialog({
               !!templatesQuery.error ||
               !selected ||
               !!form.error ||
-              form.fields.some((f) => !values[f.key]?.trim())
+              form.fields.some((f) => !resolvedValues[f.key]?.trim())
             }
             onClick={() => send.mutate()}
           >
