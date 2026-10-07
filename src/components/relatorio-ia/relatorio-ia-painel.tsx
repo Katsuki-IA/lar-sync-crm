@@ -125,10 +125,10 @@ export function RelatorioIaPainel({
   const gerarSintese = async () => {
     const params = new URLSearchParams({ inicio, fim });
     if (enviaEmpresa && activeEmpresaId) params.set("id_empresa", String(activeEmpresaId));
-    const { data: sessao } = await supabase.auth.getSession();
+    const { data } = await supabase.auth.getSession();
     const response = await fetch(`${FN_URL}?acao=sintese&${params.toString()}`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${sessao?.access_token ?? ""}` },
+      headers: { Authorization: `Bearer ${data.session?.access_token ?? ""}` },
     });
     const body = await response.json().catch(() => ({}));
     if (!response.ok || body?.erro) {
