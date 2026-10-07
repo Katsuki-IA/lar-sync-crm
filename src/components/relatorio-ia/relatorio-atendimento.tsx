@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { ReactNode, useState } from "react";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export interface RelatorioLinha {
