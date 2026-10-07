@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { ConversationTemplateDialog } from "@/components/conversation-template-dialog";
 
 export const Route = createFileRoute("/_authenticated/conversas")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -630,6 +631,28 @@ function ConversationsPage() {
                     </Button>
                   ) : null}
 
+                  {selectedWindow &&
+                  !selectedWindow.window_open &&
+                  (!assignedToOther || canForceAssignment) ? (
+                    <ConversationTemplateDialog
+                      key={`${activeEmpresaId}:${selectedConversation.lead_id}:template`}
+                      leadId={selectedConversation.lead_id}
+                      companyId={activeEmpresaId!}
+                      label={assignedToMe ? "Enviar template" : "Assumir e enviar template"}
+                      disabled={attendanceMutation.isPending}
+                      assume={
+                        assignedToMe
+                          ? undefined
+                          : () =>
+                              attendanceMutation.mutateAsync({
+                                leadId: selectedConversation.lead_id,
+                                enabled: true,
+                                force: assignedToOther && canForceAssignment,
+                              })
+                      }
+                    />
+                  ) : null}
+
                   {selectedConversation.atendimento_humano && assignedToMe ? (
                     <Button
                       type="button"
@@ -651,11 +674,16 @@ function ConversationsPage() {
                       <UserRound className="mr-2 h-4 w-4" />
                       Em atendimento
                     </Button>
-                  ) : (
+                  ) : selectedWindow && !selectedWindow.window_open ? null : (
                     <Button
                       type="button"
                       size="sm"
-                      disabled={attendanceMutation.isPending}
+                      disabled={
+                        attendanceMutation.isPending ||
+                        windowsQuery.isLoading ||
+                        !!windowsQuery.error ||
+                        !selectedWindow
+                      }
                       onClick={() =>
                         attendanceMutation.mutate({
                           leadId: selectedConversation.lead_id,
@@ -797,7 +825,7 @@ function ConversationsPage() {
                       : assignedToMe && windowsQuery.isLoading
                         ? "Verificando a janela de atendimento da Meta..."
                         : assignedToMe && !selectedWindow?.window_open
-                          ? "A janela de 24 horas está fechada. Aguarde o lead enviar uma nova mensagem para responder manualmente."
+                          ? "A janela de 24 horas está fechada. Envie um template e aguarde o cliente responder para enviar mensagens livres."
                           : "Assuma a conversa para enviar mensagens manualmente."}
                   </div>
                 )}

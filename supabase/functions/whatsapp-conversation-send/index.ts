@@ -1,4 +1,10 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.48.1";
+import {
+  buildTemplateComponents,
+  isAttendanceTemplate,
+  templatePreview,
+  type ConversationTemplate,
+} from "../_shared/conversation-templates.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -132,23 +138,13 @@ Deno.serve(async (req) => {
 
     const input = (await req.json()) as Record<string, unknown>;
     const leadId = requiredInteger(input.leadId, "Conversa");
-    const text = requiredText(input.text, "Mensagem", 4096);
-    const clientMessageId = requiredText(input.clientMessageId, "Identificador da mensagem", 100);
-
-    const { data: previous } = await admin
-      .from("wa_messages")
-      .select("message_id,status_current")
-      .eq("client_message_id", clientMessageId)
-      .not("message_id", "is", null)
-      .maybeSingle();
-    if (previous?.message_id) {
-      return jsonResponse({
-        ok: true,
-        messageId: previous.message_id,
-        status: previous.status_current,
-        duplicate: true,
-      });
-    }
+    const listTemplates = input.action === "list_templates";
+    const sendTemplate = input.action === "send_template";
+    if (input.action && !listTemplates && !sendTemplate) throw new Error("Ação inválida");
+    let text = listTemplates || sendTemplate ? "" : requiredText(input.text, "Mensagem", 4096);
+    const clientMessageId = listTemplates
+      ? ""
+      : requiredText(input.clientMessageId, "Identificador da mensagem", 100);
 
     const { data: leadData, error: leadError } = await admin
       .from("lead")
@@ -164,25 +160,45 @@ Deno.serve(async (req) => {
     if (crmUser.role !== "super_admin" && crmUser.id_empresa !== lead.id_empresa) {
       throw new Error("Sem permissão para enviar mensagens nesta empresa");
     }
-    if (!lead.atendimento_humano) {
+    if (!listTemplates && !lead.atendimento_humano) {
       throw new Error("Assuma a conversa antes de enviar uma mensagem");
     }
-    if (lead.wa_conversation_assigned_to !== crmUser.id) {
+    if (!listTemplates && lead.wa_conversation_assigned_to !== crmUser.id) {
       throw new Error("Esta conversa está atribuída a outro atendente");
     }
 
-    const { data: windowData, error: windowError } = await admin.rpc(
-      "crm_whatsapp_conversation_windows",
-      {
-        p_id_empresa: lead.id_empresa,
-        p_lead_ids: [lead.id],
-      },
-    );
-    if (windowError) throw new Error(windowError.message);
-    if (!windowData?.[0]?.window_open) {
-      throw new Error(
-        "A janela de 24 horas está fechada. Aguarde o lead enviar uma nova mensagem.",
+    if (!listTemplates) {
+      const { data: previous, error: previousError } = await admin
+        .from("wa_messages")
+        .select("message_id,status_current")
+        .eq("tenant_id", lead.id_empresa)
+        .eq("client_message_id", clientMessageId)
+        .not("message_id", "is", null)
+        .maybeSingle();
+      if (previousError) throw new Error(previousError.message);
+      if (previous?.message_id)
+        return jsonResponse({
+          ok: true,
+          messageId: previous.message_id,
+          status: previous.status_current,
+          duplicate: true,
+        });
+    }
+
+    if (!listTemplates && !sendTemplate) {
+      const { data: windowData, error: windowError } = await admin.rpc(
+        "crm_whatsapp_conversation_windows",
+        {
+          p_id_empresa: lead.id_empresa,
+          p_lead_ids: [lead.id],
+        },
       );
+      if (windowError) throw new Error(windowError.message);
+      if (!windowData?.[0]?.window_open) {
+        throw new Error(
+          "A janela de 24 horas está fechada. Aguarde o lead enviar uma nova mensagem.",
+        );
+      }
     }
 
     let identity: IdentityRow | null = null;
@@ -215,13 +231,13 @@ Deno.serve(async (req) => {
     ] = await Promise.all([
       admin
         .from("credentials")
-        .select("whatsapp_access_token,whatsapp_business_id")
+        .select("whatsapp_access_token,whatsapp_business_id,waba_id")
         .eq("id_empresa", lead.id_empresa)
         .limit(1)
         .maybeSingle(),
       admin
         .from("crm_whatsapp_connections")
-        .select("id,access_token_ciphertext")
+        .select("id,access_token_ciphertext,waba_id")
         .eq("id_empresa", lead.id_empresa)
         .eq("status", "connected")
         .maybeSingle(),
@@ -232,6 +248,7 @@ Deno.serve(async (req) => {
     let phoneNumberId: string | null = null;
     let accessToken: string | null = null;
     let fromWaId: string | null = null;
+    let templateWabaId: string | null = null;
     const preferredPhoneNumberId = identity?.business_phone_number_id?.trim() || null;
 
     if (connection) {
@@ -264,6 +281,7 @@ Deno.serve(async (req) => {
         phoneNumberId = phone.phone_number_id;
         fromWaId = normalizePhone(phone.display_phone_number) ?? phone.phone_number_id;
         accessToken = await decryptSecret(connection.access_token_ciphertext, encryptionKey);
+        templateWabaId = connection.waba_id?.trim() || null;
       }
     }
 
@@ -271,18 +289,79 @@ Deno.serve(async (req) => {
       phoneNumberId = legacyCredentials?.whatsapp_business_id?.trim() || null;
       accessToken = legacyCredentials?.whatsapp_access_token?.trim() || null;
       fromWaId = phoneNumberId;
+      templateWabaId = legacyCredentials?.waba_id?.trim() || null;
     }
     if (!phoneNumberId || !accessToken) {
       throw new Error("Credenciais de envio do WhatsApp não configuradas para esta empresa");
     }
 
     const graphVersion = Deno.env.get("META_WHATSAPP_GRAPH_VERSION") ?? "v26.0";
+    let selectedTemplate: ConversationTemplate | undefined;
+    let templateComponents: Array<Record<string, unknown>> = [];
+    if (listTemplates || sendTemplate) {
+      const wabaId = templateWabaId;
+      if (!wabaId)
+        throw new Error(
+          "A conta WhatsApp desta empresa não possui WABA configurada para consultar modelos",
+        );
+      const templates: ConversationTemplate[] = [];
+      let after: string | undefined;
+      do {
+        const url = new URL(
+          `https://graph.facebook.com/${graphVersion}/${wabaId}/message_templates`,
+        );
+        url.searchParams.set("fields", "name,status,language,components");
+        url.searchParams.set("limit", "100");
+        if (after) url.searchParams.set("after", after);
+        const response = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+        const result = (await response.json()) as {
+          data?: ConversationTemplate[];
+          error?: { message?: string };
+          paging?: { next?: string; cursors?: { after?: string } };
+        };
+        if (!response.ok || result.error)
+          throw new Error(result.error?.message ?? "Falha ao consultar modelos na Meta");
+        templates.push(...(result.data ?? []).filter(isAttendanceTemplate));
+        after = result.paging?.next ? result.paging.cursors?.after : undefined;
+      } while (after);
+      templates.sort(
+        (a, b) =>
+          a.name.localeCompare(b.name, undefined, { numeric: true }) ||
+          a.language.localeCompare(b.language),
+      );
+      if (listTemplates) return jsonResponse({ templates });
+      selectedTemplate = templates.find(
+        (t) => t.name === input.templateName && t.language === input.templateLanguage,
+      );
+      if (!selectedTemplate)
+        throw new Error(
+          "Selecione um modelo assumir_conversa aprovado pela Meta para esta empresa",
+        );
+      const values =
+        input.templateValues &&
+        typeof input.templateValues === "object" &&
+        !Array.isArray(input.templateValues)
+          ? (input.templateValues as Record<string, unknown>)
+          : {};
+      templateComponents = buildTemplateComponents(selectedTemplate, values);
+      text =
+        templatePreview(selectedTemplate, values as Record<string, string>) ||
+        `[Modelo ${selectedTemplate.name}]`;
+    }
     const requestPayload = {
       messaging_product: "whatsapp",
       recipient_type: "individual",
       to: recipient,
-      type: "text",
-      text: { preview_url: false, body: text },
+      ...(selectedTemplate
+        ? {
+            type: "template",
+            template: {
+              name: selectedTemplate.name,
+              language: { code: selectedTemplate.language },
+              ...(templateComponents.length ? { components: templateComponents } : {}),
+            },
+          }
+        : { type: "text", text: { preview_url: false, body: text } }),
     };
     const graphResponse = await fetch(
       `https://graph.facebook.com/${graphVersion}/${phoneNumberId}/messages`,
@@ -324,7 +403,14 @@ Deno.serve(async (req) => {
           to_wa_id: resolvedWaId,
           to_user_id: resolvedUserId,
           to_username: identity?.username ?? lead.wa_username,
-          type: "text",
+          type: selectedTemplate ? "template" : "text",
+          ...(selectedTemplate
+            ? {
+                template_name: selectedTemplate.name,
+                template_language: selectedTemplate.language,
+                template_variables: input.templateValues ?? {},
+              }
+            : {}),
           text_body: text,
           timestamp_meta: now,
           sent_at: now,
