@@ -23,6 +23,12 @@ const ND = "n/d";
 const isNum = (v: any): v is number => typeof v === "number" && Number.isFinite(v);
 const num = (v: any, dec = 1) => (isNum(v) ? v.toLocaleString("pt-BR", { maximumFractionDigits: dec }) : ND);
 const pct = (v: any, dec = 1) => (isNum(v) ? `${num(v, dec)}%` : ND);
+const pctN = (v: any, n: any): ReactNode => (
+  <>{pct(v)}{isNum(v) && isNum(n) && <span className="font-normal" style={{ color: C.muted }}> ({num(n, 0)})</span>}</>
+);
+const baseKpi = (n: any, total: any, unidade: string) => (
+  isNum(n) && isNum(total) ? `${num(n, 0)} de ${num(total, 0)} ${unidade}` : undefined
+);
 const minutos = (v: any) => {
   if (!isNum(v)) return ND;
   if (v < 60) return `${num(v, 0)} min`;
@@ -96,7 +102,7 @@ function Tabela({ cab, linhas, alinharPrimeira = true }: { cab: string[]; linhas
   );
 }
 
-function Barras({ titulo, itens }: { titulo: string; itens: { label: string; valor: number | null; cor?: string }[] }) {
+function Barras({ titulo, itens }: { titulo: string; itens: { label: string; valor: number | null; contagem?: number | null; cor?: string }[] }) {
   const max = Math.max(1, ...itens.map((i) => (isNum(i.valor) ? i.valor : 0)));
   return (
     <div className="space-y-2 rounded-md border bg-white p-4" style={{ borderColor: C.line }}>
@@ -104,7 +110,7 @@ function Barras({ titulo, itens }: { titulo: string; itens: { label: string; val
       {itens.length === 0 && <Nota>{ND}</Nota>}
       {itens.map((i) => (
         <div key={i.label} className="space-y-1">
-          <div className="flex justify-between text-xs"><span>{i.label}</span><span className="kr-num font-semibold" style={{ color: i.cor ?? C.blue }}>{pct(i.valor)}</span></div>
+          <div className="flex justify-between text-xs"><span>{i.label}</span><span className="kr-num font-semibold" style={{ color: i.cor ?? C.blue }}>{pctN(i.valor, i.contagem)}</span></div>
           <div className="h-2 rounded-full" style={{ background: C.line }}>
             <div className="h-2 rounded-full" style={{ width: `${isNum(i.valor) ? (i.valor / max) * 100 : 0}%`, background: i.cor ?? C.blue }} />
           </div>
@@ -114,10 +120,11 @@ function Barras({ titulo, itens }: { titulo: string; itens: { label: string; val
   );
 }
 
-function Kpi({ valor, legenda, carteira }: { valor: string; legenda: string; carteira: string }) {
+function Kpi({ valor, legenda, carteira, base }: { valor: ReactNode; legenda: string; carteira: ReactNode; base?: string }) {
   return (
     <div className="rounded-md border bg-white p-4" style={{ borderColor: C.line }}>
       <div className="kr-num kr-serif text-4xl" style={{ color: C.blue }}>{valor}</div>
+      {base && <p className="kr-num mt-1 text-xs font-normal" style={{ color: C.muted }}>{base}</p>}
       <p className="mt-1 text-sm">{legenda}</p>
       <p className="kr-num mt-2 text-xs" style={{ color: C.muted }}>Carteira: {carteira}</p>
     </div>
@@ -187,9 +194,9 @@ export function RelatorioAtendimento({ cliente, carteira }: { cliente: Relatorio
         </header>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <Kpi valor={pct(kp.resp_outbound)} legenda="dos leads abordados pela IA respondem" carteira={pct(kk.resp_outbound)} />
-          <Kpi valor={pct(kp.resp_fu1)} legenda="respondem ao 1º follow-up" carteira={pct(kk.resp_fu1)} />
-          <Kpi valor={pct(kp.pct_visitas_fu)} legenda="das visitas vêm de leads que responderam depois de um follow-up" carteira={pct(kk.pct_visitas_fu)} />
+          <Kpi valor={pctN(kp.resp_outbound, kp.resp_outbound_n)} base={baseKpi(kp.resp_outbound_n, kp.outbound_total, "leads")} legenda="dos leads abordados pela IA respondem" carteira={pctN(kk.resp_outbound, kk.resp_outbound_n)} />
+          <Kpi valor={pctN(kp.resp_fu1, kp.resp_fu1_n)} base={baseKpi(kp.resp_fu1_n, kp.fu1_total, "follow-ups")} legenda="respondem ao 1º follow-up" carteira={pctN(kk.resp_fu1, kk.resp_fu1_n)} />
+          <Kpi valor={pctN(kp.pct_visitas_fu, kp.visitas_fu_n)} base={baseKpi(kp.visitas_fu_n, kp.visitas_total, "visitas")} legenda="das visitas vêm de leads que responderam depois de um follow-up" carteira={pctN(kk.pct_visitas_fu, kk.visitas_fu_n)} />
           <Kpi valor={isNum(kp.antecedencia_mediana_d) ? `${num(kp.antecedencia_mediana_d)} dias` : ND} legenda="entre o agendamento e a visita (mediana)" carteira={isNum(kk.antecedencia_mediana_d) ? `${num(kk.antecedencia_mediana_d)} dias` : ND} />
         </div>
 
@@ -200,16 +207,17 @@ export function RelatorioAtendimento({ cliente, carteira }: { cliente: Relatorio
               cab={["Etapa", "Enviados", "Responderam", "A", "B", "C", "Tempo até responder", "Respostas negativas", "Carteira"]}
               linhas={[
                 ...followup.map((f) => {
-                  const ref = fuCart.get(f.etapa)?.taxa;
+                  const refEtapa = fuCart.get(f.etapa);
+                  const ref = refEtapa?.taxa;
                   return [
                     `${ordinal(f.etapa)} follow-up`, num(f.enviados, 0),
-                    <Colorido key="t" cor={corTaxa(f.taxa, ref)}>{pct(f.taxa)}</Colorido>,
-                    pct(f.a), pct(f.b), pct(f.c), minutos(f.med_min), pct(f.negativas), pct(ref),
+                    <Colorido key="t" cor={corTaxa(f.taxa, ref)}>{pctN(f.taxa, f.respondidos)}</Colorido>,
+                    pctN(f.a, f.a_n), pctN(f.b, f.b_n), pctN(f.c, f.c_n), minutos(f.med_min), pctN(f.negativas, f.negativas_n), pctN(ref, refEtapa?.respondidos),
                   ];
                 }),
                 [<b key="t">Total</b>, <b key="e">{num(p.followup_total?.enviados, 0)}</b>,
-                  <b key="r"><Colorido cor={corTaxa(p.followup_total?.taxa, k.followup_total?.taxa)}>{pct(p.followup_total?.taxa)}</Colorido></b>,
-                  "", "", "", "", <b key="n">{pct(p.followup_total?.negativas)}</b>, <b key="c">{pct(k.followup_total?.taxa)}</b>],
+                  <b key="r"><Colorido cor={corTaxa(p.followup_total?.taxa, k.followup_total?.taxa)}>{pctN(p.followup_total?.taxa, p.followup_total?.respondidos)}</Colorido></b>,
+                  "", "", "", "", <b key="n">{pctN(p.followup_total?.negativas, p.followup_total?.negativas_n)}</b>, <b key="c">{pctN(k.followup_total?.taxa, k.followup_total?.respondidos)}</b>],
               ]}
             />
           )}
@@ -222,7 +230,7 @@ export function RelatorioAtendimento({ cliente, carteira }: { cliente: Relatorio
                   `${ordinal(m.etapa)} · ${m.var ?? ND}`,
                   <span key="m" className="block min-w-[260px] max-w-[460px] whitespace-normal text-left">{m.texto ?? ND}</span>,
                   num(m.enviadas, 0),
-                  <Colorido key="t" cor={corMsg(m)}>{pct(m.taxa)}</Colorido>,
+                  <Colorido key="t" cor={corMsg(m)}>{pctN(m.taxa, m.respondidas)}</Colorido>,
                 ])}
               />
               <Nota>Mensagens com ao menos 15 envios no período.</Nota>
@@ -233,8 +241,8 @@ export function RelatorioAtendimento({ cliente, carteira }: { cliente: Relatorio
         <Secao titulo="Em que momento o lead que agenda respondeu">
           <Texto>Leads abordados pela IA (sem contar os que mandaram a primeira mensagem), classificados pelo momento da primeira resposta.</Texto>
           <div className="grid gap-4 md:grid-cols-2">
-            <Barras titulo="Participação nos leads" itens={origem.map((o) => ({ label: origemLabel(o.origem), valor: o.leads_pct, cor: o.origem === "sem resposta" ? C.mag : undefined }))} />
-            <Barras titulo="Participação nas visitas agendadas" itens={origem.filter((o) => o.origem !== "sem resposta").map((o) => ({ label: origemLabel(o.origem), valor: o.visitas_pct }))} />
+            <Barras titulo="Participação nos leads" itens={origem.map((o) => ({ label: origemLabel(o.origem), valor: o.leads_pct, contagem: o.leads, cor: o.origem === "sem resposta" ? C.mag : undefined }))} />
+            <Barras titulo="Participação nas visitas agendadas" itens={origem.filter((o) => o.origem !== "sem resposta").map((o) => ({ label: origemLabel(o.origem), valor: o.visitas_pct, contagem: o.visitas }))} />
           </div>
           {origem.some((o) => o.origem !== "sem resposta") && (
             <Nota>Taxa de agendamento: {origem.filter((o) => o.origem !== "sem resposta").map((o) => `${origemCurta(o.origem)} ${pct(o.taxa_agendamento)}`).join(", ")}.</Nota>
@@ -246,14 +254,14 @@ export function RelatorioAtendimento({ cliente, carteira }: { cliente: Relatorio
             cab={["", "Cliente", "Carteira"]}
             linhas={[
               ["Leads", num(fp.leads, 0), num(fk.leads, 0)],
-              ["Leads que iniciaram a conversa", pct(fp.inbound_pct), pct(fk.inbound_pct)],
-              ["Responderam", pct(fp.resp_outbound), pct(fk.resp_outbound)],
-              ["Responderam à abordagem", pct(fp.resp_abordagem), pct(fk.resp_abordagem)],
+              ["Leads que iniciaram a conversa", pctN(fp.inbound_pct, fp.inbound_n), pctN(fk.inbound_pct, fk.inbound_n)],
+              ["Responderam", pctN(fp.resp_outbound, fp.resp_outbound_n), pctN(fk.resp_outbound, fk.resp_outbound_n)],
+              ["Responderam à abordagem", pctN(fp.resp_abordagem, fp.resp_abordagem_n), pctN(fk.resp_abordagem, fk.resp_abordagem_n)],
               ["Tempo até a 1ª resposta", minutos(fp.mediana_1a_resposta_min), minutos(fk.mediana_1a_resposta_min)],
-              ["Engajados, 3+ mensagens", pct(fp.engajados), pct(fk.engajados)],
-              ["Qualificados", pct(fp.qualificados), pct(fk.qualificados)],
-              ["Agendaram visita", pct(fp.agendaram), pct(fk.agendaram)],
-              ["Primeira mensagem não entregue", pct(fp.nao_entregue), pct(fk.nao_entregue)],
+              ["Engajados, 3+ mensagens", pctN(fp.engajados, fp.engajados_n), pctN(fk.engajados, fk.engajados_n)],
+              ["Qualificados", pctN(fp.qualificados, fp.qualificados_n), pctN(fk.qualificados, fk.qualificados_n)],
+              ["Agendaram visita", pctN(fp.agendaram, fp.agendaram_n), pctN(fk.agendaram, fk.agendaram_n)],
+              ["Primeira mensagem não entregue", pctN(fp.nao_entregue, fp.nao_entregue_n), pctN(fk.nao_entregue, fk.nao_entregue_n)],
             ]}
           />
           <Nota>Primeira mensagem não entregue: número inválido, sem WhatsApp ou bloqueio da Meta.</Nota>
@@ -267,7 +275,7 @@ export function RelatorioAtendimento({ cliente, carteira }: { cliente: Relatorio
                 <Tabela
                   cab={["Faixa", "Leads", "Responderam", "1ª resposta", "Agendaram"]}
                   linhas={arr(p.horario_entrada).slice().sort((a, b) => Number(a.faixa) - Number(b.faixa)).map((h) => [
-                    FAIXAS[String(h.faixa)] ?? String(h.faixa), pct(h.leads_pct), pct(h.resp), minutos(h.mediana_min), pct(h.agendaram),
+                    FAIXAS[String(h.faixa)] ?? String(h.faixa), pctN(h.leads_pct, h.leads), pctN(h.resp, h.resp_n), minutos(h.mediana_min), pctN(h.agendaram, h.agendaram_n),
                   ])}
                 />
               </div>
@@ -276,7 +284,7 @@ export function RelatorioAtendimento({ cliente, carteira }: { cliente: Relatorio
                 <Tabela
                   cab={["Dia", "Leads", "Responderam", "Agendaram"]}
                   linhas={arr(p.dia_entrada).slice().sort((a, b) => a.dow - b.dow).map((d) => [
-                    DIAS[d.dow - 1] ?? String(d.dow), num(d.leads, 0), pct(d.resp), pct(d.agendaram),
+                    DIAS[d.dow - 1] ?? String(d.dow), num(d.leads, 0), pctN(d.resp, d.resp_n), pctN(d.agendaram, d.agendaram_n),
                   ])}
                 />
               </div>
@@ -287,7 +295,7 @@ export function RelatorioAtendimento({ cliente, carteira }: { cliente: Relatorio
                 <>
                   <div className="flex h-48 items-end gap-[2px]">
                     {horas.map((v, h) => (
-                      <div key={h} className="flex h-full flex-1 flex-col justify-end" title={`${h}h: ${pct(v)}`}>
+                      <div key={h} className="flex h-full flex-1 flex-col justify-end" title={`${h}h: ${pct(v)}${isNum(v) && isNum(p.mensagens_hora_n?.[h]) ? ` (${num(p.mensagens_hora_n[h], 0)} mensagens)` : ""}`}>
                         <div style={{ height: `${isNum(v) ? (v / maxHora) * 100 : 0}%`, background: h >= 8 && h <= 17 ? C.blue : C.mag }} />
                       </div>
                     ))}
@@ -309,8 +317,8 @@ export function RelatorioAtendimento({ cliente, carteira }: { cliente: Relatorio
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <Kpi valor={minutos(tp.mediana_min)} legenda={`mediana entre a entrada do lead e o agendamento (média de ${isNum(tp.media_h) ? `${num(tp.media_h)}h` : ND})`} carteira={minutos(tk.mediana_min)} />
             <Kpi valor={num(p.msgs_ate_agendar_mediana)} legenda="mensagens do lead até agendar (mediana)" carteira={num(k.msgs_ate_agendar_mediana)} />
-            <Kpi valor={pct(vp.cancelados_pct)} legenda="dos agendamentos foram cancelados no sistema" carteira={pct(k.visitas?.cancelados_pct)} />
-            <Kpi valor={pct(vp.reagendaram_pct)} legenda="dos leads com visita reagendaram ao menos uma vez" carteira={pct(k.visitas?.reagendaram_pct)} />
+            <Kpi valor={pctN(vp.cancelados_pct, vp.cancelados_n)} legenda="dos agendamentos foram cancelados no sistema" carteira={pctN(k.visitas?.cancelados_pct, k.visitas?.cancelados_n)} />
+            <Kpi valor={pctN(vp.reagendaram_pct, vp.reagendaram_n)} legenda="dos leads com visita reagendaram ao menos uma vez" carteira={pctN(k.visitas?.reagendaram_pct, k.visitas?.reagendaram_n)} />
           </div>
 
           <div className="space-y-2">
@@ -318,7 +326,7 @@ export function RelatorioAtendimento({ cliente, carteira }: { cliente: Relatorio
             <Texto>Tempo entre o cadastro do lead e a mensagem da IA confirmando o agendamento; conta o primeiro agendamento de cada lead, presencial ou online. A média é puxada por poucos leads que agendam dias depois; a mediana mostra o caso típico.</Texto>
             <Tabela
               cab={["", "Visitas", "Média (h)", "Mediana (min)", "Até 1h", "Até 24h", "7 dias ou mais"]}
-              linhas={[tp, tk].map((t, i) => [i ? "Carteira" : "Cliente", num(t.visitas, 0), num(t.media_h), num(t.mediana_min, 0), pct(t.ate_1h), pct(t.ate_24h), pct(t.mais_7d)])}
+              linhas={[tp, tk].map((t, i) => [i ? "Carteira" : "Cliente", num(t.visitas, 0), num(t.media_h), num(t.mediana_min, 0), pctN(t.ate_1h, t.ate_1h_n), pctN(t.ate_24h, t.ate_24h_n), pctN(t.mais_7d, t.mais_7d_n)])}
             />
           </div>
 
@@ -328,7 +336,7 @@ export function RelatorioAtendimento({ cliente, carteira }: { cliente: Relatorio
               <Tabela
                 cab={["Mês", "Visitas", "Média (h)", "Mediana (min)", "Até 1h", "Até 24h"]}
                 linhas={arr(p.tempo_agendamento_mes).slice().sort((a, b) => String(a.mes).localeCompare(String(b.mes))).map((m) => [
-                  mesExtenso(m.mes), num(m.visitas, 0), num(m.media_h), num(m.mediana_min, 0), pct(m.ate_1h), pct(m.ate_24h),
+                  mesExtenso(m.mes), num(m.visitas, 0), num(m.media_h), num(m.mediana_min, 0), pctN(m.ate_1h, m.ate_1h_n), pctN(m.ate_24h, m.ate_24h_n),
                 ])}
               />
               <Nota>Os meses mais recentes ainda podem subir: leads novos não tiveram tempo de agendar tarde.</Nota>
@@ -337,22 +345,22 @@ export function RelatorioAtendimento({ cliente, carteira }: { cliente: Relatorio
 
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-4">
-              <Barras titulo="Dia da visita" itens={diaSemana.map((v, i) => ({ label: DIAS[i] ?? String(i + 1), valor: v, cor: isNum(v) && v > 0 && v === maxDia ? C.mag : undefined }))} />
-              <Barras titulo="Horário da visita" itens={arr(vp.faixa_hora).map((v, i) => ({ label: FAIXA_VISITA[i] ?? String(i + 1), valor: v }))} />
+              <Barras titulo="Dia da visita" itens={diaSemana.map((v, i) => ({ label: DIAS[i] ?? String(i + 1), valor: v, contagem: vp.dia_semana_n?.[i], cor: isNum(v) && v > 0 && v === maxDia ? C.mag : undefined }))} />
+              <Barras titulo="Horário da visita" itens={arr(vp.faixa_hora).map((v, i) => ({ label: FAIXA_VISITA[i] ?? String(i + 1), valor: v, contagem: vp.faixa_hora_n?.[i] }))} />
             </div>
             <div className="space-y-4">
               <div className="space-y-2">
                 <SubTitulo>Antecedência entre o agendamento e a visita</SubTitulo>
                 <Tabela
                   cab={["", "Visitas", "Mediana (dias)", "Mesmo dia", "Até 2 dias", "Mais de 7 dias"]}
-                  linhas={[ap, ak].map((a, i) => [i ? "Carteira" : "Cliente", num(a.visitas, 0), num(a.mediana_d), pct(a.mesmo_dia), pct(a.ate_2d), pct(a.mais_7d)])}
+                  linhas={[ap, ak].map((a, i) => [i ? "Carteira" : "Cliente", num(a.visitas, 0), num(a.mediana_d), pctN(a.mesmo_dia, a.mesmo_dia_n), pctN(a.ate_2d, a.ate_2d_n), pctN(a.mais_7d, a.mais_7d_n)])}
                 />
               </div>
               <div className="space-y-2">
                 <SubTitulo>Resposta ao lembrete da véspera</SubTitulo>
                 <Tabela
                   cab={["", "Lembretes", "Responderam", "Confirmaram", "Remarcar ou cancelar"]}
-                  linhas={[lp, lk].map((l, i) => [i ? "Carteira" : "Cliente", num(l.enviados, 0), pct(l.responderam), pct(l.confirmaram), pct(l.remarcar_cancelar)])}
+                  linhas={[lp, lk].map((l, i) => [i ? "Carteira" : "Cliente", num(l.enviados, 0), pctN(l.responderam, l.responderam_n), pctN(l.confirmaram, l.confirmaram_n), pctN(l.remarcar_cancelar, l.remarcar_cancelar_n)])}
                 />
                 <Nota>Confirmaram e remarcar ou cancelar são percentuais de quem respondeu ao lembrete.</Nota>
               </div>
@@ -376,6 +384,76 @@ export function RelatorioAtendimento({ cliente, carteira }: { cliente: Relatorio
         <footer className="space-y-1 border-t pt-6" style={{ borderColor: C.line }}>
           <p className="text-xs font-semibold uppercase tracking-wide">Como foi medido</p>
           <Nota>Base de atendimento da Plataforma Katsuki IA. Entram os leads criados no período indicado. Follow-ups identificados pelo texto cadastrado em cada etapa; mensagens repetidas em menos de 30 minutos contam uma vez. Confirmação e pedido de remarcação no lembrete classificados por palavras-chave.</Nota>
+        </footer>
+      </div>
+    </div>
+  );
+}
+
+export function RelatorioComportamento({ cliente, carteira }: { cliente: RelatorioLinha; carteira: RelatorioLinha | null }) {
+  const p = cliente.payload ?? {};
+  const k = carteira?.payload ?? {};
+  const comportamento = p.comportamento ?? {};
+  const comportamentoCarteira = k.comportamento ?? {};
+  const periodo = cliente.periodo ?? p.periodo;
+  const gerado = cliente.gerado_em ?? p.gerado_em;
+  const temas = [
+    { campo: "perguntas", titulo: "Principais dúvidas" },
+    { campo: "materiais", titulo: "Materiais pedidos" },
+    { campo: "objecoes", titulo: "Objeções e motivos de pausa" },
+  ];
+  const temAlgo = temas.some(({ campo }) => arr(comportamento[campo]).length > 0);
+
+  return (
+    <div className="relatorio-ia min-h-full rounded-lg px-4 py-8 sm:px-8">
+      <div className="mx-auto max-w-[980px] space-y-10">
+        <header className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: C.mag }}>Katsuki IA · Relatório de conversas</p>
+          <h1 className="kr-serif text-5xl leading-none">Comportamento do Lead</h1>
+          <p className="text-sm" style={{ color: C.muted }}>
+            {cliente.nome ?? ND} · Leads de {periodo ?? ND} · Leitura de {dataBR(gerado)}
+          </p>
+        </header>
+
+        {temAlgo ? (
+          <Secao titulo="O que os leads perguntam">
+            <Texto>Temas identificados nas mensagens dos {num(comportamento.base, 0)} leads que escreveram no período. Um lead pode aparecer em mais de um tema. A coluna Agendaram mostra quantos leads daquele tema marcaram visita (média do período: {pct(comportamento.agendaram_pct_base)}).</Texto>
+            {temas.map(({ campo, titulo }) => {
+              const itens = arr(comportamento[campo]);
+              if (itens.length === 0) return null;
+              const referencias = new Map(arr(comportamentoCarteira[campo]).map((tema) => [tema.tema, tema]));
+              return (
+                <div key={campo} className="space-y-2">
+                  <SubTitulo>{titulo}</SubTitulo>
+                  <Tabela
+                    cab={["Tema", "Leads", "Agendaram", "Carteira"]}
+                    linhas={itens.map((tema) => {
+                      const ref = referencias.get(tema.tema);
+                      const taxa = tema.agendaram_pct;
+                      const media = comportamento.agendaram_pct_base;
+                      const cor = isNum(taxa) && isNum(media)
+                        ? taxa > media ? C.green : taxa < media / 2 ? C.mag : undefined
+                        : undefined;
+                      return [
+                        tema.tema ?? ND,
+                        pctN(tema.pct, tema.leads),
+                        <Colorido key="a" cor={cor}>{pct(taxa)}</Colorido>,
+                        pctN(ref?.pct, ref?.leads),
+                      ];
+                    })}
+                  />
+                </div>
+              );
+            })}
+            <Nota>Classificação automática por palavras-chave nas mensagens dos leads.</Nota>
+          </Secao>
+        ) : (
+          <p className="text-sm" style={{ color: C.muted }}>Sem mensagens de leads no período.</p>
+        )}
+
+        <footer className="space-y-1 border-t pt-6" style={{ borderColor: C.line }}>
+          <p className="text-xs font-semibold uppercase tracking-wide">Como foi medido</p>
+          <Nota>Temas identificados por palavras-chave nas mensagens enviadas pelos leads que entraram no período. Um lead pode aparecer em mais de um tema.</Nota>
         </footer>
       </div>
     </div>
