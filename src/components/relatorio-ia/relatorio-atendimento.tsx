@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { ReactNode, useState } from "react";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export interface RelatorioLinha {
@@ -764,12 +764,150 @@ export function RelatorioAtendimento({
   );
 }
 
+const CORES_PILHA = [
+  C.blue,
+  C.mag,
+  C.ink,
+  "hsl(var(--kr-muted))",
+  "hsl(var(--kr-muted) / 0.55)",
+  "hsl(var(--kr-line))",
+];
+const PILHA_LABEL: Record<string, string> = {
+  objetivo: "Objetivo",
+  momento: "Momento de compra",
+  desfecho: "Como a conversa terminou",
+};
+
+function Pilha({
+  titulo,
+  itens,
+  carteira,
+}: {
+  titulo: string;
+  itens: any[];
+  carteira: any[];
+}) {
+  if (itens.length === 0) return null;
+  const ref = new Map(carteira.map((c) => [c.valor, c]));
+  return (
+    <div className="space-y-2">
+      <SubTitulo>{titulo}</SubTitulo>
+      <div className="flex h-4 w-full overflow-hidden rounded-sm" style={{ background: C.line }}>
+        {itens.map((it, i) => (
+          <div
+            key={it.valor ?? i}
+            title={`${it.valor}: ${pct(it.pct)}`}
+            style={{
+              width: `${isNum(it.pct) ? it.pct : 0}%`,
+              background: CORES_PILHA[i % CORES_PILHA.length],
+            }}
+          />
+        ))}
+      </div>
+      <div className="kr-num flex flex-wrap gap-x-5 gap-y-1 text-xs">
+        {itens.map((it, i) => (
+          <span key={it.valor ?? i} className="inline-flex items-center gap-1.5">
+            <span
+              className="inline-block h-2.5 w-2.5 rounded-sm"
+              style={{ background: CORES_PILHA[i % CORES_PILHA.length] }}
+            />
+            <span>{it.valor ?? ND}</span>
+            <span className="font-semibold">{pctN(it.pct, it.leads)}</span>
+            {ref.get(it.valor) && (
+              <span style={{ color: C.muted }}>· Carteira {pct(ref.get(it.valor).pct)}</span>
+            )}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Selo({ children, cor = C.muted }: { children: ReactNode; cor?: string }) {
+  return (
+    <span
+      className="inline-block rounded-full border px-2 py-0.5 text-[11px] font-medium"
+      style={{ borderColor: cor, color: cor }}
+    >
+      {children}
+    </span>
+  );
+}
+
+function Lista({ itens }: { itens: any[] }) {
+  return (
+    <ul className="space-y-2">
+      {itens.map((t, i) => (
+        <li key={i} className="flex gap-2 text-sm leading-relaxed">
+          <span
+            className="mt-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full"
+            style={{ background: C.mag }}
+          />
+          <span>{String(t)}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function fmtGerado(ts: string | null | undefined) {
+  if (!ts) return ND;
+  const d = new Date(ts);
+  if (isNaN(d.getTime())) return ND;
+  const parts = new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(d);
+  const g = (t: string) => parts.find((x) => x.type === t)?.value ?? "";
+  return `${g("day")}/${g("month")} às ${g("hour")}:${g("minute")}`;
+}
+
+function BotaoSintese({ onGerar, rotulo }: { onGerar: () => Promise<void>; rotulo: string }) {
+  const [rodando, setRodando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+  const clicar = async () => {
+    setRodando(true);
+    setErro(null);
+    try {
+      await onGerar();
+    } catch (e: any) {
+      setErro(e?.message ?? "Não foi possível gerar a leitura.");
+    } finally {
+      setRodando(false);
+    }
+  };
+  return (
+    <div className="space-y-1">
+      <button
+        type="button"
+        onClick={clicar}
+        disabled={rodando}
+        className="rounded-md border bg-white px-3 py-1.5 text-xs font-medium disabled:opacity-60"
+        style={{ borderColor: C.line }}
+      >
+        {rodando ? "Lendo as conversas, isso leva cerca de 1 minuto..." : rotulo}
+      </button>
+      {erro && (
+        <p className="text-xs" style={{ color: C.mag }}>
+          {erro}
+        </p>
+      )}
+    </div>
+  );
+}
+
 export function RelatorioComportamento({
   cliente,
   carteira,
+  onGerarSintese,
 }: {
   cliente: RelatorioLinha;
   carteira: RelatorioLinha | null;
+  onGerarSintese?: () => Promise<void>;
 }) {
   const p = cliente.payload ?? {};
   const k = carteira?.payload ?? {};
@@ -783,6 +921,17 @@ export function RelatorioComportamento({
     { campo: "objecoes", titulo: "Objeções e motivos de pausa" },
   ];
   const temAlgo = temas.some(({ campo }) => arr(comportamento[campo]).length > 0);
+  const leitura = comportamento.leitura ?? {};
+  const lidos = isNum(leitura.lidos) ? leitura.lidos : 0;
+  const dist = leitura.distribuicao ?? {};
+  const distCart = comportamentoCarteira.leitura?.distribuicao ?? {};
+  const sintese = comportamento.sintese ?? null;
+  const s = sintese?.conteudo ?? {};
+  const vozes = sintese ? arr(s.na_voz_do_lead) : [];
+  const frasesSoltas = arr(leitura.frases).slice(0, 6);
+  const curiosidades = sintese ? arr(s.curiosidades) : arr(leitura.curiosidades);
+  const destaques = arr(leitura.destaques).slice(0, 8);
+  const temPilhas = ["objetivo", "momento", "desfecho"].some((c) => arr(dist[c]).length > 0);
 
   return (
     <div className="relatorio-ia min-h-full rounded-lg px-4 py-8 sm:px-8">
@@ -795,7 +944,184 @@ export function RelatorioComportamento({
           <p className="text-sm" style={{ color: C.muted }}>
             {cliente.nome ?? ND} · Leads de {periodo ?? ND} · Leitura de {dataBR(gerado)}
           </p>
+          <Nota>
+            {num(lidos, 0)} de {num(leitura.base_conversas, 0)} conversas do período já foram lidas
+            pela IA. A leitura é atualizada ao longo do dia.
+          </Nota>
         </header>
+
+        {lidos > 0 && (
+          <>
+            <Secao titulo="Como têm sido as conversas">
+              {sintese ? (
+                <>
+                  <div className="space-y-3">
+                    {arr(s.panorama).map((t, i) => (
+                      <p key={i} className="text-[15px] leading-relaxed" style={{ color: C.ink }}>
+                        {String(t)}
+                      </p>
+                    ))}
+                  </div>
+                  <Nota>
+                    Leitura gerada em {fmtGerado(sintese.gerado_em)} a partir de {num(lidos, 0)}{" "}
+                    conversas
+                  </Nota>
+                  {onGerarSintese && (
+                    <BotaoSintese onGerar={onGerarSintese} rotulo="Atualizar leitura" />
+                  )}
+                </>
+              ) : (
+                <div
+                  className="space-y-3 rounded-md border bg-white p-4"
+                  style={{ borderColor: C.line }}
+                >
+                  <p className="text-sm">
+                    A leitura das conversas deste período ainda não foi gerada.
+                  </p>
+                  {onGerarSintese && (
+                    <BotaoSintese onGerar={onGerarSintese} rotulo="Gerar leitura das conversas" />
+                  )}
+                </div>
+              )}
+            </Secao>
+
+            {(arr(s.perfis).length > 0 || temPilhas) && (
+              <Secao titulo="Quem são os leads">
+                {arr(s.perfis).length > 0 && (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {arr(s.perfis).map((pf, i) => (
+                      <div
+                        key={i}
+                        className="space-y-2 rounded-md border bg-white p-4"
+                        style={{ borderColor: C.line }}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="font-semibold">{pf.perfil ?? ND}</p>
+                          {pf.peso && (
+                            <Selo
+                              cor={
+                                pf.peso === "maioria"
+                                  ? C.blue
+                                  : pf.peso === "minoria"
+                                    ? C.muted
+                                    : C.mag
+                              }
+                            >
+                              {pf.peso}
+                            </Selo>
+                          )}
+                        </div>
+                        <p className="text-sm" style={{ color: C.muted }}>
+                          {pf.descricao}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {["objetivo", "momento", "desfecho"].map((c) => (
+                  <Pilha
+                    key={c}
+                    titulo={PILHA_LABEL[c]}
+                    itens={arr(dist[c])}
+                    carteira={arr(distCart[c])}
+                  />
+                ))}
+              </Secao>
+            )}
+
+            {(vozes.length > 0 || frasesSoltas.length > 0) && (
+              <Secao titulo="Na voz do lead">
+                {vozes.length > 0
+                  ? vozes.map((v, i) => (
+                      <div key={i} className="space-y-2">
+                        <p
+                          className="text-xs font-semibold uppercase tracking-wide"
+                          style={{ color: C.muted }}
+                        >
+                          {v.tema}
+                        </p>
+                        {arr(v.frases).map((f, j) => (
+                          <p key={j} className="kr-serif text-[20px] italic leading-snug">
+                            "{String(f)}"
+                          </p>
+                        ))}
+                      </div>
+                    ))
+                  : frasesSoltas.map((f, i) => (
+                      <div key={i} className="space-y-1">
+                        <p className="kr-serif text-[20px] italic leading-snug">"{f.frase}"</p>
+                        {f.agendou && <Selo cor={C.blue}>agendou visita</Selo>}
+                      </div>
+                    ))}
+              </Secao>
+            )}
+
+            {curiosidades.length > 0 && (
+              <Secao titulo="Curiosidades">
+                <Lista itens={curiosidades} />
+              </Secao>
+            )}
+
+            {sintese && (arr(s.o_que_aproxima).length > 0 || arr(s.o_que_afasta).length > 0) && (
+              <section
+                className="grid gap-8 border-t pt-8 sm:grid-cols-2"
+                style={{ borderColor: C.line }}
+              >
+                <div className="space-y-4">
+                  <h2 className="kr-serif text-3xl leading-tight">O que aproxima da visita</h2>
+                  <Lista itens={arr(s.o_que_aproxima)} />
+                </div>
+                <div className="space-y-4">
+                  <h2 className="kr-serif text-3xl leading-tight">O que faz o lead pausar</h2>
+                  <Lista itens={arr(s.o_que_afasta)} />
+                </div>
+              </section>
+            )}
+
+            {sintese && arr(s.oportunidades).length > 0 && (
+              <Secao titulo="Oportunidades de ajuste">
+                <div className="space-y-3">
+                  {arr(s.oportunidades).map((t, i) => (
+                    <div
+                      key={i}
+                      className="rounded-md border-l-4 bg-white p-4 text-sm leading-relaxed"
+                      style={{ borderLeftColor: C.mag }}
+                    >
+                      {String(t)}
+                    </div>
+                  ))}
+                </div>
+              </Secao>
+            )}
+
+            {destaques.length > 0 && (
+              <Secao titulo="Conversas em destaque">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {destaques.map((d, i) => (
+                    <div
+                      key={i}
+                      className="space-y-2 rounded-md border bg-white p-4"
+                      style={{ borderColor: C.line }}
+                    >
+                      <p className="text-sm">{d.resumo}</p>
+                      {d.frase && (
+                        <p className="kr-serif text-lg italic leading-snug">"{d.frase}"</p>
+                      )}
+                      <div className="flex flex-wrap items-center gap-2">
+                        {d.perfil && (
+                          <span className="text-xs" style={{ color: C.muted }}>
+                            {d.perfil}
+                          </span>
+                        )}
+                        {d.desfecho && <Selo cor={d.agendou ? C.blue : C.muted}>{d.desfecho}</Selo>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Secao>
+            )}
+          </>
+        )}
 
         {temAlgo ? (
           <Secao titulo="O que os leads perguntam">

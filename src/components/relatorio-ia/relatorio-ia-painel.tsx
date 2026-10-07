@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
 import { useActiveEmpresa } from "@/hooks/use-active-empresa";
@@ -97,6 +97,7 @@ export function RelatorioIaPainel({
   onPeriodoChange,
 }: RelatorioIaPainelProps) {
   const { data: me, isLoading: loadingMe } = useCrmUser();
+  const queryClient = useQueryClient();
   const { activeEmpresaId } = useActiveEmpresa();
   const enviaEmpresa = me?.role === "super_admin";
   const hoje = useMemo(hojeSP, []);
@@ -120,6 +121,21 @@ export function RelatorioIaPainel({
     retry: false,
     staleTime: Number.POSITIVE_INFINITY,
   });
+
+  const gerarSintese = async () => {
+    const params = new URLSearchParams({ inicio, fim });
+    if (enviaEmpresa && activeEmpresaId) params.set("id_empresa", String(activeEmpresaId));
+    const { data } = await supabase.auth.getSession();
+    const response = await fetch(`${FN_URL}?acao=sintese&${params.toString()}`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${data.session?.access_token ?? ""}` },
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok || body?.erro) {
+      throw new Error(body?.erro ?? "Não foi possível gerar a leitura.");
+    }
+    await queryClient.invalidateQueries({ queryKey: ["relatorio-ia"] });
+  };
 
   const aplicarAtalho = (novo: Atalho) => {
     setAtalho(novo);
@@ -213,6 +229,7 @@ export function RelatorioIaPainel({
           <RelatorioComportamento
             cliente={relatorio.data.cliente}
             carteira={relatorio.data.carteira}
+            onGerarSintese={gerarSintese}
           />
         )
       ) : null}
