@@ -98,7 +98,7 @@ export function RelatorioIaPainel({
 }: RelatorioIaPainelProps) {
   const { data: me, isLoading: loadingMe } = useCrmUser();
   const { activeEmpresaId } = useActiveEmpresa();
-  const enviaEmpresa = me?.role === "super_admin" || me?.role === "analyst";
+  const enviaEmpresa = me?.role === "super_admin";
   const hoje = useMemo(hojeSP, []);
   const periodoPadrao = useMemo(() => periodoDeAtalho("30d", hoje), [hoje]);
   const inicio = inicioParam || periodoPadrao.inicio;
@@ -118,7 +118,7 @@ export function RelatorioIaPainel({
     },
     enabled: Boolean(me) && !semEmpresa,
     retry: false,
-    staleTime: 5 * 60_000,
+    staleTime: Number.POSITIVE_INFINITY,
   });
 
   const aplicarAtalho = (novo: Atalho) => {
