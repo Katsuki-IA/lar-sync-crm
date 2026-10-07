@@ -307,3 +307,20 @@
     animation-delay: 0.32s;
   }
 }
+
+/* Relatório IA — identidade própria da Plataforma, independente do tema do Hub */
+.relatorio-ia {
+  --kr-ink: 0 0% 0%;
+  --kr-bg: 30 7% 95%;
+  --kr-mag: 337 95% 53%;
+  --kr-blue: 249 85% 36%;
+  --kr-green: 152 60% 32%;
+  --kr-muted: 0 0% 42%;
+  --kr-line: 30 5% 85%;
+  font-family: "Manrope", system-ui, sans-serif;
+  color: hsl(var(--kr-ink));
+  background: hsl(var(--kr-bg));
+}
+.relatorio-ia .kr-serif { font-family: "Instrument Serif", Georgia, serif; font-weight: 400; }
+.relatorio-ia .kr-num { font-variant-numeric: tabular-nums; }
+.relatorio-ia .bg-white { background-color: #ffffff; }

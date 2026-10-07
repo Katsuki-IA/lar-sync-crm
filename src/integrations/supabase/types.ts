@@ -833,6 +833,7 @@ export type Database = {
         Row: {
           created_at: string
           crm_lead_id: number
+          ctwa_clid: string | null
           fbclid: string | null
           gbraid: string | null
           gclid: string | null
@@ -870,6 +871,7 @@ export type Database = {
         Insert: {
           created_at?: string
           crm_lead_id: number
+          ctwa_clid?: string | null
           fbclid?: string | null
           gbraid?: string | null
           gclid?: string | null
@@ -907,6 +909,7 @@ export type Database = {
         Update: {
           created_at?: string
           crm_lead_id?: number
+          ctwa_clid?: string | null
           fbclid?: string | null
           gbraid?: string | null
           gclid?: string | null
@@ -1323,8 +1326,6 @@ export type Database = {
       }
       crm_leads: {
         Row: {
-          tipo_negociacao: "venda" | "locacao" | "indefinido"
-          tipo_negociacao_origem: string | null
           conversation_key: string | null
           created_at: string | null
           crm_assigned_to: string | null
@@ -1351,6 +1352,8 @@ export type Database = {
           status: string | null
           tags: string[] | null
           telefone: string
+          tipo_negociacao: string
+          tipo_negociacao_origem: string | null
           updated_at: string | null
           wa_identity_id: string | null
           wa_parent_user_id: string | null
@@ -1358,8 +1361,6 @@ export type Database = {
           wa_username: string | null
         }
         Insert: {
-          tipo_negociacao?: "venda" | "locacao" | "indefinido"
-          tipo_negociacao_origem?: string | null
           conversation_key?: string | null
           created_at?: string | null
           crm_assigned_to?: string | null
@@ -1386,6 +1387,8 @@ export type Database = {
           status?: string | null
           tags?: string[] | null
           telefone: string
+          tipo_negociacao?: string
+          tipo_negociacao_origem?: string | null
           updated_at?: string | null
           wa_identity_id?: string | null
           wa_parent_user_id?: string | null
@@ -1393,8 +1396,6 @@ export type Database = {
           wa_username?: string | null
         }
         Update: {
-          tipo_negociacao?: "venda" | "locacao" | "indefinido"
-          tipo_negociacao_origem?: string | null
           conversation_key?: string | null
           created_at?: string | null
           crm_assigned_to?: string | null
@@ -1421,6 +1422,8 @@ export type Database = {
           status?: string | null
           tags?: string[] | null
           telefone?: string
+          tipo_negociacao?: string
+          tipo_negociacao_origem?: string | null
           updated_at?: string | null
           wa_identity_id?: string | null
           wa_parent_user_id?: string | null
@@ -1676,7 +1679,6 @@ export type Database = {
       }
       crm_meta_forms: {
         Row: {
-          modalidade_negociacao: "venda" | "locacao" | "ambos"
           active: boolean | null
           connection_id: string | null
           created_at: string | null
@@ -1688,6 +1690,7 @@ export type Database = {
           id_funnel: number | null
           last_recovered_at: string | null
           leads_count: number | null
+          modalidade_negociacao: string
           page_access_token: string | null
           page_id: string
           page_name: string | null
@@ -1696,7 +1699,6 @@ export type Database = {
           webhook_subscribed: boolean
         }
         Insert: {
-          modalidade_negociacao?: "venda" | "locacao" | "ambos"
           active?: boolean | null
           connection_id?: string | null
           created_at?: string | null
@@ -1708,6 +1710,7 @@ export type Database = {
           id_funnel?: number | null
           last_recovered_at?: string | null
           leads_count?: number | null
+          modalidade_negociacao?: string
           page_access_token?: string | null
           page_id: string
           page_name?: string | null
@@ -1716,7 +1719,6 @@ export type Database = {
           webhook_subscribed?: boolean
         }
         Update: {
-          modalidade_negociacao?: "venda" | "locacao" | "ambos"
           active?: boolean | null
           connection_id?: string | null
           created_at?: string | null
@@ -1728,6 +1730,7 @@ export type Database = {
           id_funnel?: number | null
           last_recovered_at?: string | null
           leads_count?: number | null
+          modalidade_negociacao?: string
           page_access_token?: string | null
           page_id?: string
           page_name?: string | null
@@ -2969,10 +2972,9 @@ export type Database = {
       }
       empreendimento: {
         Row: {
-          c2s_fila_venda_id: number | null
-          c2s_fila_locacao_id: number | null
-          modalidade_negociacao: "venda" | "locacao" | "ambos"
           area_lazer: string | null
+          c2s_fila_locacao_id: number | null
+          c2s_fila_venda_id: number | null
           c2s_keywords_empreendimento: string | null
           condicao: string | null
           created_at: string | null
@@ -2991,6 +2993,7 @@ export type Database = {
           localizacao: string | null
           mensagem_visita: string | null
           metragem: string | null
+          modalidade_negociacao: string
           nome: string
           numero_vagas: string | null
           outras_info: string | null
@@ -3006,10 +3009,9 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
-          c2s_fila_venda_id?: number | null
-          c2s_fila_locacao_id?: number | null
-          modalidade_negociacao?: "venda" | "locacao" | "ambos"
           area_lazer?: string | null
+          c2s_fila_locacao_id?: number | null
+          c2s_fila_venda_id?: number | null
           c2s_keywords_empreendimento?: string | null
           condicao?: string | null
           created_at?: string | null
@@ -3028,6 +3030,7 @@ export type Database = {
           localizacao?: string | null
           mensagem_visita?: string | null
           metragem?: string | null
+          modalidade_negociacao?: string
           nome: string
           numero_vagas?: string | null
           outras_info?: string | null
@@ -3043,10 +3046,9 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
-          c2s_fila_venda_id?: number | null
-          c2s_fila_locacao_id?: number | null
-          modalidade_negociacao?: "venda" | "locacao" | "ambos"
           area_lazer?: string | null
+          c2s_fila_locacao_id?: number | null
+          c2s_fila_venda_id?: number | null
           c2s_keywords_empreendimento?: string | null
           condicao?: string | null
           created_at?: string | null
@@ -3065,6 +3067,7 @@ export type Database = {
           localizacao?: string | null
           mensagem_visita?: string | null
           metragem?: string | null
+          modalidade_negociacao?: string
           nome?: string
           numero_vagas?: string | null
           outras_info?: string | null
@@ -3091,12 +3094,12 @@ export type Database = {
       }
       empresa_dados: {
         Row: {
-          c2s_fila_venda_id: number | null
-          c2s_fila_locacao_id: number | null
-          modalidade_negociacao: "venda" | "locacao" | "ambos"
+          allow_simultaneous_visits: boolean
           booking_rules: Json | null
           booking_rules_text: string | null
           c2s_company_id: string | null
+          c2s_fila_locacao_id: number | null
+          c2s_fila_venda_id: number | null
           calendar_mail: string | null
           codigo_hub: string | null
           created_at: string | null
@@ -3107,6 +3110,7 @@ export type Database = {
           id_group: string | null
           id_meta_account: string | null
           id_phone_number: string | null
+          modalidade_negociacao: string
           nome: string
           nome_atendente_ia: string | null
           numero: string | null
@@ -3119,12 +3123,12 @@ export type Database = {
           webhook_status: boolean | null
         }
         Insert: {
-          c2s_fila_venda_id?: number | null
-          c2s_fila_locacao_id?: number | null
-          modalidade_negociacao?: "venda" | "locacao" | "ambos"
+          allow_simultaneous_visits?: boolean
           booking_rules?: Json | null
           booking_rules_text?: string | null
           c2s_company_id?: string | null
+          c2s_fila_locacao_id?: number | null
+          c2s_fila_venda_id?: number | null
           calendar_mail?: string | null
           codigo_hub?: string | null
           created_at?: string | null
@@ -3135,6 +3139,7 @@ export type Database = {
           id_group?: string | null
           id_meta_account?: string | null
           id_phone_number?: string | null
+          modalidade_negociacao?: string
           nome: string
           nome_atendente_ia?: string | null
           numero?: string | null
@@ -3147,12 +3152,12 @@ export type Database = {
           webhook_status?: boolean | null
         }
         Update: {
-          c2s_fila_venda_id?: number | null
-          c2s_fila_locacao_id?: number | null
-          modalidade_negociacao?: "venda" | "locacao" | "ambos"
+          allow_simultaneous_visits?: boolean
           booking_rules?: Json | null
           booking_rules_text?: string | null
           c2s_company_id?: string | null
+          c2s_fila_locacao_id?: number | null
+          c2s_fila_venda_id?: number | null
           calendar_mail?: string | null
           codigo_hub?: string | null
           created_at?: string | null
@@ -3163,6 +3168,7 @@ export type Database = {
           id_group?: string | null
           id_meta_account?: string | null
           id_phone_number?: string | null
+          modalidade_negociacao?: string
           nome?: string
           nome_atendente_ia?: string | null
           numero?: string | null
@@ -4800,7 +4806,6 @@ export type Database = {
       }
       lead: {
         Row: {
-          tipo_negociacao: "venda" | "locacao" | "indefinido"
           atendimento_humano: boolean | null
           atendimento_humano_desde: string | null
           ativacao: boolean | null
@@ -4839,6 +4844,7 @@ export type Database = {
           status: string | null
           status_history: string | null
           tipo_agendamento: string | null
+          tipo_negociacao: string
           ult_message: string | null
           updated_at: string | null
           wa_conversation_assigned_at: string | null
@@ -4849,7 +4855,6 @@ export type Database = {
           wa_username: string | null
         }
         Insert: {
-          tipo_negociacao?: "venda" | "locacao" | "indefinido"
           atendimento_humano?: boolean | null
           atendimento_humano_desde?: string | null
           ativacao?: boolean | null
@@ -4888,6 +4893,7 @@ export type Database = {
           status?: string | null
           status_history?: string | null
           tipo_agendamento?: string | null
+          tipo_negociacao?: string
           ult_message?: string | null
           updated_at?: string | null
           wa_conversation_assigned_at?: string | null
@@ -4898,7 +4904,6 @@ export type Database = {
           wa_username?: string | null
         }
         Update: {
-          tipo_negociacao?: "venda" | "locacao" | "indefinido"
           atendimento_humano?: boolean | null
           atendimento_humano_desde?: string | null
           ativacao?: boolean | null
@@ -4937,6 +4942,7 @@ export type Database = {
           status?: string | null
           status_history?: string | null
           tipo_agendamento?: string | null
+          tipo_negociacao?: string
           ult_message?: string | null
           updated_at?: string | null
           wa_conversation_assigned_at?: string | null
@@ -6175,6 +6181,10 @@ export type Database = {
         }
         Returns: Json
       }
+      cancel_visit_safe: {
+        Args: { p_company: number; p_development?: number; p_lead: number }
+        Returns: Json
+      }
       claim_authorized_followup_test_crm_event_v2: {
         Args: {
           p_authorization_id: string
@@ -6358,7 +6368,6 @@ export type Database = {
         }
         Returns: Json
       }
-      crm_resolve_c2s_routing: { Args: { p_id_empresa: number; p_crm_lead_id?: number | null; p_legacy_lead_id?: number | null; p_id_empreendimento?: number | null }; Returns: Json }
       crm_assert_super_admin: { Args: never; Returns: undefined }
       crm_assignee_belongs_to_empresa: {
         Args: { p_crm_user_id: string; p_id_empresa: number }
@@ -6471,10 +6480,10 @@ export type Database = {
           meta_ad_name: string
           meta_adset_name: string
           meta_campaign_name: string
-          meta_platform: string | null
           meta_enriched_at: string
           meta_form_id: string
           meta_page_id: string
+          meta_platform: string
           referrer_url: string
           source_type: string
           utm_campaign: string
@@ -6682,6 +6691,15 @@ export type Database = {
         }
         Returns: Json
       }
+      crm_resolve_c2s_routing: {
+        Args: {
+          p_crm_lead_id?: number
+          p_id_empreendimento?: number
+          p_id_empresa: number
+          p_legacy_lead_id?: number
+        }
+        Returns: Json
+      }
       crm_seed_default_stages: {
         Args: { p_id_empresa: number }
         Returns: undefined
@@ -6776,14 +6794,35 @@ export type Database = {
       }
       crm_whatsapp_list_conversations_v2: {
         Args: {
-          p_id_empresa: number
           p_id_empreendimento?: number
+          p_id_empresa: number
           p_limit?: number
           p_offset?: number
           p_only_human?: boolean
           p_search?: string
         }
-        Returns: Database["public"]["Functions"]["crm_whatsapp_list_conversations"]["Returns"]
+        Returns: {
+          assigned_at: string
+          assigned_name: string
+          assigned_to: string
+          atendimento_humano: boolean
+          atendimento_humano_desde: string
+          conversation_key: string
+          display_name: string
+          id_crm: string
+          id_empresa: number
+          last_message: string
+          last_message_at: string
+          lead_id: number
+          legacy_conversation_key: string
+          nome: string
+          status: string
+          telefone: string
+          total_count: number
+          wa_identity_id: string
+          wa_user_id: string
+          wa_username: string
+        }[]
       }
       crm_whatsapp_set_conversation_attendance: {
         Args: { p_enabled: boolean; p_force?: boolean; p_lead_id: number }
@@ -7192,7 +7231,57 @@ export type Database = {
         Args: { p_id_empresa?: number; p_limit?: number }
         Returns: Json
       }
+      test_attendance_followup: {
+        Args: {
+          p_actor?: string
+          p_company_id: number
+          p_confirm?: boolean
+          p_crm_lead_id: string
+          p_phone: string
+          p_project_id: number
+          p_request_id: string
+          p_since: string
+          p_step_order: number
+        }
+        Returns: Json
+      }
+      test_attendance_followup1: {
+        Args: {
+          p_actor?: string
+          p_company_id: number
+          p_confirm?: boolean
+          p_crm_lead_id: string
+          p_phone: string
+          p_project_id: number
+          p_request_id: string
+          p_since: string
+        }
+        Returns: Json
+      }
+      test_attendance_reset: {
+        Args: {
+          p_actor?: string
+          p_company_id: number
+          p_confirm?: boolean
+          p_expected_hash?: string
+          p_phone: string
+          p_request_id: string
+        }
+        Returns: Json
+      }
       upsert_leads_batch: { Args: { leads_data: Json }; Returns: undefined }
+      visit_available_slots: {
+        Args: {
+          p_company: number
+          p_development: number
+          p_from?: string
+          p_lead?: number
+          p_limit?: number
+          p_time?: string
+          p_until?: string
+        }
+        Returns: Json
+      }
       wa_claim_crm_sync: {
         Args: { p_queue_id: string }
         Returns: {
@@ -7304,6 +7393,12 @@ export type Database = {
           p_recipient: string
         }
         Returns: boolean
+      }
+      wa_message_quality_summary: {
+        Args: { p_period_end: string; p_period_start: string }
+        Returns: {
+          quality_alert: Json
+        }[]
       }
       wa_prepare_crm_sync: {
         Args: {
