@@ -25,7 +25,10 @@ type RelatorioIaPainelProps = {
 };
 
 class RelatorioError extends Error {
-  constructor(public status: number, message: string) {
+  constructor(
+    public status: number,
+    message: string,
+  ) {
     super(message);
   }
 }
@@ -202,9 +205,15 @@ export function RelatorioIaPainel({
         <p className="py-20 text-center text-sm text-muted-foreground">{mensagem}</p>
       ) : relatorio.data ? (
         tipo === "raio-x" ? (
-          <RelatorioAtendimento cliente={relatorio.data.cliente} carteira={relatorio.data.carteira} />
+          <RelatorioAtendimento
+            cliente={relatorio.data.cliente}
+            carteira={relatorio.data.carteira}
+          />
         ) : (
-          <RelatorioComportamento cliente={relatorio.data.cliente} carteira={relatorio.data.carteira} />
+          <RelatorioComportamento
+            cliente={relatorio.data.cliente}
+            carteira={relatorio.data.carteira}
+          />
         )
       ) : null}
     </div>

@@ -411,7 +411,11 @@ function ReportsPage() {
 
   if (!temRelatoriosIa) return indicadores;
 
-  const atualizarBusca = (proximaAba: "indicadores" | "raio-x" | "comportamento", inicio = search.inicio, fim = search.fim) => {
+  const atualizarBusca = (
+    proximaAba: "indicadores" | "raio-x" | "comportamento",
+    inicio = search.inicio,
+    fim = search.fim,
+  ) => {
     navigate({ search: { aba: proximaAba, inicio, fim }, replace: true });
   };
 
@@ -594,7 +598,13 @@ type AttributionRow = {
 };
 
 type AttributionColumn =
-  "origem" | "fonte" | "campanha" | "conjunto" | "anuncio" | "leads" | keyof JourneyFunnelCounts;
+  | "origem"
+  | "fonte"
+  | "campanha"
+  | "conjunto"
+  | "anuncio"
+  | "leads"
+  | keyof JourneyFunnelCounts;
 
 type AttributionSort = {
   column: AttributionColumn;
