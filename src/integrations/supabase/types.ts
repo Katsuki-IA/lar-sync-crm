@@ -6474,7 +6474,7 @@ export type Database = {
       crm_get_lead_attribution: {
         Args: { p_lead_id: number }
         Returns: {
-          capture_type: string | null
+          capture_type: string
           created_at: string
           gclid: string
           landing_page_url: string
