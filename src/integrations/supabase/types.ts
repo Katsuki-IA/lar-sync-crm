@@ -6837,6 +6837,24 @@ export type Database = {
           lead_id: number
         }[]
       }
+      ctwa_claim_enrichment: {
+        Args: never
+        Returns: {
+          ad_id: string
+          id_empresa: number
+          lease: string
+        }[]
+      }
+      ctwa_finish_enrichment: {
+        Args: {
+          p_ad: string
+          p_company: number
+          p_details?: Json
+          p_error?: string
+          p_lease: string
+        }
+        Returns: boolean
+      }
       enqueue_authorized_followup_test_v2: {
         Args: { p_authorization_id: string }
         Returns: Json
