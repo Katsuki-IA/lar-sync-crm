@@ -42,6 +42,7 @@ import {
   type JourneyFunnelCounts,
 } from "@/lib/journey-funnel";
 import { formatLeadOrigin } from "@/lib/lead-origin";
+import { getAttributionSource } from "@/lib/attribution-source";
 import { cn } from "@/lib/utils";
 
 const reportsSearchSchema = z.object({
@@ -556,6 +557,7 @@ type ReportData = {
     leadId: number;
     attribution: {
       source_type: string;
+      capture_type?: string | null;
       meta_form_id: string;
       meta_page_id: string;
       meta_campaign_name: string;
@@ -631,10 +633,7 @@ function LeadAttributionPanel({ data }: { data: ReportData }) {
   for (const lead of data.leads) {
     const attribution = attributionByLeadId.get(lead.id);
     const origem = getAttributionOrigin(attribution ?? null, lead.origem);
-    const fonte =
-      origem === "Meta Ads"
-        ? "Meta Lead Ads"
-        : attribution?.utm_source || attribution?.source_type || "Não identificada";
+    const fonte = getAttributionSource(attribution, origem);
     const campanha =
       attribution?.meta_campaign_name || attribution?.utm_campaign || "Sem campanha identificada";
     const conjunto = attribution?.meta_adset_name || "Sem conjunto identificado";
