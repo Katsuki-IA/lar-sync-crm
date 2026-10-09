@@ -1,6 +1,5 @@
 import {
   createSupabaseAdmin,
-  getAuthorizedCrmUser,
   handleOptions,
   jsonResponse,
   withErrorHandling,
@@ -21,12 +20,27 @@ Deno.serve(async (req) => {
   if (options) return options;
   if (req.method !== "POST") return jsonResponse({ error: "Método não permitido" }, 405);
   return withErrorHandling(async () => {
-    const { crmUser } = await getAuthorizedCrmUser(req);
+    const db = createSupabaseAdmin();
+    const authHeader = req.headers.get("authorization");
+    if (!authHeader?.startsWith("Bearer "))
+      return jsonResponse({ error: "Usuário não autenticado" }, 401);
+    const { data: auth, error: authError } = await db.auth.getUser(authHeader.slice(7));
+    if (authError || !auth.user?.id)
+      return jsonResponse({ error: "Sessão inválida" }, 401);
+    // Global administrators select the company in the Hub and need no tenant affiliation.
+    // Read privileges from the active CRM profile, never from user-editable token metadata.
+    const { data: crmUser, error: profileError } = await db
+      .from("crm_users")
+      .select("id_empresa,role")
+      .eq("auth_user_id", auth.user.id)
+      .eq("active", true)
+      .maybeSingle();
+    if (profileError || !crmUser || !["super_admin", "manager"].includes(crmUser.role))
+      return jsonResponse({ error: "Sem permissão para configurar integrações" }, 403);
     const input = await req.json();
     const companyId = positiveId(input.companyId);
     if (!companyId || (crmUser.role !== "super_admin" && crmUser.id_empresa !== companyId))
       return jsonResponse({ error: "Sem permissão para esta empresa" }, 403);
-    const db = createSupabaseAdmin();
     const { api, projects } = await companyContext(db, companyId);
     const action = input.action ?? "status";
     if (action === "status") {
