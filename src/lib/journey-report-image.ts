@@ -48,7 +48,7 @@ export async function createJourneyFunnelReportImage(input: JourneyReportImageIn
   const metrics = [
     ["Leads recebidos", input.counts.received, ORANGE],
     ["Interagiram com a IA", input.counts.engaged, ORANGE],
-    ["Leads quentes", input.counts.hot, ORANGE],
+    ["Leads qualificados", input.counts.hot, ORANGE],
     ["Enviados ao corretor / CRM", input.counts.sentToCrm, GREEN],
     ["Visitas agendadas", input.counts.scheduled, GREEN],
   ] as const;

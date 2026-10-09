@@ -512,7 +512,7 @@ function ConversationAnalysisPage() {
                 color="bg-[#C14F21]"
               />
               <FunnelMetricRow
-                label="Leads quentes"
+                label="Leads qualificados"
                 value={totals.hot}
                 total={totals.received}
                 color="bg-[#C14F21]"
