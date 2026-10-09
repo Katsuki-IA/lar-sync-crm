@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NegotiationSettings } from "@/components/negotiation-settings";
+import { KommoProjectSettings } from "@/components/kommo-project-settings";
 import { useActiveEmpresa } from "@/hooks/use-active-empresa";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -130,7 +131,7 @@ function AdminCrmDispatchPage() {
     setBlockedSendQueueId(configData.settings.cv_distribution_queue_blocked_send_id ?? "");
     setStageOverrides(
       Object.fromEntries(
-        (configData.stage_overrides ?? []).map((override: any) => [
+        (configData.stage_overrides ?? []).map((override) => [
           Number(override.id_empreendimento),
           {
             external_stage_blocked_send_id: override.external_stage_blocked_send_id ?? "",
@@ -231,8 +232,8 @@ function AdminCrmDispatchPage() {
       toast.success("Configuração de envio ao CRM salva");
       await qc.invalidateQueries({ queryKey: ["admin_crm_dispatch_settings", selectedCompanyId] });
     },
-    onError: (error: any) => {
-      toast.error(error?.message ?? "Falha ao salvar configuração");
+    onError: (error: Error) => {
+      toast.error(error.message ?? "Falha ao salvar configuração");
     },
   });
 
@@ -292,6 +293,20 @@ function AdminCrmDispatchPage() {
           </div>
         </details>
       )}
+
+      {selectedCompanyId &&
+        ["kommo", "kommo_crm"].includes(
+          selectedCompany?.default_crm?.trim().toLowerCase() ?? "",
+        ) && (
+          <details className="rounded-lg border p-4" key={`kommo-${selectedCompanyId}`}>
+            <summary className="cursor-pointer font-medium">
+              Identificação do empreendimento no Kommo
+            </summary>
+            <div className="mt-4">
+              <KommoProjectSettings companyId={Number(selectedCompanyId)} />
+            </div>
+          </details>
+        )}
 
       <details className="rounded-lg border p-4">
         <summary className="cursor-pointer font-medium">

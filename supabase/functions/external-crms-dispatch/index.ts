@@ -1,4 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.48.1";
+import { dispatchProjectField } from "../_shared/kommo-projects.ts";
+import { CV_ATTRIBUTION_SELECT, cvAttributionNote, resolveCvOrigin, resolveCvMedia } from "./cv-attribution.ts";
 import {
   selectCvCancellationReason,
   type CvCancellationReason,
@@ -1139,7 +1141,7 @@ Deno.serve(async (req) => {
     const leadTagNames = await loadLeadTagNames(admin, lead.id, lead.id_empresa);
     const { data: attributionData, error: attributionError } = await admin
       .from("crm_lead_attribution")
-      .select("meta_campaign_name,meta_ad_name,utm_source,utm_medium,utm_campaign,utm_content")
+      .select(CV_ATTRIBUTION_SELECT)
       .eq("crm_lead_id", lead.id)
       .eq("id_empresa", lead.id_empresa)
       .order("updated_at", { ascending: false })
@@ -1233,7 +1235,9 @@ Deno.serve(async (req) => {
         requestPayload = {
           telefone: phone,
           nome: String(lead.nome ?? "").trim() || "Lead sem nome",
-          origem: "WA",
+          ...(!hasPreviousExportActivity && !hasPreviousSuccessfulSend
+            ? { origem: resolveCvOrigin(attribution, lead.origem) }
+            : {}),
           idsituacao: toScalarId(externalStageId),
           permitir_alteracao: true,
           tags,
@@ -1250,6 +1254,18 @@ Deno.serve(async (req) => {
         if (summaryPayload?.summary) {
           requestPayload.interacoes = [{ descricao: summaryPayload.summary, tipo: "W" }];
           conversationSummarySynced = true;
+        }
+
+        if (!hasPreviousExportActivity && !hasPreviousSuccessfulSend) {
+          const media = resolveCvMedia(attribution, lead.origem);
+          if (media) requestPayload.midia = media;
+          const attributionNote = cvAttributionNote(attribution);
+          if (attributionNote) {
+            requestPayload.interacoes = [
+              ...((requestPayload.interacoes as Array<{ descricao: string; tipo: string }>) ?? []),
+              { descricao: attributionNote, tipo: "A" },
+            ];
+          }
         }
 
         if (isLostDispatch(currentStageName, body.externalStageKind)) {
@@ -1421,6 +1437,8 @@ Deno.serve(async (req) => {
           throw new Error("O lead precisa ter telefone ou e-mail para ser enviado ao Kommo.");
         }
 
+        const projectIdentification = await dispatchProjectField(admin, lead.id_empresa, lead, preferredEmpreendimentoId);
+
         const contactCustomFields: Array<Record<string, unknown>> = [];
         if (phone) {
           contactCustomFields.push({
@@ -1438,6 +1456,7 @@ Deno.serve(async (req) => {
         const kommoLeadPayload: Record<string, unknown> = {
           name: String(lead.nome ?? "").trim() || "Lead sem nome",
           pipeline_id: kommoPipelineId,
+          ...(projectIdentification ? { custom_fields_values: [projectIdentification.value] } : {}),
           _embedded: {
             tags: tags.map((name) => ({ name })),
             contacts: [
@@ -2110,7 +2129,7 @@ Deno.serve(async (req) => {
 
     const sentStage = await moveLeadToSentStage(admin, lead.id, lead.id_empresa);
 
-    if (sentStage?.oldStageId != null && sentStage.oldStageId !== sentStage.id) {
+    if (sentStage && "oldStageId" in sentStage && sentStage.oldStageId != null && sentStage.oldStageId !== sentStage.id) {
       await admin.from("crm_lead_activities").insert({
         lead_id: lead.id,
         crm_user_id: activityUserId,
