@@ -77,6 +77,7 @@ function AdminCrmDispatchPage() {
   const [withContactStageId, setWithContactStageId] = useState<string>(EMPTY_VALUE);
   const [dispatchDelayMinutes, setDispatchDelayMinutes] = useState("60");
   const [sendWhenQualified, setSendWhenQualified] = useState(false);
+  const [qualificationWaitHours, setQualificationWaitHours] = useState("24");
   const [qualifiedQueueId, setQualifiedQueueId] = useState("");
   const [blockedSendExternalStageId, setBlockedSendExternalStageId] = useState("");
   const [qualifiedExternalStageId, setQualifiedExternalStageId] = useState("");
@@ -120,6 +121,7 @@ function AdminCrmDispatchPage() {
     );
     setDispatchDelayMinutes(String(configData.settings.dispatch_delay_minutes ?? 60));
     setSendWhenQualified(configData.settings.send_when_qualified ?? false);
+    setQualificationWaitHours(String(configData.settings.qualification_wait_hours ?? 24));
     setQualifiedQueueId(configData.settings.cv_distribution_queue_qualified_id ?? "");
     setBlockedSendExternalStageId(configData.settings.external_stage_blocked_send_id ?? "");
     setQualifiedExternalStageId(configData.settings.external_stage_qualified_id ?? "");
@@ -195,6 +197,7 @@ function AdminCrmDispatchPage() {
             withContactStageId === EMPTY_VALUE ? null : Number(withContactStageId),
           dispatch_delay_minutes: Number(dispatchDelayMinutes),
           send_when_qualified: sendWhenQualified,
+          qualification_wait_hours: Number(qualificationWaitHours),
           cv_distribution_queue_qualified_id: qualifiedQueueId.trim() || null,
           external_stage_blocked_send_id: blockedSendExternalStageId.trim() || null,
           external_stage_qualified_id: qualifiedExternalStageId.trim() || null,
@@ -244,6 +247,8 @@ function AdminCrmDispatchPage() {
   );
   const isLoading = companiesLoading || (!!selectedCompanyId && configLoading);
   const parsedDispatchDelayMinutes = Number(dispatchDelayMinutes);
+  const qualificationWaitIsValid = Number.isInteger(Number(qualificationWaitHours)) &&
+    Number(qualificationWaitHours) >= 1 && Number(qualificationWaitHours) <= 168;
   const dispatchDelayIsValid =
     Number.isInteger(parsedDispatchDelayMinutes) &&
     parsedDispatchDelayMinutes >= 0 &&
@@ -384,7 +389,7 @@ function AdminCrmDispatchPage() {
             <div className="space-y-1">
               <Label htmlFor="send-when-qualified">Enviar ao CRM quando qualificado</Label>
               <p className="text-sm text-muted-foreground">
-                Envia o lead após 24 horas contínuas como Qualificado, além das regras de follow-up
+                Envia o lead após o prazo abaixo como Qualificado, além das regras de follow-up
                 e visita. A qualificação é conferida novamente antes do envio. O alerta ao grupo vem
                 após a confirmação do CRM. Leads já enviados não são cadastrados novamente. Ativar
                 não envia leads antigos.
@@ -396,6 +401,20 @@ function AdminCrmDispatchPage() {
               onCheckedChange={setSendWhenQualified}
               disabled={isLoading}
             />
+          </div>
+          <div className="mt-4 max-w-md space-y-2">
+            <Label htmlFor="qualification-wait-hours">Espera do lead qualificado (horas)</Label>
+            <Input id="qualification-wait-hours" type="number" min={1} max={168} step={1}
+              value={qualificationWaitHours} disabled={isLoading}
+              onChange={(event) => setQualificationWaitHours(event.target.value)} />
+            <p className="text-xs text-muted-foreground">
+              Padrão: 24 horas. Vale somente para o envio automático de qualificados e o alerta
+              no grupo. Solicitação de atendimento pelo corretor continua imediata.
+              Alterar o prazo recalcula os envios pendentes desde a qualificação original.
+            </p>
+            {!qualificationWaitIsValid && <p className="text-xs text-destructive">
+              Informe um número inteiro entre 1 e 168 horas.
+            </p>}
           </div>
         </div>
       </details>
@@ -762,7 +781,7 @@ function AdminCrmDispatchPage() {
           <Button
             onClick={() => saveMutation.mutate()}
             disabled={
-              !selectedCompanyId || saveMutation.isPending || isLoading || !dispatchDelayIsValid
+              !selectedCompanyId || saveMutation.isPending || isLoading || !dispatchDelayIsValid || !qualificationWaitIsValid
             }
           >
             {saveMutation.isPending ? "Salvando..." : "Salvar configuração"}

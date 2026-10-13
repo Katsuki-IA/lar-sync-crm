@@ -585,7 +585,7 @@ export const getCrmDispatchSettings = createServerFn({ method: "GET" })
       supabaseAdmin
         .from("crm_lead_dispatch_settings")
         .select(
-          "stage_without_contact_id,stage_with_contact_id,dispatch_delay_minutes,send_when_qualified,cv_distribution_queue_qualified_id,external_stage_blocked_send_id,external_stage_qualified_id,external_stage_unqualified_id,external_stage_visit_scheduled_id,external_stage_lost_id,external_stage_without_whatsapp_id,cv_distribution_queue_without_whatsapp_id,cv_distribution_queue_blocked_send_id,updated_at",
+          "stage_without_contact_id,stage_with_contact_id,dispatch_delay_minutes,qualification_wait_hours,send_when_qualified,cv_distribution_queue_qualified_id,external_stage_blocked_send_id,external_stage_qualified_id,external_stage_unqualified_id,external_stage_visit_scheduled_id,external_stage_lost_id,external_stage_without_whatsapp_id,cv_distribution_queue_without_whatsapp_id,cv_distribution_queue_blocked_send_id,updated_at",
         )
         .eq("id_empresa", data.id_empresa)
         .maybeSingle(),
@@ -627,6 +627,7 @@ export const getCrmDispatchSettings = createServerFn({ method: "GET" })
         stage_with_contact_id: settings?.stage_with_contact_id ?? null,
         dispatch_delay_minutes: settings?.dispatch_delay_minutes ?? 60,
         send_when_qualified: settings?.send_when_qualified ?? false,
+        qualification_wait_hours: settings?.qualification_wait_hours ?? 24,
         cv_distribution_queue_qualified_id: settings?.cv_distribution_queue_qualified_id ?? null,
         external_stage_blocked_send_id: settings?.external_stage_blocked_send_id ?? null,
         external_stage_qualified_id: settings?.external_stage_qualified_id ?? null,
@@ -660,6 +661,7 @@ export const saveCrmDispatchSettings = createServerFn({ method: "POST" })
         stage_with_contact_id: z.number().int().positive().nullable(),
         dispatch_delay_minutes: z.number().int().min(0).max(10080),
         send_when_qualified: z.boolean().optional(),
+        qualification_wait_hours: z.number().int().min(1).max(168).optional(),
         cv_distribution_queue_qualified_id: z.string().trim().max(120).nullable().optional(),
         external_stage_blocked_send_id: z.string().trim().max(120).nullable(),
         external_stage_qualified_id: z.string().trim().max(120).nullable(),
@@ -764,6 +766,9 @@ export const saveCrmDispatchSettings = createServerFn({ method: "POST" })
         stage_without_contact_id: data.stage_without_contact_id,
         stage_with_contact_id: data.stage_with_contact_id,
         dispatch_delay_minutes: data.dispatch_delay_minutes,
+        ...(data.qualification_wait_hours !== undefined
+          ? { qualification_wait_hours: data.qualification_wait_hours }
+          : {}),
         ...(data.send_when_qualified !== undefined
           ? { send_when_qualified: data.send_when_qualified }
           : {}),
