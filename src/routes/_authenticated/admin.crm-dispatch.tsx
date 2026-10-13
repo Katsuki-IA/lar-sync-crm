@@ -77,6 +77,7 @@ function AdminCrmDispatchPage() {
   const [withContactStageId, setWithContactStageId] = useState<string>(EMPTY_VALUE);
   const [dispatchDelayMinutes, setDispatchDelayMinutes] = useState("60");
   const [sendWhenQualified, setSendWhenQualified] = useState(false);
+  const [continueQualifiedAttendance, setContinueQualifiedAttendance] = useState(false);
   const [qualificationWaitHours, setQualificationWaitHours] = useState("24");
   const [qualifiedQueueId, setQualifiedQueueId] = useState("");
   const [blockedSendExternalStageId, setBlockedSendExternalStageId] = useState("");
@@ -121,6 +122,7 @@ function AdminCrmDispatchPage() {
     );
     setDispatchDelayMinutes(String(configData.settings.dispatch_delay_minutes ?? 60));
     setSendWhenQualified(configData.settings.send_when_qualified ?? false);
+    setContinueQualifiedAttendance(configData.settings.continue_ai_after_qualified_dispatch ?? false);
     setQualificationWaitHours(String(configData.settings.qualification_wait_hours ?? 24));
     setQualifiedQueueId(configData.settings.cv_distribution_queue_qualified_id ?? "");
     setBlockedSendExternalStageId(configData.settings.external_stage_blocked_send_id ?? "");
@@ -185,6 +187,9 @@ function AdminCrmDispatchPage() {
   const isCvCrm = ["cv", "cv_crm"].includes(
     selectedCompany?.default_crm?.trim().toLowerCase() ?? "",
   );
+  const supportsContinuedAttendance = ["kommo", "kommo_crm"].includes(
+    selectedCompany?.default_crm?.trim().toLowerCase() ?? "",
+  );
 
   const saveMutation = useMutation({
     mutationFn: async () =>
@@ -197,6 +202,7 @@ function AdminCrmDispatchPage() {
             withContactStageId === EMPTY_VALUE ? null : Number(withContactStageId),
           dispatch_delay_minutes: Number(dispatchDelayMinutes),
           send_when_qualified: sendWhenQualified,
+          continue_ai_after_qualified_dispatch: continueQualifiedAttendance,
           qualification_wait_hours: Number(qualificationWaitHours),
           cv_distribution_queue_qualified_id: qualifiedQueueId.trim() || null,
           external_stage_blocked_send_id: blockedSendExternalStageId.trim() || null,
@@ -401,6 +407,23 @@ function AdminCrmDispatchPage() {
               onCheckedChange={setSendWhenQualified}
               disabled={isLoading}
             />
+          </div>
+          <div className="mt-4 flex items-start justify-between gap-4 rounded-lg border p-4">
+            <div className="space-y-1">
+              <Label htmlFor="continue-qualified-attendance">
+                Manter IA e follow-ups após envio automático de qualificado
+              </Label>
+              <p className="text-sm text-muted-foreground">
+                Mantém o atendimento e a cadência atual, sem reiniciar follows. Vale apenas
+                para próximos envios automáticos por qualificação. Assumir a conversa no Hub
+                continua interrompendo a IA e os follows. Pedidos de corretor e visitas mantêm
+                suas regras. O atendimento realizado somente no CRM externo não pausa a IA.
+                Disponível nesta etapa para empresas do Hub com CRM externo Kommo.
+              </p>
+            </div>
+            <Switch id="continue-qualified-attendance" checked={continueQualifiedAttendance}
+              onCheckedChange={setContinueQualifiedAttendance}
+              disabled={isLoading || !supportsContinuedAttendance} />
           </div>
           <div className="mt-4 max-w-md space-y-2">
             <Label htmlFor="qualification-wait-hours">Espera do lead qualificado (horas)</Label>

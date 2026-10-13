@@ -585,7 +585,7 @@ export const getCrmDispatchSettings = createServerFn({ method: "GET" })
       supabaseAdmin
         .from("crm_lead_dispatch_settings")
         .select(
-          "stage_without_contact_id,stage_with_contact_id,dispatch_delay_minutes,qualification_wait_hours,send_when_qualified,cv_distribution_queue_qualified_id,external_stage_blocked_send_id,external_stage_qualified_id,external_stage_unqualified_id,external_stage_visit_scheduled_id,external_stage_lost_id,external_stage_without_whatsapp_id,cv_distribution_queue_without_whatsapp_id,cv_distribution_queue_blocked_send_id,updated_at",
+          "stage_without_contact_id,stage_with_contact_id,dispatch_delay_minutes,qualification_wait_hours,send_when_qualified,continue_ai_after_qualified_dispatch,cv_distribution_queue_qualified_id,external_stage_blocked_send_id,external_stage_qualified_id,external_stage_unqualified_id,external_stage_visit_scheduled_id,external_stage_lost_id,external_stage_without_whatsapp_id,cv_distribution_queue_without_whatsapp_id,cv_distribution_queue_blocked_send_id,updated_at",
         )
         .eq("id_empresa", data.id_empresa)
         .maybeSingle(),
@@ -627,6 +627,7 @@ export const getCrmDispatchSettings = createServerFn({ method: "GET" })
         stage_with_contact_id: settings?.stage_with_contact_id ?? null,
         dispatch_delay_minutes: settings?.dispatch_delay_minutes ?? 60,
         send_when_qualified: settings?.send_when_qualified ?? false,
+        continue_ai_after_qualified_dispatch: settings?.continue_ai_after_qualified_dispatch ?? false,
         qualification_wait_hours: settings?.qualification_wait_hours ?? 24,
         cv_distribution_queue_qualified_id: settings?.cv_distribution_queue_qualified_id ?? null,
         external_stage_blocked_send_id: settings?.external_stage_blocked_send_id ?? null,
@@ -661,6 +662,7 @@ export const saveCrmDispatchSettings = createServerFn({ method: "POST" })
         stage_with_contact_id: z.number().int().positive().nullable(),
         dispatch_delay_minutes: z.number().int().min(0).max(10080),
         send_when_qualified: z.boolean().optional(),
+        continue_ai_after_qualified_dispatch: z.boolean().optional(),
         qualification_wait_hours: z.number().int().min(1).max(168).optional(),
         cv_distribution_queue_qualified_id: z.string().trim().max(120).nullable().optional(),
         external_stage_blocked_send_id: z.string().trim().max(120).nullable(),
@@ -760,6 +762,17 @@ export const saveCrmDispatchSettings = createServerFn({ method: "POST" })
       throw new Error("Um dos empreendimentos selecionados não pertence a esta empresa");
     }
 
+    if (data.continue_ai_after_qualified_dispatch === true) {
+      const [company, credentials] = await Promise.all([
+        supabaseAdmin.from("empresa_dados").select("default_crm").eq("id", data.id_empresa).maybeSingle(),
+        supabaseAdmin.from("credentials").select("default_crm").eq("id_empresa", data.id_empresa).maybeSingle(),
+      ]);
+      if (company.error || credentials.error) throw new Error("Não foi possível conferir o CRM da empresa");
+      if (!['kommo', 'kommo_crm'].includes(company.data?.default_crm?.trim().toLowerCase() ?? '') ||
+          credentials.data?.default_crm?.trim().toLowerCase() !== 'hub') {
+        throw new Error("Continuidade após qualificação disponível nesta etapa para Hub com CRM externo Kommo");
+      }
+    }
     const { error } = await supabaseAdmin.from("crm_lead_dispatch_settings").upsert(
       {
         id_empresa: data.id_empresa,
@@ -771,6 +784,9 @@ export const saveCrmDispatchSettings = createServerFn({ method: "POST" })
           : {}),
         ...(data.send_when_qualified !== undefined
           ? { send_when_qualified: data.send_when_qualified }
+          : {}),
+        ...(data.continue_ai_after_qualified_dispatch !== undefined
+          ? { continue_ai_after_qualified_dispatch: data.continue_ai_after_qualified_dispatch }
           : {}),
         ...(data.cv_distribution_queue_qualified_id !== undefined
           ? { cv_distribution_queue_qualified_id: data.cv_distribution_queue_qualified_id }

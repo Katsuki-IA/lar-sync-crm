@@ -1089,6 +1089,7 @@ export type Database = {
           id_empresa: number
           send_when_qualified: boolean
           qualification_wait_hours: number
+          continue_ai_after_qualified_dispatch: boolean
           stage_with_contact_id: number | null
           stage_without_contact_id: number | null
           updated_at: string
@@ -1111,6 +1112,7 @@ export type Database = {
           id_empresa: number
           send_when_qualified?: boolean
           qualification_wait_hours?: number
+          continue_ai_after_qualified_dispatch?: boolean
           stage_with_contact_id?: number | null
           stage_without_contact_id?: number | null
           updated_at?: string
@@ -1133,6 +1135,7 @@ export type Database = {
           id_empresa?: number
           send_when_qualified?: boolean
           qualification_wait_hours?: number
+          continue_ai_after_qualified_dispatch?: boolean
           stage_with_contact_id?: number | null
           stage_without_contact_id?: number | null
           updated_at?: string
