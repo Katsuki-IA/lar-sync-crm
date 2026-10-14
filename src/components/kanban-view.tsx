@@ -87,7 +87,7 @@ export function KanbanView({ searchFilter, funnelId, idEmpresa }: { searchFilter
 
       const [{ data: emps }, { data: users }, { data: tagLinks }, { data: tags }] = await Promise.all([
         empIds.length ? supabase.from("empreendimento").select("id, nome").in("id", empIds) : Promise.resolve({ data: [] as { id: number; nome: string }[] }),
-        userIds.length ? supabase.from("crm_users").select("id, nome").in("id", userIds) : Promise.resolve({ data: [] as { id: string; nome: string }[] }),
+        userIds.length ? supabase.rpc("crm_lead_assignee_options", { p_id_empresa: idEmpresa! }) : Promise.resolve({ data: [] as { id: string; nome: string }[] }),
         leadIds.length ? supabase.from("crm_lead_tags").select("lead_id, tag_id").in("lead_id", leadIds) : Promise.resolve({ data: [] as { lead_id: number; tag_id: number }[] }),
         supabase.from("crm_tags").select("id, nome, cor").eq("id_empresa", idEmpresa!),
       ]);

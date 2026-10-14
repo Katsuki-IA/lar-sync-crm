@@ -127,7 +127,7 @@ function LeadsList() {
         supabase.from("crm_stages").select("id, nome, cor, global_stage_id").eq("id_empresa", companyId!).eq("ativo", true).order("ordem"),
         supabase.from("crm_tags").select("id, nome, cor").eq("id_empresa", companyId!),
         supabase.from("empreendimento").select("id, nome").eq("id_empresa", companyId!),
-        supabase.from("crm_users").select("id, nome").eq("id_empresa", companyId!).eq("active", true),
+        supabase.rpc("crm_lead_assignee_options", { p_id_empresa: companyId! }),
       ]);
       if (stagesResult.error) throw stagesResult.error;
       if (tagsResult.error) throw tagsResult.error;

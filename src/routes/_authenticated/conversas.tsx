@@ -348,6 +348,11 @@ function ConversationsPage() {
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["whatsapp-conversations"] });
       queryClient.invalidateQueries({ queryKey: ["lead-activities"] });
+      queryClient.invalidateQueries({ queryKey: ["leads-list"] });
+      queryClient.invalidateQueries({ queryKey: ["leads-meta"] });
+      queryClient.invalidateQueries({ queryKey: ["lead-meta"] });
+      queryClient.invalidateQueries({ queryKey: ["lead"] });
+      queryClient.invalidateQueries({ queryKey: ["kanban-leads"] });
       toast.success(
         variables.enabled
           ? "Conversa assumida. A IA não responderá enquanto o atendimento humano estiver ativo."

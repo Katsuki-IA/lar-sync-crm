@@ -6155,6 +6155,10 @@ export type Database = {
       }
     }
     Functions: {
+      crm_lead_assignee_options: {
+        Args: { p_id_empresa: number }
+        Returns: { id: string; nome: string }[]
+      }
       accept_followup_attempt_v2: {
         Args: {
           p_attempt_id: number

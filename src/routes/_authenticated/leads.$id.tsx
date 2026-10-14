@@ -237,7 +237,7 @@ function LeadDetail() {
         supabase.from("crm_stages").select("id, nome, cor, ativo, global_stage_id").eq("id_empresa", lead!.id_empresa).order("ordem"),
         supabase.from("crm_tags").select("id, nome, cor").eq("id_empresa", lead!.id_empresa),
         supabase.from("empreendimento").select("id, nome").eq("id_empresa", lead!.id_empresa),
-        supabase.from("crm_users").select("id, nome").eq("id_empresa", lead!.id_empresa).eq("active", true),
+        supabase.rpc("crm_lead_assignee_options", { p_id_empresa: lead!.id_empresa }),
       ]);
       if (stagesResult.error) throw stagesResult.error;
       if (tagsResult.error) throw tagsResult.error;
