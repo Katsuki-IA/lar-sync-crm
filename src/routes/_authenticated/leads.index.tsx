@@ -566,7 +566,7 @@ function LeadsList() {
               )}
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {me?.role === "super_admin" && (
               <Button asChild variant="outline" className="rounded-lg">
                 <Link to="/leads/importar"><Upload className="h-4 w-4 mr-1" /> Importar leads</Link>
@@ -578,7 +578,7 @@ function LeadsList() {
 
         {/* Search + View toggle */}
         <div className="flex items-center gap-3">
-          <div className="relative flex-1 min-w-[220px]">
+          <div className="relative flex-1 min-w-0">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
             <Input
               className="pl-9 h-10 bg-white border-border/80"
@@ -752,14 +752,14 @@ function LeadsList() {
 
             {/* Table */}
             <div
-              className="rounded-xl border overflow-hidden group/table"
+              className="rounded-xl border overflow-x-auto group/table"
               style={{ backgroundColor: "#FFFFFF", borderColor: "var(--border)" }}
             >
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b" style={{ borderColor: "var(--border)" }}>
                     <th className="w-10 pl-4">
-                      <div className={cn("transition-opacity", selectionMode ? "opacity-100" : "opacity-0 group-hover/table:opacity-100")}>
+                      <div className={cn("transition-opacity", selectionMode ? "opacity-100" : "opacity-100 md:opacity-0 md:group-hover/table:opacity-100")}>
                         <Checkbox
                           checked={allChecked ? true : someChecked ? "indeterminate" : false}
                           onCheckedChange={(v) => toggleAll(!!v)}
@@ -820,7 +820,7 @@ function LeadsList() {
                         style={{ borderColor: "var(--border)" }}
                       >
                         <td className="pl-4 w-10">
-                          <div className={cn("transition-opacity", isChecked || selectionMode ? "opacity-100" : "opacity-0 group-hover/row:opacity-100")}>
+                          <div className={cn("transition-opacity", isChecked || selectionMode ? "opacity-100" : "opacity-100 md:opacity-0 md:group-hover/row:opacity-100")}>
                             <Checkbox checked={isChecked} onCheckedChange={(v) => toggleOne(l.id, !!v)} aria-label="Selecionar lead" />
                           </div>
                         </td>
@@ -871,7 +871,7 @@ function LeadsList() {
                           <div className={cn("inline-flex items-center gap-1 justify-end", selectionMode && "opacity-30 pointer-events-none")}>
                             <button
                               onClick={() => navigate({ to: "/conversas", search: { lead: String(l.id) } })}
-                              className="h-7 w-7 cursor-pointer rounded-md inline-flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-primary/10 opacity-0 group-hover/row:opacity-100 transition-opacity"
+                              className="h-7 w-7 cursor-pointer rounded-md inline-flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-primary/10 opacity-100 md:opacity-0 md:group-hover/row:opacity-100 transition-opacity"
                               title="Ver conversa"
                               aria-label="Ver conversa"
                             >
@@ -879,7 +879,7 @@ function LeadsList() {
                             </button>
                             <button
                               onClick={() => copyHistoryLink(l)}
-                              className="h-7 w-7 cursor-pointer rounded-md inline-flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-primary/10 opacity-0 group-hover/row:opacity-100 transition-opacity"
+                              className="h-7 w-7 cursor-pointer rounded-md inline-flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-primary/10 opacity-100 md:opacity-0 md:group-hover/row:opacity-100 transition-opacity"
                               title="Copiar link do histórico"
                               aria-label="Copiar link do histórico"
                             >
@@ -939,7 +939,7 @@ function LeadsList() {
             </div>
 
             {/* Pagination */}
-            <div className="flex items-center justify-between text-sm">
+            <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
               <span className="text-muted-foreground">
                 Página <span className="font-medium text-foreground">{page + 1}</span> de <span className="font-medium text-foreground">{pages}</span>
               </span>

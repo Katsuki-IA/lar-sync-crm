@@ -816,7 +816,7 @@ function LeadAttributionPanel({ data }: { data: ReportData }) {
 
   return (
     <Card className="rounded-2xl">
-      <CardHeader className="flex flex-row items-start justify-between gap-4 pb-4">
+      <CardHeader className="flex flex-col sm:flex-row items-start justify-between gap-4 pb-4">
         <div>
           <CardTitle>Leads por origem e anúncio</CardTitle>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -1120,7 +1120,7 @@ function ChannelPanel({ data }: { data: ReportData }) {
 
   return (
     <Card className="rounded-2xl">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0">
+      <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 space-y-0">
         <CardTitle>Qual canal converte mais?</CardTitle>
         <div className="flex rounded-md border border-border overflow-hidden">
           <button
@@ -1244,7 +1244,7 @@ function ClosingTimePanel({ data, range }: { data: ReportData; range: Range }) {
         <CardTitle>Tempo Médio de Fechamento</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <KpiMini label="Tempo médio" value={`${avg.toFixed(1)} d`} />
           <KpiMini label="Mais rápido" value={`${min.toFixed(1)} d`} />
           <KpiMini label="Mais lento" value={`${max.toFixed(1)} d`} />

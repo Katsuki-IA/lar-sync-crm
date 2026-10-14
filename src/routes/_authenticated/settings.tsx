@@ -44,7 +44,7 @@ function SettingsLayout() {
           Gerencie o cadastro e a operação da sua empresa.
         </p>
       </div>
-      <div className="flex gap-1 border-b border-border">
+      <div className="flex gap-1 overflow-x-auto border-b border-border">
         {tabs.map((t) => {
           const active = pathname === t.to || pathname.startsWith(`${t.to}/`);
           return (
@@ -52,7 +52,7 @@ function SettingsLayout() {
               key={t.to}
               to={t.to}
               className={cn(
-                "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors",
+                "shrink-0 whitespace-nowrap px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors",
                 active
                   ? "border-primary text-foreground"
                   : "border-transparent text-muted-foreground hover:text-foreground",

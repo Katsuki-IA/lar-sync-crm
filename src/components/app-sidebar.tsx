@@ -24,7 +24,13 @@ function roleLabel(role?: string | null) {
   return "Usuário";
 }
 
-export function AppSidebar() {
+export function AppSidebar({
+  mobile = false,
+  onNavigate,
+}: {
+  mobile?: boolean;
+  onNavigate?: () => void;
+}) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { data: me } = useCrmUser();
 
@@ -80,11 +86,14 @@ export function AppSidebar() {
 
   return (
     <aside
-      className="hidden md:flex flex-col text-sidebar-foreground border-r"
-      style={{ width: 240, backgroundColor: "var(--sidebar)", borderColor: "var(--border)" }}
+      className={cn(
+        "flex-col text-sidebar-foreground border-r shrink-0",
+        mobile ? "flex h-full min-h-0 w-full" : "hidden md:flex w-60",
+      )}
+      style={{ backgroundColor: "var(--sidebar)", borderColor: "var(--border)" }}
     >
       <div
-        className="flex items-center justify-center px-5 border-b"
+        className="flex shrink-0 items-center justify-center px-5 border-b"
         style={{ height: 72, borderColor: "var(--border)" }}
       >
         <img
@@ -95,18 +104,31 @@ export function AppSidebar() {
         />
       </div>
 
-      <nav className="flex-1 overflow-y-auto px-3 py-4">
-        <SidebarGroup label="Principal" items={mainItems} pathname={pathname} />
+      <nav aria-label="Menu principal" className="min-h-0 flex-1 overflow-y-auto px-3 py-4">
+        <SidebarGroup
+          label="Principal"
+          items={mainItems}
+          pathname={pathname}
+          onNavigate={onNavigate}
+        />
         {!!adminItems.length && (
           <>
             <div className="my-4 h-px" style={{ backgroundColor: "var(--border)" }} />
-            <SidebarGroup label="Administração" items={adminItems} pathname={pathname} />
+            <SidebarGroup
+              label="Administração"
+              items={adminItems}
+              pathname={pathname}
+              onNavigate={onNavigate}
+            />
           </>
         )}
       </nav>
 
       {/* User */}
-      <div className="p-3 border-t" style={{ borderColor: "var(--border)" }}>
+      <div
+        className="shrink-0 p-3 border-t pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+        style={{ borderColor: "var(--border)" }}
+      >
         <div className="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-white/[0.04] transition-colors">
           <Avatar className="h-9 w-9">
             <AvatarFallback
@@ -132,10 +154,12 @@ function SidebarGroup({
   label,
   items,
   pathname,
+  onNavigate,
 }: {
   label: string;
   items: Item[];
   pathname: string;
+  onNavigate?: () => void;
 }) {
   return (
     <div>
@@ -149,8 +173,10 @@ function SidebarGroup({
             <Link
               key={item.url}
               to={item.url}
+              onClick={onNavigate}
+              aria-current={active ? "page" : undefined}
               className={cn(
-                "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all",
+                "group relative flex min-h-11 items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all",
                 active
                   ? "text-primary font-medium"
                   : "text-sidebar-foreground hover:bg-white/[0.04] hover:text-foreground",

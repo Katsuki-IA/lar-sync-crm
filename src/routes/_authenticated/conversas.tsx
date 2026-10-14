@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowUpRight,
+  ArrowLeft,
   Bot,
   BotOff,
   CircleAlert,
@@ -203,6 +204,9 @@ function ConversationsPage() {
   // Never reuse a project selection when switching companies.
   const projectId = projectFilter.companyId === activeEmpresaId ? projectFilter.value : "all";
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [mobileChatOpen, setMobileChatOpen] = useState(!!lead);
+
+  useEffect(() => { setMobileChatOpen(!!lead); }, [lead]);
   const [draft, setDraft] = useState("");
 
   const projectsQuery = useQuery({
@@ -458,8 +462,8 @@ function ConversationsPage() {
         </Badge>
       </div>
 
-      <div className="min-h-[640px] overflow-hidden rounded-2xl border bg-card shadow-sm lg:grid lg:grid-cols-[360px_minmax(0,1fr)]">
-        <aside className="border-b lg:border-b-0 lg:border-r bg-background/70">
+      <div className="min-w-0 overflow-hidden rounded-2xl border bg-card shadow-sm lg:grid lg:grid-cols-[360px_minmax(0,1fr)]">
+        <aside className={cn("min-w-0 border-b lg:border-b-0 lg:border-r bg-background/70", mobileChatOpen && selectedConversation ? "hidden lg:block" : "block")}>
           <div className="border-b p-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -477,6 +481,7 @@ function ConversationsPage() {
                   onValueChange={(value) => {
                     setProjectFilter({ companyId: activeEmpresaId, value });
                     setSelectedId(null);
+                    setMobileChatOpen(false);
                   }}
                 >
                   <SelectTrigger
@@ -517,7 +522,7 @@ function ConversationsPage() {
             </Button>
           </div>
 
-          <div className="h-[280px] overflow-y-auto lg:h-[calc(100vh-230px)]">
+          <div className="h-[calc(100dvh-22rem)] min-h-[280px] overflow-y-auto lg:h-[calc(100dvh-230px)]">
             {conversationsQuery.isLoading ? (
               <div className="p-4 text-sm text-muted-foreground">Carregando conversas...</div>
             ) : conversationsQuery.error ? (
@@ -543,7 +548,7 @@ function ConversationsPage() {
                     <button
                       key={conversation.lead_id}
                       type="button"
-                      onClick={() => setSelectedId(conversation.lead_id)}
+                      onClick={() => { setSelectedId(conversation.lead_id); setMobileChatOpen(true); }}
                       className={cn(
                         "w-full cursor-pointer px-4 py-3 text-left transition-colors hover:bg-muted/60",
                         conversation.atendimento_humano
@@ -601,16 +606,19 @@ function ConversationsPage() {
           </div>
         </aside>
 
-        <section className="flex min-h-[640px] flex-col">
+        <section className={cn("min-w-0 h-[calc(100dvh-11rem)] min-h-[480px] flex-col lg:h-[calc(100dvh-160px)] lg:min-h-[640px]", mobileChatOpen && selectedConversation ? "flex" : "hidden lg:flex")}>
           {selectedConversation ? (
             <>
-              <header className="flex items-center justify-between gap-3 border-b bg-background px-4 py-3">
+              <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b bg-background px-3 py-3 sm:px-4">
                 <div className="flex min-w-0 items-center gap-3">
+                  <Button variant="ghost" size="icon" className="h-11 w-11 shrink-0 lg:hidden" aria-label="Voltar para conversas" onClick={() => setMobileChatOpen(false)}>
+                    <ArrowLeft className="h-5 w-5" />
+                  </Button>
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
                     <UserRound className="h-5 w-5" />
                   </div>
                   <div className="min-w-0">
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <h2 className="truncate font-semibold">{selectedLeadName}</h2>
                       {selectedConversation.atendimento_humano ? (
                         <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">
@@ -627,9 +635,9 @@ function ConversationsPage() {
                   </div>
                 </div>
 
-                <div className="flex shrink-0 items-center gap-2">
+                <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
                   {selectedCrmLeadId ? (
-                    <Button asChild variant="outline" size="sm" className="hidden md:inline-flex">
+                    <Button asChild variant="outline" size="sm">
                       <Link to="/leads/$id" params={{ id: String(selectedCrmLeadId) }}>
                         Abrir lead
                         <ArrowUpRight className="ml-2 h-4 w-4" />
@@ -706,7 +714,7 @@ function ConversationsPage() {
                 </div>
               </header>
 
-              <div ref={messagesScrollRef} className="flex-1 overflow-y-auto bg-background p-4">
+              <div ref={messagesScrollRef} className="min-h-0 flex-1 overflow-y-auto bg-background p-3 sm:p-4">
                 {messageQuery.isLoading ? (
                   <div className="rounded-lg bg-background/90 px-4 py-3 text-sm text-muted-foreground shadow-sm">
                     Carregando mensagens...
@@ -793,7 +801,7 @@ function ConversationsPage() {
                 )}
               </div>
 
-              <footer className="space-y-3 border-t bg-background px-4 py-3">
+              <footer className="shrink-0 space-y-3 border-t bg-background px-3 py-3 sm:px-4">
                 <div className="flex items-center gap-2">
                   <ConversationAttachmentComposer key={selectedConversation.lead_id} leadId={selectedConversation.lead_id} canSend={canSendMessage} onSent={()=>{
                     queryClient.invalidateQueries({queryKey:["whatsapp-conversation-messages"]});
@@ -819,11 +827,11 @@ function ConversationsPage() {
                         disabled={sendMessageMutation.isPending}
                         className="min-h-16 resize-none"
                       />
-                      <div className="mt-1 flex justify-between text-[11px] text-muted-foreground">
+                      <div className="mt-1 flex justify-between gap-2 text-[11px] text-muted-foreground">
                         <span>
                           Mensagem livre disponível dentro da janela de atendimento da Meta.
                         </span>
-                        <span>{draft.length}/4096</span>
+                        <span className="shrink-0">{draft.length}/4096</span>
                       </div>
                     </div>
                     <Button

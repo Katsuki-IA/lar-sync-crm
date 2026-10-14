@@ -2,6 +2,13 @@
 @source "../src";
 @import "tw-animate-css";
 
+/* Keep form controls readable and avoid automatic zoom while typing on phones. */
+@media (max-width: 767px) {
+  input:not([type="checkbox"]):not([type="radio"]), textarea, select {
+    font-size: 16px;
+  }
+}
+
 /* Katsuki — light theme only. Terracota (#C14F21) primary. Inter typography. */
 
 @theme inline {

@@ -32,7 +32,12 @@ export function NotificationsBell() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-9 w-9 relative" aria-label="Notificações">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-11 w-11 relative"
+          aria-label="Notificações"
+        >
           <Bell className="h-4 w-4" />
           {unread > 0 && (
             <span className="absolute top-1.5 right-1.5 h-4 min-w-4 rounded-full bg-primary text-[9px] font-bold text-primary-foreground flex items-center justify-center px-1">
@@ -41,10 +46,12 @@ export function NotificationsBell() {
           )}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-96 p-0">
+      <DropdownMenuContent align="end" className="w-96 max-w-[calc(100vw-1.5rem)] p-0">
         <div className="flex items-center justify-between px-3 py-2 border-b border-border">
           <span className="text-sm font-semibold">Notificações</span>
-          <span className="text-xs text-muted-foreground">{unread} não lida{unread === 1 ? "" : "s"}</span>
+          <span className="text-xs text-muted-foreground">
+            {unread} não lida{unread === 1 ? "" : "s"}
+          </span>
         </div>
         <div className="max-h-[420px] overflow-y-auto">
           {overdue.length > 0 && (
@@ -60,7 +67,9 @@ export function NotificationsBell() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-sm truncate font-semibold">Tarefa vencida</span>
-                      <span className="text-[10px] text-muted-foreground shrink-0">{timeAgo(t.prazo)}</span>
+                      <span className="text-[10px] text-muted-foreground shrink-0">
+                        {timeAgo(t.prazo)}
+                      </span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{t.titulo}</p>
                   </div>
@@ -93,7 +102,9 @@ export function NotificationsBell() {
                     <span className={cn("text-sm truncate", !n.read && "font-semibold")}>
                       {n.titulo}
                     </span>
-                    <span className="text-[10px] text-muted-foreground shrink-0">{timeAgo(n.created_at)}</span>
+                    <span className="text-[10px] text-muted-foreground shrink-0">
+                      {timeAgo(n.created_at)}
+                    </span>
                   </div>
                   <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2 whitespace-pre-wrap">
                     {n.mensagem}
