@@ -192,7 +192,7 @@ function previewText(row: ConversationItem) {
 function ConversationsPage() {
   const { lead } = Route.useSearch();
   const { data: me } = useCrmUser();
-  const { activeEmpresaId } = useActiveEmpresa();
+  const { activeEmpresaId, isSuperAdmin } = useActiveEmpresa();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const deferredSearch = useDeferredValue(search.trim());
@@ -454,7 +454,7 @@ function ConversationsPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
+      <div className="hidden items-center justify-between gap-3 md:flex">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Conversas</h1>
           <p className="text-sm text-muted-foreground">
@@ -611,22 +611,22 @@ function ConversationsPage() {
           </div>
         </aside>
 
-        <section className={cn("min-w-0 h-[calc(100dvh-11rem)] min-h-[480px] flex-col lg:h-[calc(100dvh-160px)] lg:min-h-[640px]", mobileChatOpen && selectedConversation ? "flex" : "hidden lg:flex")}>
+        <section className={cn("min-w-0 min-h-0 flex-col md:h-[calc(100dvh-11rem)] md:min-h-[480px] lg:h-[calc(100dvh-160px)] lg:min-h-[640px]", isSuperAdmin ? "h-[calc(100dvh-9rem)] sm:h-[calc(100dvh-5rem)]" : "h-[calc(100dvh-5rem)]", mobileChatOpen && selectedConversation ? "flex" : "hidden lg:flex")}>
           {selectedConversation ? (
             <>
-              <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b bg-background px-3 py-3 sm:px-4">
-                <div className="flex min-w-0 items-center gap-3">
-                  <Button variant="ghost" size="icon" className="h-11 w-11 shrink-0 lg:hidden" aria-label="Voltar para conversas" onClick={() => setMobileChatOpen(false)}>
+              <header className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 border-b bg-background px-3 py-2 md:flex md:flex-wrap md:justify-between md:gap-3 md:px-4 md:py-3">
+                <div className="flex min-w-0 flex-1 items-center gap-2 md:gap-3">
+                  <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0 md:h-11 md:w-11 lg:hidden" aria-label="Voltar para conversas" onClick={() => setMobileChatOpen(false)}>
                     <ArrowLeft className="h-5 w-5" />
                   </Button>
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary md:h-10 md:w-10">
                     <UserRound className="h-5 w-5" />
                   </div>
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <h2 className="truncate font-semibold">{selectedLeadName}</h2>
                       {selectedConversation.atendimento_humano ? (
-                        <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">
+                        <Badge className="bg-amber-100 text-[10px] text-amber-800 hover:bg-amber-100 md:text-xs">
                           Atendimento humano
                         </Badge>
                       ) : null}
@@ -640,12 +640,12 @@ function ConversationsPage() {
                   </div>
                 </div>
 
-                <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+                <div className="flex max-w-[5rem] flex-wrap items-center justify-end gap-1 md:max-w-none md:gap-2">
                   {selectedCrmLeadId ? (
-                    <Button asChild variant="outline" size="sm">
-                      <Link to="/leads/$id" params={{ id: String(selectedCrmLeadId) }}>
-                        Abrir lead
-                        <ArrowUpRight className="ml-2 h-4 w-4" />
+                    <Button asChild variant="outline" size="sm" className="h-9 w-9 p-0 md:h-8 md:w-auto md:px-3">
+                      <Link to="/leads/$id" params={{ id: String(selectedCrmLeadId) }} aria-label="Abrir lead" title="Abrir lead">
+                        <span className="sr-only md:not-sr-only">Abrir lead</span>
+                        <ArrowUpRight className="h-4 w-4 md:ml-2" />
                       </Link>
                     </Button>
                   ) : null}
@@ -660,6 +660,7 @@ function ConversationsPage() {
                       companyId={activeEmpresaId!}
                       label={assignedToMe ? "Enviar template" : "Assumir e enviar template"}
                       disabled={attendanceMutation.isPending}
+                      compactOnMobile
                       assume={
                         assignedToMe
                           ? undefined
@@ -678,6 +679,9 @@ function ConversationsPage() {
                       type="button"
                       variant="outline"
                       size="sm"
+                      className="h-9 w-9 p-0 md:h-8 md:w-auto md:px-3"
+                      aria-label="Devolver para a IA"
+                      title="Devolver para a IA"
                       disabled={attendanceMutation.isPending}
                       onClick={() =>
                         attendanceMutation.mutate({
@@ -686,18 +690,21 @@ function ConversationsPage() {
                         })
                       }
                     >
-                      <Bot className="mr-2 h-4 w-4" />
-                      Devolver para a IA
+                      <Bot className="h-4 w-4 md:mr-2" />
+                      <span className="sr-only md:not-sr-only">Devolver para a IA</span>
                     </Button>
                   ) : assignedToOther && !canForceAssignment ? (
-                    <Button type="button" variant="outline" size="sm" disabled>
-                      <UserRound className="mr-2 h-4 w-4" />
-                      Em atendimento
+                    <Button type="button" variant="outline" size="sm" className="h-9 w-9 p-0 md:h-8 md:w-auto md:px-3" aria-label="Em atendimento" title="Em atendimento" disabled>
+                      <UserRound className="h-4 w-4 md:mr-2" />
+                      <span className="sr-only md:not-sr-only">Em atendimento</span>
                     </Button>
                   ) : selectedWindow && !selectedWindow.window_open ? null : (
                     <Button
                       type="button"
                       size="sm"
+                      className="h-9 w-9 p-0 md:h-8 md:w-auto md:px-3"
+                      aria-label={assignedToOther ? "Assumir deste atendente" : "Assumir conversa"}
+                      title={assignedToOther ? "Assumir deste atendente" : "Assumir conversa"}
                       disabled={
                         attendanceMutation.isPending ||
                         windowsQuery.isLoading ||
@@ -712,8 +719,8 @@ function ConversationsPage() {
                         })
                       }
                     >
-                      <BotOff className="mr-2 h-4 w-4" />
-                      {assignedToOther ? "Assumir deste atendente" : "Assumir conversa"}
+                      <BotOff className="h-4 w-4 md:mr-2" />
+                      <span className="sr-only md:not-sr-only">{assignedToOther ? "Assumir deste atendente" : "Assumir conversa"}</span>
                     </Button>
                   )}
                 </div>

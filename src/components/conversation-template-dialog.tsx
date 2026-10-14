@@ -53,6 +53,7 @@ export function ConversationTemplateDialog({
   assume,
   disabled = false,
   label = "Assumir e enviar template",
+  compactOnMobile = false,
 }: {
   leadId: number;
   leadName: string | null;
@@ -60,6 +61,7 @@ export function ConversationTemplateDialog({
   assume?: () => Promise<unknown>;
   disabled?: boolean;
   label?: string;
+  compactOnMobile?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [selection, setSelection] = useState("");
@@ -135,9 +137,9 @@ export function ConversationTemplateDialog({
         }
       }}
     >
-      <Button type="button" size="sm" disabled={disabled} onClick={() => setOpen(true)}>
-        <Send className="mr-2 h-4 w-4" />
-        {label}
+      <Button type="button" size="sm" className={compactOnMobile ? "h-9 w-9 p-0 md:h-8 md:w-auto md:px-3" : undefined} aria-label={label} title={label} disabled={disabled} onClick={() => setOpen(true)}>
+        <Send className={compactOnMobile ? "h-4 w-4 md:mr-2" : "mr-2 h-4 w-4"} />
+        <span className={compactOnMobile ? "sr-only md:not-sr-only" : undefined}>{label}</span>
       </Button>
       <DialogContent className="max-h-[85vh] overflow-y-auto">
         <DialogHeader>
