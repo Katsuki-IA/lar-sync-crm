@@ -34,6 +34,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { ConversationTemplateDialog } from "@/components/conversation-template-dialog";
+import { ConversationAttachment, ConversationAttachmentComposer, getConversationAttachment } from "@/components/conversation-attachment";
 
 export const Route = createFileRoute("/_authenticated/conversas")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -748,7 +749,9 @@ function ConversationsPage() {
                                 deliveryFailed && "border border-destructive/50 bg-destructive/10",
                               )}
                             >
-                              <MessageContent text={text || "Mensagem sem conteúdo"} />
+                              {getConversationAttachment(message.message)
+                                ? <ConversationAttachment attachment={getConversationAttachment(message.message)!} />
+                                : <MessageContent text={text || "Mensagem sem conteúdo"} />}
                               <div
                                 className={cn(
                                   "mt-1 flex items-center justify-end gap-1 text-[10px] text-muted-foreground",
@@ -791,6 +794,13 @@ function ConversationsPage() {
               </div>
 
               <footer className="space-y-3 border-t bg-background px-4 py-3">
+                <div className="flex items-center gap-2">
+                  <ConversationAttachmentComposer key={selectedConversation.lead_id} leadId={selectedConversation.lead_id} canSend={canSendMessage} onSent={()=>{
+                    queryClient.invalidateQueries({queryKey:["whatsapp-conversation-messages"]});
+                    queryClient.invalidateQueries({queryKey:["whatsapp-conversations"]});
+                  }}/>
+                  <p className="text-xs text-muted-foreground">JPG/PNG até 5 MB · PDF até 100 MB. Anexos exigem janela de 24h aberta.</p>
+                </div>
                 {canSendMessage ? (
                   <div className="flex items-end gap-2">
                     <div className="min-w-0 flex-1">

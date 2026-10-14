@@ -1,5 +1,11 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.48.1";
 import {
+  MEDIA_BUCKET,
+  mediaPath,
+  validateMediaFile,
+  validateMediaSignature,
+} from "../_shared/conversation-media.ts";
+import {
   buildTemplateComponents,
   isAttendanceTemplate,
   templatePreview,
@@ -140,8 +146,17 @@ Deno.serve(async (req) => {
     const leadId = requiredInteger(input.leadId, "Conversa");
     const listTemplates = input.action === "list_templates";
     const sendTemplate = input.action === "send_template";
-    if (input.action && !listTemplates && !sendTemplate) throw new Error("Ação inválida");
-    let text = listTemplates || sendTemplate ? "" : requiredText(input.text, "Mensagem", 4096);
+    const prepareMedia = input.action === "prepare_media";
+    const sendMedia = input.action === "send_media";
+    if (input.action && !listTemplates && !sendTemplate && !prepareMedia && !sendMedia)
+      throw new Error("Ação inválida");
+    let text =
+      listTemplates || sendTemplate || prepareMedia || sendMedia
+        ? ""
+        : requiredText(input.text, "Mensagem", 4096);
+    const caption = typeof input.caption === "string" ? input.caption.trim() : "";
+    if (sendMedia && caption.length > 1024)
+      throw new Error("A legenda deve ter no máximo 1.024 caracteres.");
     const clientMessageId = listTemplates
       ? ""
       : requiredText(input.clientMessageId, "Identificador da mensagem", 100);
@@ -199,6 +214,65 @@ Deno.serve(async (req) => {
           "A janela de 24 horas está fechada. Aguarde o lead enviar uma nova mensagem.",
         );
       }
+    }
+
+    let attachment: {
+      kind: "image" | "document";
+      path: string;
+      filename: string;
+      mime: string;
+      size: number;
+      url: string;
+    } | null = null;
+    if (prepareMedia || sendMedia) {
+      const filename = requiredText(input.fileName, "Nome do arquivo", 200);
+      const mime = requiredText(input.mimeType, "Formato do arquivo", 80);
+      const size = Number(input.fileSize);
+      const kind = validateMediaFile(filename, mime, size);
+      const path = mediaPath(lead.id_empresa, lead.id, crmUser.id, clientMessageId, filename);
+      if (prepareMedia) {
+        const { data, error } = await admin.storage.from(MEDIA_BUCKET).createSignedUploadUrl(path);
+        if (error || !data) throw new Error(error?.message ?? "Falha ao preparar o anexo");
+        return jsonResponse({ ok: true, path, token: data.token });
+      }
+      if (input.storagePath !== path)
+        throw new Error("O anexo não pertence a esta conversa ou atendente.");
+      const folder = path.slice(0, path.lastIndexOf("/")),
+        basename = path.split("/").at(-1)!;
+      const { data: files, error: listError } = await admin.storage
+        .from(MEDIA_BUCKET)
+        .list(folder, { search: basename, limit: 2 });
+      const file = files?.find((f) => f.name === basename);
+      if (listError || !file)
+        throw new Error("Anexo não encontrado. Selecione o arquivo novamente.");
+      const actualMime = String(file.metadata?.mimetype ?? "");
+      const actualSize = Number(file.metadata?.size);
+      validateMediaFile(filename, actualMime, actualSize);
+      if (actualMime !== mime || actualSize !== size)
+        throw new Error("O tamanho ou formato do anexo diverge do arquivo selecionado.");
+      const { data: signed, error: signError } = await admin.storage
+        .from(MEDIA_BUCKET)
+        .createSignedUrl(path, 3600);
+      if (signError || !signed) throw new Error("Falha ao preparar o acesso ao anexo.");
+      // Read only the signature; never buffer a large PDF in the Edge runtime.
+      const check = await fetch(signed.signedUrl, { headers: { Range: "bytes=0-15" } });
+      if (!check.ok || !check.body)
+        throw new Error("Não foi possível validar o conteúdo do anexo.");
+      const reader = check.body.getReader();
+      const prefix = new Uint8Array(16);
+      let prefixLength = 0;
+      while (prefixLength < prefix.length) {
+        const chunk = await reader.read();
+        if (chunk.done) break;
+        const part = chunk.value.slice(0, prefix.length - prefixLength);
+        prefix.set(part, prefixLength);
+        prefixLength += part.length;
+      }
+      await reader.cancel();
+      validateMediaSignature(prefix.slice(0, prefixLength), mime);
+      attachment = { kind, path, filename, mime, size, url: signed.signedUrl };
+      text =
+        (kind === "image" ? "[Imagem] " : "[PDF] ") + filename + (caption ? "\n" + caption : "");
     }
 
     let identity: IdentityRow | null = null;
@@ -361,8 +435,36 @@ Deno.serve(async (req) => {
               ...(templateComponents.length ? { components: templateComponents } : {}),
             },
           }
-        : { type: "text", text: { preview_url: false, body: text } }),
+        : attachment
+          ? {
+              type: attachment.kind,
+              [attachment.kind]: {
+                link: attachment.url,
+                ...(caption ? { caption } : {}),
+                ...(attachment.kind === "document" ? { filename: attachment.filename } : {}),
+              },
+            }
+          : { type: "text", text: { preview_url: false, body: text } }),
     };
+    if (attachment) {
+      const { data: freshLead } = await admin
+        .from("lead")
+        .select("atendimento_humano,wa_conversation_assigned_to")
+        .eq("id", lead.id)
+        .eq("id_empresa", lead.id_empresa)
+        .maybeSingle();
+      const { data: freshWindow, error: freshWindowError } = await admin.rpc(
+        "crm_whatsapp_conversation_windows",
+        { p_id_empresa: lead.id_empresa, p_lead_ids: [lead.id] },
+      );
+      if (
+        !freshLead?.atendimento_humano ||
+        freshLead.wa_conversation_assigned_to !== crmUser.id ||
+        freshWindowError ||
+        !freshWindow?.[0]?.window_open
+      )
+        throw new Error("O atendimento ou a janela de 24 horas mudou. O anexo não foi enviado.");
+    }
     const graphResponse = await fetch(
       `https://graph.facebook.com/${graphVersion}/${phoneNumberId}/messages`,
       {
@@ -403,7 +505,7 @@ Deno.serve(async (req) => {
           to_wa_id: resolvedWaId,
           to_user_id: resolvedUserId,
           to_username: identity?.username ?? lead.wa_username,
-          type: selectedTemplate ? "template" : "text",
+          type: selectedTemplate ? "template" : attachment ? attachment.kind : "text",
           ...(selectedTemplate
             ? {
                 template_name: selectedTemplate.name,
@@ -423,6 +525,17 @@ Deno.serve(async (req) => {
             lead.legacy_conversation_key ?? identity?.legacy_conversation_key,
           raw: {
             source: "hub_human",
+            ...(attachment
+              ? {
+                  attachment: {
+                    storagePath: attachment.path,
+                    filename: attachment.filename,
+                    mimeType: attachment.mime,
+                    fileSize: attachment.size,
+                    kind: attachment.kind,
+                  },
+                }
+              : {}),
             recipient_kind: recipientPhone ? "wa_id" : "bsuid",
             request: requestPayload,
             response: graphResult,
@@ -445,7 +558,19 @@ Deno.serve(async (req) => {
       numero: phone ?? recipient,
       telefone: phone,
       type: "ai",
-      message: text,
+      message: attachment
+        ? {
+            content: text,
+            attachment: {
+              storagePath: attachment.path,
+              filename: attachment.filename,
+              mimeType: attachment.mime,
+              fileSize: attachment.size,
+              kind: attachment.kind,
+              caption,
+            },
+          }
+        : text,
       time: now,
       id_empresa: lead.id_empresa,
       wa_identity_id: lead.wa_identity_id,
