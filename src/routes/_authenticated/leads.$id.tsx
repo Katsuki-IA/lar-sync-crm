@@ -454,7 +454,7 @@ function LeadDetail() {
                     <div className="h-2 w-2 rounded-full bg-primary mt-2 shrink-0" />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-baseline justify-between gap-2">
-                        <span className="text-xs uppercase tracking-wide text-muted-foreground">{labelTipo(a.tipo)}</span>
+                        <span className="text-xs uppercase tracking-wide text-muted-foreground">{a.metadata?.source === "hub_conversation_attendance" ? "Atendimento" : labelTipo(a.tipo)}</span>
                         <span className="text-xs text-muted-foreground">{a.created_at ? new Date(a.created_at).toLocaleString("pt-BR") : ""}</span>
                       </div>
                       <ActivityDescription text={a.descricao} />

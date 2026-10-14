@@ -342,6 +342,7 @@ function ConversationsPage() {
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["whatsapp-conversations"] });
+      queryClient.invalidateQueries({ queryKey: ["lead-activities"] });
       toast.success(
         variables.enabled
           ? "Conversa assumida. A IA não responderá enquanto o atendimento humano estiver ativo."
@@ -544,7 +545,11 @@ function ConversationsPage() {
                       onClick={() => setSelectedId(conversation.lead_id)}
                       className={cn(
                         "w-full cursor-pointer px-4 py-3 text-left transition-colors hover:bg-muted/60",
-                        active && "bg-primary/10 hover:bg-primary/10",
+                        conversation.atendimento_humano
+                          ? active
+                            ? "bg-violet-100 ring-1 ring-inset ring-violet-300 hover:bg-violet-100 dark:bg-violet-950/50 dark:ring-violet-700"
+                            : "bg-violet-50 hover:bg-violet-100 dark:bg-violet-950/30 dark:hover:bg-violet-950/50"
+                          : active && "bg-primary/10 hover:bg-primary/10",
                       )}
                     >
                       <div className="flex items-start justify-between gap-3">
@@ -736,7 +741,9 @@ function ConversationsPage() {
                               className={cn(
                                 "max-w-[82%] rounded-2xl px-4 py-2 text-sm shadow-sm md:max-w-[68%]",
                                 isOutgoing
-                                  ? "rounded-br-md bg-primary/15 text-foreground"
+                                  ? isHumanAgent
+                                    ? "rounded-br-md bg-violet-50 text-foreground dark:bg-violet-950/50"
+                                    : "rounded-br-md bg-primary/15 text-foreground"
                                   : "rounded-bl-md bg-white text-foreground",
                                 deliveryFailed && "border border-destructive/50 bg-destructive/10",
                               )}
