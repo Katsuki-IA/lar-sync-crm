@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.1"
   }
   public: {
     Tables: {
@@ -163,6 +163,8 @@ export type Database = {
           loft_corretor_id: number | null
           loft_crm_token: string | null
           loft_crm_url: string | null
+          maestro_crm_token: string | null
+          maestro_crm_url: string | null
           pipeline_id: string | null
           rd_client_id: string | null
           rd_client_secret: string | null
@@ -196,6 +198,8 @@ export type Database = {
           loft_corretor_id?: number | null
           loft_crm_token?: string | null
           loft_crm_url?: string | null
+          maestro_crm_token?: string | null
+          maestro_crm_url?: string | null
           pipeline_id?: string | null
           rd_client_id?: string | null
           rd_client_secret?: string | null
@@ -229,6 +233,8 @@ export type Database = {
           loft_corretor_id?: number | null
           loft_crm_token?: string | null
           loft_crm_url?: string | null
+          maestro_crm_token?: string | null
+          maestro_crm_url?: string | null
           pipeline_id?: string | null
           rd_client_id?: string | null
           rd_client_secret?: string | null
@@ -784,6 +790,128 @@ export type Database = {
         }
         Relationships: []
       }
+      crm_kommo_project_settings: {
+        Row: {
+          account_id: number | null
+          account_url: string
+          auto_create_options: boolean
+          enabled: boolean
+          field_id: number | null
+          field_name: string
+          id_empresa: number
+          last_error: string | null
+          lock_token: string | null
+          lock_until: string | null
+          mappings: Json
+          next_run_at: string
+          sync_interest: boolean
+          unknown_enum_id: number | null
+          unknown_policy: string
+          updated_at: string
+        }
+        Insert: {
+          account_id?: number | null
+          account_url: string
+          auto_create_options?: boolean
+          enabled?: boolean
+          field_id?: number | null
+          field_name?: string
+          id_empresa: number
+          last_error?: string | null
+          lock_token?: string | null
+          lock_until?: string | null
+          mappings?: Json
+          next_run_at?: string
+          sync_interest?: boolean
+          unknown_enum_id?: number | null
+          unknown_policy?: string
+          updated_at?: string
+        }
+        Update: {
+          account_id?: number | null
+          account_url?: string
+          auto_create_options?: boolean
+          enabled?: boolean
+          field_id?: number | null
+          field_name?: string
+          id_empresa?: number
+          last_error?: string | null
+          lock_token?: string | null
+          lock_until?: string | null
+          mappings?: Json
+          next_run_at?: string
+          sync_interest?: boolean
+          unknown_enum_id?: number | null
+          unknown_policy?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_kommo_project_settings_id_empresa_fkey"
+            columns: ["id_empresa"]
+            isOneToOne: true
+            referencedRelation: "empresa_dados"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_kommo_project_sync: {
+        Row: {
+          account_url: string
+          external_id: number
+          field_id: number
+          id_empresa: number
+          last_enum_id: number | null
+          last_error: string | null
+          lead_id: number
+          next_check_at: string
+          status: string
+          tracked: boolean
+          updated_at: string
+        }
+        Insert: {
+          account_url: string
+          external_id: number
+          field_id: number
+          id_empresa: number
+          last_enum_id?: number | null
+          last_error?: string | null
+          lead_id: number
+          next_check_at?: string
+          status?: string
+          tracked?: boolean
+          updated_at?: string
+        }
+        Update: {
+          account_url?: string
+          external_id?: number
+          field_id?: number
+          id_empresa?: number
+          last_enum_id?: number | null
+          last_error?: string | null
+          lead_id?: number
+          next_check_at?: string
+          status?: string
+          tracked?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_kommo_project_sync_id_empresa_fkey"
+            columns: ["id_empresa"]
+            isOneToOne: false
+            referencedRelation: "crm_kommo_project_settings"
+            referencedColumns: ["id_empresa"]
+          },
+          {
+            foreignKeyName: "crm_kommo_project_sync_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "crm_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       crm_lead_activities: {
         Row: {
           created_at: string | null
@@ -1072,6 +1200,7 @@ export type Database = {
       }
       crm_lead_dispatch_settings: {
         Row: {
+          continue_ai_after_qualified_dispatch: boolean
           created_at: string
           cv_distribution_queue_blocked_send_id: string | null
           cv_distribution_queue_qualified_id: string | null
@@ -1087,14 +1216,14 @@ export type Database = {
           external_stage_without_whatsapp_id: string | null
           id: string
           id_empresa: number
-          send_when_qualified: boolean
           qualification_wait_hours: number
-          continue_ai_after_qualified_dispatch: boolean
+          send_when_qualified: boolean
           stage_with_contact_id: number | null
           stage_without_contact_id: number | null
           updated_at: string
         }
         Insert: {
+          continue_ai_after_qualified_dispatch?: boolean
           created_at?: string
           cv_distribution_queue_blocked_send_id?: string | null
           cv_distribution_queue_qualified_id?: string | null
@@ -1110,14 +1239,14 @@ export type Database = {
           external_stage_without_whatsapp_id?: string | null
           id?: string
           id_empresa: number
-          send_when_qualified?: boolean
           qualification_wait_hours?: number
-          continue_ai_after_qualified_dispatch?: boolean
+          send_when_qualified?: boolean
           stage_with_contact_id?: number | null
           stage_without_contact_id?: number | null
           updated_at?: string
         }
         Update: {
+          continue_ai_after_qualified_dispatch?: boolean
           created_at?: string
           cv_distribution_queue_blocked_send_id?: string | null
           cv_distribution_queue_qualified_id?: string | null
@@ -1133,9 +1262,8 @@ export type Database = {
           external_stage_without_whatsapp_id?: string | null
           id?: string
           id_empresa?: number
-          send_when_qualified?: boolean
           qualification_wait_hours?: number
-          continue_ai_after_qualified_dispatch?: boolean
+          send_when_qualified?: boolean
           stage_with_contact_id?: number | null
           stage_without_contact_id?: number | null
           updated_at?: string
@@ -6155,10 +6283,6 @@ export type Database = {
       }
     }
     Functions: {
-      crm_lead_assignee_options: {
-        Args: { p_id_empresa: number }
-        Returns: { id: string; nome: string }[]
-      }
       accept_followup_attempt_v2: {
         Args: {
           p_attempt_id: number
@@ -6627,6 +6751,13 @@ export type Database = {
           lead_id: number
         }[]
       }
+      crm_lead_assignee_options: {
+        Args: { p_id_empresa: number }
+        Returns: {
+          id: string
+          nome: string
+        }[]
+      }
       crm_normalize_lead_origin: {
         Args: { p_modulo?: string; p_origem: string }
         Returns: string
@@ -6640,6 +6771,16 @@ export type Database = {
         Args: { p_job_id: string }
         Returns: Json
       }
+      crm_preserve_qualified_attendance: {
+        Args: {
+          p_company: number
+          p_crm_lead: number
+          p_external_id: string
+          p_job_id: string
+          p_provider: string
+        }
+        Returns: Json
+      }
       crm_process_next_prospeccao_leads: {
         Args: { p_id_empresa?: number; p_limit?: number }
         Returns: {
@@ -6651,6 +6792,10 @@ export type Database = {
       }
       crm_public_lead_history: {
         Args: { p_codigo: string; p_lead_ref: string }
+        Returns: Json
+      }
+      crm_qualified_continuation_receipt: {
+        Args: { p_company: number; p_crm_lead: number }
         Returns: Json
       }
       crm_record_lead_attribution: {
@@ -6869,6 +7014,10 @@ export type Database = {
         Args: { p_authorization_id: string }
         Returns: Json
       }
+      enqueue_cv_initial_message_once: {
+        Args: { p_company: number; p_crm_lead: string; p_project: number }
+        Returns: Json
+      }
       enqueue_followup_crm_event_v2: {
         Args: { p_attempt_id: number; p_event_type: string }
         Returns: Json
@@ -7064,6 +7213,18 @@ export type Database = {
         Args: { p_id_empresa: number }
         Returns: Json
       }
+      initial_message_send_guard: {
+        Args: {
+          p_company: number
+          p_execution: string
+          p_kind: string
+          p_phone: string
+          p_queue_id: number
+          p_reserve?: boolean
+          p_sender: string
+        }
+        Returns: Json
+      }
       insert_wa_status_event: {
         Args: {
           p_dedupe_key: string
@@ -7076,6 +7237,18 @@ export type Database = {
           p_status: string
           p_timestamp_meta: string
         }
+        Returns: undefined
+      }
+      kommo_project_acquire_lock: {
+        Args: { p_company: number; p_token: string }
+        Returns: boolean
+      }
+      kommo_project_release_lock: {
+        Args: { p_company: number; p_token: string }
+        Returns: undefined
+      }
+      kommo_project_seed_sync: {
+        Args: { p_company: number }
         Returns: undefined
       }
       legacy_live_followup_candidates_v2: {
@@ -7260,6 +7433,7 @@ export type Database = {
         Args: { p_id_empresa?: number; p_limit?: number }
         Returns: Json
       }
+      skip_duplicate_jmf_reactivations: { Args: never; Returns: number }
       test_attendance_followup: {
         Args: {
           p_actor?: string
