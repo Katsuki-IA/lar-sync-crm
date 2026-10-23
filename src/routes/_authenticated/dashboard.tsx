@@ -1,3 +1,4 @@
+import { NativeReportsBoundary } from "@/hml/native-reports-boundary";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from "recharts";
@@ -9,7 +10,7 @@ import { useActiveEmpresa } from "@/hooks/use-active-empresa";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
-  component: DashboardPage,
+  component: () => <NativeReportsBoundary><DashboardPage /></NativeReportsBoundary>,
 });
 
 function MetricCard({ label, value, icon: Icon }: { label: string; value: number | string; icon: React.ComponentType<{ className?: string }> }) {
@@ -38,7 +39,6 @@ function DashboardPage() {
     enabled: !!me && !!activeEmpresaId,
     queryKey: ["dashboard", me?.id, me?.role, activeEmpresaId],
     queryFn: async () => {
-      const isAgent = me?.role === "agent";
       const empresaIds = activeEmpresaId ? [activeEmpresaId] : [];
 
       const baseLeads = () => {
@@ -46,7 +46,6 @@ function DashboardPage() {
           .from("crm_leads")
           .select("id, crm_stage_id, crm_assigned_to, id_empreendimento, lead_quente", { count: "exact" })
           .in("id_empresa", empresaIds);
-        if (isAgent && me) q = q.eq("crm_assigned_to", me.id);
         return q;
       };
 
@@ -57,6 +56,7 @@ function DashboardPage() {
           .select("id, nome, cor, ordem")
           .eq("id_empresa", activeEmpresaId!)
           .eq("ativo", true)
+          .eq("module", "ia")
           .order("ordem"),
         supabase.from("empreendimento").select("id, nome").in("id_empresa", empresaIds),
       ]);
@@ -130,3 +130,4 @@ function DashboardPage() {
     </div>
   );
 }
+

@@ -1,3 +1,4 @@
+import { ModuleBoundary } from "@/hml/modules";
 import { useNavigate, useRouterState, Link } from "@tanstack/react-router";
 import { LogOut, ChevronRight, User, Menu } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
@@ -272,7 +273,7 @@ function AppShellContent({ children }: { children: ReactNode }) {
             </Select>
           </div>
         )}
-        <main className="min-w-0 flex-1 overflow-x-auto p-3 md:p-6">{children}</main>
+        <main className="min-w-0 flex-1 overflow-x-auto p-3 md:p-6"><ModuleBoundary>{children}</ModuleBoundary></main>
       </div>
       <Dialog open={requiresSelection}>
         <DialogContent
@@ -303,3 +304,4 @@ function AppShellContent({ children }: { children: ReactNode }) {
     </div>
   );
 }
+

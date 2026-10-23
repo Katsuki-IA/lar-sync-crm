@@ -4,7 +4,9 @@
 
 /* Keep form controls readable and avoid automatic zoom while typing on phones. */
 @media (max-width: 767px) {
-  input:not([type="checkbox"]):not([type="radio"]), textarea, select {
+  input:not([type="checkbox"]):not([type="radio"]),
+  textarea,
+  select {
     font-size: 16px;
   }
 }
@@ -71,86 +73,86 @@
      Neutros derivados por mistura branco↔preto. */
 
   /* Backgrounds */
-  --bg: #FFFFFF;
-  --surface: #F7F7F7;
-  --surface-2: #EFEFEF;
+  --bg: #ffffff;
+  --surface: #f7f7f7;
+  --surface-2: #efefef;
 
   /* Borders (cinzas neutros derivados do preto oficial) */
-  --border: #E5E5E5;
-  --border-strong: #C4C4C4;
+  --border: #e5e5e5;
+  --border-strong: #c4c4c4;
 
   /* Text (derivado do preto oficial) */
   --text: #080705;
-  --text-secondary: #4A4A4A;
+  --text-secondary: #4a4a4a;
   --text-muted: #737373;
-  --text-disabled: #A3A3A3;
+  --text-disabled: #a3a3a3;
 
   /* Primary (Terracota #C14F21) e Secundária (Laranja #F59958) */
-  --primary-50:  #FDF1EC;
-  --primary-100: #FADDD0;
-  --primary-200: #F59958;      /* laranja oficial */
-  --primary-300: #ED7A3D;
-  --primary-400: #D9612B;
-  --primary-500: #C14F21;      /* terracota oficial */
-  --primary-600: #9E401A;
-  --primary-700: #7A3115;
-  --primary-800: #52200D;
-  --primary-900: #080705;      /* preto oficial */
+  --primary-50: #fdf1ec;
+  --primary-100: #faddd0;
+  --primary-200: #f59958; /* laranja oficial */
+  --primary-300: #ed7a3d;
+  --primary-400: #d9612b;
+  --primary-500: #c14f21; /* terracota oficial */
+  --primary-600: #9e401a;
+  --primary-700: #7a3115;
+  --primary-800: #52200d;
+  --primary-900: #080705; /* preto oficial */
 
   --primary: var(--primary-500);
   --primary-hover: var(--primary-400);
   --primary-pressed: var(--primary-600);
-  --primary-fg: #FFFFFF;
+  --primary-fg: #ffffff;
   --primary-subtle: var(--primary-50);
   --primary-subtle-border: var(--primary-100);
 
   /* Focus */
-  --focus-ring: #C14F21;
-  --focus-ring-offset: #FFFFFF;
+  --focus-ring: #c14f21;
+  --focus-ring-offset: #ffffff;
 
   /* Sidebar tokens */
-  --sidebar-bg: #FFFFFF;
-  --sidebar-active-bg: #FDF1EC;
-  --sidebar-active-text: #C14F21;
-  --sidebar-text: #4A4A4A;
+  --sidebar-bg: #ffffff;
+  --sidebar-active-bg: #fdf1ec;
+  --sidebar-active-text: #c14f21;
+  --sidebar-text: #4a4a4a;
 
   /* Semantic — mapeados para as cores oficiais da marca */
   --success: #080705;
-  --success-bg: #F7F7F7;
-  --warning: #F59958;
-  --warning-bg: #FDF1EC;
-  --danger: #C14F21;
-  --danger-bg: #FDF1EC;
+  --success-bg: #f7f7f7;
+  --warning: #f59958;
+  --warning-bg: #fdf1ec;
+  --danger: #c14f21;
+  --danger-bg: #fdf1ec;
   --info: #080705;
-  --info-bg: #F7F7F7;
+  --info-bg: #f7f7f7;
 
   /* Charts */
-  --chart-primary: #C14F21;
-  --chart-secondary: #F59958;
+  --chart-primary: #c14f21;
+  --chart-secondary: #f59958;
   --chart-tertiary: #080705;
-  --chart-grid: #EFEFEF;
+  --chart-grid: #efefef;
   --chart-label: #737373;
 
   /* Shadows */
   --shadow-sm: 0 1px 3px rgba(8, 7, 5, 0.08);
-  --shadow-md: 0 4px 12px rgba(8, 7, 5, 0.10);
+  --shadow-md: 0 4px 12px rgba(8, 7, 5, 0.1);
 
   /* shadcn aliases */
   --background: var(--bg);
   --foreground: var(--text);
-  --card: #FFFFFF;
+  --card: #ffffff;
   --card-foreground: var(--text);
-  --popover: #FFFFFF;
+  --popover: #ffffff;
   --popover-foreground: var(--text);
   --primary-foreground: var(--primary-fg);
-  --secondary: #FFFFFF;
+  --secondary: #ffffff;
   --secondary-foreground: var(--text);
-  --muted: #F7F7F7;
+  --muted: #f7f7f7;
   --muted-foreground: var(--text-secondary);
   --accent: var(--primary-50);
   --accent-foreground: var(--primary-700);
   --destructive: var(--danger);
-  --destructive-foreground: #FFFFFF;
+  --destructive-foreground: #ffffff;
   --input: var(--border);
   --ring: var(--focus-ring);
 
@@ -315,19 +317,3 @@
   }
 }
 
-/* Relatório IA — identidade própria da Plataforma, independente do tema do Hub */
-.relatorio-ia {
-  --kr-ink: 0 0% 0%;
-  --kr-bg: 30 7% 95%;
-  --kr-mag: 337 95% 53%;
-  --kr-blue: 249 85% 36%;
-  --kr-green: 152 60% 32%;
-  --kr-muted: 0 0% 42%;
-  --kr-line: 30 5% 85%;
-  font-family: "Manrope", system-ui, sans-serif;
-  color: hsl(var(--kr-ink));
-  background: hsl(var(--kr-bg));
-}
-.relatorio-ia .kr-serif { font-family: "Instrument Serif", Georgia, serif; font-weight: 400; }
-.relatorio-ia .kr-num { font-variant-numeric: tabular-nums; }
-.relatorio-ia .bg-white { background-color: #ffffff; }

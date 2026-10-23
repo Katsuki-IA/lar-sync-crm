@@ -2,6 +2,7 @@ import "./lib/error-capture";
 
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
+import { candidateRuntimeReady } from "./lib/candidate-runtime";
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -39,6 +40,12 @@ async function normalizeCatastrophicSsrResponse(response: Response): Promise<Res
 
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
+    if (import.meta.env.HUB_PRODUCTION_CANDIDATE && !candidateRuntimeReady(process.env,
+      import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY)) {
+      return new Response('Candidato indisponível: configuração do servidor pendente.', {
+        status:503,headers:{'content-type':'text/plain; charset=utf-8','cache-control':'no-store'},
+      });
+    }
     try {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
@@ -52,3 +59,4 @@ export default {
     }
   },
 };
+

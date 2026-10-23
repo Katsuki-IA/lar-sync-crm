@@ -135,7 +135,7 @@ function AdminCrmDispatchPage() {
     setBlockedSendQueueId(configData.settings.cv_distribution_queue_blocked_send_id ?? "");
     setStageOverrides(
       Object.fromEntries(
-        (configData.stage_overrides ?? []).map((override) => [
+        (configData.stage_overrides ?? []).map((override: any) => [
           Number(override.id_empreendimento),
           {
             external_stage_blocked_send_id: override.external_stage_blocked_send_id ?? "",
@@ -241,8 +241,8 @@ function AdminCrmDispatchPage() {
       toast.success("Configuração de envio ao CRM salva");
       await qc.invalidateQueries({ queryKey: ["admin_crm_dispatch_settings", selectedCompanyId] });
     },
-    onError: (error: Error) => {
-      toast.error(error.message ?? "Falha ao salvar configuração");
+    onError: (error: any) => {
+      toast.error(error?.message ?? "Falha ao salvar configuração");
     },
   });
 
@@ -814,3 +814,4 @@ function AdminCrmDispatchPage() {
     </Card>
   );
 }
+

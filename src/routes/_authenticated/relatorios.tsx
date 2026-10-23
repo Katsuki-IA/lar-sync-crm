@@ -1,8 +1,7 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { NativeReportsBoundary } from "@/hml/native-reports-boundary";
+import { createFileRoute } from "@tanstack/react-router";
 import { type ReactNode, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { fallback, zodValidator } from "@tanstack/zod-adapter";
-import { z } from "zod";
 import { format, subDays, startOfYear } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ArrowDown, ArrowUp, CalendarIcon, Columns3, ListFilter, Rows3 } from "lucide-react";
@@ -33,8 +32,6 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { RelatorioIaPainel } from "@/components/relatorio-ia/relatorio-ia-painel";
 import {
   calculateJourneyFunnel,
   calculateJourneyFunnelLeadStages,
@@ -45,27 +42,8 @@ import { formatLeadOrigin } from "@/lib/lead-origin";
 import { getAttributionSource } from "@/lib/attribution-source";
 import { cn } from "@/lib/utils";
 
-const reportsSearchSchema = z.object({
-  aba: fallback(z.enum(["indicadores", "raio-x", "comportamento"]), "indicadores").default(
-    "indicadores",
-  ),
-  inicio: fallback(z.string(), "").default(""),
-  fim: fallback(z.string(), "").default(""),
-});
-
 export const Route = createFileRoute("/_authenticated/relatorios")({
-  validateSearch: zodValidator(reportsSearchSchema),
-  head: () => ({
-    meta: [
-      { title: "Relatórios | Hub Katsuki.IA" },
-      { name: "description", content: "Indicadores e relatórios de atendimento do CRM." },
-      { property: "og:title", content: "Relatórios | Hub Katsuki.IA" },
-      { property: "og:description", content: "Indicadores e relatórios de atendimento do CRM." },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
-    ],
-  }),
-  component: ReportsPage,
+  component: () => <NativeReportsBoundary><ReportsPage /></NativeReportsBoundary>,
 });
 
 type Range = { from: Date; to: Date };
@@ -128,11 +106,6 @@ function metadataEvent(metadata: unknown) {
 function ReportsPage() {
   const { data: me } = useCrmUser();
   const { activeEmpresaId } = useActiveEmpresa();
-  const navigate = useNavigate({ from: Route.fullPath });
-  const search = Route.useSearch();
-  const temRelatoriosIa =
-    me?.role === "manager" || me?.role === "super_admin" || me?.role === "analyst";
-  const aba = temRelatoriosIa ? search.aba : "indicadores";
 
   const [preset, setPreset] = useState<Preset>("30d");
   const [customFrom, setCustomFrom] = useState<Date | undefined>(subDays(new Date(), 29));
@@ -153,7 +126,6 @@ function ReportsPage() {
       range.to.toISOString(),
     ],
     queryFn: async () => {
-      const isAgent = me?.role === "agent";
       const empresaIds = activeEmpresaId ? [activeEmpresaId] : [];
       const fromIso = new Date(range.from.setHours(0, 0, 0, 0)).toISOString();
       const toIso = new Date(range.to.setHours(23, 59, 59, 999)).toISOString();
@@ -166,7 +138,6 @@ function ReportsPage() {
         .in("id_empresa", empresaIds)
         .gte("created_at", fromIso)
         .lte("created_at", toIso);
-      if (isAgent && me) lq = lq.eq("crm_assigned_to", me.id);
 
       const [
         { data: leads, error: leadsError },
@@ -369,7 +340,7 @@ function ReportsPage() {
     },
   });
 
-  const indicadores = (
+  return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
@@ -408,43 +379,6 @@ function ReportsPage() {
         </div>
       )}
     </div>
-  );
-
-  if (!temRelatoriosIa) return indicadores;
-
-  const atualizarBusca = (
-    proximaAba: "indicadores" | "raio-x" | "comportamento",
-    inicio = search.inicio,
-    fim = search.fim,
-  ) => {
-    navigate({ search: { aba: proximaAba, inicio, fim }, replace: true });
-  };
-
-  return (
-    <Tabs value={aba} onValueChange={(valor) => atualizarBusca(valor as typeof aba)}>
-      <TabsList className="mb-4 h-auto max-w-full justify-start overflow-x-auto">
-        <TabsTrigger value="indicadores">Indicadores do CRM</TabsTrigger>
-        <TabsTrigger value="raio-x">Raio-X do Atendimento</TabsTrigger>
-        <TabsTrigger value="comportamento">Comportamento do Lead</TabsTrigger>
-      </TabsList>
-      <TabsContent value="indicadores">{indicadores}</TabsContent>
-      <TabsContent value="raio-x">
-        <RelatorioIaPainel
-          tipo="raio-x"
-          inicioParam={search.inicio}
-          fimParam={search.fim}
-          onPeriodoChange={(inicio, fim) => atualizarBusca("raio-x", inicio, fim)}
-        />
-      </TabsContent>
-      <TabsContent value="comportamento">
-        <RelatorioIaPainel
-          tipo="comportamento"
-          inicioParam={search.inicio}
-          fimParam={search.fim}
-          onPeriodoChange={(inicio, fim) => atualizarBusca("comportamento", inicio, fim)}
-        />
-      </TabsContent>
-    </Tabs>
   );
 }
 
@@ -600,13 +534,7 @@ type AttributionRow = {
 };
 
 type AttributionColumn =
-  | "origem"
-  | "fonte"
-  | "campanha"
-  | "conjunto"
-  | "anuncio"
-  | "leads"
-  | keyof JourneyFunnelCounts;
+  "origem" | "fonte" | "campanha" | "conjunto" | "anuncio" | "leads" | keyof JourneyFunnelCounts;
 
 type AttributionSort = {
   column: AttributionColumn;
@@ -1471,3 +1399,4 @@ function EmpreendimentoPanel({ data }: { data: ReportData }) {
     </Card>
   );
 }
+

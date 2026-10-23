@@ -234,7 +234,7 @@ function LeadDetail() {
     queryKey: ["lead-meta", lead?.id_empresa, lead?.crm_stage_id],
     queryFn: async () => {
       const [stagesResult, tagsResult, empsResult, usersResult] = await Promise.all([
-        supabase.from("crm_stages").select("id, nome, cor, ativo, global_stage_id").eq("id_empresa", lead!.id_empresa).order("ordem"),
+        supabase.from("crm_stages").select("id, nome, cor, ativo, global_stage_id").eq("id_empresa", lead!.id_empresa).eq("module", "ia").order("ordem"),
         supabase.from("crm_tags").select("id, nome, cor").eq("id_empresa", lead!.id_empresa),
         supabase.from("empreendimento").select("id, nome").eq("id_empresa", lead!.id_empresa),
         supabase.rpc("crm_lead_assignee_options", { p_id_empresa: lead!.id_empresa }),
@@ -346,10 +346,27 @@ function LeadDetail() {
     onError: (error: Error) => toast.error(error.message),
   });
 
-  if (isLoading || !lead) return <p className="text-muted-foreground">Carregando…</p>;
+  if (isLoading) return <p className="text-muted-foreground">Carregando…</p>;
+
+  if (!lead)
+    return (
+      <div role="alert" className="space-y-3 max-w-5xl">
+        <h1 className="text-2xl font-semibold tracking-tight">Lead indisponível</h1>
+        <p className="text-sm text-muted-foreground">
+          Este lead não existe ou você não tem permissão para acessá-lo.
+        </p>
+        <Button asChild variant="outline" size="sm">
+          <Link to="/leads">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Voltar para leads
+          </Link>
+        </Button>
+      </div>
+    );
+
 
   const empNome = lead.id_empreendimento ? meta?.emps.find((e) => e.id === lead.id_empreendimento)?.nome : null;
-  const currentStage = meta?.stages.find((s) => s.id === lead.crm_stage_id || s.global_stage_id === lead.crm_stage_id);
+  const currentStage = (lead.crm_stage_id == null ? undefined : (meta?.stages.find((s) => s.id === lead.crm_stage_id) ?? meta?.stages.find((s) => s.global_stage_id === lead.crm_stage_id)));
   const stage = currentStage;
   const currentStageColor = stageColor(stage?.nome, stage?.cor);
   const userMap = new Map((meta?.users ?? []).map((u) => [u.id, u.nome]));
@@ -800,3 +817,4 @@ function labelTipo(t: string) {
     default: return t;
   }
 }
+

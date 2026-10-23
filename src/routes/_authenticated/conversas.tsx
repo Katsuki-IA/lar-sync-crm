@@ -1,3 +1,7 @@
+// Native Conversations activated only in HML; production route remains separate.
+import { nativeConversationApi, sendNativeConversationText, type NativeTextRequest } from '@/hml/native-conversation-api';
+import { parseConversationLead, selectNativeConversation } from '@/hml/conversation-selection';
+import { db, useCompanyModules } from '@/hml/modules';
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
@@ -39,7 +43,7 @@ import { ConversationAttachment, ConversationAttachmentComposer, getConversation
 
 export const Route = createFileRoute("/_authenticated/conversas")({
   validateSearch: (search: Record<string, unknown>) => ({
-    lead: typeof search.lead === "string" ? search.lead : undefined,
+    lead: search.lead == null ? undefined : (parseConversationLead(search.lead) ?? ""),
   }),
   component: ConversationsPage,
 });
@@ -189,7 +193,19 @@ function previewText(row: ConversationItem) {
   return preview;
 }
 
+const nativeApi = nativeConversationApi(db);
 function ConversationsPage() {
+  const {lead:requestedLead}=Route.useSearch();
+  const {activeEmpresaId}=useActiveEmpresa();
+  const {data:me}=useCrmUser();
+  const modules=useCompanyModules();
+  if(requestedLead==='')return <p role="alert">Identificação de lead inválida. Abra a conversa pela tela de Leads.</p>;
+  if(modules.isError)return <p role="alert">Não foi possível verificar os módulos da empresa.</p>;
+  if(!activeEmpresaId||!me||!modules.data)return <p role="status">Carregando conversas…</p>;
+  if(!modules.data.atendimento_ia||me.role==='analyst')return <p>Conversas indisponíveis para esta empresa ou perfil.</p>;
+  return <ConversationsWorkspace key={activeEmpresaId+':'+me.id} />;
+}
+function ConversationsWorkspace() {
   const { lead } = Route.useSearch();
   const { data: me } = useCrmUser();
   const { activeEmpresaId, isSuperAdmin } = useActiveEmpresa();
@@ -208,6 +224,8 @@ function ConversationsPage() {
 
   useEffect(() => { setMobileChatOpen(!!lead); }, [lead]);
   const [draft, setDraft] = useState("");
+  const pendingTextRequest=useRef<NativeTextRequest|null>(null);
+  const [uncertainLeads,setUncertainLeads]=useState<Set<number>>(()=>new Set());
 
   const projectsQuery = useQuery({
     enabled: !!me && !!activeEmpresaId,
@@ -225,7 +243,7 @@ function ConversationsPage() {
 
   const conversationsQuery = useQuery({
     enabled: !!me && !!activeEmpresaId,
-    queryKey: ["whatsapp-conversations", activeEmpresaId, deferredSearch, onlyHuman, projectId],
+    queryKey: ["whatsapp-conversations", activeEmpresaId, me?.id, deferredSearch, onlyHuman, projectId],
     refetchInterval: 5_000,
     queryFn: async (): Promise<ConversationItem[]> => {
       const { data, error } = await supabase.rpc("crm_whatsapp_list_conversations_v2", {
@@ -241,6 +259,12 @@ function ConversationsPage() {
     },
   });
 
+  const requestedContext=useQuery({
+    queryKey:['native-conversation-context',activeEmpresaId,me?.id,lead],
+    enabled:!!activeEmpresaId&&!!me&&!!lead,
+    refetchInterval:5000,
+    queryFn:()=>nativeApi.context(activeEmpresaId!,Number(lead)),
+  });
   const conversations = useMemo(() => conversationsQuery.data ?? [], [conversationsQuery.data]);
   const conversationLeadIds = useMemo(
     () => conversations.map((conversation) => conversation.lead_id),
@@ -248,7 +272,7 @@ function ConversationsPage() {
   );
   const windowsQuery = useQuery({
     enabled: !!activeEmpresaId && conversationLeadIds.length > 0,
-    queryKey: ["whatsapp-conversation-windows", activeEmpresaId, conversationLeadIds],
+    queryKey: ["whatsapp-conversation-windows", activeEmpresaId, me?.id, conversationLeadIds],
     refetchInterval: 30_000,
     queryFn: async (): Promise<ConversationWindow[]> => {
       const { data, error } = await supabase.rpc("crm_whatsapp_conversation_windows", {
@@ -267,23 +291,13 @@ function ConversationsPage() {
     setSelectedId(null);
   }, [activeEmpresaId]);
 
-  useEffect(() => {
-    if (!lead || !conversations.length) return;
-    const leadId = Number(lead);
-    if (!Number.isFinite(leadId)) return;
-
-    const conversation = conversations.find((item) => crmLeadId(item.id_crm) === leadId);
-    if (conversation) setSelectedId(conversation.lead_id);
-  }, [lead, conversations]);
-
-  const selectedConversation = useMemo(() => {
-    if (!conversations.length) return null;
-    return conversations.find((item) => item.lead_id === selectedId) ?? conversations[0];
-  }, [conversations, selectedId]);
+  useEffect(()=>setSelectedId(null),[lead]);
+  const selectedConversation = selectNativeConversation(conversations,selectedId,lead,
+    requestedContext.isError ? null : (requestedContext.data?.conversation as unknown as ConversationItem) ?? null);
 
   const messageQuery = useQuery({
     enabled: !!selectedConversation,
-    queryKey: ["whatsapp-conversation-messages", selectedConversation?.lead_id],
+    queryKey: ["whatsapp-conversation-messages", activeEmpresaId, me?.id, selectedConversation?.lead_id, lead, selectedId],
     staleTime: 0,
     refetchOnMount: "always",
     refetchInterval: 3_000,
@@ -318,6 +332,10 @@ function ConversationsPage() {
             error_message: message.error_message,
           }));
 
+      if(lead && selectedId===null){
+        const page=await nativeApi.messages(activeEmpresaId!,Number(lead),null,100);
+        return sortMessages(mapChatRows(page.items as WhatsappConversationMessageRow[]));
+      }
       const { data, error } = await supabase.rpc("crm_whatsapp_conversation_messages_v2", {
         p_lead_id: selectedConversation.lead_id,
         p_limit: 100,
@@ -337,6 +355,9 @@ function ConversationsPage() {
       enabled: boolean;
       force?: boolean;
     }) => {
+      if(lead && selectedId===null){
+        return nativeApi.attendance(activeEmpresaId!,Number(lead),enabled,force);
+      }
       const { data, error } = await supabase.rpc("crm_whatsapp_set_conversation_attendance", {
         p_lead_id: leadId,
         p_enabled: enabled,
@@ -346,6 +367,8 @@ function ConversationsPage() {
       return data?.[0] ?? null;
     },
     onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["native-conversation-context"] });
+      queryClient.invalidateQueries({ queryKey: ["leads", "directory"] });
       queryClient.invalidateQueries({ queryKey: ["whatsapp-conversations"] });
       queryClient.invalidateQueries({ queryKey: ["lead-activities"] });
       queryClient.invalidateQueries({ queryKey: ["leads-list"] });
@@ -367,32 +390,28 @@ function ConversationsPage() {
 
   const sendMessageMutation = useMutation({
     mutationFn: async ({ leadId, text }: { leadId: number; text: string }) => {
-      const { data, error } = await supabase.functions.invoke<SendMessageResult>(
-        "whatsapp-conversation-send",
-        {
-          body: {
-            leadId,
-            text,
-            clientMessageId: crypto.randomUUID(),
-          },
-        },
-      );
-      if (error) {
-        throw new Error(await functionError(error, "Falha ao enviar a mensagem pelo WhatsApp"));
-      }
-      if (!data?.ok) throw new Error("A Meta não confirmou o envio da mensagem");
-      return data;
+      if(!pendingTextRequest.current || pendingTextRequest.current.leadId!==leadId || pendingTextRequest.current.text!==text)
+        pendingTextRequest.current={leadId,text,clientMessageId:crypto.randomUUID()};
+      return sendNativeConversationText(supabase,pendingTextRequest.current);
     },
-    onSuccess: () => {
-      setDraft("");
+    onSuccess: (_data, variables) => {
+      if(pendingTextRequest.current?.leadId===variables.leadId && pendingTextRequest.current?.text===variables.text){
+        pendingTextRequest.current=null;
+        setDraft(current=>current.trim()===variables.text?'':current);
+      }
       queryClient.invalidateQueries({ queryKey: ["whatsapp-conversation-messages"] });
       queryClient.invalidateQueries({ queryKey: ["whatsapp-conversations"] });
       toast.success("Mensagem aceita pela Meta");
     },
-    onError: (error: Error) =>
-      toast.error("Não foi possível enviar a mensagem", { description: error.message }),
+    onError: (error: Error & {deliveryUncertain?:boolean}, variables) => {
+      if(error.deliveryUncertain)setUncertainLeads(current=>new Set([...current,variables.leadId]));
+      toast.error("Não foi possível confirmar o envio", {description:error.message});
+    },
   });
 
+  useEffect(()=>{
+    if(requestedContext.isError)toast.error('Não foi possível abrir este lead. Confira a empresa e o vínculo da conversa.');
+  },[requestedContext.isError]);
   const selectedLeadName = selectedConversation?.nome || "Conversa";
   const selectedLeadIdentity = selectedConversation
     ? selectedConversation.telefone ||
@@ -407,10 +426,11 @@ function ConversationsPage() {
   const assignedToOther = !!selectedConversation?.assigned_to && !assignedToMe;
   const canForceAssignment = me?.role === "manager" || me?.role === "super_admin";
   const selectedWindow = selectedConversation
-    ? windowsByLeadId.get(selectedConversation.lead_id)
+    ? (lead && selectedId===null ? requestedContext.data?.window : windowsByLeadId.get(selectedConversation.lead_id))
     : null;
   const canSendMessage =
     !!selectedConversation?.atendimento_humano &&
+    !uncertainLeads.has(selectedConversation.lead_id) &&
     assignedToMe &&
     selectedWindow?.window_open === true;
   const trimmedDraft = draft.trim();
@@ -815,6 +835,7 @@ function ConversationsPage() {
 
               <footer className="shrink-0 space-y-3 border-t bg-background px-3 py-3 sm:px-4">
                 <div className="flex items-center gap-2">
+                  {uncertainLeads.has(selectedConversation.lead_id)&&<p role="alert" className="text-sm text-destructive">O envio pode ter ocorrido. Não repita a mensagem; confira a entrega e o histórico antes de continuar.</p>}
                   <ConversationAttachmentComposer key={selectedConversation.lead_id} leadId={selectedConversation.lead_id} canSend={canSendMessage} onSent={()=>{
                     queryClient.invalidateQueries({queryKey:["whatsapp-conversation-messages"]});
                     queryClient.invalidateQueries({queryKey:["whatsapp-conversations"]});
@@ -931,3 +952,4 @@ function MessageContent({ text }: { text: string }) {
     </div>
   );
 }
+

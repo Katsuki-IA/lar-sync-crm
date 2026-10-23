@@ -1,3 +1,4 @@
+import { useCompanyModules } from "@/hml/modules";
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   LayoutDashboard,
@@ -33,6 +34,7 @@ export function AppSidebar({
 }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { data: me } = useCrmUser();
+  const { data: modules } = useCompanyModules();
 
   const mainItems: Item[] = [
     { title: "Dashboard", url: "/dashboard", match: "/dashboard", icon: LayoutDashboard },
@@ -40,7 +42,7 @@ export function AppSidebar({
       ? []
       : [
           { title: "Leads", url: "/leads", match: "/leads", icon: Users },
-          { title: "Conversas", url: "/conversas", match: "/conversas", icon: MessagesSquare },
+          ...(modules?.atendimento_ia ? [{ title: "Conversas", url: "/conversas", match: "/conversas", icon: MessagesSquare }] : []),
         ]),
     ...(me?.role === "manager" || me?.role === "super_admin" || me?.role === "analyst"
       ? [
@@ -50,12 +52,32 @@ export function AppSidebar({
             match: "/analise-conversas",
             icon: ChartNoAxesCombined,
           },
+          {
+            title: "Relatório de Leads",
+            url: "/relatorio-leads",
+            match: "/relatorio-leads",
+            icon: BarChart2,
+          },
         ]
       : []),
     { title: "Relatórios", url: "/relatorios", match: "/relatorios", icon: BarChart2 },
   ];
 
+  if (me?.role !== "analyst" && modules?.atendimento_ia) {
+    mainItems.push({title:"Atendimento IA",url:"/kanban",match:"/kanban",icon:MessagesSquare});
+  }
+  if (me?.role !== "analyst" && modules?.crm) {
+    mainItems.push(
+      {title:"CRM comercial",url:"/crm",match:"/crm",icon:Users},
+      {title:"Tarefas",url:"/tarefas",match:"/tarefas",icon:LayoutDashboard},
+      {title:me?.role === "agent" ? "Minhas ofertas" : "Filas de distribuição",url:"/filas",match:"/filas",icon:Users});
+  }
   const adminItems: Item[] = [];
+  if (me?.role === "super_admin") adminItems.push({title:"Empresas e módulos",url:"/modulos",match:"/modulos",icon:Shield});
+  if (me?.role === "super_admin" || me?.role === "manager") {
+    adminItems.push({title:"Empresa e empreendimentos",url:"/administracao",match:"/administracao",icon:Settings});
+    adminItems.push({title:"Configuração dos módulos",url:"/configuracoes",match:"/configuracoes",icon:Settings});
+  }
   if (me?.role === "manager" || me?.role === "super_admin") {
     adminItems.push({
       title: "Configurações",
@@ -64,11 +86,11 @@ export function AppSidebar({
       icon: Settings,
     });
   }
-  if (me?.role === "manager") {
+  if (me?.role === "manager" && modules?.atendimento_ia) {
     adminItems.push({
       title: "Integrações",
       url: "/configuracoes/integracoes",
-      match: "/configuracoes",
+      match: "/configuracoes/integracoes",
       icon: Plug,
     });
   }
@@ -97,10 +119,10 @@ export function AppSidebar({
         style={{ height: 72, borderColor: "var(--border)" }}
       >
         <img
-          src="/katsuki-ia-logo-branco.svg"
-          alt="Katsuki.IA"
+          src="/katsuki-hub-laranja.png"
+          alt="Katsuki HUB"
           className="object-contain"
-          style={{ height: 30, width: "auto", maxWidth: "100%" }}
+          style={{ width: 140, height: "auto", maxWidth: "100%" }}
         />
       </div>
 
@@ -168,7 +190,7 @@ function SidebarGroup({
       </div>
       <div className="space-y-1">
         {items.map((item) => {
-          const active = pathname.startsWith(item.match);
+          const active = item.url === "/configuracoes" ? pathname.replace(/\/+$/, "") === "/configuracoes" : pathname.startsWith(item.match);
           return (
             <Link
               key={item.url}
@@ -198,3 +220,4 @@ function SidebarGroup({
     </div>
   );
 }
+

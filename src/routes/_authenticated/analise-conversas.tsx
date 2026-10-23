@@ -1,3 +1,4 @@
+import { NativeReportsBoundary } from "@/hml/native-reports-boundary";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -31,7 +32,7 @@ import { sendJourneyFunnelReport } from "@/lib/journey-report.functions";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/analise-conversas")({
-  component: ConversationAnalysisPage,
+  component: () => <NativeReportsBoundary><ConversationAnalysisPage /></NativeReportsBoundary>,
 });
 
 function WhatsAppIcon({ className }: { className?: string }) {
@@ -578,3 +579,4 @@ function FunnelMetricRow({
     </div>
   );
 }
+
