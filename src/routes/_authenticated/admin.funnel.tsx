@@ -8,6 +8,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { FolderKanban, GripVertical, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { mutateGlobalDefinition } from "@/lib/definitions.functions";
 import { listEmpresas } from "@/lib/admin.functions";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -16,7 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-export const Route = createFileRoute("/_authenticated/admin/funnel")({ component: GlobalFunnelPage });
+export const Route = createFileRoute("/_authenticated/admin/funnel")({ head: () => ({ meta: [{ title: "Etapas do Atendimento IA | Katsuki HUB" }, { name: "description", content: "Administração das etapas globais do Atendimento IA." }, { property: "og:title", content: "Etapas do Atendimento IA | Katsuki HUB" }, { property: "og:description", content: "Administração das etapas globais do Atendimento IA." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }), component: GlobalFunnelPage });
 
 type GlobalStage = { id: number; nome: string; ordem: number; ativo: boolean };
 type Empresa = { id: number; nome: string | null; created_at?: string | null; total_usuarios?: number };
@@ -25,6 +26,7 @@ const db = supabase as any;
 
 function GlobalFunnelPage() {
   const qc = useQueryClient();
+  const mutateDefinition = useServerFn(mutateGlobalDefinition);
   const listEmpresasFn = useServerFn(listEmpresas);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
   const [ordered, setOrdered] = useState<GlobalStage[]>([]);
@@ -92,8 +94,7 @@ function GlobalFunnelPage() {
     mutationFn: async () => {
       const next = prompt("Nome do funil global", data?.funnel.nome ?? "Funil padrão")?.trim();
       if (!next || next === data?.funnel.nome) return false;
-      const { error } = await db.rpc("crm_global_funnel_rename", { p_nome: next });
-      if (error) throw error;
+      await mutateDefinition({ data: { operation: "crm_global_funnel_rename", name: next } });
       return true;
     },
     onSuccess: async (changed) => { if (changed) { toast.success("Funil atualizado em todas as empresas"); await refresh(); } },
@@ -104,10 +105,9 @@ function GlobalFunnelPage() {
     mutationFn: async () => {
       const trimmed = name.trim();
       if (!trimmed) throw new Error("Informe o nome da etapa");
-      const result = editing
-        ? await db.rpc("crm_global_stage_update", { p_id: editing.id, p_nome: trimmed })
-        : await db.rpc("crm_global_stage_create", { p_nome: trimmed });
-      if (result.error) throw result.error;
+      await mutateDefinition({ data: editing
+        ? { operation: "crm_global_stage_update", id: editing.id, name: trimmed }
+        : { operation: "crm_global_stage_create", name: trimmed } });
     },
     onSuccess: async () => {
       toast.success(editing ? "Etapa atualizada em todas as empresas" : "Etapa criada em todas as empresas");
@@ -121,8 +121,7 @@ function GlobalFunnelPage() {
 
   const deleteStage = useMutation({
     mutationFn: async (id: number) => {
-      const { error } = await db.rpc("crm_global_stage_delete", { p_id: id });
-      if (error) throw error;
+      await mutateDefinition({ data: { operation: "crm_global_stage_delete", id } });
     },
     onSuccess: async () => { toast.success("Etapa removida de todas as empresas"); await refresh(); },
     onError: (error: Error) => toast.error(error.message),
@@ -130,8 +129,7 @@ function GlobalFunnelPage() {
 
   const reorder = useMutation({
     mutationFn: async (stages: GlobalStage[]) => {
-      const { error } = await db.rpc("crm_global_stages_reorder", { p_ids: stages.map((stage) => stage.id) });
-      if (error) throw error;
+      await mutateDefinition({ data: { operation: "crm_global_stages_reorder", ids: stages.map((stage) => stage.id) } });
     },
     onSuccess: async () => { toast.success("Ordem atualizada em todas as empresas"); await refresh(); },
     onError: async (error: Error) => { setOrdered(data?.stages ?? []); toast.error(error.message); await refresh(); },

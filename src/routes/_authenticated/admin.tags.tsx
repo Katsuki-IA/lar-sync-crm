@@ -1,5 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import { mutateGlobalDefinition } from "@/lib/definitions.functions";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -11,13 +13,14 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export const Route = createFileRoute("/_authenticated/admin/tags")({ component: GlobalTagsPage });
+export const Route = createFileRoute("/_authenticated/admin/tags")({ head: () => ({ meta: [{ title: "Definições de tags | Katsuki HUB" }, { name: "description", content: "Administração das definições globais de tags." }, { property: "og:title", content: "Definições de tags | Katsuki HUB" }, { property: "og:description", content: "Administração das definições globais de tags." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }), component: GlobalTagsPage });
 
 type GlobalTag = { id: number; nome: string; cor: string };
 const db = supabase as any;
 
 function GlobalTagsPage() {
   const qc = useQueryClient();
+  const mutateDefinition = useServerFn(mutateGlobalDefinition);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<GlobalTag | null>(null);
   const [form, setForm] = useState({ nome: "", cor: "#C14F21" });
@@ -38,10 +41,9 @@ function GlobalTagsPage() {
 
   const save = useMutation({
     mutationFn: async () => {
-      const result = editing
-        ? await db.rpc("crm_global_tag_update", { p_id: editing.id, p_nome: form.nome.trim(), p_cor: form.cor })
-        : await db.rpc("crm_global_tag_create", { p_nome: form.nome.trim(), p_cor: form.cor });
-      if (result.error) throw result.error;
+      await mutateDefinition({ data: editing
+        ? { operation: "crm_global_tag_update", id: editing.id, name: form.nome.trim(), color: form.cor }
+        : { operation: "crm_global_tag_create", name: form.nome.trim(), color: form.cor } });
     },
     onSuccess: async () => {
       toast.success(editing ? "Tag atualizada em todas as empresas" : "Tag criada em todas as empresas");
@@ -55,8 +57,7 @@ function GlobalTagsPage() {
 
   const remove = useMutation({
     mutationFn: async (id: number) => {
-      const { error } = await db.rpc("crm_global_tag_delete", { p_id: id });
-      if (error) throw error;
+      await mutateDefinition({ data: { operation: "crm_global_tag_delete", id } });
     },
     onSuccess: async () => { toast.success("Tag removida de todas as empresas"); await refresh(); },
     onError: (error: Error) => toast.error(error.message),
