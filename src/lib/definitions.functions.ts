@@ -1,5 +1,6 @@
 import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { requireSupabaseAuth } from '@/integrations/supabase/auth-middleware';
 import { canManageDefinitions } from './definition-permissions';
 
@@ -25,9 +26,11 @@ export const saveCompanyDefinition = createServerFn({ method: 'POST' })
   }).strict().parse(input))
   .handler(async ({ data, context }) => {
     await authorize(context.supabase);
-    const { data: result, error } = await context.supabase.rpc('hub_save_configuration', {
+    // Generated types omit SQL nullability for create/revision arguments.
+    const client = context.supabase as unknown as SupabaseClient;
+    const { data: result, error } = await client.rpc('hub_save_configuration', {
       p_company_id: data.companyId, p_kind: data.kind, p_id: data.id,
-      p_revision: data.revision, p_data: data.values as never,
+      p_revision: data.revision, p_data: data.values,
     });
     if (error) throw new Error(error.message);
     return result;
