@@ -1,0 +1,259 @@
+/* HML presentation only. Reuses the existing Katsuki semantic tokens. */
+@layer base {
+  * {
+    scrollbar-color: var(--border-strong) transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--border-strong);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
+  }
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  summary,
+  select:not(:disabled),
+  input[type="checkbox"]:not(:disabled) {
+    cursor: pointer;
+  }
+  button:disabled,
+  select:disabled {
+    cursor: not-allowed;
+  }
+  input[type="checkbox"] {
+    accent-color: var(--primary);
+    width: 1rem;
+    height: 1rem;
+    flex-shrink: 0;
+  }
+  :where(a, button, summary, input[type="checkbox"]):focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 3px;
+  }
+}
+.hml-shell {
+  background: #faf9f7;
+}
+.hml-shell > div {
+  min-width: 0;
+}
+.hml-shell main {
+  padding: 28px 32px;
+}
+.hml-shell main > div {
+  margin-inline: auto;
+}
+.hml-shell h1 {
+  letter-spacing: -0.025em;
+  line-height: 1.25;
+}
+.hml-shell header {
+  box-shadow: none !important;
+}
+.hml-sidebar {
+  width: 240px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 18px 14px;
+  border-right: 1px solid var(--border);
+  background: var(--sidebar);
+  position: sticky;
+  top: 0;
+  height: 100dvh;
+}
+.hml-sidebar-mobile {
+  position: static;
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  border-right: 0;
+  padding-top: 52px;
+}
+.hml-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 52px;
+  flex-shrink: 0;
+  overflow: hidden;
+  border-radius: 6px;
+}
+.hml-brand img {
+  width: 208px;
+  height: auto;
+  max-width: 100%;
+}
+.hml-nav-caption {
+  margin: 26px 12px 12px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.hml-navigation {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.hml-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 11px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--sidebar-text);
+  transition:
+    background-color 150ms,
+    color 150ms;
+}
+.hml-nav-link:hover {
+  background: var(--muted);
+  color: var(--foreground);
+}
+.hml-nav-link[aria-current="page"] {
+  background: var(--sidebar-active-bg);
+  color: var(--sidebar-active-text);
+  font-weight: 600;
+}
+.hml-sidebar-footer {
+  margin-top: auto;
+  padding: 16px 10px 4px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 9px;
+  color: var(--text-muted);
+  font-size: 10px;
+  line-height: 1.7;
+}
+.hml-sidebar-footer strong {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.hml-environment {
+  padding: 7px 24px;
+  border-bottom: 1px solid var(--primary-subtle-border);
+  background: var(--primary-subtle);
+  color: var(--primary-700);
+  font-size: 11px;
+  line-height: 1.6;
+}
+.hml-section-nav {
+  display: flex;
+  gap: 20px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--border);
+}
+.hml-section-link {
+  padding: 12px 2px;
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  transition:
+    color 150ms,
+    border-color 150ms;
+}
+.hml-section-link:hover {
+  color: var(--primary);
+}
+.hml-section-link[aria-pressed="true"] {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+  font-weight: 600;
+}
+.hml-form-group {
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  padding: 0 0 24px;
+}
+.hml-form-group:last-of-type {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+.hml-form-group legend {
+  padding: 0 0 16px;
+  font-size: 14px;
+}
+.hml-form-group label {
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+.hml-form-group input,
+.hml-form-group textarea {
+  margin-top: 7px;
+  font-weight: 400;
+  color: var(--foreground);
+}
+.hml-form-actions {
+  border-top: 1px solid var(--border);
+  padding-top: 18px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.hml-form-group:disabled {
+  opacity: 0.8;
+}
+@media (max-width: 767px) {
+  .hml-shell {
+    flex-direction: column;
+  }
+  .hml-sidebar-desktop { display: none; }
+  .hml-brand {
+    width: 172px;
+    height: 42px;
+    justify-content: flex-start;
+  }
+  .hml-nav-caption,
+  .hml-sidebar-footer {
+    display: none;
+  }
+  .hml-navigation {
+    flex-direction: column;
+    gap: 4px;
+    overflow-x: auto;
+    padding: 5px 0 10px;
+  }
+  .hml-nav-link {
+    flex-shrink: 0;
+    gap: 7px;
+    padding: 9px 11px;
+    font-size: 12px;
+  }
+  .hml-nav-link svg {
+    width: 16px;
+    height: 16px;
+  }
+  .hml-shell main {
+    padding: 22px 16px;
+  }
+  .hml-shell > div > header {
+    height: auto;
+    min-height: 56px;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding-block: 10px;
+  }
+  .hml-environment {
+    padding-inline: 16px;
+  }
+  .hml-section-nav {
+    gap: 18px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation: none !important;
+    transition: none !important;
+  }
+}
+

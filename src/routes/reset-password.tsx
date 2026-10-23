@@ -1,5 +1,6 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useState, useEffect, useSyncExternalStore } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -8,13 +9,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getPasswordPolicyError, PASSWORD_MIN_LENGTH } from "@/lib/password-policy";
+import { getRecoveryUserId, isVerifiedPasswordRecovery, subscribePasswordRecovery } from "@/lib/password-recovery";
 
 export const Route = createFileRoute("/reset-password")({
   ssr: false,
-  beforeLoad: async () => {
-    const { data } = await supabase.auth.getUser();
-    if (data.user) throw redirect({ to: "/dashboard" });
-  },
+  head: () => ({ meta: [
+    { title: "Redefinir senha | Katsuki HUB — Homologação" },
+    { name: "description", content: "Recuperação segura da senha de acesso ao Katsuki HUB — Homologação." },
+    { property: "og:title", content: "Redefinir senha | Katsuki HUB — Homologação" },
+    { property: "og:description", content: "Recuperação segura da senha de acesso ao Katsuki HUB — Homologação." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+  ] }),
   component: ResetPasswordPage,
 });
 
@@ -22,16 +28,34 @@ function ResetPasswordPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [hashType, setHashType] = useState<string | null>(null);
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const recoveryUserId = useSyncExternalStore(subscribePasswordRecovery, getRecoveryUserId, () => null);
+  const [verifiedUserId, setVerifiedUserId] = useState<string | null>(null);
+  const [checking, setChecking] = useState(true);
+  const validRecovery = isVerifiedPasswordRecovery(recoveryUserId, verifiedUserId ?? undefined);
 
   useEffect(() => {
-    const hash = window.location.hash;
-    const params = new URLSearchParams(hash.replace("#", ""));
-    setHashType(params.get("type"));
-  }, []);
+    let active = true;
+    setChecking(true);
+    setVerifiedUserId(null);
+    // Defer Auth calls outside onAuthStateChange's lock. getUser also waits
+    // for the SDK to finish processing the recovery return.
+    const timer = setTimeout(() => {
+      void supabase.auth.getUser().then(({ data, error }) => {
+        if (!active) return;
+        if (isVerifiedPasswordRecovery(recoveryUserId, data.user?.id, error)) {
+          setVerifiedUserId(data.user?.id ?? null);
+        }
+        setChecking(false);
+      }).catch(() => { if (active) setChecking(false); });
+    }, 0);
+    return () => { active = false; clearTimeout(timer); };
+  }, [recoveryUserId]);
 
   async function handleReset(e: React.FormEvent) {
     e.preventDefault();
+    if (!validRecovery || loading) return;
     const policyError = getPasswordPolicyError(password);
     if (policyError) {
       toast.error(policyError);
@@ -43,20 +67,34 @@ function ResetPasswordPage() {
     }
 
     setLoading(true);
-    const { error } = await supabase.auth.updateUser({ password });
-    setLoading(false);
-
-    if (error) {
-      toast.error("Erro ao redefinir senha", { description: error.message });
-      return;
+    try {
+      const { data, error: sessionError } = await supabase.auth.getUser();
+      if (!isVerifiedPasswordRecovery(getRecoveryUserId(), data.user?.id, sessionError)) {
+        setVerifiedUserId(null);
+        toast.error("Link de recuperação inválido ou expirado. Solicite outro na tela de login.");
+        return;
+      }
+      const { error } = await supabase.auth.updateUser({ password });
+      if (error) throw error;
+      window.history.replaceState(window.history.state, "", window.location.pathname + window.location.search);
+      setVerifiedUserId(null);
+      await queryClient.cancelQueries();
+      queryClient.clear();
+      const { error: signOutError } = await supabase.auth.signOut();
+      if (signOutError) {
+        // Still remove local credentials if the remote revocation failed.
+        const { error: localError } = await supabase.auth.signOut({ scope: "local" });
+        if (localError) throw localError;
+      }
+      toast.success("Senha redefinida com sucesso!", { description: "Faça login com sua nova senha." });
+      await navigate({ to: "/auth", replace: true });
+    } catch (error) {
+      toast.error("Não foi possível concluir a redefinição", {
+        description: error instanceof Error ? error.message : "Tente novamente ou solicite outro link.",
+      });
+    } finally {
+      setLoading(false);
     }
-
-    toast.success("Senha redefinida com sucesso!", {
-      description: "Faça login com sua nova senha.",
-    });
-
-    // Limpar hash da URL
-    window.location.hash = "";
   }
 
   return (
@@ -65,13 +103,13 @@ function ResetPasswordPage() {
         <CardHeader className="text-center">
           <CardTitle className="text-2xl">Redefinir senha</CardTitle>
           <CardDescription>
-            {hashType === "recovery"
+            {checking ? "Validando link de recuperação..." : validRecovery
               ? "Digite sua nova senha abaixo"
               : "Link de recuperação inválido ou expirado"}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {hashType === "recovery" ? (
+          {checking ? <p role="status" className="text-center text-sm text-muted-foreground">Validando sessão...</p> : validRecovery ? (
             <form onSubmit={handleReset} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="password">Nova senha</Label>
@@ -112,7 +150,7 @@ function ResetPasswordPage() {
               <Button
                 variant="outline"
                 className="w-full rounded-xl"
-                onClick={() => (window.location.href = "/auth")}
+                onClick={() => navigate({ to: "/auth", replace: true })}
               >
                 Voltar para o login
               </Button>
@@ -123,3 +161,4 @@ function ResetPasswordPage() {
     </div>
   );
 }
+

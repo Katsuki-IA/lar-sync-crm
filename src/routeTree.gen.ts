@@ -9,77 +9,69 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as TermosDeUsoRouteImport } from './routes/termos-de-uso'
-import { Route as SetupRouteImport } from './routes/setup'
-import { Route as ResetPasswordRouteImport } from './routes/reset-password'
-import { Route as PoliticaDePrivacidadeRouteImport } from './routes/politica-de-privacidade'
-import { Route as IntegracoesRouteImport } from './routes/integracoes'
-import { Route as AuthRouteImport } from './routes/auth'
-import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as PrivacidadeExclusaoDeDadosRouteImport } from './routes/privacidade.exclusao-de-dados'
-import { Route as IntegracoesRdRouteImport } from './routes/integracoes_.rd'
-import { Route as HistoricoLeadIdRouteImport } from './routes/historico.$leadId'
-import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
-import { Route as AuthenticatedRelatoriosRouteImport } from './routes/_authenticated/relatorios'
-import { Route as AuthenticatedRelatorioIaRouteImport } from './routes/_authenticated/relatorio-ia'
-import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
-import { Route as AuthenticatedKanbanRouteImport } from './routes/_authenticated/kanban'
-import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
-import { Route as AuthenticatedConversasRouteImport } from './routes/_authenticated/conversas'
-import { Route as AuthenticatedAnaliseConversasRouteImport } from './routes/_authenticated/analise-conversas'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as DefinirSenhaRouteImport } from './routes/definir-senha'
+import { Route as IntegracoesRouteImport } from './routes/integracoes'
+import { Route as PoliticaDePrivacidadeRouteImport } from './routes/politica-de-privacidade'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as SetupRouteImport } from './routes/setup'
+import { Route as TermosDeUsoRouteImport } from './routes/termos-de-uso'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
-import { Route as AuthenticatedSettingsIndexRouteImport } from './routes/_authenticated/settings.index'
-import { Route as AuthenticatedLeadsIndexRouteImport } from './routes/_authenticated/leads.index'
+import { Route as AuthenticatedAdministracaoRouteImport } from './routes/_authenticated/administracao'
+import { Route as AuthenticatedAnaliseConversasRouteImport } from './routes/_authenticated/analise-conversas'
+import { Route as AuthenticatedConfiguracoesRouteImport } from './routes/_authenticated/configuracoes'
+import { Route as AuthenticatedConversasRouteImport } from './routes/_authenticated/conversas'
+import { Route as AuthenticatedCrmRouteImport } from './routes/_authenticated/crm'
+import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedFilasRouteImport } from './routes/_authenticated/filas'
+import { Route as AuthenticatedKanbanRouteImport } from './routes/_authenticated/kanban'
+import { Route as AuthenticatedModulosRouteImport } from './routes/_authenticated/modulos'
+import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
+import { Route as AuthenticatedRelatorioIaRouteImport } from './routes/_authenticated/relatorio-ia'
+import { Route as AuthenticatedRelatorioLeadsRouteImport } from './routes/_authenticated/relatorio-leads'
+import { Route as AuthenticatedRelatoriosRouteImport } from './routes/_authenticated/relatorios'
+import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
+import { Route as AuthenticatedTarefasRouteImport } from './routes/_authenticated/tarefas'
+import { Route as HistoricoLeadIdRouteImport } from './routes/historico.$leadId'
+import { Route as IntegracoesRdRouteImport } from './routes/integracoes_.rd'
+import { Route as PrivacidadeExclusaoDeDadosRouteImport } from './routes/privacidade.exclusao-de-dados'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
-import { Route as ApiPublicPulseFunilIaRouteImport } from './routes/api/public/pulse-funil-ia'
-import { Route as ApiPublicGloriaLeadsRouteImport } from './routes/api/public/gloria-leads'
-import { Route as ApiMcpAnalystRouteImport } from './routes/api/mcp/analyst'
-import { Route as ApiIntegrationsLeadsRouteImport } from './routes/api/integrations/leads'
-import { Route as AuthenticatedSettingsUsersRouteImport } from './routes/_authenticated/settings.users'
-import { Route as AuthenticatedSettingsTagsRouteImport } from './routes/_authenticated/settings.tags'
-import { Route as AuthenticatedSettingsStagesRouteImport } from './routes/_authenticated/settings.stages'
-import { Route as AuthenticatedSettingsHubRouteImport } from './routes/_authenticated/settings.hub'
-import { Route as AuthenticatedSettingsEmpreendimentosRouteImport } from './routes/_authenticated/settings.empreendimentos'
-import { Route as AuthenticatedSettingsCustomFieldsRouteImport } from './routes/_authenticated/settings.custom-fields'
-import { Route as AuthenticatedLeadsNewRouteImport } from './routes/_authenticated/leads.new'
-import { Route as AuthenticatedLeadsImportarRouteImport } from './routes/_authenticated/leads.importar'
-import { Route as AuthenticatedLeadsIdRouteImport } from './routes/_authenticated/leads.$id'
-import { Route as AuthenticatedConfiguracoesIntegracoesRouteImport } from './routes/_authenticated/configuracoes.integracoes'
-import { Route as AuthenticatedAdminUsersRouteImport } from './routes/_authenticated/admin.users'
-import { Route as AuthenticatedAdminTagsRouteImport } from './routes/_authenticated/admin.tags'
-import { Route as AuthenticatedAdminSiteFormsRouteImport } from './routes/_authenticated/admin.site-forms'
-import { Route as AuthenticatedAdminReportingApiRouteImport } from './routes/_authenticated/admin.reporting-api'
-import { Route as AuthenticatedAdminPaginasLegaisRouteImport } from './routes/_authenticated/admin.paginas-legais'
-import { Route as AuthenticatedAdminNotificationsRouteImport } from './routes/_authenticated/admin.notifications'
-import { Route as AuthenticatedAdminFunnelRouteImport } from './routes/_authenticated/admin.funnel'
-import { Route as AuthenticatedAdminEmpresasRouteImport } from './routes/_authenticated/admin.empresas'
-import { Route as AuthenticatedAdminCustomFieldsRouteImport } from './routes/_authenticated/admin.custom-fields'
 import { Route as AuthenticatedAdminCrmDispatchRouteImport } from './routes/_authenticated/admin.crm-dispatch'
+import { Route as AuthenticatedAdminCustomFieldsRouteImport } from './routes/_authenticated/admin.custom-fields'
+import { Route as AuthenticatedAdminEmpresasRouteImport } from './routes/_authenticated/admin.empresas'
+import { Route as AuthenticatedAdminFunnelRouteImport } from './routes/_authenticated/admin.funnel'
+import { Route as AuthenticatedAdminNotificationsRouteImport } from './routes/_authenticated/admin.notifications'
+import { Route as AuthenticatedAdminPaginasLegaisRouteImport } from './routes/_authenticated/admin.paginas-legais'
+import { Route as AuthenticatedAdminReportingApiRouteImport } from './routes/_authenticated/admin.reporting-api'
+import { Route as AuthenticatedAdminSiteFormsRouteImport } from './routes/_authenticated/admin.site-forms'
+import { Route as AuthenticatedAdminTagsRouteImport } from './routes/_authenticated/admin.tags'
+import { Route as AuthenticatedAdminUsersRouteImport } from './routes/_authenticated/admin.users'
+import { Route as AuthenticatedConfiguracoesIntegracoesRouteImport } from './routes/_authenticated/configuracoes.integracoes'
+import { Route as AuthenticatedLeadsIndexRouteImport } from './routes/_authenticated/leads.index'
+import { Route as AuthenticatedLeadsIdRouteImport } from './routes/_authenticated/leads.$id'
+import { Route as AuthenticatedLeadsImportarRouteImport } from './routes/_authenticated/leads.importar'
+import { Route as AuthenticatedLeadsNewRouteImport } from './routes/_authenticated/leads.new'
+import { Route as AuthenticatedSettingsIndexRouteImport } from './routes/_authenticated/settings.index'
+import { Route as AuthenticatedSettingsCustomFieldsRouteImport } from './routes/_authenticated/settings.custom-fields'
+import { Route as AuthenticatedSettingsEmpreendimentosRouteImport } from './routes/_authenticated/settings.empreendimentos'
+import { Route as AuthenticatedSettingsHubRouteImport } from './routes/_authenticated/settings.hub'
+import { Route as AuthenticatedSettingsStagesRouteImport } from './routes/_authenticated/settings.stages'
+import { Route as AuthenticatedSettingsTagsRouteImport } from './routes/_authenticated/settings.tags'
+import { Route as AuthenticatedSettingsUsersRouteImport } from './routes/_authenticated/settings.users'
+import { Route as ApiIntegrationsLeadsRouteImport } from './routes/api/integrations/leads'
+import { Route as ApiMcpAnalystRouteImport } from './routes/api/mcp/analyst'
+import { Route as ApiPublicGloriaLeadsRouteImport } from './routes/api/public/gloria-leads'
+import { Route as ApiPublicPulseFunilIaRouteImport } from './routes/api/public/pulse-funil-ia'
 
-const TermosDeUsoRoute = TermosDeUsoRouteImport.update({
-  id: '/termos-de-uso',
-  path: '/termos-de-uso',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SetupRoute = SetupRouteImport.update({
-  id: '/setup',
-  path: '/setup',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ResetPasswordRoute = ResetPasswordRouteImport.update({
-  id: '/reset-password',
-  path: '/reset-password',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PoliticaDePrivacidadeRoute = PoliticaDePrivacidadeRouteImport.update({
-  id: '/politica-de-privacidade',
-  path: '/politica-de-privacidade',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const IntegracoesRoute = IntegracoesRouteImport.update({
-  id: '/integracoes',
-  path: '/integracoes',
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -87,39 +79,92 @@ const AuthRoute = AuthRouteImport.update({
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
-  id: '/_authenticated',
+const DefinirSenhaRoute = DefinirSenhaRouteImport.update({
+  id: '/definir-senha',
+  path: '/definir-senha',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const IntegracoesRoute = IntegracoesRouteImport.update({
+  id: '/integracoes',
+  path: '/integracoes',
   getParentRoute: () => rootRouteImport,
 } as any)
-const PrivacidadeExclusaoDeDadosRoute =
-  PrivacidadeExclusaoDeDadosRouteImport.update({
-    id: '/privacidade/exclusao-de-dados',
-    path: '/privacidade/exclusao-de-dados',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const IntegracoesRdRoute = IntegracoesRdRouteImport.update({
-  id: '/integracoes_/rd',
-  path: '/integracoes/rd',
+const PoliticaDePrivacidadeRoute = PoliticaDePrivacidadeRouteImport.update({
+  id: '/politica-de-privacidade',
+  path: '/politica-de-privacidade',
   getParentRoute: () => rootRouteImport,
 } as any)
-const HistoricoLeadIdRoute = HistoricoLeadIdRouteImport.update({
-  id: '/historico/$leadId',
-  path: '/historico/$leadId',
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
+const SetupRoute = SetupRouteImport.update({
+  id: '/setup',
+  path: '/setup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TermosDeUsoRoute = TermosDeUsoRouteImport.update({
+  id: '/termos-de-uso',
+  path: '/termos-de-uso',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedRelatoriosRoute = AuthenticatedRelatoriosRouteImport.update({
-  id: '/relatorios',
-  path: '/relatorios',
+const AuthenticatedAdministracaoRoute =
+  AuthenticatedAdministracaoRouteImport.update({
+    id: '/administracao',
+    path: '/administracao',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAnaliseConversasRoute =
+  AuthenticatedAnaliseConversasRouteImport.update({
+    id: '/analise-conversas',
+    path: '/analise-conversas',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedConfiguracoesRoute =
+  AuthenticatedConfiguracoesRouteImport.update({
+    id: '/configuracoes',
+    path: '/configuracoes',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedConversasRoute = AuthenticatedConversasRouteImport.update({
+  id: '/conversas',
+  path: '/conversas',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedCrmRoute = AuthenticatedCrmRouteImport.update({
+  id: '/crm',
+  path: '/crm',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedFilasRoute = AuthenticatedFilasRouteImport.update({
+  id: '/filas',
+  path: '/filas',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedKanbanRoute = AuthenticatedKanbanRouteImport.update({
+  id: '/kanban',
+  path: '/kanban',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedModulosRoute = AuthenticatedModulosRouteImport.update({
+  id: '/modulos',
+  path: '/modulos',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedProfileRoute = AuthenticatedProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedRelatorioIaRoute =
@@ -128,175 +173,52 @@ const AuthenticatedRelatorioIaRoute =
     path: '/relatorio-ia',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const AuthenticatedProfileRoute = AuthenticatedProfileRouteImport.update({
-  id: '/profile',
-  path: '/profile',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
-const AuthenticatedKanbanRoute = AuthenticatedKanbanRouteImport.update({
-  id: '/kanban',
-  path: '/kanban',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
-const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
-const AuthenticatedConversasRoute = AuthenticatedConversasRouteImport.update({
-  id: '/conversas',
-  path: '/conversas',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
-const AuthenticatedAnaliseConversasRoute =
-  AuthenticatedAnaliseConversasRouteImport.update({
-    id: '/analise-conversas',
-    path: '/analise-conversas',
+const AuthenticatedRelatorioLeadsRoute =
+  AuthenticatedRelatorioLeadsRouteImport.update({
+    id: '/relatorio-leads',
+    path: '/relatorio-leads',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
-  id: '/admin',
-  path: '/admin',
+const AuthenticatedRelatoriosRoute = AuthenticatedRelatoriosRouteImport.update({
+  id: '/relatorios',
+  path: '/relatorios',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedSettingsIndexRoute =
-  AuthenticatedSettingsIndexRouteImport.update({
-    id: '/',
-    path: '/',
-    getParentRoute: () => AuthenticatedSettingsRoute,
+const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedTarefasRoute = AuthenticatedTarefasRouteImport.update({
+  id: '/tarefas',
+  path: '/tarefas',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const HistoricoLeadIdRoute = HistoricoLeadIdRouteImport.update({
+  id: '/historico/$leadId',
+  path: '/historico/$leadId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IntegracoesRdRoute = IntegracoesRdRouteImport.update({
+  id: '/integracoes_/rd',
+  path: '/integracoes/rd',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacidadeExclusaoDeDadosRoute =
+  PrivacidadeExclusaoDeDadosRouteImport.update({
+    id: '/privacidade/exclusao-de-dados',
+    path: '/privacidade/exclusao-de-dados',
+    getParentRoute: () => rootRouteImport,
   } as any)
-const AuthenticatedLeadsIndexRoute = AuthenticatedLeadsIndexRouteImport.update({
-  id: '/leads/',
-  path: '/leads/',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
 const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AuthenticatedAdminRoute,
 } as any)
-const ApiPublicPulseFunilIaRoute = ApiPublicPulseFunilIaRouteImport.update({
-  id: '/api/public/pulse-funil-ia',
-  path: '/api/public/pulse-funil-ia',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiPublicGloriaLeadsRoute = ApiPublicGloriaLeadsRouteImport.update({
-  id: '/api/public/gloria-leads',
-  path: '/api/public/gloria-leads',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiMcpAnalystRoute = ApiMcpAnalystRouteImport.update({
-  id: '/api/mcp/analyst',
-  path: '/api/mcp/analyst',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiIntegrationsLeadsRoute = ApiIntegrationsLeadsRouteImport.update({
-  id: '/api/integrations/leads',
-  path: '/api/integrations/leads',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuthenticatedSettingsUsersRoute =
-  AuthenticatedSettingsUsersRouteImport.update({
-    id: '/users',
-    path: '/users',
-    getParentRoute: () => AuthenticatedSettingsRoute,
-  } as any)
-const AuthenticatedSettingsTagsRoute =
-  AuthenticatedSettingsTagsRouteImport.update({
-    id: '/tags',
-    path: '/tags',
-    getParentRoute: () => AuthenticatedSettingsRoute,
-  } as any)
-const AuthenticatedSettingsStagesRoute =
-  AuthenticatedSettingsStagesRouteImport.update({
-    id: '/stages',
-    path: '/stages',
-    getParentRoute: () => AuthenticatedSettingsRoute,
-  } as any)
-const AuthenticatedSettingsHubRoute =
-  AuthenticatedSettingsHubRouteImport.update({
-    id: '/hub',
-    path: '/hub',
-    getParentRoute: () => AuthenticatedSettingsRoute,
-  } as any)
-const AuthenticatedSettingsEmpreendimentosRoute =
-  AuthenticatedSettingsEmpreendimentosRouteImport.update({
-    id: '/empreendimentos',
-    path: '/empreendimentos',
-    getParentRoute: () => AuthenticatedSettingsRoute,
-  } as any)
-const AuthenticatedSettingsCustomFieldsRoute =
-  AuthenticatedSettingsCustomFieldsRouteImport.update({
-    id: '/custom-fields',
-    path: '/custom-fields',
-    getParentRoute: () => AuthenticatedSettingsRoute,
-  } as any)
-const AuthenticatedLeadsNewRoute = AuthenticatedLeadsNewRouteImport.update({
-  id: '/leads/new',
-  path: '/leads/new',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
-const AuthenticatedLeadsImportarRoute =
-  AuthenticatedLeadsImportarRouteImport.update({
-    id: '/leads/importar',
-    path: '/leads/importar',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedLeadsIdRoute = AuthenticatedLeadsIdRouteImport.update({
-  id: '/leads/$id',
-  path: '/leads/$id',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
-const AuthenticatedConfiguracoesIntegracoesRoute =
-  AuthenticatedConfiguracoesIntegracoesRouteImport.update({
-    id: '/configuracoes/integracoes',
-    path: '/configuracoes/integracoes',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedAdminUsersRoute = AuthenticatedAdminUsersRouteImport.update({
-  id: '/users',
-  path: '/users',
-  getParentRoute: () => AuthenticatedAdminRoute,
-} as any)
-const AuthenticatedAdminTagsRoute = AuthenticatedAdminTagsRouteImport.update({
-  id: '/tags',
-  path: '/tags',
-  getParentRoute: () => AuthenticatedAdminRoute,
-} as any)
-const AuthenticatedAdminSiteFormsRoute =
-  AuthenticatedAdminSiteFormsRouteImport.update({
-    id: '/site-forms',
-    path: '/site-forms',
-    getParentRoute: () => AuthenticatedAdminRoute,
-  } as any)
-const AuthenticatedAdminReportingApiRoute =
-  AuthenticatedAdminReportingApiRouteImport.update({
-    id: '/reporting-api',
-    path: '/reporting-api',
-    getParentRoute: () => AuthenticatedAdminRoute,
-  } as any)
-const AuthenticatedAdminPaginasLegaisRoute =
-  AuthenticatedAdminPaginasLegaisRouteImport.update({
-    id: '/paginas-legais',
-    path: '/paginas-legais',
-    getParentRoute: () => AuthenticatedAdminRoute,
-  } as any)
-const AuthenticatedAdminNotificationsRoute =
-  AuthenticatedAdminNotificationsRouteImport.update({
-    id: '/notifications',
-    path: '/notifications',
-    getParentRoute: () => AuthenticatedAdminRoute,
-  } as any)
-const AuthenticatedAdminFunnelRoute =
-  AuthenticatedAdminFunnelRouteImport.update({
-    id: '/funnel',
-    path: '/funnel',
-    getParentRoute: () => AuthenticatedAdminRoute,
-  } as any)
-const AuthenticatedAdminEmpresasRoute =
-  AuthenticatedAdminEmpresasRouteImport.update({
-    id: '/empresas',
-    path: '/empresas',
+const AuthenticatedAdminCrmDispatchRoute =
+  AuthenticatedAdminCrmDispatchRouteImport.update({
+    id: '/crm-dispatch',
+    path: '/crm-dispatch',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
 const AuthenticatedAdminCustomFieldsRoute =
@@ -305,30 +227,167 @@ const AuthenticatedAdminCustomFieldsRoute =
     path: '/custom-fields',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
-const AuthenticatedAdminCrmDispatchRoute =
-  AuthenticatedAdminCrmDispatchRouteImport.update({
-    id: '/crm-dispatch',
-    path: '/crm-dispatch',
+const AuthenticatedAdminEmpresasRoute =
+  AuthenticatedAdminEmpresasRouteImport.update({
+    id: '/empresas',
+    path: '/empresas',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminFunnelRoute =
+  AuthenticatedAdminFunnelRouteImport.update({
+    id: '/funnel',
+    path: '/funnel',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminNotificationsRoute =
+  AuthenticatedAdminNotificationsRouteImport.update({
+    id: '/notifications',
+    path: '/notifications',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminPaginasLegaisRoute =
+  AuthenticatedAdminPaginasLegaisRouteImport.update({
+    id: '/paginas-legais',
+    path: '/paginas-legais',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminReportingApiRoute =
+  AuthenticatedAdminReportingApiRouteImport.update({
+    id: '/reporting-api',
+    path: '/reporting-api',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminSiteFormsRoute =
+  AuthenticatedAdminSiteFormsRouteImport.update({
+    id: '/site-forms',
+    path: '/site-forms',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminTagsRoute = AuthenticatedAdminTagsRouteImport.update({
+  id: '/tags',
+  path: '/tags',
+  getParentRoute: () => AuthenticatedAdminRoute,
+} as any)
+const AuthenticatedAdminUsersRoute = AuthenticatedAdminUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => AuthenticatedAdminRoute,
+} as any)
+const AuthenticatedConfiguracoesIntegracoesRoute =
+  AuthenticatedConfiguracoesIntegracoesRouteImport.update({
+    id: '/integracoes',
+    path: '/integracoes',
+    getParentRoute: () => AuthenticatedConfiguracoesRoute,
+  } as any)
+const AuthenticatedLeadsIndexRoute = AuthenticatedLeadsIndexRouteImport.update({
+  id: '/leads/',
+  path: '/leads/',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedLeadsIdRoute = AuthenticatedLeadsIdRouteImport.update({
+  id: '/leads/$id',
+  path: '/leads/$id',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedLeadsImportarRoute =
+  AuthenticatedLeadsImportarRouteImport.update({
+    id: '/leads/importar',
+    path: '/leads/importar',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedLeadsNewRoute = AuthenticatedLeadsNewRouteImport.update({
+  id: '/leads/new',
+  path: '/leads/new',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedSettingsIndexRoute =
+  AuthenticatedSettingsIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
+const AuthenticatedSettingsCustomFieldsRoute =
+  AuthenticatedSettingsCustomFieldsRouteImport.update({
+    id: '/custom-fields',
+    path: '/custom-fields',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
+const AuthenticatedSettingsEmpreendimentosRoute =
+  AuthenticatedSettingsEmpreendimentosRouteImport.update({
+    id: '/empreendimentos',
+    path: '/empreendimentos',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
+const AuthenticatedSettingsHubRoute =
+  AuthenticatedSettingsHubRouteImport.update({
+    id: '/hub',
+    path: '/hub',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
+const AuthenticatedSettingsStagesRoute =
+  AuthenticatedSettingsStagesRouteImport.update({
+    id: '/stages',
+    path: '/stages',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
+const AuthenticatedSettingsTagsRoute =
+  AuthenticatedSettingsTagsRouteImport.update({
+    id: '/tags',
+    path: '/tags',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
+const AuthenticatedSettingsUsersRoute =
+  AuthenticatedSettingsUsersRouteImport.update({
+    id: '/users',
+    path: '/users',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
+const ApiIntegrationsLeadsRoute = ApiIntegrationsLeadsRouteImport.update({
+  id: '/api/integrations/leads',
+  path: '/api/integrations/leads',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMcpAnalystRoute = ApiMcpAnalystRouteImport.update({
+  id: '/api/mcp/analyst',
+  path: '/api/mcp/analyst',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicGloriaLeadsRoute = ApiPublicGloriaLeadsRouteImport.update({
+  id: '/api/public/gloria-leads',
+  path: '/api/public/gloria-leads',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicPulseFunilIaRoute = ApiPublicPulseFunilIaRouteImport.update({
+  id: '/api/public/pulse-funil-ia',
+  path: '/api/public/pulse-funil-ia',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/definir-senha': typeof DefinirSenhaRoute
   '/integracoes': typeof IntegracoesRoute
   '/politica-de-privacidade': typeof PoliticaDePrivacidadeRoute
   '/reset-password': typeof ResetPasswordRoute
   '/setup': typeof SetupRoute
   '/termos-de-uso': typeof TermosDeUsoRoute
   '/admin': typeof AuthenticatedAdminRouteWithChildren
+  '/administracao': typeof AuthenticatedAdministracaoRoute
   '/analise-conversas': typeof AuthenticatedAnaliseConversasRoute
+  '/configuracoes': typeof AuthenticatedConfiguracoesRouteWithChildren
   '/conversas': typeof AuthenticatedConversasRoute
+  '/crm': typeof AuthenticatedCrmRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/filas': typeof AuthenticatedFilasRoute
   '/kanban': typeof AuthenticatedKanbanRoute
+  '/modulos': typeof AuthenticatedModulosRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/relatorio-ia': typeof AuthenticatedRelatorioIaRoute
+  '/relatorio-leads': typeof AuthenticatedRelatorioLeadsRoute
   '/relatorios': typeof AuthenticatedRelatoriosRoute
   '/settings': typeof AuthenticatedSettingsRouteWithChildren
+  '/tarefas': typeof AuthenticatedTarefasRoute
   '/historico/$leadId': typeof HistoricoLeadIdRoute
   '/integracoes/rd': typeof IntegracoesRdRoute
   '/privacidade/exclusao-de-dados': typeof PrivacidadeExclusaoDeDadosRoute
@@ -363,18 +422,26 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/definir-senha': typeof DefinirSenhaRoute
   '/integracoes': typeof IntegracoesRoute
   '/politica-de-privacidade': typeof PoliticaDePrivacidadeRoute
   '/reset-password': typeof ResetPasswordRoute
   '/setup': typeof SetupRoute
   '/termos-de-uso': typeof TermosDeUsoRoute
+  '/administracao': typeof AuthenticatedAdministracaoRoute
   '/analise-conversas': typeof AuthenticatedAnaliseConversasRoute
+  '/configuracoes': typeof AuthenticatedConfiguracoesRouteWithChildren
   '/conversas': typeof AuthenticatedConversasRoute
+  '/crm': typeof AuthenticatedCrmRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/filas': typeof AuthenticatedFilasRoute
   '/kanban': typeof AuthenticatedKanbanRoute
+  '/modulos': typeof AuthenticatedModulosRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/relatorio-ia': typeof AuthenticatedRelatorioIaRoute
+  '/relatorio-leads': typeof AuthenticatedRelatorioLeadsRoute
   '/relatorios': typeof AuthenticatedRelatoriosRoute
+  '/tarefas': typeof AuthenticatedTarefasRoute
   '/historico/$leadId': typeof HistoricoLeadIdRoute
   '/integracoes/rd': typeof IntegracoesRdRoute
   '/privacidade/exclusao-de-dados': typeof PrivacidadeExclusaoDeDadosRoute
@@ -411,20 +478,28 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/definir-senha': typeof DefinirSenhaRoute
   '/integracoes': typeof IntegracoesRoute
   '/politica-de-privacidade': typeof PoliticaDePrivacidadeRoute
   '/reset-password': typeof ResetPasswordRoute
   '/setup': typeof SetupRoute
   '/termos-de-uso': typeof TermosDeUsoRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
+  '/_authenticated/administracao': typeof AuthenticatedAdministracaoRoute
   '/_authenticated/analise-conversas': typeof AuthenticatedAnaliseConversasRoute
+  '/_authenticated/configuracoes': typeof AuthenticatedConfiguracoesRouteWithChildren
   '/_authenticated/conversas': typeof AuthenticatedConversasRoute
+  '/_authenticated/crm': typeof AuthenticatedCrmRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/filas': typeof AuthenticatedFilasRoute
   '/_authenticated/kanban': typeof AuthenticatedKanbanRoute
+  '/_authenticated/modulos': typeof AuthenticatedModulosRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/_authenticated/relatorio-ia': typeof AuthenticatedRelatorioIaRoute
+  '/_authenticated/relatorio-leads': typeof AuthenticatedRelatorioLeadsRoute
   '/_authenticated/relatorios': typeof AuthenticatedRelatoriosRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRouteWithChildren
+  '/_authenticated/tarefas': typeof AuthenticatedTarefasRoute
   '/historico/$leadId': typeof HistoricoLeadIdRoute
   '/integracoes_/rd': typeof IntegracoesRdRoute
   '/privacidade/exclusao-de-dados': typeof PrivacidadeExclusaoDeDadosRoute
@@ -461,20 +536,28 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/definir-senha'
     | '/integracoes'
     | '/politica-de-privacidade'
     | '/reset-password'
     | '/setup'
     | '/termos-de-uso'
     | '/admin'
+    | '/administracao'
     | '/analise-conversas'
+    | '/configuracoes'
     | '/conversas'
+    | '/crm'
     | '/dashboard'
+    | '/filas'
     | '/kanban'
+    | '/modulos'
     | '/profile'
     | '/relatorio-ia'
+    | '/relatorio-leads'
     | '/relatorios'
     | '/settings'
+    | '/tarefas'
     | '/historico/$leadId'
     | '/integracoes/rd'
     | '/privacidade/exclusao-de-dados'
@@ -509,18 +592,26 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/definir-senha'
     | '/integracoes'
     | '/politica-de-privacidade'
     | '/reset-password'
     | '/setup'
     | '/termos-de-uso'
+    | '/administracao'
     | '/analise-conversas'
+    | '/configuracoes'
     | '/conversas'
+    | '/crm'
     | '/dashboard'
+    | '/filas'
     | '/kanban'
+    | '/modulos'
     | '/profile'
     | '/relatorio-ia'
+    | '/relatorio-leads'
     | '/relatorios'
+    | '/tarefas'
     | '/historico/$leadId'
     | '/integracoes/rd'
     | '/privacidade/exclusao-de-dados'
@@ -556,20 +647,28 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/definir-senha'
     | '/integracoes'
     | '/politica-de-privacidade'
     | '/reset-password'
     | '/setup'
     | '/termos-de-uso'
     | '/_authenticated/admin'
+    | '/_authenticated/administracao'
     | '/_authenticated/analise-conversas'
+    | '/_authenticated/configuracoes'
     | '/_authenticated/conversas'
+    | '/_authenticated/crm'
     | '/_authenticated/dashboard'
+    | '/_authenticated/filas'
     | '/_authenticated/kanban'
+    | '/_authenticated/modulos'
     | '/_authenticated/profile'
     | '/_authenticated/relatorio-ia'
+    | '/_authenticated/relatorio-leads'
     | '/_authenticated/relatorios'
     | '/_authenticated/settings'
+    | '/_authenticated/tarefas'
     | '/historico/$leadId'
     | '/integracoes_/rd'
     | '/privacidade/exclusao-de-dados'
@@ -606,6 +705,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  DefinirSenhaRoute: typeof DefinirSenhaRoute
   IntegracoesRoute: typeof IntegracoesRoute
   PoliticaDePrivacidadeRoute: typeof PoliticaDePrivacidadeRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
@@ -622,46 +722,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/termos-de-uso': {
-      id: '/termos-de-uso'
-      path: '/termos-de-uso'
-      fullPath: '/termos-de-uso'
-      preLoaderRoute: typeof TermosDeUsoRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/setup': {
-      id: '/setup'
-      path: '/setup'
-      fullPath: '/setup'
-      preLoaderRoute: typeof SetupRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/reset-password': {
-      id: '/reset-password'
-      path: '/reset-password'
-      fullPath: '/reset-password'
-      preLoaderRoute: typeof ResetPasswordRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/politica-de-privacidade': {
-      id: '/politica-de-privacidade'
-      path: '/politica-de-privacidade'
-      fullPath: '/politica-de-privacidade'
-      preLoaderRoute: typeof PoliticaDePrivacidadeRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/integracoes': {
-      id: '/integracoes'
-      path: '/integracoes'
-      fullPath: '/integracoes'
-      preLoaderRoute: typeof IntegracoesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/auth': {
-      id: '/auth'
-      path: '/auth'
-      fullPath: '/auth'
-      preLoaderRoute: typeof AuthRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated': {
@@ -671,81 +736,67 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/privacidade/exclusao-de-dados': {
-      id: '/privacidade/exclusao-de-dados'
-      path: '/privacidade/exclusao-de-dados'
-      fullPath: '/privacidade/exclusao-de-dados'
-      preLoaderRoute: typeof PrivacidadeExclusaoDeDadosRouteImport
+    '/definir-senha': {
+      id: '/definir-senha'
+      path: '/definir-senha'
+      fullPath: '/definir-senha'
+      preLoaderRoute: typeof DefinirSenhaRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/integracoes_/rd': {
-      id: '/integracoes_/rd'
-      path: '/integracoes/rd'
-      fullPath: '/integracoes/rd'
-      preLoaderRoute: typeof IntegracoesRdRouteImport
+    '/integracoes': {
+      id: '/integracoes'
+      path: '/integracoes'
+      fullPath: '/integracoes'
+      preLoaderRoute: typeof IntegracoesRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/historico/$leadId': {
-      id: '/historico/$leadId'
-      path: '/historico/$leadId'
-      fullPath: '/historico/$leadId'
-      preLoaderRoute: typeof HistoricoLeadIdRouteImport
+    '/politica-de-privacidade': {
+      id: '/politica-de-privacidade'
+      path: '/politica-de-privacidade'
+      fullPath: '/politica-de-privacidade'
+      preLoaderRoute: typeof PoliticaDePrivacidadeRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/settings': {
-      id: '/_authenticated/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof AuthenticatedSettingsRouteImport
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/setup': {
+      id: '/setup'
+      path: '/setup'
+      fullPath: '/setup'
+      preLoaderRoute: typeof SetupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/termos-de-uso': {
+      id: '/termos-de-uso'
+      path: '/termos-de-uso'
+      fullPath: '/termos-de-uso'
+      preLoaderRoute: typeof TermosDeUsoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/admin': {
+      id: '/_authenticated/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AuthenticatedAdminRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/relatorios': {
-      id: '/_authenticated/relatorios'
-      path: '/relatorios'
-      fullPath: '/relatorios'
-      preLoaderRoute: typeof AuthenticatedRelatoriosRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/relatorio-ia': {
-      id: '/_authenticated/relatorio-ia'
-      path: '/relatorio-ia'
-      fullPath: '/relatorio-ia'
-      preLoaderRoute: typeof AuthenticatedRelatorioIaRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/profile': {
-      id: '/_authenticated/profile'
-      path: '/profile'
-      fullPath: '/profile'
-      preLoaderRoute: typeof AuthenticatedProfileRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/kanban': {
-      id: '/_authenticated/kanban'
-      path: '/kanban'
-      fullPath: '/kanban'
-      preLoaderRoute: typeof AuthenticatedKanbanRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/dashboard': {
-      id: '/_authenticated/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof AuthenticatedDashboardRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/conversas': {
-      id: '/_authenticated/conversas'
-      path: '/conversas'
-      fullPath: '/conversas'
-      preLoaderRoute: typeof AuthenticatedConversasRouteImport
+    '/_authenticated/administracao': {
+      id: '/_authenticated/administracao'
+      path: '/administracao'
+      fullPath: '/administracao'
+      preLoaderRoute: typeof AuthenticatedAdministracaoRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/analise-conversas': {
@@ -755,26 +806,117 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAnaliseConversasRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/admin': {
-      id: '/_authenticated/admin'
-      path: '/admin'
-      fullPath: '/admin'
-      preLoaderRoute: typeof AuthenticatedAdminRouteImport
+    '/_authenticated/configuracoes': {
+      id: '/_authenticated/configuracoes'
+      path: '/configuracoes'
+      fullPath: '/configuracoes'
+      preLoaderRoute: typeof AuthenticatedConfiguracoesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/settings/': {
-      id: '/_authenticated/settings/'
-      path: '/'
-      fullPath: '/settings/'
-      preLoaderRoute: typeof AuthenticatedSettingsIndexRouteImport
-      parentRoute: typeof AuthenticatedSettingsRoute
-    }
-    '/_authenticated/leads/': {
-      id: '/_authenticated/leads/'
-      path: '/leads'
-      fullPath: '/leads/'
-      preLoaderRoute: typeof AuthenticatedLeadsIndexRouteImport
+    '/_authenticated/conversas': {
+      id: '/_authenticated/conversas'
+      path: '/conversas'
+      fullPath: '/conversas'
+      preLoaderRoute: typeof AuthenticatedConversasRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/crm': {
+      id: '/_authenticated/crm'
+      path: '/crm'
+      fullPath: '/crm'
+      preLoaderRoute: typeof AuthenticatedCrmRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/dashboard': {
+      id: '/_authenticated/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof AuthenticatedDashboardRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/filas': {
+      id: '/_authenticated/filas'
+      path: '/filas'
+      fullPath: '/filas'
+      preLoaderRoute: typeof AuthenticatedFilasRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/kanban': {
+      id: '/_authenticated/kanban'
+      path: '/kanban'
+      fullPath: '/kanban'
+      preLoaderRoute: typeof AuthenticatedKanbanRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/modulos': {
+      id: '/_authenticated/modulos'
+      path: '/modulos'
+      fullPath: '/modulos'
+      preLoaderRoute: typeof AuthenticatedModulosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/profile': {
+      id: '/_authenticated/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof AuthenticatedProfileRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/relatorio-ia': {
+      id: '/_authenticated/relatorio-ia'
+      path: '/relatorio-ia'
+      fullPath: '/relatorio-ia'
+      preLoaderRoute: typeof AuthenticatedRelatorioIaRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/relatorio-leads': {
+      id: '/_authenticated/relatorio-leads'
+      path: '/relatorio-leads'
+      fullPath: '/relatorio-leads'
+      preLoaderRoute: typeof AuthenticatedRelatorioLeadsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/relatorios': {
+      id: '/_authenticated/relatorios'
+      path: '/relatorios'
+      fullPath: '/relatorios'
+      preLoaderRoute: typeof AuthenticatedRelatoriosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/settings': {
+      id: '/_authenticated/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AuthenticatedSettingsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/tarefas': {
+      id: '/_authenticated/tarefas'
+      path: '/tarefas'
+      fullPath: '/tarefas'
+      preLoaderRoute: typeof AuthenticatedTarefasRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/historico/$leadId': {
+      id: '/historico/$leadId'
+      path: '/historico/$leadId'
+      fullPath: '/historico/$leadId'
+      preLoaderRoute: typeof HistoricoLeadIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/integracoes_/rd': {
+      id: '/integracoes_/rd'
+      path: '/integracoes/rd'
+      fullPath: '/integracoes/rd'
+      preLoaderRoute: typeof IntegracoesRdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacidade/exclusao-de-dados': {
+      id: '/privacidade/exclusao-de-dados'
+      path: '/privacidade/exclusao-de-dados'
+      fullPath: '/privacidade/exclusao-de-dados'
+      preLoaderRoute: typeof PrivacidadeExclusaoDeDadosRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_authenticated/admin/': {
       id: '/_authenticated/admin/'
@@ -783,158 +925,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminIndexRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
-    '/api/public/pulse-funil-ia': {
-      id: '/api/public/pulse-funil-ia'
-      path: '/api/public/pulse-funil-ia'
-      fullPath: '/api/public/pulse-funil-ia'
-      preLoaderRoute: typeof ApiPublicPulseFunilIaRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/gloria-leads': {
-      id: '/api/public/gloria-leads'
-      path: '/api/public/gloria-leads'
-      fullPath: '/api/public/gloria-leads'
-      preLoaderRoute: typeof ApiPublicGloriaLeadsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/mcp/analyst': {
-      id: '/api/mcp/analyst'
-      path: '/api/mcp/analyst'
-      fullPath: '/api/mcp/analyst'
-      preLoaderRoute: typeof ApiMcpAnalystRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/integrations/leads': {
-      id: '/api/integrations/leads'
-      path: '/api/integrations/leads'
-      fullPath: '/api/integrations/leads'
-      preLoaderRoute: typeof ApiIntegrationsLeadsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_authenticated/settings/users': {
-      id: '/_authenticated/settings/users'
-      path: '/users'
-      fullPath: '/settings/users'
-      preLoaderRoute: typeof AuthenticatedSettingsUsersRouteImport
-      parentRoute: typeof AuthenticatedSettingsRoute
-    }
-    '/_authenticated/settings/tags': {
-      id: '/_authenticated/settings/tags'
-      path: '/tags'
-      fullPath: '/settings/tags'
-      preLoaderRoute: typeof AuthenticatedSettingsTagsRouteImport
-      parentRoute: typeof AuthenticatedSettingsRoute
-    }
-    '/_authenticated/settings/stages': {
-      id: '/_authenticated/settings/stages'
-      path: '/stages'
-      fullPath: '/settings/stages'
-      preLoaderRoute: typeof AuthenticatedSettingsStagesRouteImport
-      parentRoute: typeof AuthenticatedSettingsRoute
-    }
-    '/_authenticated/settings/hub': {
-      id: '/_authenticated/settings/hub'
-      path: '/hub'
-      fullPath: '/settings/hub'
-      preLoaderRoute: typeof AuthenticatedSettingsHubRouteImport
-      parentRoute: typeof AuthenticatedSettingsRoute
-    }
-    '/_authenticated/settings/empreendimentos': {
-      id: '/_authenticated/settings/empreendimentos'
-      path: '/empreendimentos'
-      fullPath: '/settings/empreendimentos'
-      preLoaderRoute: typeof AuthenticatedSettingsEmpreendimentosRouteImport
-      parentRoute: typeof AuthenticatedSettingsRoute
-    }
-    '/_authenticated/settings/custom-fields': {
-      id: '/_authenticated/settings/custom-fields'
-      path: '/custom-fields'
-      fullPath: '/settings/custom-fields'
-      preLoaderRoute: typeof AuthenticatedSettingsCustomFieldsRouteImport
-      parentRoute: typeof AuthenticatedSettingsRoute
-    }
-    '/_authenticated/leads/new': {
-      id: '/_authenticated/leads/new'
-      path: '/leads/new'
-      fullPath: '/leads/new'
-      preLoaderRoute: typeof AuthenticatedLeadsNewRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/leads/importar': {
-      id: '/_authenticated/leads/importar'
-      path: '/leads/importar'
-      fullPath: '/leads/importar'
-      preLoaderRoute: typeof AuthenticatedLeadsImportarRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/leads/$id': {
-      id: '/_authenticated/leads/$id'
-      path: '/leads/$id'
-      fullPath: '/leads/$id'
-      preLoaderRoute: typeof AuthenticatedLeadsIdRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/configuracoes/integracoes': {
-      id: '/_authenticated/configuracoes/integracoes'
-      path: '/configuracoes/integracoes'
-      fullPath: '/configuracoes/integracoes'
-      preLoaderRoute: typeof AuthenticatedConfiguracoesIntegracoesRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/admin/users': {
-      id: '/_authenticated/admin/users'
-      path: '/users'
-      fullPath: '/admin/users'
-      preLoaderRoute: typeof AuthenticatedAdminUsersRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/tags': {
-      id: '/_authenticated/admin/tags'
-      path: '/tags'
-      fullPath: '/admin/tags'
-      preLoaderRoute: typeof AuthenticatedAdminTagsRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/site-forms': {
-      id: '/_authenticated/admin/site-forms'
-      path: '/site-forms'
-      fullPath: '/admin/site-forms'
-      preLoaderRoute: typeof AuthenticatedAdminSiteFormsRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/reporting-api': {
-      id: '/_authenticated/admin/reporting-api'
-      path: '/reporting-api'
-      fullPath: '/admin/reporting-api'
-      preLoaderRoute: typeof AuthenticatedAdminReportingApiRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/paginas-legais': {
-      id: '/_authenticated/admin/paginas-legais'
-      path: '/paginas-legais'
-      fullPath: '/admin/paginas-legais'
-      preLoaderRoute: typeof AuthenticatedAdminPaginasLegaisRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/notifications': {
-      id: '/_authenticated/admin/notifications'
-      path: '/notifications'
-      fullPath: '/admin/notifications'
-      preLoaderRoute: typeof AuthenticatedAdminNotificationsRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/funnel': {
-      id: '/_authenticated/admin/funnel'
-      path: '/funnel'
-      fullPath: '/admin/funnel'
-      preLoaderRoute: typeof AuthenticatedAdminFunnelRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/empresas': {
-      id: '/_authenticated/admin/empresas'
-      path: '/empresas'
-      fullPath: '/admin/empresas'
-      preLoaderRoute: typeof AuthenticatedAdminEmpresasRouteImport
+    '/_authenticated/admin/crm-dispatch': {
+      id: '/_authenticated/admin/crm-dispatch'
+      path: '/crm-dispatch'
+      fullPath: '/admin/crm-dispatch'
+      preLoaderRoute: typeof AuthenticatedAdminCrmDispatchRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
     '/_authenticated/admin/custom-fields': {
@@ -944,12 +939,173 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminCustomFieldsRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
-    '/_authenticated/admin/crm-dispatch': {
-      id: '/_authenticated/admin/crm-dispatch'
-      path: '/crm-dispatch'
-      fullPath: '/admin/crm-dispatch'
-      preLoaderRoute: typeof AuthenticatedAdminCrmDispatchRouteImport
+    '/_authenticated/admin/empresas': {
+      id: '/_authenticated/admin/empresas'
+      path: '/empresas'
+      fullPath: '/admin/empresas'
+      preLoaderRoute: typeof AuthenticatedAdminEmpresasRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/funnel': {
+      id: '/_authenticated/admin/funnel'
+      path: '/funnel'
+      fullPath: '/admin/funnel'
+      preLoaderRoute: typeof AuthenticatedAdminFunnelRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/notifications': {
+      id: '/_authenticated/admin/notifications'
+      path: '/notifications'
+      fullPath: '/admin/notifications'
+      preLoaderRoute: typeof AuthenticatedAdminNotificationsRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/paginas-legais': {
+      id: '/_authenticated/admin/paginas-legais'
+      path: '/paginas-legais'
+      fullPath: '/admin/paginas-legais'
+      preLoaderRoute: typeof AuthenticatedAdminPaginasLegaisRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/reporting-api': {
+      id: '/_authenticated/admin/reporting-api'
+      path: '/reporting-api'
+      fullPath: '/admin/reporting-api'
+      preLoaderRoute: typeof AuthenticatedAdminReportingApiRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/site-forms': {
+      id: '/_authenticated/admin/site-forms'
+      path: '/site-forms'
+      fullPath: '/admin/site-forms'
+      preLoaderRoute: typeof AuthenticatedAdminSiteFormsRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/tags': {
+      id: '/_authenticated/admin/tags'
+      path: '/tags'
+      fullPath: '/admin/tags'
+      preLoaderRoute: typeof AuthenticatedAdminTagsRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/users': {
+      id: '/_authenticated/admin/users'
+      path: '/users'
+      fullPath: '/admin/users'
+      preLoaderRoute: typeof AuthenticatedAdminUsersRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/configuracoes/integracoes': {
+      id: '/_authenticated/configuracoes/integracoes'
+      path: '/integracoes'
+      fullPath: '/configuracoes/integracoes'
+      preLoaderRoute: typeof AuthenticatedConfiguracoesIntegracoesRouteImport
+      parentRoute: typeof AuthenticatedConfiguracoesRoute
+    }
+    '/_authenticated/leads/': {
+      id: '/_authenticated/leads/'
+      path: '/leads'
+      fullPath: '/leads/'
+      preLoaderRoute: typeof AuthenticatedLeadsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/leads/$id': {
+      id: '/_authenticated/leads/$id'
+      path: '/leads/$id'
+      fullPath: '/leads/$id'
+      preLoaderRoute: typeof AuthenticatedLeadsIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/leads/importar': {
+      id: '/_authenticated/leads/importar'
+      path: '/leads/importar'
+      fullPath: '/leads/importar'
+      preLoaderRoute: typeof AuthenticatedLeadsImportarRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/leads/new': {
+      id: '/_authenticated/leads/new'
+      path: '/leads/new'
+      fullPath: '/leads/new'
+      preLoaderRoute: typeof AuthenticatedLeadsNewRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/settings/': {
+      id: '/_authenticated/settings/'
+      path: '/'
+      fullPath: '/settings/'
+      preLoaderRoute: typeof AuthenticatedSettingsIndexRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
+    '/_authenticated/settings/custom-fields': {
+      id: '/_authenticated/settings/custom-fields'
+      path: '/custom-fields'
+      fullPath: '/settings/custom-fields'
+      preLoaderRoute: typeof AuthenticatedSettingsCustomFieldsRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
+    '/_authenticated/settings/empreendimentos': {
+      id: '/_authenticated/settings/empreendimentos'
+      path: '/empreendimentos'
+      fullPath: '/settings/empreendimentos'
+      preLoaderRoute: typeof AuthenticatedSettingsEmpreendimentosRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
+    '/_authenticated/settings/hub': {
+      id: '/_authenticated/settings/hub'
+      path: '/hub'
+      fullPath: '/settings/hub'
+      preLoaderRoute: typeof AuthenticatedSettingsHubRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
+    '/_authenticated/settings/stages': {
+      id: '/_authenticated/settings/stages'
+      path: '/stages'
+      fullPath: '/settings/stages'
+      preLoaderRoute: typeof AuthenticatedSettingsStagesRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
+    '/_authenticated/settings/tags': {
+      id: '/_authenticated/settings/tags'
+      path: '/tags'
+      fullPath: '/settings/tags'
+      preLoaderRoute: typeof AuthenticatedSettingsTagsRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
+    '/_authenticated/settings/users': {
+      id: '/_authenticated/settings/users'
+      path: '/users'
+      fullPath: '/settings/users'
+      preLoaderRoute: typeof AuthenticatedSettingsUsersRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
+    '/api/integrations/leads': {
+      id: '/api/integrations/leads'
+      path: '/api/integrations/leads'
+      fullPath: '/api/integrations/leads'
+      preLoaderRoute: typeof ApiIntegrationsLeadsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/mcp/analyst': {
+      id: '/api/mcp/analyst'
+      path: '/api/mcp/analyst'
+      fullPath: '/api/mcp/analyst'
+      preLoaderRoute: typeof ApiMcpAnalystRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/gloria-leads': {
+      id: '/api/public/gloria-leads'
+      path: '/api/public/gloria-leads'
+      fullPath: '/api/public/gloria-leads'
+      preLoaderRoute: typeof ApiPublicGloriaLeadsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/pulse-funil-ia': {
+      id: '/api/public/pulse-funil-ia'
+      path: '/api/public/pulse-funil-ia'
+      fullPath: '/api/public/pulse-funil-ia'
+      preLoaderRoute: typeof ApiPublicPulseFunilIaRouteImport
+      parentRoute: typeof rootRouteImport
     }
   }
 }
@@ -985,6 +1141,21 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
 const AuthenticatedAdminRouteWithChildren =
   AuthenticatedAdminRoute._addFileChildren(AuthenticatedAdminRouteChildren)
 
+interface AuthenticatedConfiguracoesRouteChildren {
+  AuthenticatedConfiguracoesIntegracoesRoute: typeof AuthenticatedConfiguracoesIntegracoesRoute
+}
+
+const AuthenticatedConfiguracoesRouteChildren: AuthenticatedConfiguracoesRouteChildren =
+  {
+    AuthenticatedConfiguracoesIntegracoesRoute:
+      AuthenticatedConfiguracoesIntegracoesRoute,
+  }
+
+const AuthenticatedConfiguracoesRouteWithChildren =
+  AuthenticatedConfiguracoesRoute._addFileChildren(
+    AuthenticatedConfiguracoesRouteChildren,
+  )
+
 interface AuthenticatedSettingsRouteChildren {
   AuthenticatedSettingsCustomFieldsRoute: typeof AuthenticatedSettingsCustomFieldsRoute
   AuthenticatedSettingsEmpreendimentosRoute: typeof AuthenticatedSettingsEmpreendimentosRoute
@@ -1014,15 +1185,21 @@ const AuthenticatedSettingsRouteWithChildren =
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRouteWithChildren
+  AuthenticatedAdministracaoRoute: typeof AuthenticatedAdministracaoRoute
   AuthenticatedAnaliseConversasRoute: typeof AuthenticatedAnaliseConversasRoute
+  AuthenticatedConfiguracoesRoute: typeof AuthenticatedConfiguracoesRouteWithChildren
   AuthenticatedConversasRoute: typeof AuthenticatedConversasRoute
+  AuthenticatedCrmRoute: typeof AuthenticatedCrmRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedFilasRoute: typeof AuthenticatedFilasRoute
   AuthenticatedKanbanRoute: typeof AuthenticatedKanbanRoute
+  AuthenticatedModulosRoute: typeof AuthenticatedModulosRoute
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
   AuthenticatedRelatorioIaRoute: typeof AuthenticatedRelatorioIaRoute
+  AuthenticatedRelatorioLeadsRoute: typeof AuthenticatedRelatorioLeadsRoute
   AuthenticatedRelatoriosRoute: typeof AuthenticatedRelatoriosRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRouteWithChildren
-  AuthenticatedConfiguracoesIntegracoesRoute: typeof AuthenticatedConfiguracoesIntegracoesRoute
+  AuthenticatedTarefasRoute: typeof AuthenticatedTarefasRoute
   AuthenticatedLeadsIdRoute: typeof AuthenticatedLeadsIdRoute
   AuthenticatedLeadsImportarRoute: typeof AuthenticatedLeadsImportarRoute
   AuthenticatedLeadsNewRoute: typeof AuthenticatedLeadsNewRoute
@@ -1031,16 +1208,21 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRouteWithChildren,
+  AuthenticatedAdministracaoRoute: AuthenticatedAdministracaoRoute,
   AuthenticatedAnaliseConversasRoute: AuthenticatedAnaliseConversasRoute,
+  AuthenticatedConfiguracoesRoute: AuthenticatedConfiguracoesRouteWithChildren,
   AuthenticatedConversasRoute: AuthenticatedConversasRoute,
+  AuthenticatedCrmRoute: AuthenticatedCrmRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedFilasRoute: AuthenticatedFilasRoute,
   AuthenticatedKanbanRoute: AuthenticatedKanbanRoute,
+  AuthenticatedModulosRoute: AuthenticatedModulosRoute,
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
   AuthenticatedRelatorioIaRoute: AuthenticatedRelatorioIaRoute,
+  AuthenticatedRelatorioLeadsRoute: AuthenticatedRelatorioLeadsRoute,
   AuthenticatedRelatoriosRoute: AuthenticatedRelatoriosRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRouteWithChildren,
-  AuthenticatedConfiguracoesIntegracoesRoute:
-    AuthenticatedConfiguracoesIntegracoesRoute,
+  AuthenticatedTarefasRoute: AuthenticatedTarefasRoute,
   AuthenticatedLeadsIdRoute: AuthenticatedLeadsIdRoute,
   AuthenticatedLeadsImportarRoute: AuthenticatedLeadsImportarRoute,
   AuthenticatedLeadsNewRoute: AuthenticatedLeadsNewRoute,
@@ -1054,6 +1236,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  DefinirSenhaRoute: DefinirSenhaRoute,
   IntegracoesRoute: IntegracoesRoute,
   PoliticaDePrivacidadeRoute: PoliticaDePrivacidadeRoute,
   ResetPasswordRoute: ResetPasswordRoute,

@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { normalizeCompanyRole } from "@/hml/company-api";
 
 export type CrmUser = {
   id: string;
@@ -23,8 +24,12 @@ export function useCrmUser() {
         .eq("auth_user_id", auth.user.id)
         .maybeSingle();
       if (error) throw error;
-      return data as CrmUser | null;
+      if(!data)return null;
+      const role=normalizeCompanyRole(data.role);
+      if(!role)throw new Error("Perfil de acesso não reconhecido. Contate a administração.");
+      return {...data,role} as CrmUser;
     },
     staleTime: 60_000,
   });
 }
+

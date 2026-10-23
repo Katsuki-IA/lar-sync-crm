@@ -12,6 +12,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAllowedEmpresas } from "@/hooks/use-allowed-empresas";
 import { useCrmUser } from "@/hooks/use-crm-user";
+import { permittedCompany } from "@/hml/company-api";
 
 type Empresa = { id: number; nome: string | null };
 
@@ -61,7 +62,7 @@ export function ActiveEmpresaProvider({ children }: { children: ReactNode }) {
     if (!me || !allowed) return;
 
     if (!isSuperAdmin) {
-      setActiveEmpresaIdState(me.id_empresa ?? null);
+      setActiveEmpresaIdState(permittedCompany(me.id_empresa ?? null, allowed));
       return;
     }
 
@@ -84,19 +85,22 @@ export function ActiveEmpresaProvider({ children }: { children: ReactNode }) {
     [empresas, me?.id],
   );
 
+  const effectiveId = me?.active === true
+    ? permittedCompany(isSuperAdmin ? activeEmpresaId : me.id_empresa, allowed ?? [])
+    : null;
   const value = useMemo<ActiveEmpresaContextValue>(
     () => ({
-      activeEmpresaId,
-      activeEmpresa: empresas.find((empresa) => empresa.id === activeEmpresaId) ?? null,
-      empresas,
+      activeEmpresaId: effectiveId,
+      activeEmpresa: empresas.find((empresa) => empresa.id === effectiveId) ?? null,
+      empresas: empresas.filter((empresa) => allowed?.includes(empresa.id)),
       isLoading: loadingAllowed || loadingEmpresas,
       requiresSelection: Boolean(
-        isSuperAdmin && !activeEmpresaId && !loadingAllowed && !loadingEmpresas && empresas.length,
+        isSuperAdmin && !effectiveId && !loadingAllowed && !loadingEmpresas && empresas.length,
       ),
       isSuperAdmin: Boolean(isSuperAdmin),
       setActiveEmpresaId,
     }),
-    [activeEmpresaId, empresas, isSuperAdmin, loadingAllowed, loadingEmpresas, setActiveEmpresaId],
+    [effectiveId, allowed, empresas, isSuperAdmin, loadingAllowed, loadingEmpresas, setActiveEmpresaId],
   );
 
   return <ActiveEmpresaContext.Provider value={value}>{children}</ActiveEmpresaContext.Provider>;
@@ -107,3 +111,4 @@ export function useActiveEmpresa() {
   if (!context) throw new Error("useActiveEmpresa deve ser usado dentro de ActiveEmpresaProvider");
   return context;
 }
+
