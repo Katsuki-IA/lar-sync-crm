@@ -3,7 +3,7 @@ import "./lib/error-capture";
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
 import { candidateRuntimeReady } from "./lib/candidate-runtime";
-import { diagnoseCandidate, formatDiagnostic, resolveRuntimeEnv } from "./lib/candidate-diagnostics";
+import { resolveRuntimeEnv } from "./lib/candidate-diagnostics";
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -56,12 +56,8 @@ export default {
     const resolved = runtimeEnv(request, env);
     if (import.meta.env.HUB_PRODUCTION_CANDIDATE && !candidateRuntimeReady(resolved.env,
       import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY)) {
-      // TEMPORARY diagnostic: booleans and source labels only, no values.
-      const diag = formatDiagnostic(diagnoseCandidate(resolved,
-        import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY));
-      return new Response(`Candidato indisponível: configuração do servidor pendente.\n\nDiagnóstico: ${diag}\n`, {
-        status:503,headers:{'content-type':'text/plain; charset=utf-8','cache-control':'no-store',
-          'x-candidate-diag':diag},
+      return new Response("Candidato indisponível: configuração do servidor pendente.", {
+        status:503,headers:{'content-type':'text/plain; charset=utf-8','cache-control':'no-store'},
       });
     }
     try {

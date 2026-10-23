@@ -1,7 +1,5 @@
-// TEMPORARY diagnostic for the candidate 503 guard. Emits only booleans and
-// source labels — never values, hashes, lengths or prefixes of any key.
-export const CANDIDATE_DIAG_REVISION = "diag-2026-10-23-a";
-
+// Runtime env resolution for the candidate guard. Reads only which keys are
+// present — never exposes values.
 export const RUNTIME_KEYS = [
   "SUPABASE_URL",
   "SUPABASE_PUBLISHABLE_KEY",
@@ -33,29 +31,4 @@ export function resolveRuntimeEnv(sources: { argument?: unknown; request?: unkno
     }
   }
   return { env, origin };
-}
-
-export function diagnoseCandidate(
-  resolved: ReturnType<typeof resolveRuntimeEnv>,
-  expectedUrl: string,
-  expectedPublicKey: string,
-) {
-  const { env, origin } = resolved;
-  const serverKey = env.SUPABASE_SERVICE_ROLE_KEY ? "SUPABASE_SERVICE_ROLE_KEY" : "APP_SUPABASE_SERVICE_ROLE_KEY";
-  return {
-    revision: CANDIDATE_DIAG_REVISION,
-    urlPresent: !!env.SUPABASE_URL,
-    urlMatches: env.SUPABASE_URL?.trim().replace(/\/+$/, "") === expectedUrl,
-    publicKeyPresent: !!env.SUPABASE_PUBLISHABLE_KEY,
-    publicKeyMatches: env.SUPABASE_PUBLISHABLE_KEY?.trim() === expectedPublicKey,
-    expectedPublicKeyCompiled: !!expectedPublicKey,
-    serverKeyPresent: !!(env.SUPABASE_SERVICE_ROLE_KEY || env.APP_SUPABASE_SERVICE_ROLE_KEY),
-    urlSource: origin.SUPABASE_URL,
-    publicKeySource: origin.SUPABASE_PUBLISHABLE_KEY,
-    serverKeySource: origin[serverKey],
-  };
-}
-
-export function formatDiagnostic(d: ReturnType<typeof diagnoseCandidate>) {
-  return Object.entries(d).map(([k, v]) => `${k}=${v}`).join("; ");
 }
