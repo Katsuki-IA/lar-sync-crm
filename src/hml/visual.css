@@ -182,8 +182,8 @@
   font-size: 14px;
 }
 .hml-form-group label {
-  font-weight: 500;
-  color: var(--text-secondary);
+  /* Labels keep the normal text color even when the group is read-only. */
+  color: var(--foreground);
 }
 .hml-form-group input,
 .hml-form-group textarea {
@@ -191,15 +191,20 @@
   font-weight: 400;
   color: var(--foreground);
 }
+/* Read-only groups: only the controls look disabled, never the labels. */
+.hml-form-group:disabled input,
+.hml-form-group:disabled textarea,
+.hml-form-group:disabled select {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
 .hml-form-actions {
   border-top: 1px solid var(--border);
   padding-top: 18px;
   flex-wrap: wrap;
   align-items: center;
 }
-.hml-form-group:disabled {
-  opacity: 0.8;
-}
+/* (Removed: disabled group opacity that faded labels too.) */
 @media (max-width: 767px) {
   .hml-shell {
     flex-direction: column;
