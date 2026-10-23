@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export const Route = createFileRoute("/_authenticated/admin/tags")({ component: GlobalTagsPage });
+export const Route = createFileRoute("/_authenticated/admin/tags")({ head: () => ({ meta: [{ title: "Definições de tags | Katsuki HUB" }, { name: "description", content: "Administração das definições globais de tags." }, { property: "og:title", content: "Definições de tags | Katsuki HUB" }, { property: "og:description", content: "Administração das definições globais de tags." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }), component: GlobalTagsPage });
 
 type GlobalTag = { id: number; nome: string; cor: string };
 const db = supabase as any;

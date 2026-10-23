@@ -17,7 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-export const Route = createFileRoute("/_authenticated/admin/funnel")({ component: GlobalFunnelPage });
+export const Route = createFileRoute("/_authenticated/admin/funnel")({ head: () => ({ meta: [{ title: "Etapas do Atendimento IA | Katsuki HUB" }, { name: "description", content: "Administração das etapas globais do Atendimento IA." }, { property: "og:title", content: "Etapas do Atendimento IA | Katsuki HUB" }, { property: "og:description", content: "Administração das etapas globais do Atendimento IA." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }), component: GlobalFunnelPage });
 
 type GlobalStage = { id: number; nome: string; ordem: number; ativo: boolean };
 type Empresa = { id: number; nome: string | null; created_at?: string | null; total_usuarios?: number };
