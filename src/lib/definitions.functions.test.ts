@@ -33,7 +33,7 @@ async function invoke(fn: unknown, data: unknown, role: unknown, error: unknown 
   const rpc = vi.fn(async (name: string) => name === 'crm_current_role'
     ? { data: role, error } : { data: { id: 1 }, error: null });
   const call = fn as (args: unknown) => Promise<unknown>;
-  const result = call({ data, context: { supabase: { rpc }, userId: 'authenticated-identity', role: 'super_admin' } });
+  const result = Promise.resolve().then(() => call({ data, context: { supabase: { rpc }, userId: 'authenticated-identity', role: 'super_admin' } }));
   return { rpc, result };
 }
 
