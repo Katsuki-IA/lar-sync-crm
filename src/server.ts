@@ -10,6 +10,18 @@ type ServerEntry = {
 
 let serverEntryPromise: Promise<ServerEntry> | undefined;
 
+// Cloudflare request bindings take precedence; process.env is the Node/dev fallback.
+const RUNTIME_KEYS = ["SUPABASE_URL", "SUPABASE_PUBLISHABLE_KEY", "SUPABASE_SERVICE_ROLE_KEY", "APP_SUPABASE_SERVICE_ROLE_KEY"] as const;
+function runtimeEnv(bindings: unknown): Record<string, string | undefined> {
+  const b = (bindings && typeof bindings === "object" ? bindings : {}) as Record<string, unknown>;
+  const out: Record<string, string | undefined> = {};
+  for (const k of RUNTIME_KEYS) {
+    const v = b[k];
+    out[k] = typeof v === "string" && v.trim() ? v : process.env[k];
+  }
+  return out;
+}
+
 async function getServerEntry(): Promise<ServerEntry> {
   if (!serverEntryPromise) {
     serverEntryPromise = import("@tanstack/react-start/server-entry").then(
@@ -40,7 +52,7 @@ async function normalizeCatastrophicSsrResponse(response: Response): Promise<Res
 
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
-    if (import.meta.env.HUB_PRODUCTION_CANDIDATE && !candidateRuntimeReady(process.env,
+    if (import.meta.env.HUB_PRODUCTION_CANDIDATE && !candidateRuntimeReady(runtimeEnv(env),
       import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY)) {
       return new Response('Candidato indisponível: configuração do servidor pendente.', {
         status:503,headers:{'content-type':'text/plain; charset=utf-8','cache-control':'no-store'},
