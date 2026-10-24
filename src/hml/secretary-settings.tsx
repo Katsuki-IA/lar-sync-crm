@@ -85,7 +85,9 @@ export function SecretarySettings({ companyId, isAdmin }: { companyId: number; i
           <p className="mt-1 text-sm text-muted-foreground">
             {c
               ? `${c.provider === "uazapi" ? "Uazapi" : "Evolution"} · ${c.instance} · ${c.enabled ? "Habilitada" : "Pausada"}`
-              : "Configure o WhatsApp da secretária desta empresa."}
+              : isAdmin
+                ? "Configure o WhatsApp da secretária desta empresa."
+                : "Solicite ao super admin a configuração da conexão da secretária."}
           </p>
         </div>
         {isAdmin && (
