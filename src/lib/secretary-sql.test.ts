@@ -401,7 +401,7 @@ describe("finalização transacional", () => {
     expect(await count(db, "private.hub_whatsapp_incoming")).toBe(0);
     expect(await count(db, "public.hub_secretary_responses")).toBe(0);
     const state = await db.query<{ status: string; assigned_to: string | null }>(
-      `select (select status from public.hub_sales_offers o
+      `select (select o.status from public.hub_sales_offers o
                 join public.hub_sales_distributions d on d.id = o.distribution_id
                where d.opportunity_id = $1) as status,
               (select assigned_to from public.crm_opportunities where id = $1) as assigned_to`,

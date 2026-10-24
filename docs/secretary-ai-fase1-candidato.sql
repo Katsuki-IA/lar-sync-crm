@@ -211,8 +211,8 @@ declare
   company bigint; actor uuid;
   previous private.hub_whatsapp_incoming;
   settings record; tone text;
-  kind text; action text; ref text; code text;
-  lim integer; off integer;
+  v_kind text; v_action text; v_ref text; v_code text;
+  v_lim integer; v_off integer;
   result_status text; message text;
   offer record; matches record; match_count integer; match_lines text[];
   respond jsonb; notice_id uuid;
@@ -223,8 +223,8 @@ begin
      or p_body is null or length(p_body) not between 1 and 500 then
     raise exception 'Invalid event' using errcode = '22023';
   end if;
-  kind := p_command ->> 'kind';
-  if kind is null or kind not in ('legacy','list','respond','help') then
+  v_kind := p_command ->> 'kind';
+  if v_kind is null or v_kind not in ('legacy','list','respond','help') then
     raise exception 'Invalid command' using errcode = '22023';
   end if;
 
@@ -257,7 +257,7 @@ begin
     from public.hub_secretary_ai_settings s where s.id_empresa = company;
   tone := coalesce(settings.tone, 'cordial');
 
-  if kind = 'help' then
+  if v_kind = 'help' then
     if coalesce(settings.enabled, false) then
       result_status := 'help';
     else
@@ -265,13 +265,13 @@ begin
     end if;
     message := private.hub_secretary_msg('help', tone);
 
-  elsif kind = 'list' then
+  elsif v_kind = 'list' then
     if not coalesce(settings.enabled, false) then
       result_status := 'unavailable';
       message := private.hub_secretary_msg('help', tone);
     else
-      lim := least(greatest(coalesce((p_command ->> 'limit')::integer, 10), 1), 50);
-      off := greatest(coalesce((p_command ->> 'offset')::integer, 0), 0);
+      v_lim := least(greatest(coalesce((p_command ->> 'limit')::integer, 10), 1), 50);
+      v_off := greatest(coalesce((p_command ->> 'offset')::integer, 0), 0);
       -- Leads próprios, deduplicados por lead, com nome real do lead e etapa,
       -- e paginação real (limite + deslocamento).
       create temporary table if not exists hub_secretary_leads
@@ -293,7 +293,7 @@ begin
       else
         select array_agg(t.line order by t.recent desc) into lead_lines
           from (select line, recent from hub_secretary_leads
-                order by recent desc limit lim offset off) t;
+                order by recent desc limit v_lim offset v_off) t;
         result_status := 'listed';
         message := private.hub_secretary_msg('list', tone, coalesce(array_length(lead_lines, 1), 0), lead_lines);
       end if;
@@ -301,11 +301,11 @@ begin
 
   else
     -- legacy ou respond: resolve a oferta própria pendente dentro da transação.
-    if kind = 'legacy' then
-      action := p_command ->> 'action';
-      code := upper(coalesce(p_command ->> 'code', ''));
-      if action is null or action not in ('accept','decline')
-         or code !~ '^[A-F0-9]{12}$' then
+    if v_kind = 'legacy' then
+      v_action := p_command ->> 'action';
+      v_code := upper(coalesce(p_command ->> 'code', ''));
+      if v_action is null or v_action not in ('accept','decline')
+         or v_code !~ '^[A-F0-9]{12}$' then
         raise exception 'Invalid command' using errcode = '22023';
       end if;
       select o.id, n.code, l.nome as lead_name, n.id as n_id into offer
@@ -315,7 +315,7 @@ begin
         join public.hub_sales_distributions d on d.id = o.distribution_id
         join public.crm_opportunities op on op.id = d.opportunity_id
         join public.crm_leads l on l.id = op.lead_id
-       where n.code = code and n.id_empresa = company and n.member_id = actor
+       where n.code = v_code and n.id_empresa = company and n.member_id = actor
          and ob.attempts > 0 and ob.status in ('sending','sent','uncertain')
        limit 1;
       if offer.id is null then
@@ -323,10 +323,10 @@ begin
         message := private.hub_secretary_msg('not_found', tone);
       end if;
     else
-      action := p_command ->> 'action';
-      ref := nullif(btrim(coalesce(p_command ->> 'reference', '')), '');
-      if action is null or action not in ('accept','decline')
-         or (ref is not null and length(ref) > 120) then
+      v_action := p_command ->> 'action';
+      v_ref := nullif(btrim(coalesce(p_command ->> 'reference', '')), '');
+      if v_action is null or v_action not in ('accept','decline')
+         or (v_ref is not null and length(v_ref) > 120) then
         raise exception 'Invalid command' using errcode = '22023';
       end if;
       -- Ofertas próprias pendentes e não expiradas; nome = nome do lead.
@@ -342,7 +342,7 @@ begin
           join public.crm_leads l on l.id = op.lead_id
          where o.id_empresa = company and o.member_id = actor
            and o.status = 'pending' and o.expires_at > clock_timestamp();
-      if ref is null then
+      if v_ref is null then
         select count(*) into match_count from hub_secretary_match;
         if match_count = 1 then
           select * into offer from hub_secretary_match limit 1;
@@ -357,17 +357,17 @@ begin
         end if;
       else
         -- Código tem precedência; depois nome exato (case/espaços), depois parcial.
-        select * into offer from hub_secretary_match where code = upper(ref) limit 1;
+        select m.* into offer from hub_secretary_match m where m.code = upper(v_ref) limit 1;
         if offer.id is null then
           select count(*), array_agg('• ' || m.lead_name || ' — código ' || m.code order by m.lead_name)
             into match_count, match_lines
             from hub_secretary_match m
            where lower(regexp_replace(btrim(m.lead_name), '\s+', ' ', 'g'))
-                 = lower(regexp_replace(btrim(ref), '\s+', ' ', 'g'));
+                 = lower(regexp_replace(btrim(v_ref), '\s+', ' ', 'g'));
           if match_count = 1 then
             select * into offer from hub_secretary_match m
              where lower(regexp_replace(btrim(m.lead_name), '\s+', ' ', 'g'))
-                   = lower(regexp_replace(btrim(ref), '\s+', ' ', 'g')) limit 1;
+                   = lower(regexp_replace(btrim(v_ref), '\s+', ' ', 'g')) limit 1;
           elsif match_count > 1 then
             result_status := 'ambiguous';
             message := private.hub_secretary_msg('ambiguous', tone, null, match_lines);
@@ -375,11 +375,11 @@ begin
             select count(*), array_agg('• ' || m.lead_name || ' — código ' || m.code order by m.lead_name)
               into match_count, match_lines
               from hub_secretary_match m
-             where position(lower(regexp_replace(btrim(ref), '\s+', ' ', 'g'))
+             where position(lower(regexp_replace(btrim(v_ref), '\s+', ' ', 'g'))
                             in lower(regexp_replace(btrim(m.lead_name), '\s+', ' ', 'g'))) > 0;
             if match_count = 1 then
               select * into offer from hub_secretary_match m
-               where position(lower(regexp_replace(btrim(ref), '\s+', ' ', 'g'))
+               where position(lower(regexp_replace(btrim(v_ref), '\s+', ' ', 'g'))
                               in lower(regexp_replace(btrim(m.lead_name), '\s+', ' ', 'g'))) > 0
                limit 1;
             elsif match_count > 1 then
@@ -398,7 +398,7 @@ begin
     -- expiração, fila e módulo no momento da execução.
     if result_status is null then
       notice_id := offer.n_id;
-      respond := private.hub_respond_sales_offer_as(offer.id, action, actor);
+      respond := private.hub_respond_sales_offer_as(offer.id, v_action, actor);
       case respond ->> 'status'
         when 'accepted' then
           result_status := 'accepted';
