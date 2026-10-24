@@ -323,6 +323,14 @@ begin
         message := private.hub_secretary_msg('not_found', tone);
       end if;
     else
+      -- respond (texto livre via IA) exige a capacidade ATIVA no momento da
+      -- execução: se a secretária foi desativada entre a interpretação e esta
+      -- chamada, nenhum aceite/recusa acontece. O comando legado (código de
+      -- 12 hex) mantém precedência e não depende da capacidade de IA.
+      if not coalesce(settings.enabled, false) then
+        result_status := 'unavailable';
+        message := private.hub_secretary_msg('help', tone);
+      end if;
       v_action := p_command ->> 'action';
       v_ref := nullif(btrim(coalesce(p_command ->> 'reference', '')), '');
       if v_action is null or v_action not in ('accept','decline')
@@ -330,6 +338,10 @@ begin
         raise exception 'Invalid command' using errcode = '22023';
       end if;
       -- Ofertas próprias pendentes e não expiradas; nome = nome do lead.
+      -- Mesmo filtro do legado: o aviso precisa ter sido REALMENTE enviado
+      -- (outbox com attempts > 0 e status sending/sent/uncertain), com join
+      -- de tenant — oferta cuja notificação nunca saiu não pode ser aceita.
+      if result_status is null then
       create temporary table if not exists hub_secretary_match
         (id uuid, code text, lead_name text, n_id uuid) on commit drop;
       delete from hub_secretary_match;
@@ -341,7 +353,12 @@ begin
           join public.crm_opportunities op on op.id = d.opportunity_id
           join public.crm_leads l on l.id = op.lead_id
          where o.id_empresa = company and o.member_id = actor
-           and o.status = 'pending' and o.expires_at > clock_timestamp();
+           and o.status = 'pending' and o.expires_at > clock_timestamp()
+           and exists (select 1 from public.hub_whatsapp_outbox ob
+                       where ob.notice_id = n.id and ob.id_empresa = company
+                         and ob.attempts > 0
+                         and ob.status in ('sending','sent','uncertain'));
+      end if;
       if v_ref is null then
         select count(*) into match_count from hub_secretary_match;
         if match_count = 1 then
