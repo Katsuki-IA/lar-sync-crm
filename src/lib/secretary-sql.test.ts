@@ -204,7 +204,15 @@ insert into public.hub_secretary_ai_settings (id_empresa, enabled, tone) values 
 
 async function makeOffer(
   db: PGlite,
-  opts: { leadId: number; memberId?: string; code: string; assigned?: boolean; expiresIn?: string },
+  opts: {
+    leadId: number;
+    memberId?: string;
+    code: string;
+    assigned?: boolean;
+    expiresIn?: string;
+    /** false = aviso nunca enviado (sem linha no outbox). */
+    sent?: boolean;
+  },
 ) {
   const member = opts.memberId ?? OY_ID;
   const opp = crypto.randomUUID();
@@ -230,11 +238,13 @@ async function makeOffer(
      values ($1, 25, $2, $3, 'evolution')`,
     [offer, member, opts.code],
   );
-  await db.query(
-    `insert into public.hub_whatsapp_outbox (notice_id, id_empresa, member_id, status, attempts)
-     select id, 25, $2, 'sent', 1 from public.hub_secretary_notices where code = $1`,
-    [opts.code, member],
-  );
+  if (opts.sent !== false) {
+    await db.query(
+      `insert into public.hub_whatsapp_outbox (notice_id, id_empresa, member_id, status, attempts)
+       select id, 25, $2, 'sent', 1 from public.hub_secretary_notices where code = $1`,
+      [opts.code, member],
+    );
+  }
   return { opp, dist, offer };
 }
 
