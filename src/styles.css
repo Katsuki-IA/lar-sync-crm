@@ -189,7 +189,7 @@
 .config-dialog {
   padding: 24px;
   gap: 24px;
-  max-width: calc(100vw - 32px);
+  width: calc(100% - 2rem);
 }
 .config-dialog [data-slot="dialog-title"],
 .config-dialog h2 {
