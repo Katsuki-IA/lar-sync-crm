@@ -51,7 +51,8 @@ function fixture(options: {
     }),
     respondOffer: vi.fn(async (offerId: string, action: "accept" | "decline", memberId: string) => {
       calls.respond.push({ offerId, action, memberId });
-      return { status: state.respondStatus };
+      if (state.respondStatus !== "accepted") return { status: state.respondStatus };
+      return { status: action === "decline" ? "declined" : "accepted" };
     }),
     enqueueReply: vi.fn(async (_c: number, _m: string, body: string) => {
       calls.enqueued.push(body);
