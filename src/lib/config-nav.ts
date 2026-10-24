@@ -11,7 +11,7 @@ export function canAccessConfig(role?: string | null) {
   return role === "manager" || role === "super_admin";
 }
 
-export function configNavFor(role?: string | null): ConfigNavItem[] {
+export function configNavFor(role?: string | null, modules?: Modules): ConfigNavItem[] {
   if (!canAccessConfig(role)) return [];
   const items: ConfigNavItem[] = [
     { to: "/administracao", label: "Empresa e empreendimentos", scope: "empresa" },
@@ -19,6 +19,10 @@ export function configNavFor(role?: string | null): ConfigNavItem[] {
     { to: "/settings/users", label: "Usuários e código de acesso", scope: "empresa" },
     { to: "/settings/empreendimentos", label: "Venda e locação", scope: "empresa" },
   ];
+  // A secretária faz parte do CRM comercial: só aparece com o módulo habilitado.
+  if (modules?.crm) {
+    items.push({ to: "/configuracoes/secretaria", label: "Secretária", scope: "empresa" });
+  }
   if (role === "super_admin") {
     items.push(
       { to: "/modulos", label: "Empresas e módulos", scope: "global" },
