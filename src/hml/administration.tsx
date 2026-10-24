@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { db, actionClass, inputClass, secondaryClass } from "./modules";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -123,7 +124,7 @@ export function RecordEditor({
   const editable = fields.some((f) => canEdit(f.group));
   return (
     <form
-      className="space-y-6"
+      className="config-form space-y-6"
       onSubmit={(e) => {
         e.preventDefault();
         if (Object.keys(patch).length) onSave(patch);
@@ -147,7 +148,7 @@ export function RecordEditor({
               .map((f) => (
                 <label
                   key={f.key}
-                  className={"block text-sm " + (f.multiline ? "sm:col-span-2" : "")}
+                  className={"block text-sm font-medium text-foreground " + (f.multiline ? "sm:col-span-2" : "")}
                 >
                   {f.label}
                   {f.multiline ? (
@@ -187,14 +188,14 @@ export function RecordEditor({
           </p>
         )}
         {onCancel && (
-          <button type="button" disabled={pending} className={secondaryClass} onClick={onCancel}>
+          <Button type="button" disabled={pending} variant="outline" className={secondaryClass} onClick={onCancel}>
             Cancelar
-          </button>
+          </Button>
         )}
         {editable && (
-          <button className={actionClass} disabled={pending || !Object.keys(patch).length}>
+          <Button className={actionClass} disabled={pending || !Object.keys(patch).length}>
             {pending ? "Salvando…" : creating ? "Cadastrar empreendimento" : "Salvar alterações"}
-          </button>
+          </Button>
         )}
       </div>
     </form>
