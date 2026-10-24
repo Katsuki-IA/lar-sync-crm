@@ -272,34 +272,28 @@ begin
     else
       lim := least(greatest(coalesce((p_command ->> 'limit')::integer, 10), 1), 50);
       off := greatest(coalesce((p_command ->> 'offset')::integer, 0), 0);
-      -- Leads próprios, deduplicados por lead, com nome real do lead e etapa.
-      select count(*), array_agg(line order by recent desc) into lead_count, lead_lines
-        from (
-          select distinct on (l.id)
-                 l.id, op.created_at as recent,
-                 '• ' || l.nome || case when st.nome is not null then ' — ' || st.nome else '' end as line
-            from public.crm_opportunities op
-            join public.crm_leads l on l.id = op.lead_id and l.id_empresa = op.id_empresa
-            left join public.crm_stages st on st.id = op.stage_id
-           where op.id_empresa = company and op.assigned_to = actor
-           order by l.id, op.created_at desc
-        ) t;
+      -- Leads próprios, deduplicados por lead, com nome real do lead e etapa,
+      -- e paginação real (limite + deslocamento).
+      create temporary table if not exists hub_secretary_leads
+        (lead_id bigint, recent timestamptz, line text) on commit drop;
+      delete from hub_secretary_leads;
+      insert into hub_secretary_leads
+        select distinct on (l.id)
+               l.id, op.created_at,
+               '• ' || l.nome || case when st.nome is not null then ' — ' || st.nome else '' end
+          from public.crm_opportunities op
+          join public.crm_leads l on l.id = op.lead_id and l.id_empresa = op.id_empresa
+          left join public.crm_stages st on st.id = op.stage_id
+         where op.id_empresa = company and op.assigned_to = actor
+         order by l.id, op.created_at desc;
+      select count(*) into lead_count from hub_secretary_leads;
       if lead_count = 0 then
         result_status := 'listed';
         message := private.hub_secretary_msg('list_empty', tone);
       else
-        select array_agg(line order by recent desc) into lead_lines from (
-          select line, recent from (
-            select distinct on (l.id)
-                   l.id, op.created_at as recent,
-                   '• ' || l.nome || case when st.nome is not null then ' — ' || st.nome else '' end as line
-              from public.crm_opportunities op
-              join public.crm_leads l on l.id = op.lead_id and l.id_empresa = op.id_empresa
-              left join public.crm_stages st on st.id = op.stage_id
-             where op.id_empresa = company and op.assigned_to = actor
-             order by l.id, op.created_at desc
-          ) d order by recent desc limit lim offset off
-        ) p;
+        select array_agg(t.line order by t.recent desc) into lead_lines
+          from (select line, recent from hub_secretary_leads
+                order by recent desc limit lim offset off) t;
         result_status := 'listed';
         message := private.hub_secretary_msg('list', tone, coalesce(array_length(lead_lines, 1), 0), lead_lines);
       end if;
@@ -337,10 +331,10 @@ begin
       end if;
       -- Ofertas próprias pendentes e não expiradas; nome = nome do lead.
       create temporary table if not exists hub_secretary_match
-        (id uuid, code text, lead_name text) on commit drop;
+        (id uuid, code text, lead_name text, n_id uuid) on commit drop;
       delete from hub_secretary_match;
       insert into hub_secretary_match
-        select o.id, n.code, l.nome
+        select o.id, n.code, l.nome, n.id
           from public.hub_sales_offers o
           join public.hub_secretary_notices n on n.offer_id = o.id
           join public.hub_sales_distributions d on d.id = o.distribution_id
