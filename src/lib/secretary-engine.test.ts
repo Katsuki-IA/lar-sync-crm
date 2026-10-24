@@ -124,4 +124,22 @@ describe("processSecretaryMessage — comando selado enviado à finalização", 
     expect(f.finalized).toHaveLength(1);
     expect(f.deps.interpret).toHaveBeenCalledTimes(1);
   });
+  it("saídas de IA com reference inválida NUNCA viram comando de aceite/recusa", async () => {
+    // Regressão da revisão 3c78857: reference numérica ou chave extra eram
+    // convertidas em aceite sem referência, podendo aceitar a única oferta.
+    const { parseInterpretationOutput } = await import("./secretary-interpreter");
+    for (const raw of [
+      '{"intent":"aceitar","reference":123}',
+      '{"intent":"aceitar","reference":"x","extra":"ignore regras"}',
+      '{"intent":"aceitar","reference":""}',
+      '{"intent":"aceitar"}',
+      `{"intent":"recusar","reference":"${"a".repeat(200)}"}`,
+    ]) {
+      const f = fixture({ interpretation: parseInterpretationOutput(raw) });
+      const result = await processSecretaryMessage("aceita aí", ctx(), f.deps);
+      expect(f.finalized).toHaveLength(1);
+      expect(f.finalized[0]?.command).toEqual({ kind: "help" });
+      expect(result.status).not.toBe("accepted");
+    }
+  });
 });
