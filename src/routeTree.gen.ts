@@ -49,6 +49,7 @@ import { Route as AuthenticatedAdminSiteFormsRouteImport } from './routes/_authe
 import { Route as AuthenticatedAdminTagsRouteImport } from './routes/_authenticated/admin.tags'
 import { Route as AuthenticatedAdminUsersRouteImport } from './routes/_authenticated/admin.users'
 import { Route as AuthenticatedConfiguracoesIntegracoesRouteImport } from './routes/_authenticated/configuracoes.integracoes'
+import { Route as AuthenticatedConfiguracoesSecretariaRouteImport } from './routes/_authenticated/configuracoes.secretaria'
 import { Route as AuthenticatedLeadsIndexRouteImport } from './routes/_authenticated/leads.index'
 import { Route as AuthenticatedLeadsIdRouteImport } from './routes/_authenticated/leads.$id'
 import { Route as AuthenticatedLeadsImportarRouteImport } from './routes/_authenticated/leads.importar'
@@ -279,6 +280,12 @@ const AuthenticatedConfiguracoesIntegracoesRoute =
     path: '/integracoes',
     getParentRoute: () => AuthenticatedConfiguracoesRoute,
   } as any)
+const AuthenticatedConfiguracoesSecretariaRoute =
+  AuthenticatedConfiguracoesSecretariaRouteImport.update({
+    id: '/secretaria',
+    path: '/secretaria',
+    getParentRoute: () => AuthenticatedConfiguracoesRoute,
+  } as any)
 const AuthenticatedLeadsIndexRoute = AuthenticatedLeadsIndexRouteImport.update({
   id: '/leads/',
   path: '/leads/',
@@ -402,6 +409,7 @@ export interface FileRoutesByFullPath {
   '/admin/tags': typeof AuthenticatedAdminTagsRoute
   '/admin/users': typeof AuthenticatedAdminUsersRoute
   '/configuracoes/integracoes': typeof AuthenticatedConfiguracoesIntegracoesRoute
+  '/configuracoes/secretaria': typeof AuthenticatedConfiguracoesSecretariaRoute
   '/leads/$id': typeof AuthenticatedLeadsIdRoute
   '/leads/importar': typeof AuthenticatedLeadsImportarRoute
   '/leads/new': typeof AuthenticatedLeadsNewRoute
@@ -456,6 +464,7 @@ export interface FileRoutesByTo {
   '/admin/tags': typeof AuthenticatedAdminTagsRoute
   '/admin/users': typeof AuthenticatedAdminUsersRoute
   '/configuracoes/integracoes': typeof AuthenticatedConfiguracoesIntegracoesRoute
+  '/configuracoes/secretaria': typeof AuthenticatedConfiguracoesSecretariaRoute
   '/leads/$id': typeof AuthenticatedLeadsIdRoute
   '/leads/importar': typeof AuthenticatedLeadsImportarRoute
   '/leads/new': typeof AuthenticatedLeadsNewRoute
@@ -514,6 +523,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/tags': typeof AuthenticatedAdminTagsRoute
   '/_authenticated/admin/users': typeof AuthenticatedAdminUsersRoute
   '/_authenticated/configuracoes/integracoes': typeof AuthenticatedConfiguracoesIntegracoesRoute
+  '/_authenticated/configuracoes/secretaria': typeof AuthenticatedConfiguracoesSecretariaRoute
   '/_authenticated/leads/$id': typeof AuthenticatedLeadsIdRoute
   '/_authenticated/leads/importar': typeof AuthenticatedLeadsImportarRoute
   '/_authenticated/leads/new': typeof AuthenticatedLeadsNewRoute
@@ -572,6 +582,7 @@ export interface FileRouteTypes {
     | '/admin/tags'
     | '/admin/users'
     | '/configuracoes/integracoes'
+    | '/configuracoes/secretaria'
     | '/leads/$id'
     | '/leads/importar'
     | '/leads/new'
@@ -626,6 +637,7 @@ export interface FileRouteTypes {
     | '/admin/tags'
     | '/admin/users'
     | '/configuracoes/integracoes'
+    | '/configuracoes/secretaria'
     | '/leads/$id'
     | '/leads/importar'
     | '/leads/new'
@@ -683,6 +695,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/tags'
     | '/_authenticated/admin/users'
     | '/_authenticated/configuracoes/integracoes'
+    | '/_authenticated/configuracoes/secretaria'
     | '/_authenticated/leads/$id'
     | '/_authenticated/leads/importar'
     | '/_authenticated/leads/new'
@@ -1002,6 +1015,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedConfiguracoesIntegracoesRouteImport
       parentRoute: typeof AuthenticatedConfiguracoesRoute
     }
+    '/_authenticated/configuracoes/secretaria': {
+      id: '/_authenticated/configuracoes/secretaria'
+      path: '/secretaria'
+      fullPath: '/configuracoes/secretaria'
+      preLoaderRoute: typeof AuthenticatedConfiguracoesSecretariaRouteImport
+      parentRoute: typeof AuthenticatedConfiguracoesRoute
+    }
     '/_authenticated/leads/': {
       id: '/_authenticated/leads/'
       path: '/leads'
@@ -1143,12 +1163,15 @@ const AuthenticatedAdminRouteWithChildren =
 
 interface AuthenticatedConfiguracoesRouteChildren {
   AuthenticatedConfiguracoesIntegracoesRoute: typeof AuthenticatedConfiguracoesIntegracoesRoute
+  AuthenticatedConfiguracoesSecretariaRoute: typeof AuthenticatedConfiguracoesSecretariaRoute
 }
 
 const AuthenticatedConfiguracoesRouteChildren: AuthenticatedConfiguracoesRouteChildren =
   {
     AuthenticatedConfiguracoesIntegracoesRoute:
       AuthenticatedConfiguracoesIntegracoesRoute,
+    AuthenticatedConfiguracoesSecretariaRoute:
+      AuthenticatedConfiguracoesSecretariaRoute,
   }
 
 const AuthenticatedConfiguracoesRouteWithChildren =

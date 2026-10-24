@@ -4,6 +4,7 @@ import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCrmUser } from "@/hooks/use-crm-user";
 import { useActiveEmpresa } from "@/hooks/use-active-empresa";
+import { useCompanyModules } from "@/hml/modules";
 import { configNavFor, isConfigItemActive, type ConfigScope } from "@/lib/config-nav";
 
 const scopeLabel: Record<ConfigScope, string> = {
@@ -16,7 +17,8 @@ export function ConfigLayout({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { data: me } = useCrmUser();
   const { activeEmpresa } = useActiveEmpresa();
-  const items = configNavFor(me?.role);
+  const { data: modules } = useCompanyModules();
+  const items = configNavFor(me?.role, modules);
   if (!items.length) return <>{children}</>;
   const current = items.find((i) => isConfigItemActive(i, pathname));
   const groups = (["empresa", "global"] as ConfigScope[])
