@@ -74,7 +74,13 @@ export function SecretaryAiSettings({
           </p>
         </div>
         {settings?.installed ? (
-          <ConfigStatus>{settings.enabled ? "Ativa" : "Desativada"}</ConfigStatus>
+          <ConfigStatus>
+            {settings.enabled && settings.aiConfigured
+              ? "Ativa"
+              : settings.enabled
+                ? "Configuração pendente"
+                : "Desativada"}
+          </ConfigStatus>
         ) : (
           <ConfigStatus>Não instalada</ConfigStatus>
         )}

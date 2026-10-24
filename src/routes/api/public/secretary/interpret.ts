@@ -67,6 +67,8 @@ export const Route = createFileRoute("/api/public/secretary/interpret")({
               crmEnabled: sender.crmEnabled,
               eventId: payload.eventId,
               channel: "whatsapp",
+              instance,
+              phone: payload.phone,
             },
             createSecretaryDeps(supabaseAdmin),
           );
