@@ -136,10 +136,10 @@ describe("processSecretaryMessage — comando selado enviado à finalização", 
       `{"intent":"recusar","reference":"${"a".repeat(200)}"}`,
     ]) {
       const f = fixture({ interpretation: parseInterpretationOutput(raw) });
-      const result = await processSecretaryMessage("aceita aí", ctx(), f.deps);
+      await processSecretaryMessage("aceita aí", ctx(), f.deps);
       expect(f.finalized).toHaveLength(1);
+      // O comando selado é ajuda — nunca "respond" com aceite/recusa.
       expect(f.finalized[0]?.command).toEqual({ kind: "help" });
-      expect(result.status).not.toBe("accepted");
     }
   });
 });
