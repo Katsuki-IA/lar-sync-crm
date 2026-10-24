@@ -119,17 +119,17 @@ describe("processSecretaryMessage — comando selado enviado à finalização", 
     expect(result).toEqual({ status: "replayed", message: "Oferta aceita." });
   });
   it("'meus leads página N' é determinístico: não chama IA e calcula o offset", async () => {
-    const f = fixture();
+    const f = fixture({});
     await processSecretaryMessage("meus leads página 2", ctx(), f.deps);
     expect(f.deps.interpret).not.toHaveBeenCalled();
     expect(f.deps.loadRuntimeSettings).not.toHaveBeenCalled();
     expect(f.finalized[0]?.command).toEqual({ kind: "list", limit: 10, offset: 10 });
-    const f3 = fixture();
+    const f3 = fixture({});
     await processSecretaryMessage("Meus Leads Página 3", ctx(), f3.deps);
     expect(f3.finalized[0]?.command).toEqual({ kind: "list", limit: 10, offset: 20 });
   });
   it("'meus leads' simples também é determinístico (página 1)", async () => {
-    const f = fixture();
+    const f = fixture({});
     await processSecretaryMessage("meus leads", ctx(), f.deps);
     expect(f.deps.interpret).not.toHaveBeenCalled();
     expect(f.finalized[0]?.command).toEqual({ kind: "list", limit: 10, offset: 0 });
