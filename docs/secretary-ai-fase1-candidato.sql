@@ -359,7 +359,7 @@ begin
                          and ob.attempts > 0
                          and ob.status in ('sending','sent','uncertain'));
       end if;
-      if v_ref is null then
+      if result_status is null and v_ref is null then
         select count(*) into match_count from hub_secretary_match;
         if match_count = 1 then
           select * into offer from hub_secretary_match limit 1;
