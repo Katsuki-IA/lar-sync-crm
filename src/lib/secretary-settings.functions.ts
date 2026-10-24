@@ -49,6 +49,8 @@ export const getSecretaryAiSettings = createServerFn({ method: 'POST' })
       tone: isSecretaryTone(row?.tone) ? row.tone : 'cordial',
       basePrompt: typeof row?.base_prompt === 'string' ? row.base_prompt : null,
       canEdit: role === 'super_admin',
+      // Booleano de presença da credencial no servidor; nunca expõe o valor.
+      aiConfigured: Boolean(process.env.OPENAI_API_KEY),
     };
   });
 

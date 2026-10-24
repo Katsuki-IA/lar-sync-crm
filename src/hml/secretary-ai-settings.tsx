@@ -74,7 +74,13 @@ export function SecretaryAiSettings({
           </p>
         </div>
         {settings?.installed ? (
-          <ConfigStatus>{settings.enabled ? "Ativa" : "Desativada"}</ConfigStatus>
+          <ConfigStatus>
+            {settings.enabled && settings.aiConfigured
+              ? "Ativa"
+              : settings.enabled
+                ? "Configuração pendente"
+                : "Desativada"}
+          </ConfigStatus>
         ) : (
           <ConfigStatus>Não instalada</ConfigStatus>
         )}
@@ -134,6 +140,12 @@ export function SecretaryAiSettings({
             />
             Interpretar mensagens livres dos corretores
           </label>
+          {settings.enabled && !settings.aiConfigured && (
+            <p className="text-xs text-muted-foreground">
+              A interpretação está marcada como ativa, mas a credencial de IA ainda não está
+              configurada no servidor; mensagens livres receberão a ajuda até a configuração.
+            </p>
+          )}
           {!isAdmin && (
             <p className="text-xs text-muted-foreground">
               Somente o super admin pode alterar o tom, as regras e a ativação.
