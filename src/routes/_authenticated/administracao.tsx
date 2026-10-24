@@ -1,4 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { Button } from "@/components/ui/button";
+import { ConfigHeader, ConfigSection, ConfigStatus, ConfigTabs } from "@/components/config-presentation";
 import { ConfigLayout } from "@/components/config-layout";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -27,6 +29,7 @@ import {
 } from "@/hml/administration";
 
 export const Route = createFileRoute("/_authenticated/administracao")({
+  head: () => ({ meta: [{ title: "Empresa e empreendimentos | Katsuki HUB" }, { name: "description", content: "Cadastro da empresa selecionada, empreendimentos e permissões da equipe." }, { property: "og:title", content: "Empresa e empreendimentos | Katsuki HUB" }, { property: "og:description", content: "Cadastro da empresa selecionada, empreendimentos e permissões da equipe." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
   component: () => (
     <ConfigLayout>
       <AdministrationPage />
@@ -118,54 +121,31 @@ function CompanyAdministration({ companyId }: { companyId: number }) {
   if (query.isError)
     return (
       <Notice title="Não foi possível carregar o cadastro">
-        <button className={secondaryClass} onClick={() => query.refetch()}>
+        <Button variant="outline" className={secondaryClass} onClick={() => query.refetch()}>
           Tentar novamente
-        </button>
+        </Button>
       </Notice>
     );
   const { company, modules, developments, members, permissions } = query.data;
   // On a conflict preserve unsaved values; opening the form again loads the new revision.
   return (
-    <div className="max-w-6xl space-y-6">
-      <header>
-        <div className="mb-2 text-xs font-semibold uppercase tracking-widest text-primary">
-          Administração da empresa · #{company.id}
+    <div className="config-page max-w-6xl space-y-6">
+      <ConfigHeader title="Empresa e empreendimentos" context={`${company.nome} · #${company.id}`} description="Cadastro central, empreendimentos e permissões da equipe." />
+      <div className="space-y-2">
+        <div className="flex flex-wrap gap-2">
+          <ConfigStatus>CRM: {modules?.crm ? "habilitado" : "não habilitado"}</ConfigStatus>
+          <ConfigStatus>Atendimento IA: {modules?.atendimento_ia ? "habilitado" : "não habilitado"}</ConfigStatus>
         </div>
-        <h1 className="text-2xl font-bold">{company.nome}</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Cadastro central, empreendimentos e permissões da equipe.
-        </p>
-      </header>
-      <div className="flex flex-wrap gap-3 rounded-xl border bg-white p-4 text-sm">
-        <span className="rounded-full bg-accent px-3 py-1">
-          CRM: {modules?.crm ? "habilitado" : "não habilitado"}
-        </span>
-        <span className="rounded-full bg-muted px-3 py-1">
-          Atendimento IA: {modules?.atendimento_ia ? "habilitado" : "não habilitado"}
-        </span>
-        <p className="w-full text-xs text-muted-foreground">
-          O status considera os módulos configurados e a habilitação existente no HUB.
-        </p>
+        <p className="text-xs text-muted-foreground">O status considera os módulos configurados e a habilitação existente no HUB.</p>
       </div>
-      <nav aria-label="Seções da administração" className="hml-section-nav">
-        {[
-          ["dados", "Dados da empresa"],
-          ["empreendimentos", "Empreendimentos"],
-          ["permissoes", "Equipe e permissões"],
-          ["historico", "Histórico"],
-        ].map(([id, label]) => (
-          <button
-            key={id}
-            aria-pressed={tab === id}
-            className="hml-section-link"
-            onClick={() => setTab(id)}
-          >
-            {label}
-          </button>
-        ))}
-      </nav>
+      <ConfigTabs label="Seções da administração" value={tab} onChange={setTab} items={[
+        { value: "dados", label: "Dados da empresa" },
+        { value: "empreendimentos", label: "Empreendimentos" },
+        { value: "permissoes", label: "Equipe e permissões" },
+        { value: "historico", label: "Histórico" },
+      ]} />
       {tab === "dados" && (
-        <section className="rounded-xl border bg-white p-5">
+        <ConfigSection>
           <p className="mb-5 text-sm text-muted-foreground">
             Dados institucionais. Telefones operacionais, credenciais e destino dos leads ficam na
             configuração técnica.
@@ -178,7 +158,7 @@ function CompanyAdministration({ companyId }: { companyId: number }) {
             onSave={saveCompany.mutate}
             pending={saveCompany.isPending}
           />
-        </section>
+        </ConfigSection>
       )}
       {tab === "empreendimentos" && (
         <section className="space-y-4">
@@ -191,7 +171,7 @@ function CompanyAdministration({ companyId }: { companyId: number }) {
               onChange={(e) => setSearch(e.target.value)}
             />
             {isAdmin && (
-              <button
+              <Button
                 className={actionClass + " flex items-center gap-2"}
                 onClick={() => {
                   setRequestId(crypto.randomUUID());
@@ -200,7 +180,7 @@ function CompanyAdministration({ companyId }: { companyId: number }) {
               >
                 <Plus size={16} />
                 Novo empreendimento
-              </button>
+              </Button>
             )}
           </div>
           <p className="text-sm text-muted-foreground">
@@ -211,7 +191,7 @@ function CompanyAdministration({ companyId }: { companyId: number }) {
             {developments
               .filter((d) => d.nome.toLocaleLowerCase().includes(search.toLocaleLowerCase()))
               .map((d) => (
-                <article key={d.id} className="rounded-xl border bg-white p-5">
+                <article key={d.id} className="rounded-xl border bg-card p-5">
                   <Building2 className="mb-3 text-primary" size={22} />
                   <h2 className="font-semibold">{d.nome}</h2>
                   <p className="mt-2 text-sm text-muted-foreground">
@@ -221,11 +201,11 @@ function CompanyAdministration({ companyId }: { companyId: number }) {
                     {String(d.preco ?? "Preço não informado")} ·{" "}
                     {String(d.status ?? "Status não informado")}
                   </p>
-                  <button className={secondaryClass + " mt-4"} onClick={() => setEdit(d)}>
+                  <Button variant="outline" className={secondaryClass + " mt-4"} onClick={() => setEdit(d)}>
                     {developmentFields.some((f) => canEdit(f.group))
                       ? "Ver e editar"
                       : "Ver informações"}
-                  </button>
+                  </Button>
                 </article>
               ))}
           </div>
@@ -276,7 +256,7 @@ function CompanyAdministration({ companyId }: { companyId: number }) {
           if (!open && !saveDevelopment.isPending) setEdit(null);
         }}
       >
-        <DialogContent className="max-h-[85vh] max-w-3xl overflow-y-auto">
+        <DialogContent className="config-dialog max-h-[85vh] w-[calc(100%-2rem)] max-w-3xl overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{edit?.id ? edit.nome : "Novo empreendimento"}</DialogTitle>
             <DialogDescription>
@@ -330,7 +310,7 @@ function PermissionEditor({
     "Permissões atualizadas",
   );
   return (
-    <article className="rounded-xl border bg-white p-5">
+    <article className="rounded-xl border bg-card p-5">
       <h2 className="font-semibold">
         {member.nome} {!member.active && "· Inativo"}
       </h2>
@@ -352,13 +332,13 @@ function PermissionEditor({
         ))}
       </fieldset>
       {isAdmin && (
-        <button
+        <Button
           disabled={!dirty || !member.active || save.isPending}
           className={actionClass + " mt-4"}
           onClick={() => save.mutate()}
         >
           {save.isPending ? "Salvando…" : "Salvar permissões"}
-        </button>
+        </Button>
       )}
     </article>
   );
@@ -406,13 +386,13 @@ function AdminHistory({ companyId }: { companyId: number }) {
   if (query.isError)
     return (
       <Notice title="Não foi possível carregar o histórico">
-        <button onClick={() => query.refetch()}>Tentar novamente</button>
+        <Button onClick={() => query.refetch()}>Tentar novamente</Button>
       </Notice>
     );
   return (
     <section className="space-y-3">
       {query.data.rows.map((event) => (
-        <details key={event.id} className="rounded-xl border bg-white p-4">
+        <details key={event.id} className="rounded-xl border bg-card p-4">
           <summary className="cursor-pointer text-sm">
             <strong>
               {{
@@ -457,21 +437,21 @@ function AdminHistory({ companyId }: { companyId: number }) {
         </Notice>
       )}
       <div className="flex items-center justify-between text-sm">
-        <button
-          className={secondaryClass}
+        <Button
+          variant="outline" className={secondaryClass}
           disabled={page === 0}
           onClick={() => setPage((p) => p - 1)}
         >
           Anterior
-        </button>
+        </Button>
         <span>{query.data.total} registros</span>
-        <button
-          className={secondaryClass}
+        <Button
+          variant="outline" className={secondaryClass}
           disabled={(page + 1) * 20 >= query.data.total}
           onClick={() => setPage((p) => p + 1)}
         >
           Próxima
-        </button>
+        </Button>
       </div>
     </section>
   );

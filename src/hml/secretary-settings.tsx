@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Settings2 } from "lucide-react";
+import { ConfigSection, ConfigStatus } from "@/components/config-presentation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -75,11 +75,10 @@ export function SecretarySettings({ companyId, isAdmin }: { companyId: number; i
     );
   const c = query.data.channel;
   return (
-    <section className="space-y-4 rounded-xl border bg-muted/20 p-4">
+    <ConfigSection>
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h3 className="flex items-center gap-2 font-semibold">
-            <Settings2 className="size-4" />
             Conexão e automação
           </h3>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -91,7 +90,7 @@ export function SecretarySettings({ companyId, isAdmin }: { companyId: number; i
           </p>
         </div>
         {isAdmin && (
-          <Button variant="outline" size="sm" onClick={() => setEdit(true)}>
+          <Button variant="outline" onClick={() => setEdit(true)}>
             {c ? "Editar conexão" : "Configurar conexão"}
           </Button>
         )}
@@ -99,11 +98,10 @@ export function SecretarySettings({ companyId, isAdmin }: { companyId: number; i
       {c && (
         <>
           <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-full bg-muted px-3 py-1 text-xs">
+            <ConfigStatus>
               {c.autoSend ? "Envio automático ativo" : "Envio automático pausado"}
-            </span>
+            </ConfigStatus>
             <Button
-              size="sm"
               variant="outline"
               disabled={
                 automatic.isPending || (!c.autoSend && (!c.enabled || !c.inboundVerifiedAt))
@@ -113,7 +111,6 @@ export function SecretarySettings({ companyId, isAdmin }: { companyId: number; i
               {c.autoSend ? "Pausar automação" : "Ativar automação"}
             </Button>
             <Button
-              size="sm"
               variant="outline"
               disabled={!c.enabled || dispatch.isPending}
               onClick={() => dispatch.mutate()}
@@ -121,7 +118,7 @@ export function SecretarySettings({ companyId, isAdmin }: { companyId: number; i
               Enviar avisos pendentes
             </Button>
             {isAdmin && (
-              <Button size="sm" variant="ghost" disabled={loadingWebhook} onClick={showWebhook}>
+              <Button variant="ghost" disabled={loadingWebhook} onClick={showWebhook}>
                 Configurar webhook
               </Button>
             )}
@@ -131,7 +128,7 @@ export function SecretarySettings({ companyId, isAdmin }: { companyId: number; i
               ? "Aceite pelo WhatsApp validado. O processamento automático depende do agendamento configurado no servidor."
               : "Primeiro envie uma oferta e confirme o aceite pelo WhatsApp para liberar a automação."}
           </p>
-          <div className="space-y-2 border-t pt-4">
+          <div className="space-y-4 border-t pt-6">
             <h4 className="text-sm font-semibold">WhatsApp dos corretores</h4>
             <p className="text-xs text-muted-foreground">
               Use o WhatsApp do corretor reconhecido pelo provedor, com DDI.
@@ -144,7 +141,7 @@ export function SecretarySettings({ companyId, isAdmin }: { companyId: number; i
             {query.data.recipients.map((r) => (
               <div
                 key={r.memberId}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-background p-3"
+                className="flex flex-wrap items-center justify-between gap-3 border-b border-border py-4 last:border-b-0"
               >
                 <div>
                   <p className="text-sm font-medium">{r.name}</p>
@@ -153,7 +150,7 @@ export function SecretarySettings({ companyId, isAdmin }: { companyId: number; i
                     {r.enabled ? "Habilitado" : "Pausado"}
                   </p>
                 </div>
-                <Button size="sm" variant="outline" onClick={() => setRecipient(r)}>
+                <Button variant="outline" onClick={() => setRecipient(r)}>
                   Editar WhatsApp
                 </Button>
               </div>
@@ -175,7 +172,7 @@ export function SecretarySettings({ companyId, isAdmin }: { companyId: number; i
           if (!open) setWebhook(null);
         }}
       >
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="config-dialog max-w-2xl">
           <DialogHeader>
             <DialogTitle>Configuração do webhook</DialogTitle>
             <DialogDescription>
@@ -203,7 +200,7 @@ export function SecretarySettings({ companyId, isAdmin }: { companyId: number; i
           </Button>
         </DialogContent>
       </Dialog>
-    </section>
+    </ConfigSection>
   );
 }
 function ConnectionEditor({
@@ -241,7 +238,7 @@ function ConnectionEditor({
         if (!open && !save.isPending) close();
       }}
     >
-      <DialogContent>
+      <DialogContent className="config-dialog">
         <DialogHeader>
           <DialogTitle>Conexão da secretária</DialogTitle>
           <DialogDescription>
@@ -250,7 +247,7 @@ function ConnectionEditor({
           </DialogDescription>
         </DialogHeader>
         <form
-          className="space-y-4"
+          className="config-form space-y-6"
           onSubmit={(e) => {
             e.preventDefault();
             save.mutate();
@@ -356,7 +353,7 @@ function RecipientEditor({
         if (!open && !save.isPending) close();
       }}
     >
-      <DialogContent>
+      <DialogContent className="config-dialog">
         <DialogHeader>
           <DialogTitle>WhatsApp de {recipient.name}</DialogTitle>
           <DialogDescription>
@@ -365,7 +362,7 @@ function RecipientEditor({
           </DialogDescription>
         </DialogHeader>
         <form
-          className="space-y-4"
+          className="config-form space-y-6"
           onSubmit={(e) => {
             e.preventDefault();
             save.mutate();

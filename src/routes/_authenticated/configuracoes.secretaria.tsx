@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { ConfigHeader } from "@/components/config-presentation";
 import { ConfigLayout } from "@/components/config-layout";
 import { SecretarySettings } from "@/hml/secretary-settings";
 import { Notice, useCompanyModules } from "@/hml/modules";
@@ -43,14 +44,8 @@ function Page() {
     );
   return (
     <ConfigLayout>
-      <div className="space-y-5">
-        <header>
-          <h1 className="text-2xl font-bold">Secretária</h1>
-          <p className="text-sm text-muted-foreground">
-            Conexão do WhatsApp, automação e WhatsApp dos corretores que recebem os avisos de
-            ofertas da empresa selecionada.
-          </p>
-        </header>
+      <div className="config-page space-y-6">
+        <ConfigHeader title="Secretária" description="Conexão do WhatsApp, automação e WhatsApp dos corretores que recebem os avisos de ofertas da empresa selecionada." />
         <SecretarySettings
           key={activeEmpresaId}
           companyId={activeEmpresaId}
