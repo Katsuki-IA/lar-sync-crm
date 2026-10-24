@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { ConfigLayout } from "@/components/config-layout";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Building2, Plus, ArrowLeft } from "lucide-react";
+import { Building2, Plus } from "lucide-react";
 import {
   Dialog,
   DialogContent,
