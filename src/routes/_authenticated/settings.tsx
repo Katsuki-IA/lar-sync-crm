@@ -1,7 +1,6 @@
-import { createFileRoute, Link, Outlet, useRouterState, redirect } from "@tanstack/react-router";
-import { cn } from "@/lib/utils";
+import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
+import { ConfigLayout } from "@/components/config-layout";
 import { supabase } from "@/integrations/supabase/client";
-import { useCrmUser } from "@/hooks/use-crm-user";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   beforeLoad: async () => {
@@ -20,50 +19,9 @@ export const Route = createFileRoute("/_authenticated/settings")({
 });
 
 function SettingsLayout() {
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const { data: me } = useCrmUser();
-  const tabs =
-    me?.role === "super_admin"
-      ? [
-          { to: "/admin/funnel", label: "Funil e etapas" },
-          { to: "/admin/tags", label: "Tags" },
-          { to: "/admin/custom-fields", label: "Campos do lead" },
-          { to: "/settings/users", label: "Usuários" },
-          { to: "/settings/empreendimentos", label: "Venda e locação" },
-        ]
-      : [
-          { to: "/settings/users", label: "Usuários" },
-          { to: "/settings/empreendimentos", label: "Venda e locação" },
-        ];
-
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Configurações</h1>
-        <p className="text-sm text-muted-foreground">
-          Gerencie o cadastro e a operação da sua empresa.
-        </p>
-      </div>
-      <div className="flex gap-1 overflow-x-auto border-b border-border">
-        {tabs.map((t) => {
-          const active = pathname === t.to || pathname.startsWith(`${t.to}/`);
-          return (
-            <Link
-              key={t.to}
-              to={t.to}
-              className={cn(
-                "shrink-0 whitespace-nowrap px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors",
-                active
-                  ? "border-primary text-foreground"
-                  : "border-transparent text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {t.label}
-            </Link>
-          );
-        })}
-      </div>
+    <ConfigLayout>
       <Outlet />
-    </div>
+    </ConfigLayout>
   );
 }

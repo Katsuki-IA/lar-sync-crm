@@ -4,7 +4,6 @@ import {
   LayoutDashboard,
   Users,
   Settings,
-  Shield,
   BarChart2,
   Plug,
   MessagesSquare,
@@ -14,6 +13,9 @@ import { cn } from "@/lib/utils";
 import { useCrmUser } from "@/hooks/use-crm-user";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { getInitials, colorFromString } from "@/lib/lead-visuals";
+import { adminSidebarFor, isConfigPath } from "@/lib/config-nav";
+
+const CONFIG_MATCH = "__config__";
 
 type Item = { title: string; url: string; match: string; icon: typeof LayoutDashboard };
 
@@ -72,36 +74,12 @@ export function AppSidebar({
       {title:"Tarefas",url:"/tarefas",match:"/tarefas",icon:LayoutDashboard},
       {title:me?.role === "agent" ? "Minhas ofertas" : "Filas de distribuição",url:"/filas",match:"/filas",icon:Users});
   }
-  const adminItems: Item[] = [];
-  if (me?.role === "super_admin") adminItems.push({title:"Empresas e módulos",url:"/modulos",match:"/modulos",icon:Shield});
-  if (me?.role === "super_admin" || me?.role === "manager") {
-    adminItems.push({title:"Empresa e empreendimentos",url:"/administracao",match:"/administracao",icon:Settings});
-    adminItems.push({title:"Configuração dos módulos",url:"/configuracoes",match:"/configuracoes",icon:Settings});
-  }
-  if (me?.role === "manager" || me?.role === "super_admin") {
-    adminItems.push({
-      title: "Configurações",
-      url: "/settings/users",
-      match: "/settings",
-      icon: Settings,
-    });
-  }
-  if (me?.role === "manager" && modules?.atendimento_ia) {
-    adminItems.push({
-      title: "Integrações",
-      url: "/configuracoes/integracoes",
-      match: "/configuracoes/integracoes",
-      icon: Plug,
-    });
-  }
-  if (me?.role === "super_admin") {
-    adminItems.push({
-      title: "Super Admin",
-      url: "/admin/empresas",
-      match: "/admin",
-      icon: Shield,
-    });
-  }
+  const adminItems: Item[] = adminSidebarFor(me?.role, modules).map((i) => ({
+    title: i.title,
+    url: i.url,
+    match: i.kind === "config" ? CONFIG_MATCH : i.url,
+    icon: i.kind === "config" ? Settings : Plug,
+  }));
 
   const initials = getInitials(me?.nome ?? me?.email, "U");
   const avatarColor = colorFromString(me?.nome ?? me?.email);
@@ -190,7 +168,7 @@ function SidebarGroup({
       </div>
       <div className="space-y-1">
         {items.map((item) => {
-          const active = item.url === "/configuracoes" ? pathname.replace(/\/+$/, "") === "/configuracoes" : pathname.startsWith(item.match);
+          const active = item.match === CONFIG_MATCH ? isConfigPath(pathname) : pathname.startsWith(item.match);
           return (
             <Link
               key={item.url}

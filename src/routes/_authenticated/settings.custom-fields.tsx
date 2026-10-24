@@ -41,7 +41,7 @@ import {
 } from "@/lib/lead-custom-fields";
 
 export const Route = createFileRoute("/_authenticated/settings/custom-fields")({
-  beforeLoad: () => { throw redirect({ to: "/settings/users" }); },
+  beforeLoad: ({ location }) => { throw redirect({ href: "/configuracoes" + location.searchStr }); },
 });
 
 type FieldForm = {

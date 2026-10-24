@@ -14,8 +14,15 @@ import { useCrmUser } from "@/hooks/use-crm-user";
 import { useActiveEmpresa } from "@/hooks/use-active-empresa";
 import { db, Notice, inputClass, actionClass, secondaryClass, type Modules } from "@/hml/modules";
 import { companyApi } from "@/hml/company-api";
+import { ConfigLayout } from "@/components/config-layout";
 
-export const Route = createFileRoute("/_authenticated/modulos")({ component: ModulesPage });
+export const Route = createFileRoute("/_authenticated/modulos")({
+  component: () => (
+    <ConfigLayout>
+      <ModulesPage />
+    </ConfigLayout>
+  ),
+});
 function ModulesPage() {
   const { data: me } = useCrmUser();
   const qc = useQueryClient();

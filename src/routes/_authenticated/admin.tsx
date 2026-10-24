@@ -1,5 +1,5 @@
-import { createFileRoute, Link, Outlet, useRouterState, redirect } from "@tanstack/react-router";
-import { cn } from "@/lib/utils";
+import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
+import { ConfigLayout } from "@/components/config-layout";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_authenticated/admin")({
@@ -16,47 +16,10 @@ export const Route = createFileRoute("/_authenticated/admin")({
   component: AdminLayout,
 });
 
-const tabs = [
-  { to: "/admin/empresas", label: "Empresas" },
-  { to: "/admin/users", label: "Usuários" },
-  { to: "/admin/funnel", label: "Funil e etapas" },
-  { to: "/admin/tags", label: "Tags" },
-  { to: "/admin/custom-fields", label: "Campos do lead" },
-  { to: "/admin/crm-dispatch", label: "Envio ao CRM" },
-  { to: "/admin/site-forms", label: "Formulários externos" },
-  { to: "/admin/reporting-api", label: "API de relatórios" },
-  { to: "/admin/notifications", label: "Notificações" },
-  { to: "/admin/paginas-legais", label: "Páginas legais" },
-] as const;
-
 function AdminLayout() {
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Super Admin</h1>
-        <p className="text-sm text-muted-foreground">Gestão global da plataforma.</p>
-      </div>
-      <div className="flex gap-1 overflow-x-auto border-b border-border">
-        {tabs.map((t) => {
-          const active = pathname === t.to;
-          return (
-            <Link
-              key={t.to}
-              to={t.to}
-              className={cn(
-                "shrink-0 px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors",
-                active
-                  ? "border-primary text-foreground"
-                  : "border-transparent text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {t.label}
-            </Link>
-          );
-        })}
-      </div>
+    <ConfigLayout>
       <Outlet />
-    </div>
+    </ConfigLayout>
   );
 }
