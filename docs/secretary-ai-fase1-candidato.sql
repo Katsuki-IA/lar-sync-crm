@@ -465,16 +465,21 @@ begin
    where c.id_empresa=r.id_empresa and c.instance=p_instance and r.status='sending'
      and r.claimed_at<clock_timestamp()-interval '2 minutes';
   for job in select r.* from private.hub_secretary_replies r
-      join public.hub_whatsapp_channels c on c.id_empresa=r.id_empresa
+      join public.hub_whatsapp_channels c on c.id_empresa=r.id_empresa and c.enabled
       where c.instance=p_instance and r.status='pending' and r.available_at<=clock_timestamp()
       order by r.available_at, r.id limit 50 for update of r skip locked loop
+    -- Fail-closed no momento do envio: canal ativo (join acima), capacidade
+    -- de IA ativa e destinatário ainda corretor ativo com CRM. Se canal ou
+    -- capacidade foram pausados após o enfileiramento, a resposta NÃO sai.
     select rec.phone into target from private.hub_whatsapp_recipients rec
       join public.crm_users u on u.id=rec.member_id and u.id_empresa=rec.id_empresa and u.active
+                                 and u.role in ('agent','corretor')
       join public.hub_company_modules m on m.id_empresa=rec.id_empresa and m.crm
+      join public.hub_secretary_ai_settings s on s.id_empresa=rec.id_empresa and s.enabled
      where rec.id_empresa=job.id_empresa and rec.member_id=job.member_id and rec.enabled;
     if target is null then
       update private.hub_secretary_replies set status='cancelled', reason='recipient_unavailable',
-             updated_at=clock_timestamp() where id=job.id;
+              updated_at=clock_timestamp() where id=job.id;
       continue;
     end if;
     update private.hub_secretary_replies set status='sending', attempts=attempts+1,
