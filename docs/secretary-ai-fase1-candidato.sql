@@ -372,7 +372,7 @@ begin
           result_status := 'ambiguous';
           message := private.hub_secretary_msg('ambiguous', tone, null, match_lines);
         end if;
-      else
+      elsif result_status is null then
         -- Código tem precedência; depois nome exato (case/espaços), depois parcial.
         select m.* into offer from hub_secretary_match m where m.code = upper(v_ref) limit 1;
         if offer.id is null then
