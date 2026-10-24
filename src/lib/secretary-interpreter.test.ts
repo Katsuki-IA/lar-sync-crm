@@ -7,6 +7,7 @@ import {
   normalizeName,
   parseInterpretationOutput,
   parseLegacyCommand,
+  parseListPageCommand,
   type PendingOffer,
 } from "./secretary-interpreter";
 
@@ -33,6 +34,23 @@ describe("parseLegacyCommand", () => {
     expect(parseLegacyCommand("ACEITAR A1B2")).toBeNull();
     expect(parseLegacyCommand("ACEITAR G1B2C3D4E5F6")).toBeNull();
     expect(parseLegacyCommand("ACEITAR A1B2C3D4E5F6 por favor")).toBeNull();
+  });
+});
+
+describe("parseListPageCommand", () => {
+  it("aceita 'meus leads' e 'meus leads página N' com acento, caixa e espaços", () => {
+    expect(parseListPageCommand("meus leads")).toEqual({ page: 1 });
+    expect(parseListPageCommand("  Meus   Leads ")).toEqual({ page: 1 });
+    expect(parseListPageCommand("meus leads página 2")).toEqual({ page: 2 });
+    expect(parseListPageCommand("MEUS LEADS PAGINA 12")).toEqual({ page: 12 });
+  });
+  it("rejeita página 0, negativa, gigante e texto fora do padrão", () => {
+    expect(parseListPageCommand("meus leads página 0")).toBeNull();
+    expect(parseListPageCommand("meus leads página -1")).toBeNull();
+    expect(parseListPageCommand("meus leads página 12345")).toBeNull();
+    expect(parseListPageCommand("meus leads por favor")).toBeNull();
+    expect(parseListPageCommand("quero meus leads")).toBeNull();
+    expect(parseListPageCommand("meus leads página")).toBeNull();
   });
 });
 
