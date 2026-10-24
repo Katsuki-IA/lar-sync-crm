@@ -296,6 +296,16 @@ begin
                 order by recent desc limit v_lim offset v_off) t;
         result_status := 'listed';
         message := private.hub_secretary_msg('list', tone, coalesce(array_length(lead_lines, 1), 0), lead_lines);
+        -- Orientação de paginação: informa a página atual e como pedir a
+        -- próxima (comando determinístico "meus leads página N").
+        if lead_count > v_off + v_lim then
+          message := message || E'\n'
+            || 'Página ' || (v_off / v_lim + 1) || ' de ' || ceil(lead_count::numeric / v_lim)
+            || '. Para ver a próxima, responda "meus leads página ' || (v_off / v_lim + 2) || '".';
+        elsif v_off > 0 then
+          message := message || E'\n'
+            || 'Página ' || (v_off / v_lim + 1) || ' de ' || ceil(lead_count::numeric / v_lim) || '.';
+        end if;
       end if;
     end if;
 
@@ -462,7 +472,7 @@ begin
   update private.hub_secretary_replies r set status='uncertain', reason='worker_interrupted',
          updated_at=clock_timestamp()
     from public.hub_whatsapp_channels c
-   where c.id_empresa=r.id_empresa and c.instance=p_instance and r.status='sending'
+   where c.id_empresa=r.id_empresa and c.instance=p_instance and c.enabled and r.status='sending'
      and r.claimed_at<clock_timestamp()-interval '2 minutes';
   for job in select r.* from private.hub_secretary_replies r
       join public.hub_whatsapp_channels c on c.id_empresa=r.id_empresa and c.enabled
