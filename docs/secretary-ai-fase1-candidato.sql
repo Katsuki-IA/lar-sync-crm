@@ -4,8 +4,10 @@
 --
 -- Correções desta revisão:
 --  1. Privilégios mínimos explícitos: funções internas no schema private
---     (security definer, search_path=''), wrappers públicos security invoker
---     com REVOKE de public/anon e GRANT apenas ao papel necessário
+--     (security definer, search_path='') com REVOKE de public/anon/
+--     authenticated/service_role e EXECUTE só ao papel do wrapper; wrappers
+--     públicos security invoker com REVOKE de public/anon e GRANT apenas ao
+--     papel necessário; outbox private com RLS e REVOKE ALL
 --     (authenticated para settings de UI; service_role para operações
 --     internas). Tabela de configuração com RLS habilitado e sem políticas
 --     (acesso direto negado; somente via funções).
@@ -30,7 +32,7 @@
 --     paginação real (limite + deslocamento).
 --  5. Contrato do desvio corrigido: o endpoint espera "eventId" (camelCase);
 --     o patch de encaminhamento envia "eventId". Patch completo e verificável
---     ao final, com rollback (texto original da função).
+--     ao final; rollback apenas orientado (sem definição original literal).
 --  6. Settings: leitura de UI (authenticated, auth.uid()) separada da leitura
 --     de runtime (service_role, sem auth.uid()). O caminho de execução não
 --     chama função que exige auth.uid() com o client de serviço.
@@ -95,6 +97,10 @@ create table if not exists private.hub_secretary_replies (
 create index if not exists hub_secretary_replies_pending
   on private.hub_secretary_replies (id_empresa, available_at)
   where status = 'pending';
+alter table private.hub_secretary_replies enable row level security;
+-- Sem políticas e sem grants: acesso direto negado a todos os papéis da API;
+-- somente claim/finish/finalize (security definer) manipulam a tabela.
+revoke all on private.hub_secretary_replies from public, anon, authenticated, service_role;
 
 -- ----------------------------------------------------------------------------
 -- Mensagens ao corretor, por tom. Espelha src/lib/secretary-interpreter.ts
@@ -588,6 +594,35 @@ grant execute on function public.hub_secretary_finalize(text, text, text, text, 
 grant execute on function public.hub_secretary_claim_reply(text) to service_role;
 grant execute on function public.hub_secretary_finish_reply(uuid, uuid, text, text) to service_role;
 
+-- ----------------------------------------------------------------------------
+-- Privilégios das funções internas (schema private). Por padrão o Postgres
+-- concede EXECUTE a PUBLIC em toda função nova: revogamos de todos e
+-- concedemos apenas ao papel do wrapper correspondente (os wrappers são
+-- security invoker, logo o chamador precisa de EXECUTE na função interna).
+-- ----------------------------------------------------------------------------
+revoke all on function private.hub_secretary_msg(text, text, integer, text[], text) from public, anon, authenticated, service_role;
+revoke all on function private.hub_secretary_ai_get(bigint) from public, anon, authenticated, service_role;
+revoke all on function private.hub_secretary_ai_save(bigint, boolean, text, text) from public, anon, authenticated, service_role;
+revoke all on function private.hub_secretary_ai_runtime(bigint) from public, anon, authenticated, service_role;
+revoke all on function private.hub_secretary_resolve_sender(text, text) from public, anon, authenticated, service_role;
+revoke all on function private.hub_secretary_finalize(text, text, text, text, jsonb) from public, anon, authenticated, service_role;
+revoke all on function private.hub_secretary_claim_reply(text) from public, anon, authenticated, service_role;
+revoke all on function private.hub_secretary_finish_reply(uuid, uuid, text, text) from public, anon, authenticated, service_role;
+-- UI (authenticated): somente leitura/gravação de settings.
+grant execute on function private.hub_secretary_ai_get(bigint) to authenticated;
+grant execute on function private.hub_secretary_ai_save(bigint, boolean, text, text) to authenticated;
+-- Runtime (service_role): somente operações internas.
+grant execute on function private.hub_secretary_ai_runtime(bigint) to service_role;
+grant execute on function private.hub_secretary_resolve_sender(text, text) to service_role;
+grant execute on function private.hub_secretary_finalize(text, text, text, text, jsonb) to service_role;
+grant execute on function private.hub_secretary_claim_reply(text) to service_role;
+grant execute on function private.hub_secretary_finish_reply(uuid, uuid, text, text) to service_role;
+-- hub_secretary_msg: sem grant; só é chamada pelas funções definer (dono).
+-- USAGE mínimo no schema private para resolver as funções acima; nenhum
+-- grant em tabelas do schema e anon não recebe USAGE.
+revoke usage on schema private from public, anon;
+grant usage on schema private to authenticated, service_role;
+
 -- === pglite-core-end ===
 
 -- ============================================================================
@@ -647,8 +682,9 @@ grant execute on function public.hub_secretary_finish_reply(uuid, uuid, text, te
 --  return result;
 -- end $function$;
 --
--- ROLLBACK (texto original, sem o desvio): reaplicar a definição atual de
--- private.hub_receive_whatsapp exatamente como está no banco — o trecho
--- "if parts is null then result:=jsonb_build_object('status','invalid_command',...)
--- ..." sem o bloco "NOVO" acima. A definição original completa está preservada
--- no histórico de revisões do banco e foi lida em 2026-10-24 para conferência.
+-- ROLLBACK: NÃO há rollback pronto neste candidato. Este arquivo não contém
+-- a definição original literal de private.hub_receive_whatsapp, apenas esta
+-- orientação. Antes de aplicar o patch, exportar a definição atual
+-- (select pg_get_functiondef('private.hub_receive_whatsapp(text,text,text,text)'::regprocedure))
+-- para um arquivo literal versionado; o rollback consiste em reaplicar esse
+-- arquivo. Sem esse arquivo, o patch não deve ser aplicado.

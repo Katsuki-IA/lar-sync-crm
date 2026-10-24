@@ -318,6 +318,72 @@ describe("privilégios e RLS (catálogo real)", () => {
     );
     expect(rows[0]!.nspname).toBe("private");
   });
+  const priv = async (fn: string) => {
+    const { rows } = await db.query<{ pub: boolean; anon: boolean; auth: boolean; svc: boolean }>(
+      `select exists (select 1 from pg_proc p, aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+                       where p.oid = $1::regprocedure and a.grantee = 0 and a.privilege_type = 'EXECUTE') as pub,
+              has_function_privilege('anon', $1, 'EXECUTE') as anon,
+              has_function_privilege('authenticated', $1, 'EXECUTE') as auth,
+              has_function_privilege('service_role', $1, 'EXECUTE') as svc`,
+      [fn],
+    );
+    return rows[0];
+  };
+  it("funções private e wrappers public: runtime só service_role", async () => {
+    for (const name of [
+      "hub_secretary_finalize(text,text,text,text,jsonb)",
+      "hub_secretary_resolve_sender(text,text)",
+      "hub_secretary_ai_runtime(bigint)",
+      "hub_secretary_claim_reply(text)",
+      "hub_secretary_finish_reply(uuid,uuid,text,text)",
+    ]) {
+      for (const schema of ["private", "public"]) {
+        const fn = `${schema}.${name}`;
+        expect(await priv(fn), fn).toEqual({ pub: false, anon: false, auth: false, svc: true });
+      }
+    }
+  });
+  it("funções private e wrappers public: settings de UI só authenticated", async () => {
+    for (const name of ["hub_secretary_ai_get(bigint)", "hub_secretary_ai_save(bigint,boolean,text,text)"]) {
+      for (const schema of ["private", "public"]) {
+        const fn = `${schema}.${name}`;
+        expect(await priv(fn), fn).toEqual({ pub: false, anon: false, auth: true, svc: false });
+      }
+    }
+  });
+  it("helper interno de mensagens sem EXECUTE para nenhum papel da API", async () => {
+    const fn = "private.hub_secretary_msg(text,text,integer,text[],text)";
+    expect(await priv(fn)).toEqual({ pub: false, anon: false, auth: false, svc: false });
+  });
+  it("USAGE do schema private só para authenticated/service_role", async () => {
+    const { rows } = await db.query<{ anon: boolean; auth: boolean; svc: boolean }>(
+      `select has_schema_privilege('anon','private','USAGE') as anon,
+              has_schema_privilege('authenticated','private','USAGE') as auth,
+              has_schema_privilege('service_role','private','USAGE') as svc`,
+    );
+    expect(rows[0]).toEqual({ anon: false, auth: true, svc: true });
+  });
+  it("outbox de respostas com RLS, sem políticas e sem privilégios de tabela", async () => {
+    const { rows } = await db.query<{ rls: boolean }>(
+      `select relrowsecurity as rls from pg_class where oid = 'private.hub_secretary_replies'::regclass`,
+    );
+    expect(rows[0]!.rls).toBe(true);
+    const { rows: pols } = await db.query<{ c: number }>(
+      `select count(*)::int as c from pg_policies where schemaname='private' and tablename='hub_secretary_replies'`,
+    );
+    expect(pols[0]!.c).toBe(0);
+    for (const role of ["anon", "authenticated", "service_role"]) {
+      for (const p of ["SELECT", "INSERT", "UPDATE", "DELETE"]) {
+        const { rows: r } = await db.query<{ ok: boolean }>(
+          `select has_table_privilege($1, 'private.hub_secretary_replies', $2) as ok`, [role, p]);
+        expect(r[0]!.ok, `${role} ${p}`).toBe(false);
+      }
+    }
+  });
+  it("rollback do encaminhamento não é anunciado como pronto", () => {
+    expect(CANDIDATE).not.toMatch(/com rollback \(texto original/);
+    expect(CANDIDATE).toMatch(/NÃO há rollback pronto/);
+  });
 });
 
 describe("finalização transacional", () => {
