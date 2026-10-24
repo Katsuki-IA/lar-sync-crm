@@ -2,7 +2,7 @@
 // A engine NÃO executa nada no banco: ela apenas valida a entrada, roda a
 // interpretação (comando legado ou IA, fora de qualquer transação) e produz
 // um comando selado (SecretaryCommand). Toda a execução — trava do evento,
--- verificação de replay, revalidação de remetente/módulo/configuração/oferta,
+// verificação de replay, revalidação de remetente/módulo/configuração/oferta,
 // operação, registro e resposta enfileirada — acontece em UMA chamada
 // transacional (deps.finalize -> private.hub_secretary_finalize no banco).
 

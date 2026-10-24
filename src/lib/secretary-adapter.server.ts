@@ -1,10 +1,16 @@
 // Adaptador server-side que liga a engine da secretária aos objetos hub_*
-// do banco. Usa somente RPCs (incluindo os candidatos da fase 1); quando um
-// objeto ainda não existe no banco, falha fechado com "not_installed".
+// do banco. Toda a execução passa pela RPC transacional pública
+// hub_secretary_finalize (wrapper service_role -> private.hub_secretary_finalize);
+// a engine não faz leituras/escritas soltas. Quando um objeto ainda não
+// existe no banco, falha fechado com "not_installed".
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { SecretaryDeps, SecretaryResult } from "./secretary-engine";
+import type {
+  SecretaryDeps,
+  SecretaryMessageContext,
+  SecretaryResult,
+} from "./secretary-engine";
 import { interpretSecretaryText } from "./secretary-ai.server";
-import { isSecretaryTone, type PendingOffer } from "./secretary-interpreter";
+import { isSecretaryTone } from "./secretary-interpreter";
 
 export class SecretaryNotInstalledError extends Error {
   constructor() {
@@ -18,7 +24,7 @@ function missing(error: { message?: string; code?: string } | null) {
   return (
     error.code === "42883" ||
     error.code === "PGRST202" ||
-    /does not exist|not found/i.test(error.message ?? "")
+    /does not exist|not found|permission denied/i.test(error.message ?? "")
   );
 }
 
@@ -59,59 +65,18 @@ export async function resolveSender(
 
 export function createSecretaryDeps(admin: SupabaseClient): SecretaryDeps {
   return {
-    async findIncoming(companyId, eventId) {
-      const row = await call<{
-        member_id: string;
-        body: string;
-        result: SecretaryResult;
-      } | null>(admin, "hub_secretary_find_incoming", {
-        p_company_id: companyId,
-        p_event_id: eventId,
-      });
-      if (!row) return null;
-      return { memberId: row.member_id, body: row.body, result: row.result };
-    },
-    async recordIncoming(companyId, eventId, memberId, body, result) {
-      await call(admin, "hub_secretary_record_incoming", {
-        p_company_id: companyId,
-        p_event_id: eventId,
-        p_member_id: memberId,
-        p_body: body,
-        p_result: result,
-      });
-    },
-    async listPendingOffers(companyId, memberId) {
-      const rows = await call<
-        Array<{ id: string; code: string; title: string; expires_at: string }>
-      >(admin, "hub_secretary_list_pending_offers", {
-        p_company_id: companyId,
-        p_member_id: memberId,
-      });
-      return (rows ?? []).map(
-        (r): PendingOffer => ({ id: r.id, code: r.code, title: r.title, expiresAt: r.expires_at }),
-      );
-    },
-    async listMyLeads(companyId, memberId, limit) {
-      const rows = await call<Array<{ id: number; title: string; stage: string | null }>>(
+    async loadRuntimeSettings(companyId) {
+      // Leitura de runtime dedicada (service_role, sem auth.uid()).
+      const row = await call<{ enabled?: unknown; tone?: unknown; base_prompt?: unknown } | null>(
         admin,
-        "hub_secretary_list_member_leads",
-        { p_company_id: companyId, p_member_id: memberId, p_limit: limit },
+        "hub_secretary_ai_runtime",
+        { p_company_id: companyId },
       );
-      return rows ?? [];
-    },
-    async respondOffer(offerId, action, memberId) {
-      return call<{ status: string }>(admin, "hub_secretary_respond_offer", {
-        p_offer: offerId,
-        p_action: action,
-        p_member: memberId,
-      });
-    },
-    async enqueueReply(companyId, memberId, body) {
-      await call(admin, "hub_secretary_enqueue_reply", {
-        p_company_id: companyId,
-        p_member_id: memberId,
-        p_body: body,
-      });
+      return {
+        enabled: row?.enabled === true,
+        tone: isSecretaryTone(row?.tone) ? row.tone : "cordial",
+        basePrompt: typeof row?.base_prompt === "string" ? row.base_prompt : null,
+      };
     },
     async interpret(text, settings) {
       return interpretSecretaryText({
@@ -120,17 +85,16 @@ export function createSecretaryDeps(admin: SupabaseClient): SecretaryDeps {
         basePrompt: settings.basePrompt,
       });
     },
-    async loadSettings(companyId) {
-      const row = await call<{ enabled?: unknown; tone?: unknown; base_prompt?: unknown } | null>(
-        admin,
-        "hub_secretary_ai_get",
-        { p_company_id: companyId },
-      );
-      return {
-        enabled: row?.enabled === true,
-        tone: isSecretaryTone(row?.tone) ? row.tone : "cordial",
-        basePrompt: typeof row?.base_prompt === "string" ? row.base_prompt : null,
-      };
+    async finalize(context: SecretaryMessageContext, body, command) {
+      // Uma única chamada transacional: o banco trava o evento, revalida
+      // remetente/módulo/configuração/oferta, executa, registra e enfileira.
+      return call<SecretaryResult>(admin, "hub_secretary_finalize", {
+        p_instance: context.instance,
+        p_phone: context.phone,
+        p_event_id: context.eventId,
+        p_body: body,
+        p_command: command,
+      });
     },
   };
 }
