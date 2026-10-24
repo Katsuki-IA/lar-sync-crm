@@ -34,6 +34,19 @@
 --  6. Settings: leitura de UI (authenticated, auth.uid()) separada da leitura
 --     de runtime (service_role, sem auth.uid()). O caminho de execução não
 --     chama função que exige auth.uid() com o client de serviço.
+--  7. A branch "respond" da finalização exige settings.enabled no momento da
+--     execução: desativar a capacidade entre a interpretação e a execução
+--     impede qualquer aceite/recusa por texto livre (o legado por código
+--     mantém precedência e não depende da capacidade de IA).
+--  8. claim_reply é fail-closed: exige canal ativo, capacidade ativa e
+--     destinatário ainda corretor ativo com CRM no momento do envio; canal
+--     ou capacidade pausados deixam a resposta pendente, sem envio.
+--  9. Aceite/recusa por nome exige o mesmo filtro do legado: o aviso precisa
+--     ter sido realmente enviado (outbox com attempts > 0 e status
+--     sending/sent/uncertain), com join de tenant.
+-- 10. Paginação real da listagem: comando determinístico "meus leads
+--     página N" (N >= 1, limitado) avaliado antes da IA, e a resposta
+--     orienta como pedir a próxima página.
 --
 -- O comando legado ACEITAR/RECUSAR+código segue intacto no receiver atual;
 -- o desvio abaixo só encaminha mensagens que NÃO são o comando legado.
