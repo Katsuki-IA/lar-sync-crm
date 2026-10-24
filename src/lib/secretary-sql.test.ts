@@ -204,7 +204,15 @@ insert into public.hub_secretary_ai_settings (id_empresa, enabled, tone) values 
 
 async function makeOffer(
   db: PGlite,
-  opts: { leadId: number; memberId?: string; code: string; assigned?: boolean; expiresIn?: string },
+  opts: {
+    leadId: number;
+    memberId?: string;
+    code: string;
+    assigned?: boolean;
+    expiresIn?: string;
+    /** false = aviso nunca enviado (sem linha no outbox). */
+    sent?: boolean;
+  },
 ) {
   const member = opts.memberId ?? OY_ID;
   const opp = crypto.randomUUID();
@@ -230,11 +238,13 @@ async function makeOffer(
      values ($1, 25, $2, $3, 'evolution')`,
     [offer, member, opts.code],
   );
-  await db.query(
-    `insert into public.hub_whatsapp_outbox (notice_id, id_empresa, member_id, status, attempts)
-     select id, 25, $2, 'sent', 1 from public.hub_secretary_notices where code = $1`,
-    [opts.code, member],
-  );
+  if (opts.sent !== false) {
+    await db.query(
+      `insert into public.hub_whatsapp_outbox (notice_id, id_empresa, member_id, status, attempts)
+       select id, 25, $2, 'sent', 1 from public.hub_secretary_notices where code = $1`,
+      [opts.code, member],
+    );
+  }
   return { opp, dist, offer };
 }
 
@@ -432,6 +442,82 @@ describe("finalização transacional", () => {
     const result = await finalize(db, "evt-13", "meus leads", { kind: "list", limit: 10, offset: 0 });
     expect(result.status).toBe("unavailable");
   });
+  it("respond com capacidade desativada NÃO aceita (desativação entre IA e execução)", async () => {
+    // Corrida simulada: a capacidade estava ativa quando a IA interpretou,
+    // mas foi desativada antes da finalização. O banco revalida e nega.
+    await makeOffer(db, { leadId: 101, code: "AAAAAAAAAAAA" });
+    await db.query(`update public.hub_secretary_ai_settings set enabled = false where id_empresa = 25`);
+    const result = await finalize(db, "evt-13b", "aceito o José", {
+      kind: "respond",
+      action: "accept",
+      reference: "José",
+    });
+    expect(result.status).toBe("unavailable");
+    const { rows } = await db.query<{ status: string }>(
+      `select status from public.hub_sales_offers`,
+    );
+    expect(rows[0]!.status).toBe("pending");
+  });
+  it("comando legado por código NÃO depende da capacidade de IA", async () => {
+    await makeOffer(db, { leadId: 101, code: "AAAAAAAAAAAA" });
+    await db.query(`update public.hub_secretary_ai_settings set enabled = false where id_empresa = 25`);
+    const result = await finalize(db, "evt-13c", "ACEITAR AAAAAAAAAAAA", {
+      kind: "legacy",
+      action: "accept",
+      code: "AAAAAAAAAAAA",
+    });
+    expect(result.status).toBe("accepted");
+  });
+  it("oferta cujo aviso nunca foi enviado não pode ser aceita por nome", async () => {
+    await makeOffer(db, { leadId: 101, code: "AAAAAAAAAAAA", sent: false });
+    const result = await finalize(db, "evt-13d", "aceito o José", {
+      kind: "respond",
+      action: "accept",
+      reference: "José",
+    });
+    expect(result.status).toBe("not_found");
+    const { rows } = await db.query<{ status: string }>(
+      `select status from public.hub_sales_offers`,
+    );
+    expect(rows[0]!.status).toBe("pending");
+  });
+  it("aviso com attempts=0 (nunca enviado) também não casa por nome", async () => {
+    await makeOffer(db, { leadId: 101, code: "AAAAAAAAAAAA", sent: false });
+    await db.query(
+      `insert into public.hub_whatsapp_outbox (notice_id, id_empresa, member_id, status, attempts)
+       select id, 25, '${OY_ID}', 'pending', 0 from public.hub_secretary_notices where code = 'AAAAAAAAAAAA'`,
+    );
+    const result = await finalize(db, "evt-13e", "aceito o José", {
+      kind: "respond",
+      action: "accept",
+      reference: "José",
+    });
+    expect(result.status).toBe("not_found");
+  });
+  it("listagem paginada orienta a próxima página no texto", async () => {
+    // 12 leads próprios: página 1 (10) aponta para a página 2; página 2 fecha.
+    for (let i = 0; i < 12; i += 1) {
+      await db.query(
+        `insert into public.crm_leads (id, id_empresa, nome) values (${200 + i}, 25, 'Lead ${i}')`,
+      );
+      await db.query(
+        `insert into public.crm_opportunities (id_empresa, lead_id, assigned_to, stage_id)
+         values (25, ${200 + i}, '${OY_ID}', 1)`,
+      );
+    }
+    const page1 = await finalize(db, "evt-13f", "meus leads", { kind: "list", limit: 10, offset: 0 });
+    expect(page1.status).toBe("listed");
+    expect(page1.message).toContain("Página 1 de 2");
+    expect(page1.message).toContain("meus leads página 2");
+    const page2 = await finalize(db, "evt-13g", "meus leads página 2", {
+      kind: "list",
+      limit: 10,
+      offset: 10,
+    });
+    expect(page2.status).toBe("listed");
+    expect(page2.message).toContain("Página 2 de 2");
+    expect(page2.message).not.toContain("meus leads página 3");
+  });
   it("comando inválido é rejeitado pelo banco", async () => {
     await expect(
       finalize(db, "evt-14", "x", { kind: "mover_etapa" }),
@@ -459,6 +545,39 @@ describe("outbox de respostas livres (claim/finish)", () => {
     await makeOffer(db, { leadId: 101, code: "AAAAAAAAAAAA" });
     await finalize(db, "evt-21", "aceito o José", { kind: "respond", action: "accept", reference: "José" });
     await db.query(`update private.hub_whatsapp_recipients set enabled = false where member_id = '${OY_ID}'`);
+    const claimed = await db.query<{ hub_secretary_claim_reply: unknown }>(
+      `select public.hub_secretary_claim_reply('inst-25')`);
+    expect(claimed.rows[0]!.hub_secretary_claim_reply).toBeNull();
+    const { rows } = await db.query<{ status: string }>(
+      `select status from private.hub_secretary_replies`);
+    expect(rows[0]!.status).toBe("cancelled");
+  });
+  it("capacidade pausada após o enfileiramento: claim não envia e mantém pendente", async () => {
+    await makeOffer(db, { leadId: 101, code: "AAAAAAAAAAAA" });
+    await finalize(db, "evt-22", "aceito o José", { kind: "respond", action: "accept", reference: "José" });
+    await db.query(`update public.hub_secretary_ai_settings set enabled = false where id_empresa = 25`);
+    const claimed = await db.query<{ hub_secretary_claim_reply: unknown }>(
+      `select public.hub_secretary_claim_reply('inst-25')`);
+    expect(claimed.rows[0]!.hub_secretary_claim_reply).toBeNull();
+    const { rows } = await db.query<{ status: string }>(
+      `select status from private.hub_secretary_replies`);
+    expect(rows[0]!.status).toBe("pending");
+  });
+  it("canal desativado após o enfileiramento: claim não envia e mantém pendente", async () => {
+    await makeOffer(db, { leadId: 101, code: "AAAAAAAAAAAA" });
+    await finalize(db, "evt-23", "aceito o José", { kind: "respond", action: "accept", reference: "José" });
+    await db.query(`update public.hub_whatsapp_channels set enabled = false where id_empresa = 25`);
+    const claimed = await db.query<{ hub_secretary_claim_reply: unknown }>(
+      `select public.hub_secretary_claim_reply('inst-25')`);
+    expect(claimed.rows[0]!.hub_secretary_claim_reply).toBeNull();
+    const { rows } = await db.query<{ status: string }>(
+      `select status from private.hub_secretary_replies`);
+    expect(rows[0]!.status).toBe("pending");
+  });
+  it("membro que deixou de ser corretor é cancelado no claim", async () => {
+    await makeOffer(db, { leadId: 101, code: "AAAAAAAAAAAA" });
+    await finalize(db, "evt-24", "aceito o José", { kind: "respond", action: "accept", reference: "José" });
+    await db.query(`update public.crm_users set role = 'gestor' where id = '${OY_ID}'`);
     const claimed = await db.query<{ hub_secretary_claim_reply: unknown }>(
       `select public.hub_secretary_claim_reply('inst-25')`);
     expect(claimed.rows[0]!.hub_secretary_claim_reply).toBeNull();

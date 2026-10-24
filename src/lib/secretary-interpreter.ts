@@ -43,6 +43,28 @@ export function parseLegacyCommand(
   return { action: match[1] === "ACEITAR" ? "accept" : "decline", code: match[2]! };
 }
 
+/**
+ * Comando determinístico de listagem paginada: "meus leads" ou
+ * "meus leads página N" (N >= 1, limitado a 4 dígitos). Avaliado antes da IA,
+ * sem custo de modelo e sem ambiguidade de interpretação.
+ */
+const LIST_PAGE_COMMAND = /^MEUS LEADS(?:\s+PAGINA\s+(\d{1,4}))?$/;
+export const LIST_PAGE_MAX = 9999;
+
+export function parseListPageCommand(text: string): { page: number } | null {
+  const normalized = text
+    .trim()
+    .toUpperCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/\s+/g, " ");
+  const match = LIST_PAGE_COMMAND.exec(normalized);
+  if (!match) return null;
+  const page = match[1] ? Number.parseInt(match[1], 10) : 1;
+  if (!Number.isFinite(page) || page < 1 || page > LIST_PAGE_MAX) return null;
+  return { page };
+}
+
 const REFERENCE_MAX = 120;
 
 /**

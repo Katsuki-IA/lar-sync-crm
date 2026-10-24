@@ -18,9 +18,10 @@
 --     (code exige '^[A-F0-9]{12}$', offer_id é único e NOT NULL, e o worker
 --     cancela jobs sem oferta pendente). Criado outbox próprio
 --     (private.hub_secretary_replies) com claim/finish espelhando o worker
---     real. O worker (n8n) precisa passar a chamar também
---     public.hub_secretary_claim_reply/finish_reply — integração explícita,
---     nada aqui promete envio sem essa alteração do worker.
+--     real. O transporte atual é Edge (n8n foi descontinuado neste projeto);
+--     a integração do transporte com public.hub_secretary_claim_reply/
+--     finish_reply está PENDENTE — nada aqui promete envio enquanto essa
+--     integração não for instalada.
 --  4. Nomes reais de colunas confirmados no banco: crm_stages.nome,
 --     crm_opportunities.stage_id/assigned_to/lead_id, hub_sales_offers
 --     .distribution_id/member_id/status/expires_at. O nome exibido é o nome
@@ -33,6 +34,19 @@
 --  6. Settings: leitura de UI (authenticated, auth.uid()) separada da leitura
 --     de runtime (service_role, sem auth.uid()). O caminho de execução não
 --     chama função que exige auth.uid() com o client de serviço.
+--  7. A branch "respond" da finalização exige settings.enabled no momento da
+--     execução: desativar a capacidade entre a interpretação e a execução
+--     impede qualquer aceite/recusa por texto livre (o legado por código
+--     mantém precedência e não depende da capacidade de IA).
+--  8. claim_reply é fail-closed: exige canal ativo, capacidade ativa e
+--     destinatário ainda corretor ativo com CRM no momento do envio; canal
+--     ou capacidade pausados deixam a resposta pendente, sem envio.
+--  9. Aceite/recusa por nome exige o mesmo filtro do legado: o aviso precisa
+--     ter sido realmente enviado (outbox com attempts > 0 e status
+--     sending/sent/uncertain), com join de tenant.
+-- 10. Paginação real da listagem: comando determinístico "meus leads
+--     página N" (N >= 1, limitado) avaliado antes da IA, e a resposta
+--     orienta como pedir a próxima página.
 --
 -- O comando legado ACEITAR/RECUSAR+código segue intacto no receiver atual;
 -- o desvio abaixo só encaminha mensagens que NÃO são o comando legado.
@@ -296,6 +310,16 @@ begin
                 order by recent desc limit v_lim offset v_off) t;
         result_status := 'listed';
         message := private.hub_secretary_msg('list', tone, coalesce(array_length(lead_lines, 1), 0), lead_lines);
+        -- Orientação de paginação: informa a página atual e como pedir a
+        -- próxima (comando determinístico "meus leads página N").
+        if lead_count > v_off + v_lim then
+          message := message || E'\n'
+            || 'Página ' || (v_off / v_lim + 1) || ' de ' || ceil(lead_count::numeric / v_lim)
+            || '. Para ver a próxima, responda "meus leads página ' || (v_off / v_lim + 2) || '".';
+        elsif v_off > 0 then
+          message := message || E'\n'
+            || 'Página ' || (v_off / v_lim + 1) || ' de ' || ceil(lead_count::numeric / v_lim) || '.';
+        end if;
       end if;
     end if;
 
@@ -323,6 +347,14 @@ begin
         message := private.hub_secretary_msg('not_found', tone);
       end if;
     else
+      -- respond (texto livre via IA) exige a capacidade ATIVA no momento da
+      -- execução: se a secretária foi desativada entre a interpretação e esta
+      -- chamada, nenhum aceite/recusa acontece. O comando legado (código de
+      -- 12 hex) mantém precedência e não depende da capacidade de IA.
+      if not coalesce(settings.enabled, false) then
+        result_status := 'unavailable';
+        message := private.hub_secretary_msg('help', tone);
+      end if;
       v_action := p_command ->> 'action';
       v_ref := nullif(btrim(coalesce(p_command ->> 'reference', '')), '');
       if v_action is null or v_action not in ('accept','decline')
@@ -330,6 +362,10 @@ begin
         raise exception 'Invalid command' using errcode = '22023';
       end if;
       -- Ofertas próprias pendentes e não expiradas; nome = nome do lead.
+      -- Mesmo filtro do legado: o aviso precisa ter sido REALMENTE enviado
+      -- (outbox com attempts > 0 e status sending/sent/uncertain), com join
+      -- de tenant — oferta cuja notificação nunca saiu não pode ser aceita.
+      if result_status is null then
       create temporary table if not exists hub_secretary_match
         (id uuid, code text, lead_name text, n_id uuid) on commit drop;
       delete from hub_secretary_match;
@@ -341,8 +377,13 @@ begin
           join public.crm_opportunities op on op.id = d.opportunity_id
           join public.crm_leads l on l.id = op.lead_id
          where o.id_empresa = company and o.member_id = actor
-           and o.status = 'pending' and o.expires_at > clock_timestamp();
-      if v_ref is null then
+           and o.status = 'pending' and o.expires_at > clock_timestamp()
+           and exists (select 1 from public.hub_whatsapp_outbox ob
+                       where ob.notice_id = n.id and ob.id_empresa = company
+                         and ob.attempts > 0
+                         and ob.status in ('sending','sent','uncertain'));
+      end if;
+      if result_status is null and v_ref is null then
         select count(*) into match_count from hub_secretary_match;
         if match_count = 1 then
           select * into offer from hub_secretary_match limit 1;
@@ -355,7 +396,7 @@ begin
           result_status := 'ambiguous';
           message := private.hub_secretary_msg('ambiguous', tone, null, match_lines);
         end if;
-      else
+      elsif result_status is null then
         -- Código tem precedência; depois nome exato (case/espaços), depois parcial.
         select m.* into offer from hub_secretary_match m where m.code = upper(v_ref) limit 1;
         if offer.id is null then
@@ -435,8 +476,9 @@ end $$;
 -- ----------------------------------------------------------------------------
 -- claim/finish do outbox de respostas livres — espelham o worker real
 -- (private.hub_claim_whatsapp / private.hub_finish_whatsapp), sem validação
--- de oferta. O worker (n8n) deve chamá-los além dos atuais; sem isso as
--- respostas ficam pendentes (nenhum envio é prometido sem essa integração).
+-- de oferta. A integração do transporte (Edge) com estas funções está
+-- PENDENTE; sem ela as respostas ficam pendentes — nenhum envio é prometido
+-- enquanto o transporte não chamar claim/finish.
 -- ----------------------------------------------------------------------------
 create or replace function private.hub_secretary_claim_reply(p_instance text)
 returns jsonb language plpgsql security definer set search_path = '' as $$
@@ -445,19 +487,28 @@ begin
   update private.hub_secretary_replies r set status='uncertain', reason='worker_interrupted',
          updated_at=clock_timestamp()
     from public.hub_whatsapp_channels c
-   where c.id_empresa=r.id_empresa and c.instance=p_instance and r.status='sending'
+   where c.id_empresa=r.id_empresa and c.instance=p_instance and c.enabled and r.status='sending'
      and r.claimed_at<clock_timestamp()-interval '2 minutes';
   for job in select r.* from private.hub_secretary_replies r
-      join public.hub_whatsapp_channels c on c.id_empresa=r.id_empresa
+      join public.hub_whatsapp_channels c on c.id_empresa=r.id_empresa and c.enabled
       where c.instance=p_instance and r.status='pending' and r.available_at<=clock_timestamp()
       order by r.available_at, r.id limit 50 for update of r skip locked loop
+    -- Fail-closed no momento do envio: canal ativo (join acima), capacidade
+    -- de IA ativa e destinatário ainda corretor ativo com CRM. Se a
+    -- capacidade foi pausada após o enfileiramento, a resposta NÃO sai e
+    -- permanece pendente (sem claim) até reativação ou expiração.
+    if not exists (select 1 from public.hub_secretary_ai_settings s
+                   where s.id_empresa = job.id_empresa and s.enabled) then
+      continue;
+    end if;
     select rec.phone into target from private.hub_whatsapp_recipients rec
       join public.crm_users u on u.id=rec.member_id and u.id_empresa=rec.id_empresa and u.active
+                                 and u.role in ('agent','corretor')
       join public.hub_company_modules m on m.id_empresa=rec.id_empresa and m.crm
      where rec.id_empresa=job.id_empresa and rec.member_id=job.member_id and rec.enabled;
     if target is null then
       update private.hub_secretary_replies set status='cancelled', reason='recipient_unavailable',
-             updated_at=clock_timestamp() where id=job.id;
+              updated_at=clock_timestamp() where id=job.id;
       continue;
     end if;
     update private.hub_secretary_replies set status='sending', attempts=attempts+1,

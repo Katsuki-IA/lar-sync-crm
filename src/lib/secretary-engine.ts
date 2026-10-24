@@ -8,6 +8,7 @@
 
 import {
   parseLegacyCommand,
+  parseListPageCommand,
   type SecretaryInterpretation,
   type SecretaryTone,
 } from "./secretary-interpreter";
@@ -107,7 +108,18 @@ export async function processSecretaryMessage(
     });
   }
 
-  // 2) Interpretação por IA, somente se a capacidade estiver ativa.
+  // 2) Comando determinístico de listagem paginada, antes da IA:
+  // "meus leads" / "meus leads página N".
+  const listPage = parseListPageCommand(body);
+  if (listPage) {
+    return deps.finalize(context, body, {
+      kind: "list",
+      limit: LEAD_LIST_LIMIT,
+      offset: (listPage.page - 1) * LEAD_LIST_LIMIT,
+    });
+  }
+
+  // 3) Interpretação por IA, somente se a capacidade estiver ativa.
   const settings = await deps.loadRuntimeSettings(context.companyId);
   if (!settings.enabled) {
     return deps.finalize(context, body, { kind: "help" });
