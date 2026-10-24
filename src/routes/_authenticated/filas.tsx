@@ -94,8 +94,9 @@ function Workspace({ companyId }: { companyId: number }) {
       let overview: QueueOverview | null = null;
       let developments: { id: number; nome: string }[] = [];
       let stages: { id: number; nome: string }[] = [];
+      let funnels: { id: number; nome: string }[] = [];
       if (manager) {
-        const [summary, dev, stage] = await Promise.all([
+        const [summary, dev, stage, funnel] = await Promise.all([
           db.rpc("hub_sales_queue_overview", { p_company_id: companyId }),
           db.from("empreendimento").select("id,nome").eq("id_empresa", companyId).order("nome"),
           db
@@ -105,11 +106,14 @@ function Workspace({ companyId }: { companyId: number }) {
             .eq("module", "ia")
             .eq("ativo", true)
             .order("ordem"),
+          db.from("crm_funnels").select("id,nome").eq("id_empresa", companyId).eq("module", "crm").eq("ativo", true).order("nome"),
         ]);
         if (summary.error && !["PGRST202", "42883"].includes(summary.error.code))
           throw summary.error;
         if (dev.error) throw dev.error;
         if (stage.error) throw stage.error;
+        if (funnel.error) throw funnel.error;
+        funnels = funnel.data ?? [];
         overview = summary.error ? null : (summary.data as QueueOverview);
         developments = dev.data ?? [];
         stages = stage.data ?? [];
@@ -118,6 +122,7 @@ function Workspace({ companyId }: { companyId: number }) {
         overview,
         developments,
         stages,
+        funnels,
         offers: results[0].data as Offer[],
         queues: (results[1]?.data ?? []) as Queue[],
         memberships: (results[2]?.data ?? []) as Membership[],
@@ -226,6 +231,7 @@ function Workspace({ companyId }: { companyId: number }) {
           companyId={companyId}
           queue={editing}
           installed={!!data.overview?.installed}
+          funnels={data.funnels}
           developments={data.developments}
           stages={data.stages}
           members={data.members}
@@ -257,6 +263,7 @@ function Workspace({ companyId }: { companyId: number }) {
   );
 }
 function QueueEditor({
+  funnels,
   companyId,
   queue,
   installed,
@@ -266,6 +273,7 @@ function QueueEditor({
   selected,
   onClose,
 }: {
+  funnels: { id: number; nome: string }[];
   companyId: number;
   queue: Queue | null;
   installed: boolean;
@@ -358,6 +366,7 @@ function QueueEditor({
             </label>
             {installed && (
               <QueueRuleFields
+                funnels={funnels}
                 rules={rules}
                 onChange={setRules}
                 developments={developments}

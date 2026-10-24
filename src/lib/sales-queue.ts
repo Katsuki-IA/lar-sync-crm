@@ -1,4 +1,5 @@
 export type QueueRules = {
+  destination_funnel_id: number | null;
   development_id: number | null;
   trigger_qualified: boolean;
   trigger_stage_ids: number[];
@@ -42,6 +43,8 @@ export type SalesOffer = {
 };
 export type QueueOverview = {
   installed: boolean;
+  intake_installed?: boolean;
+  lead_waiting?: { lead_id: number; nome: string; created_at: string; reason: string }[];
   pending: (SalesOffer & { queue_id: string })[];
   stats: {
     queue_id: string;
@@ -60,6 +63,7 @@ export type QueueOverview = {
   }[];
 };
 export const defaultQueueRules: QueueRules = {
+  destination_funnel_id: null,
   development_id: null,
   trigger_qualified: false,
   trigger_stage_ids: [],

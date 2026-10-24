@@ -374,8 +374,17 @@ export function SalesQueueWorkspace({
               ))}
             </ul>
           )}
+          {!!overview?.lead_waiting?.length && <ul className="divide-y">
+            {overview.lead_waiting.map((lead) => <li key={lead.lead_id} className="py-3">
+              <p className="text-sm font-medium">{lead.nome}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{lead.reason === "no_active_stage"
+                ? "O funil de destino precisa de uma etapa ativa."
+                : lead.reason === "processing_error" ? "Entrada pendente. Nova tentativa em alguns minutos."
+                : "Aguardando uma fila com gatilho e empreendimento compatíveis."}</p>
+            </li>)}
+          </ul>}
           <p className="text-xs text-muted-foreground">
-            Até 100 oportunidades mais antigas. Filas específicas do empreendimento têm preferência;
+            Até 100 oportunidades e 100 leads mais antigos. Filas específicas do empreendimento têm preferência;
             depois, vale a menor prioridade numérica.
           </p>
         </ConfigSection>
@@ -389,15 +398,26 @@ export function QueueRuleFields({
   onChange,
   developments,
   stages,
+  funnels = [],
 }: {
   rules: QueueRules;
   onChange: (r: QueueRules) => void;
   developments: { id: number; nome: string }[];
   stages: { id: number; nome: string }[];
+  funnels?: { id: number; nome: string }[];
 }) {
   const set = (v: Partial<QueueRules>) => onChange({ ...r, ...v });
   return (
     <div className="space-y-5 border-y py-5">
+      <label className="block text-sm font-medium">
+        Funil comercial de destino
+        <select className={inputClass} value={r.destination_funnel_id ?? ""}
+          onChange={(e) => set({ destination_funnel_id: e.target.value ? Number(e.target.value) : null })}>
+          <option value="">Selecione para habilitar os gatilhos automáticos</option>
+          {funnels.map((f) => <option key={f.id} value={f.id}>{f.nome}</option>)}
+        </select>
+        <span className="mt-1 block text-xs font-normal text-muted-foreground">A oportunidade entra na primeira etapa ativa deste funil, sem responsável, antes da distribuição.</span>
+      </label>
       <label className="block text-sm font-medium">
         Empreendimento
         <select
@@ -444,8 +464,8 @@ export function QueueRuleFields({
         </div>
         <p className="text-xs text-muted-foreground">
           Basta atender a um dos gatilhos e pertencer ao empreendimento escolhido. Sem gatilhos
-          marcados, a entrada é somente manual. A oportunidade comercial precisa existir e estar sem
-          responsável.
+          marcados, a entrada é somente manual. Com um gatilho, o lead gera uma oportunidade no
+          funil de destino. Oportunidades existentes e responsáveis já definidos são preservados.
         </p>
       </fieldset>
       <label className="flex items-center gap-2 text-sm font-medium">

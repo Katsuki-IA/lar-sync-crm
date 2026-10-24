@@ -9,6 +9,7 @@ const originals = readFileSync(
   new URL("../../docs/distribution-v2-original-functions.sql", import.meta.url),
   "utf8",
 );
+const intake = readFileSync(new URL("../../docs/distribution-v3-intake.sql", import.meta.url), "utf8");
 const Q = "10000000-0000-0000-0000-000000000001",
   Q2 = "10000000-0000-0000-0000-000000000002";
 const A = "20000000-0000-0000-0000-000000000001",
@@ -22,9 +23,11 @@ create function auth.uid() returns uuid language sql as $$select nullif(current_
 create table public.crm_users(id uuid primary key,auth_user_id uuid,id_empresa bigint,nome text,active boolean,role text);
 create table public.hub_company_modules(id_empresa bigint primary key,crm boolean);
 create table public.empreendimento(id bigint primary key,id_empresa bigint,nome text);
-create table public.crm_stages(id bigint primary key,id_empresa bigint,module text,ativo boolean,nome text);
+create table public.crm_stages(id bigint primary key,id_empresa bigint,module text,ativo boolean,nome text,id_funnel bigint,ordem integer default 1);
+create table public.crm_funnels(id bigint primary key,id_empresa bigint,module text,ativo boolean);
 create table public.crm_leads(id bigint primary key,id_empresa bigint,nome text,id_empreendimento bigint,qualificado smallint,crm_stage_id bigint);
-create table public.crm_opportunities(id uuid primary key,id_empresa bigint,lead_id bigint,title text,assigned_to uuid);
+create table public.crm_opportunities(id uuid primary key default gen_random_uuid(),id_empresa bigint,lead_id bigint,title text,assigned_to uuid,funnel_id bigint default 7,stage_id bigint default 30,request_id uuid default gen_random_uuid(),created_by uuid not null default '20000000-0000-0000-0000-000000000003',unique(id_empresa,lead_id,funnel_id));
+create table public.crm_opportunity_events(opportunity_id uuid,id_empresa bigint,actor_id uuid,kind text,to_stage_id bigint);
 create table public.hub_sales_queues(id uuid primary key default gen_random_uuid(),id_empresa bigint,name text,active boolean default true,
 timeout_minutes integer default 10,cursor_position integer default 0,revision integer default 1,request_id uuid,creation_payload jsonb,created_at timestamptz default now(),unique(id_empresa,request_id));
 create table public.hub_sales_queue_members(queue_id uuid,id_empresa bigint,member_id uuid,position integer,primary key(queue_id,member_id));
@@ -52,9 +55,10 @@ async function addQueue(id = Q, development: number | null = null, qualified = t
   );
 }
 async function addOp() {
-  await db.query(`insert into crm_opportunities values($1,1,1,'Oportunidade teste',null)`, [OP]);
+  await db.query(`insert into crm_opportunities(id,id_empresa,lead_id,title,assigned_to) values($1,1,1,'Oportunidade teste',null)`, [OP]);
 }
 const rules = {
+  destination_funnel_id: 7,
   development_id: 10,
   trigger_qualified: true,
   trigger_stage_ids: [10],
@@ -76,13 +80,14 @@ describe("filas v2 — SQL real com esquema mínimo compatível", () => {
     await db.exec(fixture);
     await db.exec(originals);
     await db.exec(candidate);
+    await db.exec(intake);
   }, 30000);
   afterAll(async () => {
     await db.close();
   });
   beforeEach(async () => {
     await db.exec(
-      "truncate hub_sales_offers,hub_sales_distributions,hub_sales_queue_members,hub_sales_queue_events,hub_sales_queues,crm_opportunities,crm_leads,crm_users,hub_company_modules,empreendimento,crm_stages,private.hub_sales_waiting cascade",
+      "truncate hub_sales_offers,hub_sales_distributions,hub_sales_queue_members,hub_sales_queue_events,hub_sales_queues,crm_opportunities,crm_leads,crm_users,hub_company_modules,empreendimento,crm_stages,crm_funnels,crm_opportunity_events,private.hub_sales_waiting,private.hub_queue_intake cascade",
     );
     await db.query(
       `insert into crm_users values($1,$1,1,'A',true,'corretor'),($2,$2,1,'B',true,'agent'),($3,$3,1,'Gestor',true,'gestor')`,
@@ -90,7 +95,7 @@ describe("filas v2 — SQL real com esquema mínimo compatível", () => {
     );
     await db.query("select set_config('test.actor',$1,false)", [M]);
     await db.exec(
-      "insert into hub_company_modules values(1,true),(2,true);insert into empreendimento values(10,1,'X'),(20,2,'Outra');insert into crm_stages values(10,1,'ia',true,'Qualificado'),(20,2,'ia',true,'Outra');insert into crm_leads values(1,1,'Lead',10,1,10)",
+      "insert into hub_company_modules values(1,true),(2,true);insert into empreendimento values(10,1,'X'),(20,2,'Outra');insert into crm_funnels values(7,1,'crm',true),(8,2,'crm',true);insert into crm_stages(id,id_empresa,module,ativo,nome,id_funnel) values(10,1,'ia',true,'Qualificado',6),(20,2,'ia',true,'Outra',9),(30,1,'crm',true,'Entrada',7);insert into crm_leads values(1,1,'Lead',10,1,10)",
     );
   });
   it("respeita Brasília, dias e fim exclusivo", async () => {
@@ -108,6 +113,38 @@ describe("filas v2 — SQL real com esquema mínimo compatível", () => {
         open,
       );
     }
+  });
+  it("gatilho cria oportunidade no destino, audita e não duplica", async () => {
+    await addQueue();
+    await db.exec(`update hub_sales_queues set destination_funnel_id=7`);
+    await rows("select private.hub_run_sales_queue_worker(10)");
+    expect(await rows("select funnel_id,stage_id,creation_origin,created_by from crm_opportunities")).toEqual([
+      {funnel_id:7,stage_id:30,creation_origin:'queue',created_by:null},
+    ]);
+    expect((await rows("select * from crm_opportunity_events")).length).toBe(1);
+    expect((await rows("select * from hub_sales_offers")).length).toBe(1);
+    await db.exec("update crm_leads set qualificado=0;update crm_leads set qualificado=1");
+    await rows("select private.hub_run_sales_queue_worker(10)");
+    expect((await rows("select * from crm_opportunities")).length).toBe(1);
+  });
+  it("lead espera sem fila e oportunidade espera horário sem oferta", async () => {
+    await rows("select private.hub_run_sales_queue_worker(10)");
+    expect((await rows("select * from private.hub_queue_intake")).length).toBe(1);
+    await addQueue();
+    await db.exec("update hub_sales_queues set destination_funnel_id=7,schedule_enabled=true,weekdays='{}';update private.hub_queue_intake set next_attempt_at=now()");
+    await rows("select private.hub_run_sales_queue_worker(10)");
+    expect((await rows("select * from crm_opportunities")).length).toBe(1);
+    expect((await rows("select * from hub_sales_offers")).length).toBe(0);
+  });
+  it("não troca responsável existente nem usa funil de outra empresa", async () => {
+    await addQueue();await addOp();
+    await db.query("update crm_opportunities set assigned_to=$1",[A]);
+    await db.exec("update hub_sales_queues set destination_funnel_id=7");
+    await rows("select private.hub_run_sales_queue_worker(10)");
+    expect((await rows("select assigned_to from crm_opportunities"))[0].assigned_to).toBe(A);
+    expect((await rows("select * from hub_sales_offers")).length).toBe(0);
+    await expect(save({...rules,destination_funnel_id:8})).rejects.toThrow();
+    await expect(save({...rules,destination_funnel_id:null})).rejects.toThrow();
   });
   it("sem fila aguarda; fila criada depois capta sem duplicar", async () => {
     await addOp();
@@ -295,7 +332,7 @@ describe("filas v2 — SQL real com esquema mínimo compatível", () => {
     await addQueue();
     await addOp();
     await db.exec(
-      "insert into crm_opportunities values('30000000-0000-0000-0000-000000000002',1,1,'Outra oportunidade',null)",
+      "insert into crm_opportunities(id,id_empresa,lead_id,title,assigned_to,funnel_id) values('30000000-0000-0000-0000-000000000002',1,1,'Outra oportunidade',null,9)",
     );
     await db.exec(`create function private.test_reject_offer() returns trigger language plpgsql as $$begin if new.opportunity_title='Oportunidade teste' then raise exception 'teste';end if;return new;end$$;
       create trigger test_reject before insert on hub_sales_offers for each row execute function private.test_reject_offer()`);
