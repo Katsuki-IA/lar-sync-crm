@@ -552,6 +552,39 @@ describe("outbox de respostas livres (claim/finish)", () => {
       `select status from private.hub_secretary_replies`);
     expect(rows[0]!.status).toBe("cancelled");
   });
+  it("capacidade pausada após o enfileiramento: claim não envia e mantém pendente", async () => {
+    await makeOffer(db, { leadId: 101, code: "AAAAAAAAAAAA" });
+    await finalize(db, "evt-22", "aceito o José", { kind: "respond", action: "accept", reference: "José" });
+    await db.query(`update public.hub_secretary_ai_settings set enabled = false where id_empresa = 25`);
+    const claimed = await db.query<{ hub_secretary_claim_reply: unknown }>(
+      `select public.hub_secretary_claim_reply('inst-25')`);
+    expect(claimed.rows[0]!.hub_secretary_claim_reply).toBeNull();
+    const { rows } = await db.query<{ status: string }>(
+      `select status from private.hub_secretary_replies`);
+    expect(rows[0]!.status).toBe("pending");
+  });
+  it("canal desativado após o enfileiramento: claim não envia e mantém pendente", async () => {
+    await makeOffer(db, { leadId: 101, code: "AAAAAAAAAAAA" });
+    await finalize(db, "evt-23", "aceito o José", { kind: "respond", action: "accept", reference: "José" });
+    await db.query(`update public.hub_whatsapp_channels set enabled = false where id_empresa = 25`);
+    const claimed = await db.query<{ hub_secretary_claim_reply: unknown }>(
+      `select public.hub_secretary_claim_reply('inst-25')`);
+    expect(claimed.rows[0]!.hub_secretary_claim_reply).toBeNull();
+    const { rows } = await db.query<{ status: string }>(
+      `select status from private.hub_secretary_replies`);
+    expect(rows[0]!.status).toBe("pending");
+  });
+  it("membro que deixou de ser corretor é cancelado no claim", async () => {
+    await makeOffer(db, { leadId: 101, code: "AAAAAAAAAAAA" });
+    await finalize(db, "evt-24", "aceito o José", { kind: "respond", action: "accept", reference: "José" });
+    await db.query(`update public.crm_users set role = 'gestor' where id = '${OY_ID}'`);
+    const claimed = await db.query<{ hub_secretary_claim_reply: unknown }>(
+      `select public.hub_secretary_claim_reply('inst-25')`);
+    expect(claimed.rows[0]!.hub_secretary_claim_reply).toBeNull();
+    const { rows } = await db.query<{ status: string }>(
+      `select status from private.hub_secretary_replies`);
+    expect(rows[0]!.status).toBe("cancelled");
+  });
   it("constraints reais impedem resposta livre no outbox antigo (motivo do outbox novo)", async () => {
     await expect(
       db.query(`insert into public.hub_secretary_notices (offer_id, id_empresa, member_id, code)
