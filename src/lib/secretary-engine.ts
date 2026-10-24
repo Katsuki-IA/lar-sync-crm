@@ -8,6 +8,7 @@
 
 import {
   parseLegacyCommand,
+  parseListPageCommand,
   type SecretaryInterpretation,
   type SecretaryTone,
 } from "./secretary-interpreter";
