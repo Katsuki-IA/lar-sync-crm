@@ -67,6 +67,7 @@
 
 :root {
   --radius: 0.625rem;
+  --config-radius: 0.75rem;
 
   /* Katsuki IA — brand palette (apenas 4 cores oficiais)
      #C14F21 terracota • #F59958 laranja claro • #080705 preto • #FFFCF8 branco
