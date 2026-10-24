@@ -65,6 +65,7 @@ import { Route as ApiIntegrationsLeadsRouteImport } from './routes/api/integrati
 import { Route as ApiMcpAnalystRouteImport } from './routes/api/mcp/analyst'
 import { Route as ApiPublicGloriaLeadsRouteImport } from './routes/api/public/gloria-leads'
 import { Route as ApiPublicPulseFunilIaRouteImport } from './routes/api/public/pulse-funil-ia'
+import { Route as ApiPublicSecretaryInterpretRouteImport } from './routes/api/public/secretary/interpret'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -369,6 +370,12 @@ const ApiPublicPulseFunilIaRoute = ApiPublicPulseFunilIaRouteImport.update({
   path: '/api/public/pulse-funil-ia',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicSecretaryInterpretRoute =
+  ApiPublicSecretaryInterpretRouteImport.update({
+    id: '/api/public/secretary/interpret',
+    path: '/api/public/secretary/interpret',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -426,6 +433,7 @@ export interface FileRoutesByFullPath {
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/leads/': typeof AuthenticatedLeadsIndexRoute
   '/settings/': typeof AuthenticatedSettingsIndexRoute
+  '/api/public/secretary/interpret': typeof ApiPublicSecretaryInterpretRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -481,6 +489,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/leads': typeof AuthenticatedLeadsIndexRoute
   '/settings': typeof AuthenticatedSettingsIndexRoute
+  '/api/public/secretary/interpret': typeof ApiPublicSecretaryInterpretRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -540,6 +549,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/leads/': typeof AuthenticatedLeadsIndexRoute
   '/_authenticated/settings/': typeof AuthenticatedSettingsIndexRoute
+  '/api/public/secretary/interpret': typeof ApiPublicSecretaryInterpretRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -599,6 +609,7 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/leads/'
     | '/settings/'
+    | '/api/public/secretary/interpret'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -654,6 +665,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/leads'
     | '/settings'
+    | '/api/public/secretary/interpret'
   id:
     | '__root__'
     | '/'
@@ -712,6 +724,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/'
     | '/_authenticated/leads/'
     | '/_authenticated/settings/'
+    | '/api/public/secretary/interpret'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -731,6 +744,7 @@ export interface RootRouteChildren {
   ApiMcpAnalystRoute: typeof ApiMcpAnalystRoute
   ApiPublicGloriaLeadsRoute: typeof ApiPublicGloriaLeadsRoute
   ApiPublicPulseFunilIaRoute: typeof ApiPublicPulseFunilIaRoute
+  ApiPublicSecretaryInterpretRoute: typeof ApiPublicSecretaryInterpretRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -1127,6 +1141,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicPulseFunilIaRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/secretary/interpret': {
+      id: '/api/public/secretary/interpret'
+      path: '/api/public/secretary/interpret'
+      fullPath: '/api/public/secretary/interpret'
+      preLoaderRoute: typeof ApiPublicSecretaryInterpretRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -1272,6 +1293,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiMcpAnalystRoute: ApiMcpAnalystRoute,
   ApiPublicGloriaLeadsRoute: ApiPublicGloriaLeadsRoute,
   ApiPublicPulseFunilIaRoute: ApiPublicPulseFunilIaRoute,
+  ApiPublicSecretaryInterpretRoute: ApiPublicSecretaryInterpretRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
