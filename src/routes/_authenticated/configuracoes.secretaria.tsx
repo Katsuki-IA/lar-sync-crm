@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { ConfigHeader } from "@/components/config-presentation";
 import { ConfigLayout } from "@/components/config-layout";
 import { SecretarySettings } from "@/hml/secretary-settings";
+import { SecretaryAiSettings } from "@/hml/secretary-ai-settings";
 import { Notice, useCompanyModules } from "@/hml/modules";
 import { useActiveEmpresa } from "@/hooks/use-active-empresa";
 import { useCrmUser } from "@/hooks/use-crm-user";
@@ -48,6 +49,10 @@ function Page() {
         <ConfigHeader title="Secretária" description="Conexão do WhatsApp, automação e WhatsApp dos corretores que recebem os avisos de ofertas da empresa selecionada." />
         <SecretarySettings
           key={activeEmpresaId}
+          companyId={activeEmpresaId}
+          isAdmin={me.role === "super_admin"}
+        />
+        <SecretaryAiSettings
           companyId={activeEmpresaId}
           isAdmin={me.role === "super_admin"}
         />
