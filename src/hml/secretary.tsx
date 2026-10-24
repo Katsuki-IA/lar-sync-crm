@@ -1,8 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { db, Notice } from "@/hml/modules";
-import { SecretarySettings } from "@/hml/secretary-settings";
 import { useCrmUser } from "@/hooks/use-crm-user";
 
 type Result = { status: string; message: string };
@@ -90,8 +90,12 @@ export function Secretary({
             Avisos automáticos para cada nova oferta e histórico de respostas.
           </p>
         </div>
+        {manager && (
+          <Button variant="outline" size="sm" asChild>
+            <Link to="/configuracoes/secretaria">Configurar secretária</Link>
+          </Button>
+        )}
       </header>
-      {manager && <SecretarySettings key={companyId} companyId={companyId} isAdmin={me?.role === "super_admin"} />}
       {query.isPending ? (
         <p className="text-sm">Carregando avisos…</p>
       ) : query.isError ? (
@@ -106,10 +110,21 @@ export function Secretary({
             <div className="rounded-lg border p-4 text-sm">
               <h3 className="font-semibold">Histórico de envios</h3>
               <p className="mt-1 text-muted-foreground">
-                {query.data.channel
-                  ? `${query.data.channel.instance} · ${query.data.channel.enabled ? "Habilitado" : "Pausado"}`
-                  : "Canal ainda não configurado"}
-                . O retorno real das mensagens depende da configuração do webhook.
+                {query.data.channel ? (
+                  <>
+                    {`${query.data.channel.instance} · ${query.data.channel.enabled ? "Habilitado" : "Pausado"}`}
+                    . O retorno real das mensagens depende da configuração do webhook.
+                  </>
+                ) : me?.role === "super_admin" ? (
+                  <>
+                    Canal ainda não configurado.{" "}
+                    <Link to="/configuracoes/secretaria" className="text-primary underline">
+                      Configurar conexão
+                    </Link>
+                  </>
+                ) : (
+                  "Solicite ao super admin a configuração da conexão da secretária."
+                )}
               </p>
               {query.data.outbox.map((job) => (
                 <p key={job.id} className="mt-2 text-xs">

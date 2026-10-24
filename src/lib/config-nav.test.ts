@@ -44,3 +44,26 @@ describe("navegação de Configurações", () => {
     expect(isConfigPath("/settings/users")).toBe(true);
   });
 });
+
+describe("Secretária nas Configurações", () => {
+  it("gestor com CRM vê Secretária na empresa selecionada", () => {
+    const nav = configNavFor("manager", { crm: true });
+    const item = nav.find((i) => i.to === "/configuracoes/secretaria");
+    expect(item).toMatchObject({ label: "Secretária", scope: "empresa" });
+  });
+  it("super_admin com CRM vê Secretária; sem CRM, ninguém vê", () => {
+    expect(configNavFor("super_admin", { crm: true }).some((i) => i.to === "/configuracoes/secretaria")).toBe(true);
+    expect(configNavFor("super_admin", { crm: false }).some((i) => i.to === "/configuracoes/secretaria")).toBe(false);
+    expect(configNavFor("manager", { atendimento_ia: true }).some((i) => i.to === "/configuracoes/secretaria")).toBe(false);
+    expect(configNavFor("manager").some((i) => i.to === "/configuracoes/secretaria")).toBe(false);
+  });
+  it("corretor e analyst não ganham acesso mesmo com CRM", () => {
+    expect(configNavFor("agent", { crm: true })).toEqual([]);
+    expect(configNavFor("analyst", { crm: true })).toEqual([]);
+  });
+  it("Secretária pertence à área de Configurações e não ativa Configuração dos módulos", () => {
+    expect(isConfigPath("/configuracoes/secretaria")).toBe(true);
+    const modulos = configNavFor("manager")[1];
+    expect(isConfigItemActive(modulos, "/configuracoes/secretaria")).toBe(false);
+  });
+});

@@ -117,7 +117,7 @@ export function ModuleBoundary({ children }: { children: ReactNode }) {
     pathname === "/kanban" || pathname === "/leads/new" || pathname === "/conversas";
   if (
     (requiresIA && !modules.data.atendimento_ia) ||
-    (["/crm", "/tarefas", "/filas"].includes(pathname) && !modules.data.crm)
+    (["/crm", "/tarefas", "/filas", "/configuracoes/secretaria"].includes(pathname) && !modules.data.crm)
   )
     return (
       <Notice title="Módulo não habilitado para esta empresa">
