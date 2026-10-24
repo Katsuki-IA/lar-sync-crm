@@ -57,7 +57,8 @@ function fixture(options: {
     enqueueReply: vi.fn(async (_c: number, _m: string, body: string) => {
       calls.enqueued.push(body);
     }),
-    interpret: vi.fn(async () => options.interpretation ?? { intent: "desconhecido", reference: null }),
+    interpret: vi.fn(async (): Promise<SecretaryInterpretation | null> =>
+      options.interpretation ?? { intent: "desconhecido", reference: null }),
     loadSettings: vi.fn(async () => ({
       enabled: options.settingsEnabled ?? true,
       tone: "cordial" as const,
