@@ -32,7 +32,7 @@
 --     paginação real (limite + deslocamento).
 --  5. Contrato do desvio corrigido: o endpoint espera "eventId" (camelCase);
 --     o patch de encaminhamento envia "eventId". Patch completo e verificável
---     ao final, com rollback (texto original da função).
+--     ao final; rollback apenas orientado (sem definição original literal).
 --  6. Settings: leitura de UI (authenticated, auth.uid()) separada da leitura
 --     de runtime (service_role, sem auth.uid()). O caminho de execução não
 --     chama função que exige auth.uid() com o client de serviço.
@@ -682,8 +682,9 @@ grant usage on schema private to authenticated, service_role;
 --  return result;
 -- end $function$;
 --
--- ROLLBACK (texto original, sem o desvio): reaplicar a definição atual de
--- private.hub_receive_whatsapp exatamente como está no banco — o trecho
--- "if parts is null then result:=jsonb_build_object('status','invalid_command',...)
--- ..." sem o bloco "NOVO" acima. A definição original completa está preservada
--- no histórico de revisões do banco e foi lida em 2026-10-24 para conferência.
+-- ROLLBACK: NÃO há rollback pronto neste candidato. Este arquivo não contém
+-- a definição original literal de private.hub_receive_whatsapp, apenas esta
+-- orientação. Antes de aplicar o patch, exportar a definição atual
+-- (select pg_get_functiondef('private.hub_receive_whatsapp(text,text,text,text)'::regprocedure))
+-- para um arquivo literal versionado; o rollback consiste em reaplicar esse
+-- arquivo. Sem esse arquivo, o patch não deve ser aplicado.
