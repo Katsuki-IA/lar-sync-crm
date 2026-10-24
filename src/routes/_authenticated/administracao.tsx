@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { ConfigLayout } from "@/components/config-layout";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Building2, Plus, ArrowLeft } from "lucide-react";
@@ -26,7 +27,11 @@ import {
 } from "@/hml/administration";
 
 export const Route = createFileRoute("/_authenticated/administracao")({
-  component: AdministrationPage,
+  component: () => (
+    <ConfigLayout>
+      <AdministrationPage />
+    </ConfigLayout>
+  ),
 });
 function AdministrationPage() {
   const { activeEmpresaId } = useActiveEmpresa();
@@ -130,12 +135,6 @@ function CompanyAdministration({ companyId }: { companyId: number }) {
         <p className="mt-2 text-sm text-muted-foreground">
           Cadastro central, empreendimentos e permissões da equipe.
         </p>
-        {isAdmin && (
-          <Link className="mt-3 inline-flex items-center gap-1 text-sm text-primary" to="/modulos">
-            <ArrowLeft size={14} />
-            Todas as empresas e módulos
-          </Link>
-        )}
       </header>
       <div className="flex flex-wrap gap-3 rounded-xl border bg-white p-4 text-sm">
         <span className="rounded-full bg-accent px-3 py-1">
