@@ -18,9 +18,10 @@
 --     (code exige '^[A-F0-9]{12}$', offer_id é único e NOT NULL, e o worker
 --     cancela jobs sem oferta pendente). Criado outbox próprio
 --     (private.hub_secretary_replies) com claim/finish espelhando o worker
---     real. O worker (n8n) precisa passar a chamar também
---     public.hub_secretary_claim_reply/finish_reply — integração explícita,
---     nada aqui promete envio sem essa alteração do worker.
+--     real. O transporte atual é Edge (n8n foi descontinuado neste projeto);
+--     a integração do transporte com public.hub_secretary_claim_reply/
+--     finish_reply está PENDENTE — nada aqui promete envio enquanto essa
+--     integração não for instalada.
 --  4. Nomes reais de colunas confirmados no banco: crm_stages.nome,
 --     crm_opportunities.stage_id/assigned_to/lead_id, hub_sales_offers
 --     .distribution_id/member_id/status/expires_at. O nome exibido é o nome
@@ -462,8 +463,9 @@ end $$;
 -- ----------------------------------------------------------------------------
 -- claim/finish do outbox de respostas livres — espelham o worker real
 -- (private.hub_claim_whatsapp / private.hub_finish_whatsapp), sem validação
--- de oferta. O worker (n8n) deve chamá-los além dos atuais; sem isso as
--- respostas ficam pendentes (nenhum envio é prometido sem essa integração).
+-- de oferta. A integração do transporte (Edge) com estas funções está
+-- PENDENTE; sem ela as respostas ficam pendentes — nenhum envio é prometido
+-- enquanto o transporte não chamar claim/finish.
 -- ----------------------------------------------------------------------------
 create or replace function private.hub_secretary_claim_reply(p_instance text)
 returns jsonb language plpgsql security definer set search_path = '' as $$
