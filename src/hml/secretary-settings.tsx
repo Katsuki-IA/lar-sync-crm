@@ -102,7 +102,6 @@ export function SecretarySettings({ companyId, isAdmin }: { companyId: number; i
               {c.autoSend ? "Envio automático ativo" : "Envio automático pausado"}
             </ConfigStatus>
             <Button
-             
               variant="outline"
               disabled={
                 automatic.isPending || (!c.autoSend && (!c.enabled || !c.inboundVerifiedAt))
@@ -112,7 +111,6 @@ export function SecretarySettings({ companyId, isAdmin }: { companyId: number; i
               {c.autoSend ? "Pausar automação" : "Ativar automação"}
             </Button>
             <Button
-             
               variant="outline"
               disabled={!c.enabled || dispatch.isPending}
               onClick={() => dispatch.mutate()}
