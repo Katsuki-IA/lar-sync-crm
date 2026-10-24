@@ -46,9 +46,11 @@ export function parseLegacyCommand(
 const REFERENCE_MAX = 120;
 
 /**
- * Validação estrita da saída do modelo. Qualquer desvio (JSON inválido,
- * intenção fora do enum, campos extras suspeitos, texto de injeção) vira
- * "desconhecido" — a IA nunca executa nada fora da lista fechada.
+ * Validação estrita da saída do modelo. Qualquer desvio vira "desconhecido":
+ * JSON inválido, intenção fora do enum, chaves extras ou ausentes (o objeto
+ * deve ter exatamente "intent" e "reference"), reference com tipo inválido,
+ * vazia ou acima de 120 caracteres. Nenhum desvio vira aceite sem referência
+ * — um "aceitar" com reference inválida NUNCA é convertido em reference null.
  */
 export function parseInterpretationOutput(raw: string): SecretaryInterpretation {
   const fallback: SecretaryInterpretation = { intent: "desconhecido", reference: null };
@@ -60,14 +62,25 @@ export function parseInterpretationOutput(raw: string): SecretaryInterpretation 
   }
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return fallback;
   const record = parsed as Record<string, unknown>;
+  // Chaves exatas: nem a mais, nem a menos.
+  const keys = Object.keys(record).sort();
+  if (keys.length !== 2 || keys[0] !== "intent" || keys[1] !== "reference") return fallback;
   const intent = record["intent"];
   if (typeof intent !== "string" || !(SECRETARY_INTENTS as readonly string[]).includes(intent)) {
     return fallback;
   }
+  const rawReference = record["reference"];
   let reference: string | null = null;
-  if (typeof record["reference"] === "string") {
-    const trimmed = record["reference"].trim();
-    if (trimmed && trimmed.length <= REFERENCE_MAX) reference = trimmed;
+  if (rawReference === null) {
+    reference = null;
+  } else if (typeof rawReference === "string") {
+    const trimmed = rawReference.trim();
+    // Vazia ou acima do limite NÃO viram null válido: a saída é inválida.
+    if (!trimmed || trimmed.length > REFERENCE_MAX) return fallback;
+    reference = trimmed;
+  } else {
+    // Tipo inválido (número, objeto, booleano...): saída inválida.
+    return fallback;
   }
   // Referência só faz sentido para aceitar/recusar; listar e desconhecido a descartam.
   if (intent === "listar" || intent === "desconhecido") reference = null;
