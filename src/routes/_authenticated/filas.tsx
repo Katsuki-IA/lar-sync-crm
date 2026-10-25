@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useRef, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, RefreshCw, ArrowUp, ArrowDown } from "lucide-react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { ArrowUp, ArrowDown } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,34 +16,19 @@ import { useActiveEmpresa } from "@/hooks/use-active-empresa";
 import { useCrmUser } from "@/hooks/use-crm-user";
 import { db, Notice, inputClass } from "@/hml/modules";
 import { adminRpc, useAdminMutation } from "@/hml/administration";
-import { Secretary } from "@/hml/secretary";
 
-type Queue = {
-  id: string;
-  name: string;
-  active: boolean;
-  timeout_minutes: number;
-  revision: number;
-};
-type Member = { id: string; nome: string; active: boolean; role: string };
-type Membership = { queue_id: string; member_id: string; position: number };
-type Distribution = {
-  id: string;
-  queue_id: string;
-  opportunity_id: string;
-  status: string;
-  created_at: string;
-};
-type Offer = {
-  id: string;
-  distribution_id: string;
-  member_id: string;
-  opportunity_title: string;
-  status: string;
-  expires_at: string;
-  created_at: string;
-  resolved_at: string | null;
-};
+import { SalesQueueWorkspace, QueueRuleFields } from "@/hml/sales-queue-workspace";
+import { defaultQueueRules, isQueueAgent } from "@/lib/sales-queue";
+import type {
+  SalesQueue as Queue,
+  QueueMember as Member,
+  QueueMembership as Membership,
+  SalesDistribution as Distribution,
+  SalesOffer as Offer,
+  QueueOverview,
+  QueueRules,
+} from "@/lib/sales-queue";
+
 const labels: Record<string, string> = {
   pending: "Aguardando aceite",
   accepted: "Aceita",
@@ -63,11 +48,8 @@ function Page() {
 function Workspace({ companyId }: { companyId: number }) {
   const { data: me } = useCrmUser();
   const manager = me?.role === "manager" || me?.role === "super_admin";
-  const qc = useQueryClient();
   const [editing, setEditing] = useState<Queue | null | undefined>();
   const [enqueue, setEnqueue] = useState(false);
-  const [processing, setProcessing] = useState(false);
-  const busy = useRef(false);
   const query = useQuery({
     queryKey: ["sales-distribution", companyId, me?.id],
     enabled: !!me,
@@ -82,14 +64,10 @@ function Workspace({ companyId }: { companyId: number }) {
           .limit(200),
         ...(manager
           ? [
-              db
-                .from("hub_sales_queues")
-                .select("id,name,active,timeout_minutes,revision")
-                .eq("id_empresa", companyId)
-                .order("name"),
+              db.from("hub_sales_queues").select("*").eq("id_empresa", companyId).order("name"),
               db
                 .from("hub_sales_queue_members")
-                .select("queue_id,member_id,position")
+                .select("*")
                 .eq("id_empresa", companyId)
                 .order("position"),
               db
@@ -102,7 +80,7 @@ function Workspace({ companyId }: { companyId: number }) {
                 .from("crm_users")
                 .select("id,nome,active,role")
                 .eq("id_empresa", companyId)
-                .in("role", ["agent", "manager"]),
+                .in("role", ["agent", "corretor", "manager", "gestor"]),
               db
                 .from("crm_opportunities")
                 .select("id,title,lead_id")
@@ -113,7 +91,38 @@ function Workspace({ companyId }: { companyId: number }) {
           : []),
       ]);
       for (const r of results) if (r.error) throw r.error;
+      let overview: QueueOverview | null = null;
+      let developments: { id: number; nome: string }[] = [];
+      let stages: { id: number; nome: string }[] = [];
+      let funnels: { id: number; nome: string }[] = [];
+      if (manager) {
+        const [summary, dev, stage, funnel] = await Promise.all([
+          db.rpc("hub_sales_queue_overview", { p_company_id: companyId }),
+          db.from("empreendimento").select("id,nome").eq("id_empresa", companyId).order("nome"),
+          db
+            .from("crm_stages")
+            .select("id,nome")
+            .eq("id_empresa", companyId)
+            .eq("module", "ia")
+            .eq("ativo", true)
+            .order("ordem"),
+          db.from("crm_funnels").select("id,nome").eq("id_empresa", companyId).eq("module", "crm").eq("ativo", true).order("nome"),
+        ]);
+        if (summary.error && !["PGRST202", "42883"].includes(summary.error.code))
+          throw summary.error;
+        if (dev.error) throw dev.error;
+        if (stage.error) throw stage.error;
+        if (funnel.error) throw funnel.error;
+        funnels = funnel.data ?? [];
+        overview = summary.error ? null : (summary.data as QueueOverview);
+        developments = dev.data ?? [];
+        stages = stage.data ?? [];
+      }
       return {
+        overview,
+        developments,
+        stages,
+        funnels,
         offers: results[0].data as Offer[],
         queues: (results[1]?.data ?? []) as Queue[],
         memberships: (results[2]?.data ?? []) as Membership[],
@@ -132,26 +141,15 @@ function Workspace({ companyId }: { companyId: number }) {
       toast.info("Esta oferta já foi encerrada.");
     return result;
   }, "Resposta registrada");
+  const pause = useAdminMutation<{ queue: string; member: string; paused: boolean }>(
+    ({ queue, member, paused }) =>
+      adminRpc("hub_pause_queue_member", { p_queue: queue, p_member: member, p_paused: paused }),
+    "Participação atualizada",
+  );
   const cancel = useAdminMutation<string>(
     (id) => adminRpc("hub_process_sales_distribution", { p_id: id, p_cancel: true }),
     "Distribuição cancelada",
   );
-  const process = async (ids: string[], silent = false) => {
-    if (busy.current || !ids.length) return;
-    busy.current = true;
-    setProcessing(true);
-    try {
-      for (const id of ids)
-        await adminRpc("hub_process_sales_distribution", { p_id: id, p_cancel: false });
-      await qc.invalidateQueries();
-      if (!silent) toast.success("Prazos e disponibilidade verificados");
-    } catch {
-      toast.error("Não foi possível avançar a distribuição. Tente novamente.");
-    } finally {
-      busy.current = false;
-      setProcessing(false);
-    }
-  };
   if (query.isPending) return <p>Carregando distribuição…</p>;
   if (query.isError)
     return (
@@ -165,7 +163,7 @@ function Workspace({ companyId }: { companyId: number }) {
     <div className="mx-auto max-w-6xl space-y-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">
+          <h1 className="text-2xl font-semibold">
             {manager ? "Filas de distribuição" : "Minhas ofertas"}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -174,157 +172,16 @@ function Workspace({ companyId }: { companyId: number }) {
               : "Aceite uma oferta para assumir a oportunidade no CRM."}
           </p>
         </div>
-        {manager && (
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setEditing(null)}>
-              <Plus />
-              Nova fila
-            </Button>
-            <Button disabled={!data.queues.some((q) => q.active)} onClick={() => setEnqueue(true)}>
-              Distribuir oportunidade
-            </Button>
-          </div>
-        )}
       </header>
       {manager && (
-        <>
-          <div className="rounded-xl border bg-white p-4 text-sm">
-            <p>
-              Ofertas sequenciais, em rodízio, com prazo em minutos corridos. Cada corretor recebe
-              no máximo uma oferta por rodada.
-            </p>
-            <p className="mt-2 text-muted-foreground">
-              A tela atualiza a cada 15 segundos. Aceites fora do prazo são recusados imediatamente.
-              O avanço automático da fila depende da ativação do processamento no servidor.
-              Os avisos de WhatsApp dependem da configuração da secretária.
-            </p>
-          </div>
-          <section className="grid gap-3 md:grid-cols-2">
-            {data.queues.map((q) => (
-              <article className="rounded-xl border bg-white p-4" key={q.id}>
-                <div className="flex justify-between gap-3">
-                  <div>
-                    <h2 className="font-semibold">{q.name}</h2>
-                    <p className="text-xs text-muted-foreground">
-                      {q.active ? "Ativa" : "Pausada"} · {q.timeout_minutes} min para responder
-                    </p>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={data.distributions.some(
-                      (d) => d.queue_id === q.id && d.status === "pending",
-                    )}
-                    onClick={() => setEditing(q)}
-                  >
-                    Editar fila
-                  </Button>
-                </div>
-                <ol className="mt-3 space-y-1 text-sm">
-                  {data.memberships
-                    .filter((m) => m.queue_id === q.id)
-                    .map((m, i) => (
-                      <li key={m.member_id}>
-                        {i + 1}. {data.members.find((u) => u.id === m.member_id)?.nome ?? "Membro"}
-                        {!data.members.some(
-                          (u) => u.id === m.member_id && u.active && u.role === "agent",
-                        )
-                          ? " · Indisponível"
-                          : ""}
-                      </li>
-                    ))}
-                </ol>
-              </article>
-            ))}
-          </section>
-          {!data.queues.length && (
-            <Notice title="Crie sua primeira fila">
-              Selecione os corretores, organize a ordem e defina o prazo de aceite.
-            </Notice>
-          )}
-          <section className="space-y-3">
-            <header className="flex flex-wrap justify-between gap-3">
-              <h2 className="text-lg font-semibold">Distribuições recentes</h2>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={processing || !data.distributions.some((d) => d.status === "pending")}
-                onClick={() =>
-                  process(data.distributions.filter((d) => d.status === "pending").map((d) => d.id))
-                }
-              >
-                <RefreshCw />
-                Verificar prazos
-              </Button>
-            </header>
-            {!data.distributions.length && (
-              <p className="text-sm text-muted-foreground">
-                Nenhuma oportunidade distribuída ainda.
-              </p>
-            )}
-            {data.distributions.map((d) => {
-              const offers = data.offers
-                .filter((o) => o.distribution_id === d.id)
-                .sort((a, b) => a.created_at.localeCompare(b.created_at));
-              return (
-                <article className="rounded-xl border bg-white p-4" key={d.id}>
-                  <div className="flex flex-wrap justify-between gap-3">
-                    <div>
-                      <h3 className="font-semibold">
-                        {offers[0]?.opportunity_title ??
-                          data.opportunities.find((o) => o.id === d.opportunity_id)?.title ??
-                          "Oportunidade"}
-                      </h3>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {data.queues.find((q) => q.id === d.queue_id)?.name} · {date(d.created_at)}
-                      </p>
-                      <p className="mt-2 text-sm">{labels[d.status]}</p>
-                    </div>
-                    {d.status === "pending" && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={cancel.isPending}
-                        onClick={() => cancel.mutate(d.id)}
-                      >
-                        Cancelar distribuição
-                      </Button>
-                    )}
-                  </div>
-                  {d.status === "exhausted" && (
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      Esta rodada terminou sem aceite. Se a oportunidade ainda estiver sem
-                      responsável, revise a equipe antes de iniciar uma nova rodada.
-                    </p>
-                  )}
-                  <details className="mt-3 border-t pt-3 text-sm">
-                    <summary className="text-primary">Histórico de ofertas</summary>
-                    <ol className="mt-3 space-y-2">
-                      {offers.map((o) => (
-                        <li key={o.id} className="rounded-lg bg-muted p-3">
-                          <strong>
-                            {data.members.find((m) => m.id === o.member_id)?.nome ?? "Corretor"}
-                          </strong>{" "}
-                          · {labels[o.status]}
-                          <p className="text-xs text-muted-foreground">
-                            Ofertada em {date(o.created_at)} · Prazo {date(o.expires_at)}
-                            {o.resolved_at ? " · Encerrada em " + date(o.resolved_at) : ""}
-                          </p>
-                        </li>
-                      ))}
-                    </ol>
-                    {!offers.length && (
-                      <p className="mt-2">Nenhum corretor elegível no momento da distribuição.</p>
-                    )}
-                  </details>
-                </article>
-              );
-            })}
-            <p className="text-xs text-muted-foreground">
-              Até 100 distribuições e 200 ofertas mais recentes nesta prévia.
-            </p>
-          </section>
-        </>
+        <SalesQueueWorkspace
+          {...data}
+          onEdit={setEditing}
+          onEnqueue={() => setEnqueue(true)}
+          onPause={(queue, member, paused) => pause.mutate({ queue, member, paused })}
+          onCancel={(id) => cancel.mutate(id)}
+          busy={pause.isPending || cancel.isPending}
+        />
       )}
       {!manager && (
         <section className="space-y-3">
@@ -369,19 +226,14 @@ function Workspace({ companyId }: { companyId: number }) {
           )}
         </section>
       )}
-      {me && (
-        <Secretary
-          key={me.id}
-          companyId={companyId}
-          userId={me.id}
-          manager={manager}
-          members={data.members}
-        />
-      )}
       {editing !== undefined && (
         <QueueEditor
           companyId={companyId}
           queue={editing}
+          installed={!!data.overview?.installed}
+          funnels={data.funnels}
+          developments={data.developments}
+          stages={data.stages}
           members={data.members}
           selected={data.memberships
             .filter((m) => m.queue_id === editing?.id)
@@ -402,9 +254,7 @@ function Workspace({ companyId }: { companyId: number }) {
             .map((o) => ({
               ...o,
               label:
-                (data.contacts.find((c) => c.id === o.lead_id)?.nome ?? "Lead") +
-                " · " +
-                o.title,
+                (data.contacts.find((c) => c.id === o.lead_id)?.nome ?? "Lead") + " · " + o.title,
             }))}
           onClose={() => setEnqueue(false)}
         />
@@ -413,18 +263,27 @@ function Workspace({ companyId }: { companyId: number }) {
   );
 }
 function QueueEditor({
+  funnels,
   companyId,
   queue,
+  installed,
+  developments,
+  stages,
   members,
   selected,
   onClose,
 }: {
+  funnels: { id: number; nome: string }[];
   companyId: number;
   queue: Queue | null;
+  installed: boolean;
+  developments: { id: number; nome: string }[];
+  stages: { id: number; nome: string }[];
   members: Member[];
   selected: string[];
   onClose: () => void;
 }) {
+  const [rules, setRules] = useState<QueueRules>({ ...defaultQueueRules, ...queue });
   const [name, setName] = useState(queue?.name ?? "");
   const [timeout, setTimeout] = useState(queue?.timeout_minutes ?? 10);
   const [active, setActive] = useState(queue?.active ?? true);
@@ -432,7 +291,8 @@ function QueueEditor({
   const [request] = useState(() => crypto.randomUUID());
   const save = useAdminMutation<void>(
     () =>
-      adminRpc("hub_save_sales_queue", {
+      adminRpc(installed ? "hub_save_sales_queue_v2" : "hub_save_sales_queue", {
+        ...(installed ? { p_rules: rules } : {}),
         p_company_id: companyId,
         p_id: queue?.id ?? null,
         p_name: name,
@@ -457,7 +317,7 @@ function QueueEditor({
         if (!v && !save.isPending) onClose();
       }}
     >
-      <DialogContent className="max-h-[90dvh] overflow-y-auto">
+      <DialogContent className="config-dialog max-h-[90dvh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>{queue ? "Editar fila" : "Nova fila"}</DialogTitle>
           <DialogDescription>
@@ -466,7 +326,7 @@ function QueueEditor({
           </DialogDescription>
         </DialogHeader>
         <form
-          className="space-y-4"
+          className="config-form space-y-4"
           onSubmit={(e) => {
             e.preventDefault();
             save.mutate();
@@ -504,22 +364,36 @@ function QueueEditor({
               />
               Fila ativa
             </label>
+            {installed && (
+              <QueueRuleFields
+                funnels={funnels}
+                rules={rules}
+                onChange={setRules}
+                developments={developments}
+                stages={stages}
+              />
+            )}
+            {!installed && (
+              <p className="text-sm text-muted-foreground">
+                Gatilhos e horários aguardam a atualização do servidor.
+              </p>
+            )}
             <div>
               <p className="mb-2 text-sm font-medium">Corretores participantes</p>
               {members
-                .filter((m) => m.role === "agent" || ids.includes(m.id))
+                .filter((m) => isQueueAgent(m) || ids.includes(m.id))
                 .map((m) => (
                   <label key={m.id} className="mb-2 flex items-center gap-2 text-sm">
                     <input
                       type="checkbox"
                       checked={ids.includes(m.id)}
-                      disabled={(!m.active || m.role !== "agent") && !ids.includes(m.id)}
+                      disabled={(!m.active || !isQueueAgent(m)) && !ids.includes(m.id)}
                       onChange={(e) =>
                         setIds(e.target.checked ? [...ids, m.id] : ids.filter((id) => id !== m.id))
                       }
                     />
                     {m.nome}
-                    {!m.active || m.role !== "agent" ? " · Indisponível" : ""}
+                    {!m.active || !isQueueAgent(m) ? " · Indisponível" : ""}
                   </label>
                 ))}
             </div>
@@ -566,9 +440,10 @@ function QueueEditor({
               disabled={
                 save.isPending ||
                 !ids.length ||
-                ids.some(
-                  (id) => !members.some((m) => m.id === id && m.active && m.role === "agent"),
-                )
+                (installed &&
+                  rules.schedule_enabled &&
+                  (!rules.weekdays.length || rules.starts_at >= rules.ends_at)) ||
+                ids.some((id) => !members.some((m) => m.id === id && m.active && isQueueAgent(m)))
               }
             >
               {save.isPending ? "Salvando…" : "Salvar fila"}
@@ -612,7 +487,7 @@ function Enqueue({
           </DialogDescription>
         </DialogHeader>
         <form
-          className="space-y-4"
+          className="config-form space-y-4"
           onSubmit={(e) => {
             e.preventDefault();
             save.mutate();
@@ -670,4 +545,3 @@ function Enqueue({
     </Dialog>
   );
 }
-
