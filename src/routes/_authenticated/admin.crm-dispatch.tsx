@@ -10,6 +10,7 @@ import {
   saveCrmDispatchSettings,
 } from "@/lib/admin.functions";
 import { Card } from "@/components/ui/card";
+import { CommercialSettings } from '@/hml/commercial-settings';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -294,6 +295,9 @@ function AdminCrmDispatchPage() {
         )}
       </div>
 
+      {selectedCompanyId && (
+        <CommercialSettings key={`internal-${selectedCompanyId}`} companyId={Number(selectedCompanyId)} destinationOnly />
+      )}
       {selectedCompanyId && (
         <details className="rounded-lg border p-4" key={selectedCompanyId}>
           <summary className="cursor-pointer font-medium">

@@ -48,6 +48,7 @@ import { Route as AuthenticatedAdminReportingApiRouteImport } from './routes/_au
 import { Route as AuthenticatedAdminSiteFormsRouteImport } from './routes/_authenticated/admin.site-forms'
 import { Route as AuthenticatedAdminTagsRouteImport } from './routes/_authenticated/admin.tags'
 import { Route as AuthenticatedAdminUsersRouteImport } from './routes/_authenticated/admin.users'
+import { Route as AuthenticatedConfiguracoesComercialRouteImport } from './routes/_authenticated/configuracoes.comercial'
 import { Route as AuthenticatedConfiguracoesIntegracoesRouteImport } from './routes/_authenticated/configuracoes.integracoes'
 import { Route as AuthenticatedConfiguracoesSecretariaRouteImport } from './routes/_authenticated/configuracoes.secretaria'
 import { Route as AuthenticatedLeadsIndexRouteImport } from './routes/_authenticated/leads.index'
@@ -275,6 +276,12 @@ const AuthenticatedAdminUsersRoute = AuthenticatedAdminUsersRouteImport.update({
   path: '/users',
   getParentRoute: () => AuthenticatedAdminRoute,
 } as any)
+const AuthenticatedConfiguracoesComercialRoute =
+  AuthenticatedConfiguracoesComercialRouteImport.update({
+    id: '/comercial',
+    path: '/comercial',
+    getParentRoute: () => AuthenticatedConfiguracoesRoute,
+  } as any)
 const AuthenticatedConfiguracoesIntegracoesRoute =
   AuthenticatedConfiguracoesIntegracoesRouteImport.update({
     id: '/integracoes',
@@ -415,6 +422,7 @@ export interface FileRoutesByFullPath {
   '/admin/site-forms': typeof AuthenticatedAdminSiteFormsRoute
   '/admin/tags': typeof AuthenticatedAdminTagsRoute
   '/admin/users': typeof AuthenticatedAdminUsersRoute
+  '/configuracoes/comercial': typeof AuthenticatedConfiguracoesComercialRoute
   '/configuracoes/integracoes': typeof AuthenticatedConfiguracoesIntegracoesRoute
   '/configuracoes/secretaria': typeof AuthenticatedConfiguracoesSecretariaRoute
   '/leads/$id': typeof AuthenticatedLeadsIdRoute
@@ -471,6 +479,7 @@ export interface FileRoutesByTo {
   '/admin/site-forms': typeof AuthenticatedAdminSiteFormsRoute
   '/admin/tags': typeof AuthenticatedAdminTagsRoute
   '/admin/users': typeof AuthenticatedAdminUsersRoute
+  '/configuracoes/comercial': typeof AuthenticatedConfiguracoesComercialRoute
   '/configuracoes/integracoes': typeof AuthenticatedConfiguracoesIntegracoesRoute
   '/configuracoes/secretaria': typeof AuthenticatedConfiguracoesSecretariaRoute
   '/leads/$id': typeof AuthenticatedLeadsIdRoute
@@ -531,6 +540,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/site-forms': typeof AuthenticatedAdminSiteFormsRoute
   '/_authenticated/admin/tags': typeof AuthenticatedAdminTagsRoute
   '/_authenticated/admin/users': typeof AuthenticatedAdminUsersRoute
+  '/_authenticated/configuracoes/comercial': typeof AuthenticatedConfiguracoesComercialRoute
   '/_authenticated/configuracoes/integracoes': typeof AuthenticatedConfiguracoesIntegracoesRoute
   '/_authenticated/configuracoes/secretaria': typeof AuthenticatedConfiguracoesSecretariaRoute
   '/_authenticated/leads/$id': typeof AuthenticatedLeadsIdRoute
@@ -591,6 +601,7 @@ export interface FileRouteTypes {
     | '/admin/site-forms'
     | '/admin/tags'
     | '/admin/users'
+    | '/configuracoes/comercial'
     | '/configuracoes/integracoes'
     | '/configuracoes/secretaria'
     | '/leads/$id'
@@ -647,6 +658,7 @@ export interface FileRouteTypes {
     | '/admin/site-forms'
     | '/admin/tags'
     | '/admin/users'
+    | '/configuracoes/comercial'
     | '/configuracoes/integracoes'
     | '/configuracoes/secretaria'
     | '/leads/$id'
@@ -706,6 +718,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/site-forms'
     | '/_authenticated/admin/tags'
     | '/_authenticated/admin/users'
+    | '/_authenticated/configuracoes/comercial'
     | '/_authenticated/configuracoes/integracoes'
     | '/_authenticated/configuracoes/secretaria'
     | '/_authenticated/leads/$id'
@@ -1022,6 +1035,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminUsersRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/configuracoes/comercial': {
+      id: '/_authenticated/configuracoes/comercial'
+      path: '/comercial'
+      fullPath: '/configuracoes/comercial'
+      preLoaderRoute: typeof AuthenticatedConfiguracoesComercialRouteImport
+      parentRoute: typeof AuthenticatedConfiguracoesRoute
+    }
     '/_authenticated/configuracoes/integracoes': {
       id: '/_authenticated/configuracoes/integracoes'
       path: '/integracoes'
@@ -1183,12 +1203,15 @@ const AuthenticatedAdminRouteWithChildren =
   AuthenticatedAdminRoute._addFileChildren(AuthenticatedAdminRouteChildren)
 
 interface AuthenticatedConfiguracoesRouteChildren {
+  AuthenticatedConfiguracoesComercialRoute: typeof AuthenticatedConfiguracoesComercialRoute
   AuthenticatedConfiguracoesIntegracoesRoute: typeof AuthenticatedConfiguracoesIntegracoesRoute
   AuthenticatedConfiguracoesSecretariaRoute: typeof AuthenticatedConfiguracoesSecretariaRoute
 }
 
 const AuthenticatedConfiguracoesRouteChildren: AuthenticatedConfiguracoesRouteChildren =
   {
+    AuthenticatedConfiguracoesComercialRoute:
+      AuthenticatedConfiguracoesComercialRoute,
     AuthenticatedConfiguracoesIntegracoesRoute:
       AuthenticatedConfiguracoesIntegracoesRoute,
     AuthenticatedConfiguracoesSecretariaRoute:

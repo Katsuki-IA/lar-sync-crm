@@ -964,6 +964,14 @@ Deno.serve(async (req) => {
 
     const admin = createSupabaseAdmin();
     const authContext = await authenticateDispatchRequest(admin, req, idEmpresa);
+    // Opt-in interno: não depende de credenciais/IDs externos e nunca faz fallback
+    // externo quando a configuração interna está ativa mas inválida.
+    const internal = await admin.rpc("hub_dispatch_internal_crm", {
+      p_company_id: idEmpresa, p_lead_id: leadId,
+      p_kind: body.externalStageKind ?? null,
+    });
+    if (internal.error) throw new Error(internal.error.message);
+    if (internal.data?.handled) return jsonResponse(internal.data);
     const aiUserIdResult = await admin.rpc("crm_get_or_create_ai_user", {
       p_id_empresa: idEmpresa,
     });
