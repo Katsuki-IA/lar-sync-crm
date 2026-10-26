@@ -1,0 +1,31 @@
+begin;
+select set_config('request.jwt.claim.sub','2c03c1b4-798b-4f0d-afed-29019bb059ac',true);
+set local role authenticated;
+select public.hub_commercial_config(5);
+select public.hub_save_commercial_definition(5,'stage',26,1,'{"nome":"Em contato — ensaio","ordem":2,"ativo":true,"id_funnel":7,"cor":"#123456"}');
+reset role;
+do $test$
+declare lead bigint; result jsonb; again jsonb; denied boolean:=false;
+begin
+ assert (select nome from public.crm_stages where id=26)='Em contato — ensaio','Edição não persistiu na transação';
+ begin perform public.hub_save_internal_crm(5,0,false,'{}'); exception when insufficient_privilege then denied:=true; end;
+ assert denied,'Gestor conseguiu alterar destino';
+ perform set_config('request.jwt.claim.sub','4ef61243-2c02-482d-a4a0-56f5289d2d79',true);
+ denied:=false;
+ begin perform public.hub_commercial_config(5); exception when insufficient_privilege then denied:=true; end;
+ assert denied,'Corretor conseguiu configurar';
+ perform set_config('request.jwt.claim.sub','e0bd0e64-50e7-44ba-84db-f48f5bc1f50d',true);
+ update public.empresa_dados set default_crm='katsuki' where id=5;
+ perform public.hub_save_internal_crm(5,0,true,'{"unqualified":{"funnel_id":7,"stage_id":25},"qualified":{"funnel_id":7,"stage_id":26}}');
+ insert into public.crm_leads(id_empresa,nome,telefone,qualificado) values(5,'[ENSAIO TRANSACIONAL] Destino interno','000000000000',1) returning id into lead;
+ result:=public.hub_dispatch_internal_crm(5,lead);
+ assert result->>'created'='true','Oportunidade não criada';
+ assert (select stage_id from public.crm_opportunities where id=(result->>'opportunity_id')::uuid)=26,'Etapa incorreta';
+ again:=public.hub_dispatch_internal_crm(5,lead);
+ assert again->>'created'='false' and again->>'opportunity_id'=result->>'opportunity_id','Duplicação';
+ perform public.hub_save_commercial_definition(5,'stage',26,2,'{"nome":"Em contato — ensaio","ordem":2,"ativo":false,"id_funnel":7,"cor":"#123456","replacement_id":25}');
+ assert (select stage_id from public.crm_opportunities where id=(result->>'opportunity_id')::uuid)=25,'Substituição falhou';
+ assert (select destinations->'qualified'->>'stage_id' from private.hub_internal_crm_settings where id_empresa=5)='25','Mapeamento não atualizado';
+ assert not has_function_privilege('authenticated','public.hub_dispatch_internal_crm(bigint,bigint,text)','execute'),'Dispatch exposto';
+end $test$;
+rollback;

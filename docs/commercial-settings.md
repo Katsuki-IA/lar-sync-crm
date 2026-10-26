@@ -1,6 +1,6 @@
 # Funil comercial e destino interno — candidato
 
-Estado em 2026-10-26: implementação local na branch codex/commercial-settings. Não instalada no Multi-Katsuki, não publicada e nenhuma empresa ativada.
+Estado em 2026-10-26: instalada e validada no Supabase temporário esdqsdwhhihxmubunwvb. Não instalada no Multi-Katsuki, não publicada e nenhuma empresa ativada.
 
 ## Comportamento
 
@@ -28,3 +28,12 @@ Estado em 2026-10-26: implementação local na branch codex/commercial-settings.
 - Suite SQL final: 8 testes passaram, incluindo os três casos adicionais (criação/desativação de funil, fallback e intake suspenso).
 - TypeScript sem erros; build de produção concluído com chave pública fictícia exclusivamente para validação. Não publicar esse build local.
 - PGlite executa o SQL real sobre um esquema mínimo compatível; isso não substitui o ensaio da migração e dos gatilhos no ambiente remoto.
+
+## Ensaio remoto concluído em 2026-10-26
+
+- Migração commercial_funnel_settings_internal_destination aplicada somente em esdqsdwhhihxmubunwvb.
+- Executado commercial-settings-hml-rehearsal.sql com os usuários fictícios existentes. A edição foi chamada como authenticated, com identidade do gestor; permissões de corretor e alteração de destino foram verificadas por assertions no banco.
+- Verificados: edição e revisão, bloqueio de gestor no destino global, bloqueio de corretor, mapeamento de qualificado, envio repetido sem duplicação e substituição com atualização das oportunidades e regras.
+- Transação revertida. Consulta posterior confirmou zero configurações internas, zero leads do ensaio, etapa Em contato ativa/revisão 1 e destino da empresa fictícia novamente nulo. Nenhuma fila/aviso foi acionada pelo ensaio.
+- Dispatcher de produção versão 116 consultado somente para leitura. Candidato atualizado com todos os arquivos dessa versão, preservando correções recentes de qualificação, visita, origem e atribuição. A única adição no index em relação a essa versão é a chamada RPC interna após autenticação; igualdade do restante verificada programaticamente.
+- Suite local: 232 testes passaram. O teste remoto cobre banco/RPC; não é teste ponta a ponta de HTTP/WhatsApp. Dispatcher candidato e frontend ainda precisam de implantação antes da ativação de qualquer empresa.
