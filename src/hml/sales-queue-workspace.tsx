@@ -348,6 +348,13 @@ export function SalesQueueWorkspace({
             <h2 className="font-semibold">Aguardando distribuição</h2>
             <ConfigStatus>Empresa</ConfigStatus>
           </div>
+          <p className="text-sm text-muted-foreground">
+            Leads e oportunidades desta empresa que aguardam distribuição aos corretores.
+          </p>
+          <h3 className="text-sm font-semibold">
+            Oportunidades comerciais aguardando distribuição
+            {overview ? ` (${overview.waiting.length})` : ""}
+          </h3>
           {!overview ? (
             <p className="text-sm text-muted-foreground">
               A espera automática ficará disponível após a atualização do servidor.
@@ -374,18 +381,59 @@ export function SalesQueueWorkspace({
               ))}
             </ul>
           )}
-          {!!overview?.lead_waiting?.length && <ul className="divide-y">
-            {overview.lead_waiting.map((lead) => <li key={lead.lead_id} className="py-3">
-              <p className="text-sm font-medium">{lead.nome}</p>
-              <p className="mt-1 text-xs text-muted-foreground">{lead.reason === "no_active_stage"
-                ? "O funil de destino precisa de uma etapa ativa."
-                : lead.reason === "processing_error" ? "Entrada pendente. Nova tentativa em alguns minutos."
-                : "Aguardando uma fila com gatilho e empreendimento compatíveis."}</p>
-            </li>)}
-          </ul>}
+          <div className="space-y-3 border-t pt-4">
+            <h3 className="text-sm font-semibold">
+              Leads aguardando uma fila compatível
+              {overview?.lead_waiting ? ` (${overview.lead_waiting.length})` : ""}
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              São contatos recebidos pela empresa, não usuários ou corretores.
+            </p>
+            {!overview?.lead_waiting ? (
+              <p className="text-sm text-muted-foreground">
+                A lista de leads ficará disponível após a atualização do servidor.
+              </p>
+            ) : !overview.lead_waiting.length ? (
+              <p className="text-sm text-muted-foreground">
+                Nenhum lead aguardando uma fila compatível.
+              </p>
+            ) : (
+              <ul className="divide-y">
+                {overview.lead_waiting.map((lead) => (
+                  <li
+                    key={lead.lead_id}
+                    className="flex flex-wrap items-center justify-between gap-3 py-3"
+                  >
+                    <div>
+                      <p className="text-sm font-medium">
+                        {lead.nome}{" "}
+                        <span className="text-muted-foreground">· Lead #{lead.lead_id}</span>
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {lead.reason === "no_active_stage"
+                          ? "O funil de destino precisa de uma etapa ativa."
+                          : lead.reason === "processing_error"
+                            ? "Entrada pendente. Nova tentativa em alguns minutos."
+                            : "Aguardando uma fila com gatilho e empreendimento compatíveis."}
+                      </p>
+                    </div>
+                    <Button asChild variant="outline" size="sm">
+                      <Link
+                        to="/leads/$id"
+                        params={{ id: String(lead.lead_id) }}
+                        aria-label={`Abrir lead ${lead.nome}, número ${lead.lead_id}`}
+                      >
+                        Abrir lead
+                      </Link>
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
           <p className="text-xs text-muted-foreground">
-            Até 100 oportunidades e 100 leads mais antigos. Filas específicas do empreendimento têm preferência;
-            depois, vale a menor prioridade numérica.
+            Até 100 oportunidades e 100 leads mais antigos. Filas específicas do empreendimento têm
+            preferência; depois, vale a menor prioridade numérica.
           </p>
         </ConfigSection>
       </div>
@@ -411,12 +459,24 @@ export function QueueRuleFields({
     <div className="space-y-5 border-y py-5">
       <label className="block text-sm font-medium">
         Funil comercial de destino
-        <select className={inputClass} value={r.destination_funnel_id ?? ""}
-          onChange={(e) => set({ destination_funnel_id: e.target.value ? Number(e.target.value) : null })}>
+        <select
+          className={inputClass}
+          value={r.destination_funnel_id ?? ""}
+          onChange={(e) =>
+            set({ destination_funnel_id: e.target.value ? Number(e.target.value) : null })
+          }
+        >
           <option value="">Selecione para habilitar os gatilhos automáticos</option>
-          {funnels.map((f) => <option key={f.id} value={f.id}>{f.nome}</option>)}
+          {funnels.map((f) => (
+            <option key={f.id} value={f.id}>
+              {f.nome}
+            </option>
+          ))}
         </select>
-        <span className="mt-1 block text-xs font-normal text-muted-foreground">A oportunidade entra na primeira etapa ativa deste funil, sem responsável, antes da distribuição.</span>
+        <span className="mt-1 block text-xs font-normal text-muted-foreground">
+          A oportunidade entra na primeira etapa ativa deste funil, sem responsável, antes da
+          distribuição.
+        </span>
       </label>
       <label className="block text-sm font-medium">
         Empreendimento
