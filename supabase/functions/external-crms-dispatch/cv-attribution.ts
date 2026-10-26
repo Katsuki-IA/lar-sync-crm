@@ -86,3 +86,26 @@ export function cvAttributionNote(attribution: CvAttribution | null): string | n
   return lines.length ? `Rastreamento de origem registrado no HUB\n${lines.join("\n")}` : null;
 }
 
+
+/** Confirmed CV fields for J Cezar's Hub export. Never infer a campaign from an ad. */
+export function cvAttributionCustomFields(
+  attribution: CvAttribution | null,
+  companyId: number,
+  cvUrl: string,
+): Record<string, string> | null {
+  if (Number(companyId) !== 32) return null;
+  try {
+    if (new URL(cvUrl).origin !== "https://jcezar.cvcrm.com.br") return null;
+  } catch { return null; }
+  const fields: Record<string, string> = {};
+  for (const [key, value] of [
+    ["META_CAMPAIGN_ID", attribution?.meta_campaign_id],
+    ["META_AD_ID", attribution?.meta_ad_id],
+  ]) {
+    // IDs exceed JS safe integers; only accept original decimal strings.
+    if (typeof value === "string" && /^[1-9][0-9]*$/.test(value.trim())) {
+      fields[key!] = value.trim();
+    }
+  }
+  return Object.keys(fields).length ? fields : null;
+}

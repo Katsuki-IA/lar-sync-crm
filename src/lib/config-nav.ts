@@ -21,6 +21,7 @@ export function configNavFor(role?: string | null, modules?: Modules): ConfigNav
   ];
   // A secretária faz parte do CRM comercial: só aparece com o módulo habilitado.
   if (modules?.crm) {
+    items.push({ to: "/configuracoes/comercial", label: "Funil comercial", scope: "empresa" });
     items.push({ to: "/configuracoes/secretaria", label: "Secretária", scope: "empresa" });
   }
   if (role === "super_admin") {

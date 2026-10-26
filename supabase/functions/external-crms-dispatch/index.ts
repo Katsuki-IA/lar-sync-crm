@@ -1,6 +1,8 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.48.1";
+import { qualifiedDispatchJob, reusableScheduledReceipt } from "./qualified-attendance.ts";
 import { dispatchProjectField } from "../_shared/kommo-projects.ts";
-import { CV_ATTRIBUTION_SELECT, cvAttributionNote, resolveCvOrigin, resolveCvMedia } from "./cv-attribution.ts";
+import { abcrOriginField } from "./kommo-origin.ts";
+import { CV_ATTRIBUTION_SELECT, cvAttributionCustomFields, cvAttributionNote, resolveCvOrigin, resolveCvMedia } from "./cv-attribution.ts";
 import {
   selectCvCancellationReason,
   type CvCancellationReason,
@@ -17,6 +19,8 @@ const corsHeaders = {
 type Json = null | string | number | boolean | { [key: string]: Json } | Json[];
 
 type DispatchPayload = {
+  enforceQualificationRule?: boolean;
+  dispatchJobId?: string;
   leadId: number;
   idEmpresa: number;
   idEmpreendimento?: number;
@@ -887,7 +891,7 @@ async function moveLeadToSentStage(
     (
       await admin
         .from("crm_stages")
-        .select("id,nome")
+        .select("id,nome").eq("module", "ia")
         .eq("id_empresa", idEmpresa)
         .eq("nome", "Enviado ao CRM")
         .eq("ativo", true)
@@ -902,7 +906,7 @@ async function moveLeadToSentStage(
 
     const retry = await admin
       .from("crm_stages")
-      .select("id,nome")
+      .select("id,nome").eq("module", "ia")
       .eq("id_empresa", idEmpresa)
       .eq("nome", "Enviado ao CRM")
       .eq("ativo", true)
@@ -927,7 +931,7 @@ async function moveLeadToSentStage(
   const oldStageId = leadBefore?.crm_stage_id ?? null;
   const oldStageName =
     oldStageId != null
-      ? ((await admin.from("crm_stages").select("nome").eq("id", oldStageId).limit(1)).data?.[0]
+      ? ((await admin.from("crm_stages").select("nome").eq("module", "ia").eq("id", oldStageId).limit(1)).data?.[0]
           ?.nome ?? "—")
       : "—";
 
@@ -964,6 +968,15 @@ Deno.serve(async (req) => {
 
     const admin = createSupabaseAdmin();
     const authContext = await authenticateDispatchRequest(admin, req, idEmpresa);
+    // Opt-in interno: não depende de credenciais/IDs externos e nunca faz fallback
+    // externo quando a configuração interna está ativa mas inválida.
+    const internal = await admin.rpc("hub_dispatch_internal_crm", {
+      p_company_id: idEmpresa, p_lead_id: leadId,
+      p_kind: body.externalStageKind ?? null,
+    });
+    if (internal.error) throw new Error(internal.error.message);
+    if (internal.data?.handled) return jsonResponse(internal.data);
+    const qualifiedJobId = qualifiedDispatchJob(authContext.internal, body);
     const aiUserIdResult = await admin.rpc("crm_get_or_create_ai_user", {
       p_id_empresa: idEmpresa,
     });
@@ -1036,6 +1049,23 @@ Deno.serve(async (req) => {
     }
 
     const isScheduledLoftUpdate = body.enforceScheduledRule === true && isLoftCrm;
+    // A visit after automatic qualification must not recreate an existing CRM lead.
+    // Only server-owned continuation proof enables this path, never an arbitrary old log.
+    if (authContext.internal && body.enforceScheduledRule === true &&
+        !isCvCrm && !isLoftCrm && (hasPreviousExportActivity || hasPreviousSuccessfulSend)) {
+      const receipt = await admin.rpc("crm_qualified_continuation_receipt", {
+        p_company: lead.id_empresa, p_crm_lead: lead.id,
+      });
+      if (receipt.error) throw new Error(receipt.error.message);
+      const expectedProvider = isKommoCrm ? "kommo" : isC2sCrm ? "c2s" : isKatsukiCrm ? "katsuki_crm" : "rd_crm";
+      if (reusableScheduledReceipt(authContext.internal, true, expectedProvider, receipt.data)) {
+        // Scheduling owns the visit and attendance state. Do not reset it here.
+        return jsonResponse({ ok: true, provider: expectedProvider, reused_qualified_export: true,
+          external_id: receipt.data.external_id, external_lead_status_updated: true,
+          moved_to_stage: lead.crm_stage_id, crm_record_created: false,
+          conversation_summary_synced: false });
+      }
+    }
     if (hasPreviousExportActivity && !isScheduledLoftUpdate) {
       throw new Error("Este lead já foi enviado para o CRM.");
     }
@@ -1096,7 +1126,7 @@ Deno.serve(async (req) => {
     }) as DispatchSettings;
 
     const stageResult = lead.crm_stage_id
-      ? await admin.from("crm_stages").select("id,nome").eq("id", lead.crm_stage_id).limit(1)
+      ? await admin.from("crm_stages").select("id,nome").eq("module", "ia").eq("id", lead.crm_stage_id).limit(1)
       : { data: [], error: null };
     if (stageResult.error) throw new Error(stageResult.error.message);
     const currentStageName = stageResult.data?.[0]?.nome ?? null;
@@ -1242,7 +1272,12 @@ Deno.serve(async (req) => {
           permitir_alteracao: true,
           tags,
         };
-        if (email) requestPayload.email = email;
+        const attributionFields = cvAttributionCustomFields(attribution, lead.id_empresa, cvUrl);
+        if (attributionFields) requestPayload.campos_adicionais = attributionFields;
+        // J Cezar: omit only the confirmed synthetic address, never a real email.
+        const omitJcezarProvisionalEmail = Number(lead.id_empresa) === 32 &&
+          /^provisorio\+32-\d+@gmail\.com$/i.test(email);
+        if (email && !omitJcezarProvisionalEmail) requestPayload.email = email;
         if (cvEmpreendimentoId != null) requestPayload.idempreendimento = cvEmpreendimentoId;
         const cvDistributionQueueId = toScalarId(
           body.cvDistributionQueueId == null ? null : String(body.cvDistributionQueueId),
@@ -1438,6 +1473,8 @@ Deno.serve(async (req) => {
         }
 
         const projectIdentification = await dispatchProjectField(admin, lead.id_empresa, lead, preferredEmpreendimentoId);
+        const originIdentification = abcrOriginField(lead.id_empresa, cvUrl, attribution, lead.origem);
+        const leadCustomFields = [projectIdentification?.value, originIdentification].filter(Boolean);
 
         const contactCustomFields: Array<Record<string, unknown>> = [];
         if (phone) {
@@ -1456,7 +1493,7 @@ Deno.serve(async (req) => {
         const kommoLeadPayload: Record<string, unknown> = {
           name: String(lead.nome ?? "").trim() || "Lead sem nome",
           pipeline_id: kommoPipelineId,
-          ...(projectIdentification ? { custom_fields_values: [projectIdentification.value] } : {}),
+          ...(leadCustomFields.length ? { custom_fields_values: leadCustomFields } : {}),
           _embedded: {
             tags: tags.map((name) => ({ name })),
             contacts: [
@@ -2109,22 +2146,39 @@ Deno.serve(async (req) => {
     }
 
     let externalLeadStatusErrorMessage: string | null = null;
-    const externalLeadStatusUpdate = await admin
-      .from("lead")
-      .update({
-        status: "Enviado  CRM",
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id_empresa", lead.id_empresa)
-      .eq("id_crm", String(lead.id))
-      .select("id")
-      .limit(1);
+    let preserveQualifiedStatus = false;
+    let qualifiedAttendanceContinued = false;
+    if (qualifiedJobId) {
+      const preserved = await admin.rpc("crm_preserve_qualified_attendance", {
+        p_job_id: qualifiedJobId, p_company: lead.id_empresa, p_crm_lead: lead.id,
+        p_provider: provider, p_external_id: externalId,
+      });
+      if (preserved.error) {
+        // CRM has already confirmed. Never reactivate, overwrite a takeover, or resend on this error.
+        externalLeadStatusErrorMessage = preserved.error.message;
+      } else {
+        preserveQualifiedStatus = preserved.data?.preserve_status === true;
+        qualifiedAttendanceContinued = preserved.data?.continued === true;
+      }
+    }
+    if (!preserveQualifiedStatus && !externalLeadStatusErrorMessage) {
+      const externalLeadStatusUpdate = await admin
+        .from("lead")
+        .update({
+          status: "Enviado CRM",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id_empresa", lead.id_empresa)
+        .eq("id_crm", String(lead.id))
+        .select("id")
+        .limit(1);
 
-    if (externalLeadStatusUpdate.error) {
-      externalLeadStatusErrorMessage = externalLeadStatusUpdate.error.message;
-    } else if (!externalLeadStatusUpdate.data?.length) {
-      externalLeadStatusErrorMessage =
-        "Nenhum registro correspondente foi encontrado na tabela lead para marcar status como Enviado  CRM.";
+      if (externalLeadStatusUpdate.error) {
+        externalLeadStatusErrorMessage = externalLeadStatusUpdate.error.message;
+      } else if (!externalLeadStatusUpdate.data?.length) {
+        externalLeadStatusErrorMessage =
+          "Nenhum registro correspondente foi encontrado na tabela lead para marcar status como Enviado CRM.";
+      }
     }
 
     const sentStage = await moveLeadToSentStage(admin, lead.id, lead.id_empresa);
@@ -2153,6 +2207,9 @@ Deno.serve(async (req) => {
       metadata: {
         source: authContext.internal ? "n8n" : "crm",
         event: "external_crm_sent",
+        qualification_dispatch_id: qualifiedJobId,
+        attendance_status_preserved: preserveQualifiedStatus,
+        qualified_attendance_continued: qualifiedAttendanceContinued,
         provider,
         external_id: externalId,
         tipo_negociacao: c2sRouting?.tipo_negociacao ?? null,
@@ -2196,7 +2253,7 @@ Deno.serve(async (req) => {
         lead_id: lead.id,
         crm_user_id: activityUserId,
         tipo: "crm_export",
-        descricao: `Lead enviado ao CRM ${providerLabel}, mas não foi possível atualizar o status externo para Enviado  CRM: ${externalLeadStatusErrorMessage}`,
+        descricao: `Lead enviado ao CRM ${providerLabel}, mas não foi possível atualizar o status externo para Enviado CRM: ${externalLeadStatusErrorMessage}`,
         metadata: {
           source: authContext.internal ? "n8n" : "crm",
           event: "external_crm_external_lead_status_update_failed",
@@ -2210,6 +2267,8 @@ Deno.serve(async (req) => {
       ok: true,
       provider,
       moved_to_stage: sentStage?.id ?? null,
+      attendance_status_preserved: preserveQualifiedStatus,
+      qualified_attendance_continued: qualifiedAttendanceContinued,
       conversation_summary_synced: conversationSummarySynced,
       external_lead_status_updated: !externalLeadStatusErrorMessage,
       summary_error: summaryErrorMessage,
