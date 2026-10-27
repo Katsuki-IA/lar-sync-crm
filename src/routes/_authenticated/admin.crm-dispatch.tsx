@@ -11,6 +11,7 @@ import {
 } from "@/lib/admin.functions";
 import { Card } from "@/components/ui/card";
 import { CommercialSettings } from "@/hml/commercial-settings";
+import { useCompanyModules } from "@/hml/modules";
 import { commercialSettings } from "@/lib/commercial-settings.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -76,14 +77,16 @@ function AdminCrmDispatchPage() {
   const readCommercialSettings = useServerFn(commercialSettings);
 
   const [selectedCompanyId, setSelectedCompanyId] = useState("");
+  const selectedModules = useCompanyModules(selectedCompanyId ? Number(selectedCompanyId) : null);
+  const hasInternalCrmModule = selectedModules.data?.crm === true;
   const internalConfig = useQuery({
     queryKey: ["commercial-settings", Number(selectedCompanyId)],
-    enabled: !!selectedCompanyId,
+    enabled: !!selectedCompanyId && hasInternalCrmModule,
     queryFn: () =>
       readCommercialSettings({ data: { action: "read", companyId: Number(selectedCompanyId) } }),
   });
   const usesInternalCrm =
-    (internalConfig.data as { settings?: { enabled?: boolean } } | undefined)?.settings?.enabled ===
+    hasInternalCrmModule && (internalConfig.data as { settings?: { enabled?: boolean } } | undefined)?.settings?.enabled ===
     true;
   const [withoutContactStageId, setWithoutContactStageId] = useState<string>(EMPTY_VALUE);
   const [withContactStageId, setWithContactStageId] = useState<string>(EMPTY_VALUE);
@@ -310,7 +313,13 @@ function AdminCrmDispatchPage() {
         )}
       </div>
 
-      {selectedCompanyId && (
+      {selectedCompanyId && selectedModules.isError && (
+        <p role="alert">
+          Não foi possível verificar os módulos desta empresa. As regras de envio ao CRM externo estão abaixo.{" "}
+          <Button onClick={() => selectedModules.refetch()}>Tentar novamente</Button>
+        </p>
+      )}
+      {selectedCompanyId && hasInternalCrmModule && (
         <CommercialSettings
           key={`internal-${selectedCompanyId}`}
           companyId={Number(selectedCompanyId)}

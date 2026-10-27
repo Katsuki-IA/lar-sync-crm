@@ -61,16 +61,17 @@ export const secondaryClass = buttonVariants({ variant: "outline" });
 export function one<T>(data: T | T[]): T {
   return Array.isArray(data) ? data[0] : data;
 }
-export function useCompanyModules() {
+export function useCompanyModules(companyId?: number | null) {
   const { activeEmpresaId } = useActiveEmpresa();
+  const targetCompanyId = companyId === undefined ? activeEmpresaId : companyId;
   const { data: me } = useCrmUser();
   return useQuery({
-    queryKey: ["company-modules", activeEmpresaId, me?.id],
-    enabled: !!activeEmpresaId && !!me,
+    queryKey: ["company-modules", targetCompanyId, me?.id],
+    enabled: !!targetCompanyId && !!me,
     staleTime: 15_000,
     refetchInterval: 30_000,
     queryFn: async () => {
-      return companyApi(db).modules(activeEmpresaId!);
+      return companyApi(db).modules(targetCompanyId!);
     },
   });
 }
