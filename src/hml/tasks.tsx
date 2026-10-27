@@ -1,4 +1,6 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
+import { TaskCalendar } from "@/components/task-calendar";
+import { taskTypes, reminderOptions, calendarDays, taskGroup } from "@/lib/task-presentation";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { CheckSquare2, Plus, Pencil, Clock3 } from "lucide-react";
@@ -31,6 +33,8 @@ type Task = {
   created_by: string;
   revision: number;
   completed_at: string | null;
+  tipo: string;
+  reminder_minutes: number | null;
 };
 type TaskMember = { id: string; nome: string; role: string; active: boolean };
 type TaskContact = { id: number; nome: string; crm_assigned_to: string | null };
@@ -52,7 +56,7 @@ function localDate(value: string) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}T${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 const taskFields =
-  "id,id_empresa,lead_id,opportunity_id,titulo,descricao,prioridade,status,prazo,assigned_to,created_by,revision,completed_at";
+  "id,id_empresa,lead_id,opportunity_id,titulo,descricao,prioridade,status,prazo,assigned_to,created_by,revision,completed_at,tipo,reminder_minutes";
 
 export function ContactTasks({ leadId }: { leadId: number }) {
   const { activeEmpresaId } = useActiveEmpresa();
@@ -78,6 +82,10 @@ export function TaskWorkspace({
   const [priority, setPriority] = useState("all");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
+  const [view, setView] = useState("list");
+  const [month, setMonth] = useState(() => new Date());
+  const [type, setType] = useState("all");
+  const [sort, setSort] = useState("urgent");
   const [clock, setClock] = useState(() => Date.now());
   const [editing, setEditing] = useState<Task | null | undefined>(undefined);
   useEffect(() => {
@@ -123,6 +131,11 @@ export function TaskWorkspace({
       priority,
       search,
       page,
+      view,
+      month.getFullYear(),
+      month.getMonth(),
+      type,
+      sort,
       Math.floor(clock / 60000),
       me?.id,
       me?.role,
@@ -148,14 +161,33 @@ export function TaskWorkspace({
       }
       if (owner !== "all") q = q.eq("assigned_to", owner === "me" ? me!.id : owner);
       if (priority !== "all") q = q.eq("prioridade", priority);
+      if (type !== "all") q = q.eq("tipo", type);
+      if (view === "calendar") {
+        const days = calendarDays(month);
+        const end = new Date(days[41]);
+        end.setDate(end.getDate() + 1);
+        q = q.gte("prazo", days[0].toISOString()).lt("prazo", end.toISOString());
+      }
       if (search.trim())
         q = q.ilike("titulo", "%" + search.trim().replace(/[\\%_]/g, "\\$&") + "%");
-      const { data, error, count } = await q
-        .order("prazo")
-        .order("id")
-        .range(page * 10, page * 10 + 9);
+      q =
+        sort === "priority"
+          ? q.order("priority_rank").order("prazo")
+          : q.order("prazo").order("priority_rank");
+      q = q.order("id");
+      const size = view === "calendar" ? 500 : 10;
+      const offset = view === "calendar" ? 0 : page * size;
+      const { data, error, count } = await q.range(offset, offset + size - 1);
       if (error) throw error;
-      return { tasks: data as unknown as Task[], count: count ?? 0 };
+      const tasks = (data ?? []) as unknown as Task[];
+      if (view === "calendar") {
+        for (let offset = size; offset < (count ?? 0); offset += size) {
+          const next = await q.range(offset, offset + size - 1);
+          if (next.error) throw next.error;
+          tasks.push(...(next.data as unknown as Task[]));
+        }
+      }
+      return { tasks, count: count ?? 0 };
     },
   });
   const change = (setter: (v: string) => void, value: string) => {
@@ -184,12 +216,66 @@ export function TaskWorkspace({
               : "Organize os próximos passos de cada lead e oportunidade."}
           </p>
         </div>
-        <Button disabled={!context.data} onClick={() => setEditing(null)}>
-          <Plus />
-          Nova tarefa
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          {!compact && (
+            <div
+              className="flex rounded-lg border p-1"
+              role="group"
+              aria-label="Visualização das tarefas"
+            >
+              <Button
+                size="sm"
+                variant={view === "list" ? "default" : "ghost"}
+                aria-pressed={view === "list"}
+                onClick={() => {
+                  setView("list");
+                  setPage(0);
+                }}
+              >
+                Lista
+              </Button>
+              <Button
+                size="sm"
+                variant={view === "calendar" ? "default" : "ghost"}
+                aria-pressed={view === "calendar"}
+                onClick={() => {
+                  setView("calendar");
+                  setPage(0);
+                }}
+              >
+                Calendário
+              </Button>
+            </div>
+          )}
+          <Button disabled={!context.data} onClick={() => setEditing(null)}>
+            <Plus />
+            Nova tarefa
+          </Button>
+        </div>
       </header>
       <div className="flex flex-wrap gap-2">
+        <select
+          className={inputClass.replace("w-full", "w-full sm:w-auto")}
+          aria-label="Tipo de tarefa"
+          value={type}
+          onChange={(e) => change(setType, e.target.value)}
+        >
+          <option value="all">Todos os tipos</option>
+          {Object.entries(taskTypes).map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </select>
+        <select
+          className={inputClass.replace("w-full", "w-full sm:w-auto")}
+          aria-label="Ordenar tarefas"
+          value={sort}
+          onChange={(e) => change(setSort, e.target.value)}
+        >
+          <option value="urgent">Mais urgentes · prazo</option>
+          <option value="priority">Prioridade alta primeiro</option>
+        </select>
         <Input
           className="w-full bg-white sm:w-52"
           aria-label="Buscar tarefas"
@@ -269,98 +355,131 @@ export function TaskWorkspace({
             {query.data.count === 1 ? "tarefa encontrada" : "tarefas encontradas"} · Horários em{" "}
             {Intl.DateTimeFormat().resolvedOptions().timeZone}
           </p>
-          <div className="space-y-3">
-            {query.data.tasks.map((task) => {
-              const overdue =
-                activeStatuses.includes(task.status) && new Date(task.prazo).getTime() < clock;
-              const member = context.data?.members.find((m) => m.id === task.assigned_to);
-              return (
-                <article key={task.id} className="rounded-xl border bg-white p-4">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <h3 className="break-words font-semibold">{task.titulo}</h3>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        {context.data?.contacts.find((c) => c.id === task.lead_id)?.nome ??
-                          "Lead"}
-                        {task.opportunity_id
-                          ? " · " +
-                            (context.data?.opportunities.find((o) => o.id === task.opportunity_id)
-                              ?.title ?? "Oportunidade")
-                          : ""}
-                      </p>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={!context.data}
-                      onClick={() => setEditing(task)}
-                      aria-label={`Editar tarefa ${task.titulo}`}
-                    >
-                      <Pencil />
-                      Editar
-                    </Button>
-                  </div>
-                  <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
-                    <span
-                      className={`rounded-full px-2 py-1 ${overdue ? "bg-accent text-accent-foreground" : "bg-muted"}`}
-                    >
-                      {overdue ? "Vencida" : statuses[task.status]}
-                    </span>
-                    <span className="rounded-full border px-2 py-1">
-                      Prioridade {priorities[task.prioridade]?.toLowerCase()}
-                    </span>
-                    <span className="inline-flex items-center gap-1">
-                      <Clock3 size={13} />
-                      {dateLabel(task.prazo)}
-                    </span>
-                  </div>
-                  {task.descricao && (
-                    <p className="mt-3 whitespace-pre-wrap break-words text-sm text-muted-foreground">
-                      {task.descricao}
-                    </p>
-                  )}
-                  <div className="mt-3 flex flex-wrap justify-between gap-2 text-xs text-muted-foreground">
-                    <span>
-                      {member?.nome ?? "Responsável"}
-                      {member?.active === false ? " · Suspenso" : ""}
-                    </span>
-                    <Link
-                      className="text-primary underline"
-                      to="/leads/$id"
-                      params={{ id: String(task.lead_id) }}
-                    >
-                      Abrir lead
-                    </Link>
-                  </div>
-                  <TaskHistory taskId={task.id} members={context.data?.members ?? []} />
-                </article>
-              );
-            })}
-          </div>
+          {view === "calendar" ? (
+            <TaskCalendar
+              month={month}
+              onMonth={setMonth}
+              tasks={query.data.tasks}
+              onSelect={setEditing}
+            />
+          ) : (
+            <div className="space-y-3">
+              {query.data.tasks.map((task, index) => {
+                const overdue =
+                  activeStatuses.includes(task.status) && new Date(task.prazo).getTime() < clock;
+                const member = context.data?.members.find((m) => m.id === task.assigned_to);
+                return (
+                  <Fragment key={task.id}>
+                    {sort === "urgent" &&
+                      (!index ||
+                        taskGroup(task, clock) !==
+                          taskGroup(query.data.tasks[index - 1], clock)) && (
+                        <h2
+                          className={`pt-3 font-semibold ${taskGroup(task, clock) === "Atrasadas" ? "text-destructive" : ""}`}
+                        >
+                          {taskGroup(task, clock)}
+                        </h2>
+                      )}
+                    <article className="rounded-xl border bg-white p-4">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <h3 className="break-words font-semibold">{task.titulo}</h3>
+                          <p className="mt-1 text-sm text-muted-foreground">
+                            {context.data?.contacts.find((c) => c.id === task.lead_id)?.nome ??
+                              "Lead"}
+                            {task.opportunity_id
+                              ? " · " +
+                                (context.data?.opportunities.find(
+                                  (o) => o.id === task.opportunity_id,
+                                )?.title ?? "Oportunidade")
+                              : ""}
+                          </p>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={!context.data}
+                          onClick={() => setEditing(task)}
+                          aria-label={`Editar tarefa ${task.titulo}`}
+                        >
+                          <Pencil />
+                          Editar
+                        </Button>
+                      </div>
+                      <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+                        <span className="rounded-full border px-2 py-1">
+                          {taskTypes[task.tipo]}
+                        </span>
+                        {task.reminder_minutes !== null && (
+                          <span className="text-muted-foreground">
+                            Lembrete ·{" "}
+                            {reminderOptions.find((o) => o.value === task.reminder_minutes)?.label}
+                          </span>
+                        )}
+                        <span
+                          className={`rounded-full px-2 py-1 ${overdue ? "bg-accent text-accent-foreground" : "bg-muted"}`}
+                        >
+                          {overdue ? "Vencida" : statuses[task.status]}
+                        </span>
+                        <span className="rounded-full border px-2 py-1">
+                          Prioridade {priorities[task.prioridade]?.toLowerCase()}
+                        </span>
+                        <span className="inline-flex items-center gap-1">
+                          <Clock3 size={13} />
+                          {dateLabel(task.prazo)}
+                        </span>
+                      </div>
+                      {task.descricao && (
+                        <p className="mt-3 whitespace-pre-wrap break-words text-sm text-muted-foreground">
+                          {task.descricao}
+                        </p>
+                      )}
+                      <div className="mt-3 flex flex-wrap justify-between gap-2 text-xs text-muted-foreground">
+                        <span>
+                          {member?.nome ?? "Responsável"}
+                          {member?.active === false ? " · Suspenso" : ""}
+                        </span>
+                        <Link
+                          className="text-primary underline"
+                          to="/leads/$id"
+                          params={{ id: String(task.lead_id) }}
+                        >
+                          Abrir lead
+                        </Link>
+                      </div>
+                      <TaskHistory taskId={task.id} members={context.data?.members ?? []} />
+                    </article>
+                  </Fragment>
+                );
+              })}
+            </div>
+          )}
           {!query.data.count && (
             <Notice title="Nenhuma tarefa neste filtro">
               Crie uma tarefa ou escolha outra situação para consultar o histórico.
             </Notice>
           )}
-          <div className="flex items-center justify-between gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={!page}
-              onClick={() => setPage((p) => p - 1)}
-            >
-              Anterior
-            </Button>
-            <span className="text-xs text-muted-foreground">Página {page + 1}</span>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={(page + 1) * 10 >= query.data.count}
-              onClick={() => setPage((p) => p + 1)}
-            >
-              Próxima
-            </Button>
-          </div>
+          {view === "list" && (
+            <div className="flex items-center justify-between gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!page}
+                onClick={() => setPage((p) => p - 1)}
+              >
+                Anterior
+              </Button>
+              <span className="text-xs text-muted-foreground">Página {page + 1}</span>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={(page + 1) * 10 >= query.data.count}
+                onClick={() => setPage((p) => p + 1)}
+              >
+                Próxima
+              </Button>
+            </div>
+          )}
         </>
       )}
       {editing !== undefined && context.data && (
@@ -398,6 +517,12 @@ function TaskEditor({
   const [title, setTitle] = useState(task?.titulo ?? "");
   const [description, setDescription] = useState(task?.descricao ?? "");
   const [priority, setPriority] = useState(task?.prioridade ?? "normal");
+  const [type, setType] = useState(task?.tipo ?? "outro");
+  const [reminder, setReminder] = useState<number | null>(task?.reminder_minutes ?? null);
+  const reminderSettings = useQuery<{ member_id: string; ready: boolean }[]>({
+    queryKey: ["task-reminder-options", companyId, me?.id],
+    queryFn: () => adminRpc("hub_task_reminder_options", { p_company_id: companyId }),
+  });
   const [status, setStatus] = useState(
     task?.status === "vencida" ? "pendente" : (task?.status ?? "pendente"),
   );
@@ -421,7 +546,7 @@ function TaskEditor({
   );
   const save = useAdminMutation<void>(
     () =>
-      adminRpc("hub_save_task", {
+      adminRpc("hub_save_task_v2", {
         p_company_id: companyId,
         p_task_id: task?.id ?? null,
         p_lead_id: Number(contact),
@@ -434,12 +559,16 @@ function TaskEditor({
         p_status: status,
         p_expected_revision: task?.revision ?? null,
         p_request_id: task ? null : requestId,
+        p_type: type,
+        p_reminder_minutes: reminder,
       }),
     task ? "Tarefa atualizada" : "Tarefa criada",
     onClose,
   );
   const dirty =
     !task ||
+    type !== task.tipo ||
+    reminder !== task.reminder_minutes ||
     title !== task.titulo ||
     description !== (task.descricao ?? "") ||
     priority !== task.prioridade ||
@@ -458,7 +587,8 @@ function TaskEditor({
           <DialogTitle>{task ? "Editar tarefa" : "Nova tarefa"}</DialogTitle>
           <DialogDescription>
             Defina o próximo passo. Prazos no fuso{" "}
-            {Intl.DateTimeFormat().resolvedOptions().timeZone}. Nenhuma mensagem será enviada.
+            {Intl.DateTimeFormat().resolvedOptions().timeZone}. O lembrete opcional é enviado ao
+            responsável pela Secretária.
           </DialogDescription>
         </DialogHeader>
         <form
@@ -469,6 +599,24 @@ function TaskEditor({
           }}
         >
           <fieldset disabled={save.isPending} className="space-y-4">
+            <fieldset>
+              <legend className="mb-2 text-sm">Tipo</legend>
+              <div className="flex flex-wrap gap-2">
+                {Object.entries(taskTypes).map(([value, label]) => (
+                  <Button
+                    key={value}
+                    type="button"
+                    size="sm"
+                    className="rounded-full"
+                    variant={type === value ? "default" : "outline"}
+                    aria-pressed={type === value}
+                    onClick={() => setType(value)}
+                  >
+                    {label}
+                  </Button>
+                ))}
+              </div>
+            </fieldset>
             <label className="block text-sm">
               Lead
               <select
@@ -611,6 +759,46 @@ function TaskEditor({
                 </select>
               </label>
             )}
+            <div className="space-y-3 rounded-xl border p-3">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={reminder !== null}
+                  disabled={
+                    reminder === null &&
+                    !reminderSettings.data?.some((r) => r.member_id === assignee && r.ready)
+                  }
+                  onChange={(e) => setReminder(e.target.checked ? 15 : null)}
+                />
+                Lembrar pela Secretária no WhatsApp
+              </label>
+              {reminder !== null && (
+                <label className="block text-sm">
+                  Quando avisar
+                  <select
+                    className={inputClass + " mt-1"}
+                    aria-label="Antecedência do lembrete"
+                    value={reminder}
+                    onChange={(e) => setReminder(Number(e.target.value))}
+                  >
+                    {reminderOptions.map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              <p className="text-xs text-muted-foreground">
+                {reminderSettings.isPending
+                  ? "Verificando disponibilidade…"
+                  : reminderSettings.isError
+                    ? "Não foi possível conferir a Secretária. Tente reabrir a tarefa."
+                    : !reminderSettings.data?.some((r) => r.member_id === assignee && r.ready)
+                      ? "Para receber lembretes, configure a Secretária com envio automático e o WhatsApp do responsável."
+                      : "O responsável recebe um aviso antes do prazo, mesmo com o Hub fechado. Tarefas concluídas ou canceladas não recebem novos avisos."}
+              </p>
+            </div>
           </fieldset>
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" disabled={save.isPending} onClick={onClose}>
@@ -649,19 +837,23 @@ function TaskHistory({ taskId, members }: { taskId: string; members: TaskMember[
     status: "Situação",
     prazo: "Prazo",
     assigned_to: "Responsável",
+    tipo: "Tipo",
+    reminder_minutes: "Lembrete (minutos antes)",
   };
   const display = (key: string, v: unknown) =>
     v == null
       ? "Não informado"
-      : key === "prazo"
-        ? dateLabel(String(v))
-        : key === "assigned_to"
-          ? (members.find((m) => m.id === v)?.nome ?? "Membro indisponível")
-          : key === "status"
-            ? statuses[String(v)]
-            : key === "prioridade"
-              ? priorities[String(v)]
-              : String(v);
+      : key === "tipo"
+        ? taskTypes[String(v)]
+        : key === "prazo"
+          ? dateLabel(String(v))
+          : key === "assigned_to"
+            ? (members.find((m) => m.id === v)?.nome ?? "Membro indisponível")
+            : key === "status"
+              ? statuses[String(v)]
+              : key === "prioridade"
+                ? priorities[String(v)]
+                : String(v);
   return (
     <details className="mt-3 border-t pt-3 text-xs" onToggle={(e) => setOpen(e.currentTarget.open)}>
       <summary className="text-primary">Histórico da tarefa</summary>
@@ -704,4 +896,3 @@ function TaskHistory({ taskId, members }: { taskId: string; members: TaskMember[
     </details>
   );
 }
-
