@@ -1,4 +1,5 @@
 import { ModuleBoundary } from "@/hml/modules";
+import { SalesOfferAlert } from "@/components/sales-offer-alert";
 import { useNavigate, useRouterState, Link } from "@tanstack/react-router";
 import { LogOut, ChevronRight, User, Menu } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
@@ -275,6 +276,7 @@ function AppShellContent({ children }: { children: ReactNode }) {
         )}
         <main className="min-w-0 flex-1 overflow-x-auto p-3 md:p-6"><ModuleBoundary>{children}</ModuleBoundary></main>
       </div>
+      <SalesOfferAlert />
       <Dialog open={requiresSelection}>
         <DialogContent
           className="sm:max-w-md"
