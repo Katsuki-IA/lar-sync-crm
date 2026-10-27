@@ -32,6 +32,7 @@ export const CRM_EXPORT_PAGE = 500;
 
 // Owner/stage bulk changes are super_admin only; enforced in the handler, not just hidden.
 export function assertBulkAllowed(action: string, canAssign: boolean) {
+  if (action === "tag_add" || action === "tag_remove") throw new Error("Tags IA são aplicadas pelas automações. Use tags comerciais nas oportunidades.");
   if ((action === "owner" || action === "stage") && !canAssign) {
     throw new Error("Somente superadministradores podem alterar estágio ou responsável em lote.");
   }

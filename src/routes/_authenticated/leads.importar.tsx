@@ -36,7 +36,6 @@ type SysField =
   | "estagio"
   | "empreendimento"
   | "responsavel"
-  | "tags"
   | "observacoes"
   | "ignore";
 
@@ -48,11 +47,10 @@ const SYS_LABEL: Record<SysField, string> = {
   estagio: "Estágio",
   empreendimento: "Empreendimento",
   responsavel: "Responsável",
-  tags: "Tag(s)",
   observacoes: "Observações",
   ignore: "(Ignorar esta coluna)",
 };
-const SYS_ORDER: SysField[] = ["nome", "telefone", "email", "origem", "estagio", "empreendimento", "responsavel", "tags", "observacoes", "ignore"];
+const SYS_ORDER: SysField[] = ["nome", "telefone", "email", "origem", "estagio", "empreendimento", "responsavel", "observacoes", "ignore"];
 
 function norm(s: string) {
   return s
@@ -71,7 +69,7 @@ function guessField(header: string): SysField {
   if (["estagio", "stage", "etapa"].includes(n)) return "estagio";
   if (["empreendimento", "produto", "imovel"].includes(n)) return "empreendimento";
   if (["responsavel", "corretor", "assignee"].includes(n)) return "responsavel";
-  if (["tag", "tags", "etiqueta"].includes(n)) return "tags";
+  if (["tag", "tags", "etiqueta"].includes(n)) return "ignore";
   if (["obs", "observacao", "anotacao", "notas", "notes"].includes(n)) return "observacoes";
   return "ignore";
 }
@@ -299,7 +297,6 @@ function ImportLeadsPage() {
       userByKey.set(norm(u.nome), u.id);
       if (u.email) userByKey.set(norm(u.email), u.id);
     });
-    const tagByName = new Map((meta?.tags ?? []).map((t) => [norm(t.nome), t.id]));
 
     let success = 0;
     let dup = 0;
@@ -330,7 +327,6 @@ function ImportLeadsPage() {
         const empRaw = get("empreendimento");
         const stageRaw = get("estagio");
         const respRaw = get("responsavel");
-        const tagsRaw = get("tags");
         const obs = get("observacoes");
         const origem = resolveLeadOrigin(get("origem"));
 
@@ -353,15 +349,6 @@ function ImportLeadsPage() {
         };
         const { data: created, error } = await supabase.from("crm_leads").insert(insert).select("id").single();
         if (error) throw error;
-
-        // Tags
-        if (tagsRaw) {
-          const tagNames = tagsRaw.split(/[,;|]/).map((t) => t.trim()).filter(Boolean);
-          const tagIds = tagNames.map((tn) => tagByName.get(norm(tn))).filter((v): v is number => typeof v === "number");
-          if (tagIds.length) {
-            await supabase.from("crm_lead_tags").insert(tagIds.map((tid) => ({ lead_id: created.id, tag_id: tid })));
-          }
-        }
 
         // Activity with origem/obs
         const desc = [`Origem: ${formatLeadOrigin(origem)}`, obs && `Obs: ${obs}`].filter(Boolean).join(" · ");

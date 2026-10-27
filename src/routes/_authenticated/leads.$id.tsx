@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Flame, ArrowLeft, Send, Plus, X, Trash2, Pencil, SendToBack, Megaphone, ExternalLink } from "lucide-react";
+import { Flame, ArrowLeft, Send, Trash2, Pencil, SendToBack, Megaphone, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -15,7 +15,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Dialog,
   DialogContent,
@@ -296,29 +295,6 @@ function LeadDetail() {
     },
   });
 
-  const toggleTagMut = useMutation({
-    mutationFn: async ({ tagId, add }: { tagId: number; add: boolean }) => {
-      const tagName = meta?.tags.find((t) => t.id === tagId)?.nome ?? "tag";
-      if (add) {
-        const { error } = await supabase.from("crm_lead_tags").insert({ lead_id: leadId, tag_id: tagId });
-        if (error) throw error;
-        await supabase.from("crm_lead_activities").insert({
-          lead_id: leadId, crm_user_id: me!.id, tipo: "tag_add", descricao: `Tag adicionada: ${tagName}`,
-        });
-      } else {
-        const { error } = await supabase.from("crm_lead_tags").delete().eq("lead_id", leadId).eq("tag_id", tagId);
-        if (error) throw error;
-        await supabase.from("crm_lead_activities").insert({
-          lead_id: leadId, crm_user_id: me!.id, tipo: "tag_remove", descricao: `Tag removida: ${tagName}`,
-        });
-      }
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["lead-tags", leadId] });
-      qc.invalidateQueries({ queryKey: ["lead-activities", leadId] });
-    },
-  });
-
   const noteMut = useMutation({
     mutationFn: async (text: string) => {
       const { error } = await supabase.from("crm_lead_activities").insert({
@@ -557,30 +533,8 @@ function LeadDetail() {
               </div>
               <div>
                 <div className="flex items-center justify-between">
-                  <label className="text-xs text-muted-foreground">Tags</label>
-                  {canManage && <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="ghost" size="sm" className="h-6 px-2"><Plus className="h-3 w-3" /></Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-60 p-2">
-                      <div className="space-y-1">
-                        {meta?.tags.map((t) => {
-                          const has = tagLinks?.includes(t.id);
-                          return (
-                            <button
-                              key={t.id}
-                              onClick={() => toggleTagMut.mutate({ tagId: t.id, add: !has })}
-                              className={`w-full text-left px-2 py-1.5 rounded-md text-sm hover:bg-muted ${has ? "font-medium" : ""}`}
-                            >
-                              <span className="inline-block w-2 h-2 rounded-full mr-2" style={{ backgroundColor: t.cor ?? "#C14F21" }} />
-                              {t.nome} {has && "✓"}
-                            </button>
-                          );
-                        })}
-                        {!meta?.tags.length && <p className="text-xs text-muted-foreground px-2 py-1">Nenhuma tag</p>}
-                      </div>
-                    </PopoverContent>
-                  </Popover>}
+                  <label className="text-xs text-muted-foreground">Tags do sistema (IA) · somente leitura</label>
+
                 </div>
                 <div className="flex flex-wrap gap-1 mt-2">
                   {(tagLinks ?? []).map((tid) => {
@@ -589,7 +543,7 @@ function LeadDetail() {
                     return (
                       <Badge key={tid} variant="secondary" className="gap-1" style={{ backgroundColor: `${t.cor ?? "#C14F21"}26`, color: t.cor ?? "#C14F21" }}>
                         {t.nome}
-                        {canManage && <button onClick={() => toggleTagMut.mutate({ tagId: tid, add: false })}><X className="h-3 w-3" /></button>}
+
                       </Badge>
                     );
                   })}

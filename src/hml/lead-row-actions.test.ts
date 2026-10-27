@@ -117,7 +117,8 @@ describe("guarda do lote", () => {
   it("bloqueia estágio/responsável sem permissão e libera tags", () => {
     expect(() => assertBulkAllowed("stage", false)).toThrow("Somente superadministradores");
     expect(() => assertBulkAllowed("owner", false)).toThrow("Somente superadministradores");
-    expect(() => assertBulkAllowed("tag_add", false)).not.toThrow();
+    expect(() => assertBulkAllowed("tag_add", false)).toThrow("Tags IA");
+    expect(() => assertBulkAllowed("tag_remove", true)).toThrow("Tags IA");
     expect(() => assertBulkAllowed("stage", true)).not.toThrow();
   });
 });

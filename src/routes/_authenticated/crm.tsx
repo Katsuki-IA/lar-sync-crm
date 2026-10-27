@@ -1,3 +1,4 @@
+import { OpportunityTags } from '@/hml/commercial-tags';
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -257,6 +258,7 @@ function CommercialWorkspace({ companyId }: { companyId: number }) {
                   ))}
                 </select>
               </label>
+              <OpportunityTags key={selected.id + "-tags"} companyId={companyId} opportunityId={selected.id} />
               <TaskWorkspace
                 key={selected.id}
                 companyId={companyId}
