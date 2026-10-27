@@ -296,27 +296,23 @@ export function TaskWorkspace({
           <option value="cancelada">Canceladas</option>
           <option value="all">Todas as situações</option>
         </select>
-        <select
-          className={inputClass.replace("w-full", "w-full sm:w-auto") + " max-w-full"}
-          aria-label="Filtrar responsável das tarefas"
-          value={owner}
-          onChange={(e) => change(setOwner, e.target.value)}
-        >
-          <option value="all">
-            {me?.role === "agent" ? "Minhas tarefas" : "Todos os responsáveis"}
-          </option>
-          {me?.role !== "agent" && (
-            <>
-              <option value="me">Minhas tarefas</option>
-              {context.data?.members.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.nome}
-                  {!m.active ? " · Suspenso" : ""}
-                </option>
-              ))}
-            </>
-          )}
-        </select>
+        {me && me.role !== "agent" && (
+          <select
+            className={inputClass.replace("w-full", "w-full sm:w-auto") + " max-w-full"}
+            aria-label="Filtrar responsável das tarefas"
+            value={owner}
+            onChange={(e) => change(setOwner, e.target.value)}
+          >
+            <option value="all">Todos os responsáveis</option>
+            <option value="me">Minhas tarefas</option>
+            {context.data?.members.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.nome}
+                {!m.active ? " · Suspenso" : ""}
+              </option>
+            ))}
+          </select>
+        )}
         {!compact && (
           <select
             className={inputClass.replace("w-full", "w-full sm:w-auto")}
