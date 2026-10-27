@@ -1,6 +1,6 @@
 # Tarefas comerciais — tipos, calendário e lembretes
 
-Implementado em 27/10/2026, ainda não publicado em produção. Banco de homologação `esdqsdwhhihxmubunwvb`: migração `commercial_task_types_and_reminders` aplicada. Serviços `hub-secretary-worker` e `hub-secretary-webhook` implantados somente em homologação. Cron de lembretes não ativado.
+Publicado em produção em 27/10/2026. Commit `d38c766`, deploy Lovable `f627ffb6-bc45-4622-aedc-9bc0db83be6c`. Domínio `hub.katsuki.com.br` confirmado servindo `index-CjKCSnv3.js` e `tasks-DYgFVjOd.js`, com calendário, RPC v2 e opções de lembrete. Migração `commercial_task_types_and_reminders` aplicada em homologação e produção. Worker e webhook ativos em produção (versão 1), ambos rejeitando chamadas sem token com 401. Endpoint provisionado e cron `hub-task-reminders-v1` ativo a cada minuto, com execução confirmada como succeeded. Nenhum canal ou destinatário foi habilitado; nenhum WhatsApp de teste foi enviado. RLS ativa na fila, sem acesso de leitura para authenticated. Os 27 testes e TypeScript passaram após integrar as atualizações recentes de main.
 
 ## Experiência
 
