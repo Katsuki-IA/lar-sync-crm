@@ -67,7 +67,7 @@ export function SalesQueueWorkspace({
           <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Filas
           </h2>
-          <Button variant="ghost" size="sm" onClick={() => onEdit(null)}>
+          <Button size="sm" onClick={() => onEdit(null)}>
             <Plus className="size-4" />
             Nova fila
           </Button>
