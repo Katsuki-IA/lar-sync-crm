@@ -1,3 +1,4 @@
+import { dispatchMaestro } from "./maestro.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.48.1";
 import { qualifiedDispatchJob, reusableScheduledReceipt } from "./qualified-attendance.ts";
 import { dispatchProjectField } from "../_shared/kommo-projects.ts";
@@ -42,6 +43,8 @@ type CrmUser = {
 };
 
 type CvCredentials = {
+  maestro_crm_url: string | null;
+  maestro_crm_token: string | null;
   cv_crm_url: string | null;
   cv_crm_token: string | null;
   cv_crm_email: string | null;
@@ -677,7 +680,7 @@ async function authenticateDispatchRequest(
   if (crmDispatchToken) {
     const { data: credentials, error: credentialsError } = await supabaseAdmin
       .from("credentials")
-      .select("cv_crm_token,c2s_crm_token,rd_crm_access_token,rd_hub_access_token,loft_crm_token")
+      .select("cv_crm_token,c2s_crm_token,rd_crm_access_token,rd_hub_access_token,loft_crm_token,maestro_crm_token")
       .eq("id_empresa", idEmpresa)
       .maybeSingle();
     if (credentialsError) throw new Error(credentialsError.message);
@@ -687,6 +690,7 @@ async function authenticateDispatchRequest(
       credentials?.rd_crm_access_token,
       credentials?.rd_hub_access_token,
       credentials?.loft_crm_token,
+      credentials?.maestro_crm_token,
     ]
       .map((value) => String(value ?? "").trim())
       .filter(Boolean);
@@ -1024,7 +1028,7 @@ Deno.serve(async (req) => {
         admin
           .from("credentials")
           .select(
-            `cv_crm_url,cv_crm_token,cv_crm_email,c2s_crm_url,c2s_crm_token,pipeline_id,loft_crm_url,loft_crm_token,loft_corretor_id,${RD_CREDENTIALS_SELECT}`,
+            `maestro_crm_url,maestro_crm_token,cv_crm_url,cv_crm_token,cv_crm_email,c2s_crm_url,c2s_crm_token,pipeline_id,loft_crm_url,loft_crm_token,loft_corretor_id,${RD_CREDENTIALS_SELECT}`,
           )
           .eq("id_empresa", lead.id_empresa)
           .maybeSingle(),
@@ -1037,6 +1041,7 @@ Deno.serve(async (req) => {
     const crmKey =
       normalizeCrmKey(empresa.default_crm) ||
       normalizeCrmKey((credentials as CvCredentials | null)?.default_crm);
+    const isMaestroCrm = crmKey === "maestro";
     const isCvCrm = ["cv", "cv_crm"].includes(crmKey);
     const isC2sCrm = ["c2s", "c2s_crm"].includes(crmKey);
     let c2sRouting: { tipo_negociacao: string; fila_id: number | null; type_negotiation: string | null; requires_queue: boolean } | null = null;
@@ -1044,7 +1049,7 @@ Deno.serve(async (req) => {
     const isLoftCrm = ["loft", "vista", "vista_crm"].includes(crmKey);
     const isRdCrm = ["rd", "rd_crm", "rdstation", "rd_station"].includes(crmKey);
     const isKatsukiCrm = ["katsuki", "katsuki_crm"].includes(crmKey);
-    if (!isCvCrm && !isC2sCrm && !isKommoCrm && !isLoftCrm && !isRdCrm && !isKatsukiCrm) {
+    if (!isMaestroCrm && !isCvCrm && !isC2sCrm && !isKommoCrm && !isLoftCrm && !isRdCrm && !isKatsukiCrm) {
       throw new Error("O CRM padrão desta empresa não é suportado para envio.");
     }
 
@@ -1057,7 +1062,7 @@ Deno.serve(async (req) => {
         p_company: lead.id_empresa, p_crm_lead: lead.id,
       });
       if (receipt.error) throw new Error(receipt.error.message);
-      const expectedProvider = isKommoCrm ? "kommo" : isC2sCrm ? "c2s" : isKatsukiCrm ? "katsuki_crm" : "rd_crm";
+      const expectedProvider = isMaestroCrm ? "maestro" : isKommoCrm ? "kommo" : isC2sCrm ? "c2s" : isKatsukiCrm ? "katsuki_crm" : "rd_crm";
       if (reusableScheduledReceipt(authContext.internal, true, expectedProvider, receipt.data)) {
         // Scheduling owns the visit and attendance state. Do not reset it here.
         return jsonResponse({ ok: true, provider: expectedProvider, reused_qualified_export: true,
@@ -1180,20 +1185,38 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (attributionError) throw new Error(attributionError.message);
     const attribution = attributionData as LeadAttribution | null;
-    const externalStageId = isC2sCrm ? "" : resolveExternalStageId(
+    // Existing company/project dispatch settings take precedence over the Maestro reference steps.
+    if (isMaestroCrm) {
+      const steps = await admin.from("steps_cv_crm").select("responded,scheduled,ia_lost")
+        .eq("id_empresa", lead.id_empresa).maybeSingle();
+      if (steps.error) throw new Error(steps.error.message);
+      dispatchSettings.external_stage_unqualified_id ||= steps.data?.responded ? String(steps.data.responded) : null;
+      dispatchSettings.external_stage_qualified_id ||= steps.data?.responded ? String(steps.data.responded) : null;
+      dispatchSettings.external_stage_visit_scheduled_id ||= steps.data?.scheduled ? String(steps.data.scheduled) : null;
+      dispatchSettings.external_stage_lost_id ||= steps.data?.ia_lost ? String(steps.data.ia_lost) : null;
+    }
+    const maestroExplicitStageKey = isMaestroCrm
+      ? ({ qualified: "external_stage_qualified_id", unqualified: "external_stage_unqualified_id",
+          lost: "external_stage_lost_id", without_whatsapp: "external_stage_without_whatsapp_id" } as const)
+          [String(body.externalStageKind || "").toLowerCase() as "qualified" | "unqualified" | "lost" | "without_whatsapp"]
+      : undefined;
+    const maestroExplicitStage = maestroExplicitStageKey
+      ? String((stageOverrideResult.data as DispatchStageOverride | null)?.[maestroExplicitStageKey] || dispatchSettings[maestroExplicitStageKey] || "").trim()
+      : "";
+    const externalStageId = maestroExplicitStage || (isC2sCrm ? "" : resolveExternalStageId(
       currentStageName,
       dispatchSettings,
       stageOverrideResult.data as DispatchStageOverride | null,
       leadTagNames,
       body.externalStageKind,
-    );
+    ));
     const appBaseUrl = (
       Deno.env.get("APP_BASE_URL")?.trim() || "https://hub.katsuki.com.br"
     ).replace(/\/+$/, "");
     const conversationUrl = `${appBaseUrl}/historico/${lead.historico_token ?? lead.id}`;
     const whatsappUrl = buildWhatsAppUrl(lead.telefone, empreendimentoNome);
 
-    const provider = isCvCrm
+    const provider = isMaestroCrm ? "maestro" : isCvCrm
       ? "cv_crm"
       : isC2sCrm
         ? "c2s"
@@ -1204,7 +1227,7 @@ Deno.serve(async (req) => {
             : isKatsukiCrm
               ? "katsuki_crm"
               : "rd_crm";
-    const providerLabel = isCvCrm
+    const providerLabel = isMaestroCrm ? "Maestro" : isCvCrm
       ? "CV"
       : isC2sCrm
         ? "C2S"
@@ -1219,7 +1242,7 @@ Deno.serve(async (req) => {
     const phone = String(lead.telefone ?? "").trim();
     const requestedTags = normalizeDispatchTags(body.additionalTags);
     const tags =
-      isCvCrm || isC2sCrm || isKommoCrm || isLoftCrm || isKatsukiCrm
+      isMaestroCrm || isCvCrm || isC2sCrm || isKommoCrm || isLoftCrm || isKatsukiCrm
         ? normalizeDispatchTags([...leadTagNames, ...requestedTags])
         : requestedTags;
     let requestPayload: Record<string, unknown> = {};
@@ -1261,7 +1284,20 @@ Deno.serve(async (req) => {
         }
       }
 
-      if (isCvCrm) {
+      if (isMaestroCrm) {
+        const result = await dispatchMaestro({
+          url: String(cvCredentials?.maestro_crm_url || "https://crm.maestroia.com.br/api/v1"),
+          token: String(cvCredentials?.maestro_crm_token || ""),
+          companyId: lead.id_empresa, leadId: lead.id, name: String(lead.nome || ""),
+          phone, email, pipelineId: String(cvCredentials?.pipeline_id || ""), stageId: externalStageId,
+          tags, summary: summaryPayload?.summary,
+        });
+        externalId = result.externalId;
+        requestPayload = result.requestPayload;
+        responsePayload = result.responsePayload;
+        conversationSummarySynced = result.summarySynced;
+        summaryErrorMessage = result.summaryError || summaryErrorMessage;
+      } else if (isCvCrm) {
         requestPayload = {
           telefone: phone,
           nome: String(lead.nome ?? "").trim() || "Lead sem nome",

@@ -1,0 +1,16 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import ts from 'typescript';
+const dispatch=fs.readFileSync(new URL('../supabase/functions/external-crms-dispatch/index.ts',import.meta.url),'utf8');
+const enqueue=fs.readFileSync(new URL('../supabase/functions/external-crms-dispatch-enqueue/index.ts',import.meta.url),'utf8');
+const start=dispatch.indexOf('    const crmKey =');
+const end=dispatch.indexOf('    const isScheduledLoftUpdate',start);
+assert(start>0&&end>start);
+const code=ts.transpileModule(dispatch.slice(start,end),{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText;
+const route=new Function('empresa','credentials','normalizeCrmKey',code+';return {isMaestroCrm,isCvCrm,isC2sCrm,isKommoCrm,isLoftCrm,isRdCrm,isKatsukiCrm};');
+const normalize=v=>String(v??'').trim().toLowerCase();
+test('Nature uses external Maestro while operational credentials remain HUB',()=>assert.equal(route({default_crm:'maestro'},{default_crm:'hub'},normalize).isMaestroCrm,true));
+test('existing provider routes retain their acceptance',()=>{for(const crm of ['cv','cv_crm','c2s','kommo','loft','vista','rd','katsuki_crm'])assert.doesNotThrow(()=>route({default_crm:crm},{},normalize));assert.throws(()=>route({default_crm:'unsupported'},{},normalize),/não é suportado/);});
+test('both server authentication paths include the company Maestro credential',()=>{assert(dispatch.includes('credentials?.maestro_crm_token'));assert(enqueue.includes('data?.maestro_crm_token'));assert(dispatch.includes('import { dispatchMaestro } from "./maestro.ts"'));});
+test('published function sources have valid TypeScript syntax',()=>{for(const name of ['external-crms-dispatch/index.ts','external-crms-dispatch/maestro.ts','external-crms-dispatch-enqueue/index.ts']){const source=fs.readFileSync(new URL('../supabase/functions/'+name,import.meta.url),'utf8');const result=ts.transpileModule(source,{fileName:name,reportDiagnostics:true,compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext}});assert.equal(result.diagnostics?.length??0,0,name);}});
