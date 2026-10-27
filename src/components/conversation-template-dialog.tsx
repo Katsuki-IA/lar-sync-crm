@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Send } from "lucide-react";
 import { toast } from "sonner";
@@ -75,12 +75,22 @@ export function ConversationTemplateDialog({
     staleTime: 0,
     retry: false,
     queryFn: () =>
-      invoke<{ templates: ConversationTemplate[] }>({ action: "list_templates", leadId }),
+      invoke<{ templates: ConversationTemplate[]; marketingBlockedUntil?: string | null }>({ action: "list_templates", leadId }),
   });
   const templates = templatesQuery.data?.templates ?? [];
   const selectedKey =
     selection || (templates.length === 1 ? `${templates[0].name}:${templates[0].language}` : "");
   const selected = templates.find((t) => `${t.name}:${t.language}` === selectedKey);
+  const blockedUntil = templatesQuery.data?.marketingBlockedUntil;
+  const marketingPaused = !!blockedUntil && Date.parse(blockedUntil) > Date.now();
+  const selectedPaused = marketingPaused && selected?.category === "MARKETING";
+  useEffect(() => {
+    if (!open || !blockedUntil) return;
+    const remaining = Date.parse(blockedUntil) - Date.now();
+    if (remaining <= 0) return;
+    const timer = window.setTimeout(() => void templatesQuery.refetch(), remaining + 100);
+    return () => window.clearTimeout(timer);
+  }, [open, blockedUntil, templatesQuery.refetch]);
   const form = useMemo(() => {
     if (!selected) return { fields: [], error: null };
     try {
@@ -98,6 +108,7 @@ export function ConversationTemplateDialog({
   const send = useMutation({
     mutationFn: async () => {
       if (!selected) throw new Error("Selecione um template");
+      if (selectedPaused) throw new Error("Novos templates de marketing estão temporariamente pausados para este contato.");
       if (assume) {
         await assume();
         setClaimed(true);
@@ -149,6 +160,15 @@ export function ConversationTemplateDialog({
             responder para liberar mensagens livres.
           </DialogDescription>
         </DialogHeader>
+        {marketingPaused && (
+          <p role="status" className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+            A Meta restringiu temporariamente a entrega de marketing para este contato (131049),
+            para proteger a experiência no WhatsApp. O HUB pausou novos templates de marketing
+            por 24 horas, até {new Date(blockedUntil!).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })} (Brasília).
+            A entrega após esse prazo ainda depende da Meta. Respostas normais continuam
+            disponíveis quando a janela de atendimento estiver aberta.
+          </p>
+        )}
         {templatesQuery.isFetching ? (
           <p className="text-sm text-muted-foreground">Carregando templates...</p>
         ) : templatesQuery.error ? (
@@ -224,7 +244,7 @@ export function ConversationTemplateDialog({
         )}
         {send.error && (
           <p role="alert" className="text-sm text-destructive">
-            {claimed ? "A conversa foi assumida, mas o envio do template falhou. " : ""}
+            {claimed ? "A conversa foi assumida. " : ""}
             {send.error.message}
           </p>
         )}
@@ -238,6 +258,7 @@ export function ConversationTemplateDialog({
               templatesQuery.isFetching ||
               !!templatesQuery.error ||
               !selected ||
+              selectedPaused ||
               !!form.error ||
               form.fields.some((f) => !resolvedValues[f.key]?.trim())
             }

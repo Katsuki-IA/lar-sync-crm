@@ -116,6 +116,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return jsonResponse({ error: "Método não permitido" }, 405);
 
+  let deliveryStarted=false;
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -174,6 +175,18 @@ Deno.serve(async (req) => {
 
     if (crmUser.role !== "super_admin" && crmUser.id_empresa !== lead.id_empresa) {
       throw new Error("Sem permissão para enviar mensagens nesta empresa");
+    }
+    const deliveryArgs={p_company:lead.id_empresa,p_lead:lead.id,p_actor:crmUser.id,p_request:clientMessageId,p_body:input};
+    const finishDelivery=async(ticket:any)=>{
+      if(ticket.state==='sending')return jsonResponse({error:'Resultado incerto ou envio em andamento. Não repita; requer conferência.',deliveryUncertain:true},409);
+      const {data,error}=await admin.rpc('hub_delivery_finalize',{p_id:ticket.id,p_token:ticket.claim_token});
+      if(error)return jsonResponse({error:'Mensagem enviada; recuperação do histórico pendente.',deliveryUncertain:true},409);
+      return jsonResponse(data);
+    };
+    if(!listTemplates&&!prepareMedia){
+      const {data:existing,error}=await admin.rpc('hub_delivery_lookup',deliveryArgs);
+      if(error)throw new Error(error.message);
+      if(existing)return finishDelivery(existing);
     }
     if (!listTemplates && !lead.atendimento_humano) {
       throw new Error("Assuma a conversa antes de enviar uma mensagem");
@@ -384,7 +397,7 @@ Deno.serve(async (req) => {
         const url = new URL(
           `https://graph.facebook.com/${graphVersion}/${wabaId}/message_templates`,
         );
-        url.searchParams.set("fields", "name,status,language,components");
+        url.searchParams.set("fields", "name,status,language,category,components");
         url.searchParams.set("limit", "100");
         if (after) url.searchParams.set("after", after);
         const response = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
@@ -403,7 +416,11 @@ Deno.serve(async (req) => {
           a.name.localeCompare(b.name, undefined, { numeric: true }) ||
           a.language.localeCompare(b.language),
       );
-      if (listTemplates) return jsonResponse({ templates });
+      const { data: blockedUntil, error: cooldownError } = await admin.rpc("wa_marketing_cooldown_until", {
+        p_id_empresa: lead.id_empresa, p_phone_number_id: phoneNumberId, p_recipient: recipient,
+      });
+      if (cooldownError) throw new Error("Não foi possível verificar a pausa de marketing. Tente novamente mais tarde.");
+      if (listTemplates) return jsonResponse({ templates, marketingBlockedUntil: blockedUntil });
       selectedTemplate = templates.find(
         (t) => t.name === input.templateName && t.language === input.templateLanguage,
       );
@@ -465,6 +482,26 @@ Deno.serve(async (req) => {
       )
         throw new Error("O atendimento ou a janela de 24 horas mudou. O anexo não foi enviado.");
     }
+    // Recheck immediately before provider I/O, including callers bypassing the UI.
+    if (selectedTemplate) {
+      if (!["MARKETING", "UTILITY", "AUTHENTICATION"].includes(selectedTemplate.category ?? ""))
+        throw new Error("Não foi possível confirmar a categoria deste template na Meta.");
+      if (selectedTemplate.category === "MARKETING") {
+        const { data: until, error } = await admin.rpc("wa_marketing_cooldown_until", {
+          p_id_empresa: lead.id_empresa, p_phone_number_id: phoneNumberId, p_recipient: recipient,
+        });
+        if (error) throw new Error("Não foi possível verificar a pausa de marketing. Tente novamente mais tarde.");
+        if (until) return jsonResponse({
+          error: "A Meta restringiu temporariamente a entrega de marketing para este contato (131049). Novos templates de marketing estão pausados por 24 horas, até " + new Date(until).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }) + " (Brasília). A entrega após esse prazo ainda depende da Meta.",
+          code: "marketing_cooldown", marketingBlockedUntil: until,
+        }, 429);
+      }
+    }
+    const {data:delivery,error:reserveError}=await admin.rpc('hub_delivery_reserve',deliveryArgs);
+    if(reserveError)throw new Error(reserveError.message);
+    if(!delivery?.owned)return finishDelivery(delivery);
+    deliveryStarted=true;
+    // The committed reservation is never automatically expired/retried after provider I/O.
     const graphResponse = await fetch(
       `https://graph.facebook.com/${graphVersion}/${phoneNumberId}/messages`,
       {
@@ -478,6 +515,15 @@ Deno.serve(async (req) => {
     );
     const graphResult = (await graphResponse.json()) as MetaSendResult;
     if (!graphResponse.ok || graphResult.error) {
+      if (graphResult.error?.code === 131049) {
+        const eventAt = new Date().toISOString();
+        const { error: cooldownError } = await admin.rpc("wa_record_marketing_cooldown", {
+          p_phone_number_id: phoneNumberId, p_recipient: recipient, p_source_key: "hub:" + clientMessageId,
+          p_event_at: eventAt, p_id_empresa: lead.id_empresa,
+        });
+        if (cooldownError) console.error("Unable to persist Meta marketing cooldown", cooldownError.code);
+        return jsonResponse({ error: "A Meta restringiu temporariamente a entrega para este contato (131049). " + (cooldownError ? "Não repita o envio agora; não foi possível registrar a pausa automática." : "Novos templates de marketing estão pausados por 24 horas. A entrega após esse prazo ainda depende da Meta."), code: "131049" }, 429);
+      }
       const code = graphResult.error?.code ? ` (código ${graphResult.error.code})` : "";
       throw new Error(`${graphResult.error?.message ?? "Falha ao enviar pela Meta"}${code}`);
     }
@@ -493,10 +539,7 @@ Deno.serve(async (req) => {
       normalizeRecipient(identity?.wa_user_id) ??
       normalizeRecipient(lead.wa_user_id);
 
-    const { data: transportData, error: transportError } = await admin
-      .from("wa_messages")
-      .upsert(
-        {
+    const transport={
           phone_number_id: phoneNumberId,
           message_id: messageId,
           client_message_id: clientMessageId,
@@ -541,20 +584,9 @@ Deno.serve(async (req) => {
             response: graphResult,
           },
           updated_at: now,
-        },
-        { onConflict: "phone_number_id,message_id" },
-      )
-      .select("id")
-      .single();
-    if (transportError)
-      throw new Error(
-        `Mensagem enviada, mas o histórico técnico falhou: ${transportError.message}`,
-      );
-    if (!transportData?.id)
-      throw new Error("Mensagem enviada, mas o transporte não retornou o vínculo do histórico");
-
+        };
     const phone = normalizePhone(identity?.telefone) ?? normalizePhone(lead.numero);
-    const { error: historyError } = await admin.from("n8n_chat_conversas").insert({
+    const history={
       numero: phone ?? recipient,
       telefone: phone,
       type: "ai",
@@ -578,28 +610,18 @@ Deno.serve(async (req) => {
       wa_username: identity?.username ?? lead.wa_username,
       conversation_key: lead.conversation_key ?? identity?.conversation_key,
       legacy_conversation_key: lead.legacy_conversation_key ?? identity?.legacy_conversation_key,
-      wa_message_id: transportData.id,
+      wa_message_id: null,
+    };
+    const {error:receiptError}=await admin.rpc('hub_delivery_receipt',{
+      p_id:delivery.id,p_token:delivery.claim_token,p_receipt:{transport,history},
     });
-    if (historyError)
-      throw new Error(
-        `Mensagem enviada, mas o histórico da conversa falhou: ${historyError.message}`,
-      );
+    if(receiptError)return jsonResponse({error:'Mensagem enviada; confirmação técnica pendente. Não reenviar.',deliveryUncertain:true},409);
+    return finishDelivery({...delivery,state:'accepted'});
 
-    const { error: leadUpdateError } = await admin
-      .from("lead")
-      .update({ last_mesage: text, last_message_timestamp: now, updated_at: now })
-      .eq("id", lead.id)
-      .eq("wa_conversation_assigned_to", crmUser.id);
-    if (leadUpdateError)
-      throw new Error(
-        `Mensagem enviada, mas a conversa não foi atualizada: ${leadUpdateError.message}`,
-      );
-
-    return jsonResponse({ ok: true, messageId, status });
   } catch (error) {
     console.error(error);
     return jsonResponse(
-      { error: error instanceof Error ? error.message : "Falha ao enviar mensagem" },
+      { error: error instanceof Error ? error.message : "Falha ao enviar mensagem", deliveryUncertain:deliveryStarted },
       400,
     );
   }

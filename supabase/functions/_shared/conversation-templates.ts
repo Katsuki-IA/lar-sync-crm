@@ -2,6 +2,7 @@ export type ConversationTemplate = {
   name: string;
   language: string;
   status?: string;
+  category?: string;
   components?: Array<{
     type?: string;
     text?: string;

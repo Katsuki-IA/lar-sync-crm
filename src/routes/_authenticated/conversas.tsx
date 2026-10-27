@@ -792,6 +792,15 @@ function ConversationsWorkspace() {
                               {getConversationAttachment(message.message)
                                 ? <ConversationAttachment attachment={getConversationAttachment(message.message)!} />
                                 : <MessageContent text={text || "Mensagem sem conteúdo"} />}
+                              {deliveryFailed && message.error_code === "131049" && (
+                                <p className="mt-3 border-t border-amber-400/40 pt-2 text-xs leading-relaxed" role="status">
+                                  A Meta restringiu temporariamente a entrega desta mensagem para proteger
+                                  a experiência no WhatsApp (131049). O HUB pausa novos templates de
+                                  marketing para este contato por 24 horas a partir da recusa.
+                                  Consulte o horário em “Enviar template”. Após esse prazo, a entrega
+                                  ainda depende da Meta.
+                                </p>
+                              )}
                               <div
                                 className={cn(
                                   "mt-1 flex items-center justify-end gap-1 text-[10px] text-muted-foreground",
@@ -810,7 +819,7 @@ function ConversationsWorkspace() {
                                 {isHumanAgent && message.delivery_status ? (
                                   <span className="ml-1 inline-flex items-center gap-1">
                                     {deliveryFailed ? (
-                                      `Falha no envio${message.error_code ? ` (${message.error_code})` : ""}`
+                                      message.error_code === "131049" ? "Entrega restringida pela Meta (131049)" : `Falha no envio${message.error_code ? ` (${message.error_code})` : ""}`
                                     ) : (
                                       <>
                                         <CheckCheck className="h-3 w-3" />
