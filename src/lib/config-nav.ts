@@ -37,6 +37,7 @@ export function configNavFor(role?: string | null, modules?: Modules): ConfigNav
       { to: "/admin/reporting-api", label: "API de relatórios", scope: "global" },
       { to: "/admin/notifications", label: "Notificações", scope: "global" },
       { to: "/admin/paginas-legais", label: "Páginas legais", scope: "global" },
+      { to: "/admin/documentacao-tecnica", label: "Documentação técnica", scope: "global" },
     );
   }
   return items;

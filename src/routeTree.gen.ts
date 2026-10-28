@@ -40,6 +40,7 @@ import { Route as PrivacidadeExclusaoDeDadosRouteImport } from './routes/privaci
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
 import { Route as AuthenticatedAdminCrmDispatchRouteImport } from './routes/_authenticated/admin.crm-dispatch'
 import { Route as AuthenticatedAdminCustomFieldsRouteImport } from './routes/_authenticated/admin.custom-fields'
+import { Route as AuthenticatedAdminDocumentacaoTecnicaRouteImport } from './routes/_authenticated/admin.documentacao-tecnica'
 import { Route as AuthenticatedAdminEmpresasRouteImport } from './routes/_authenticated/admin.empresas'
 import { Route as AuthenticatedAdminFunnelRouteImport } from './routes/_authenticated/admin.funnel'
 import { Route as AuthenticatedAdminNotificationsRouteImport } from './routes/_authenticated/admin.notifications'
@@ -230,6 +231,12 @@ const AuthenticatedAdminCustomFieldsRoute =
     path: '/custom-fields',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminDocumentacaoTecnicaRoute =
+  AuthenticatedAdminDocumentacaoTecnicaRouteImport.update({
+    id: '/documentacao-tecnica',
+    path: '/documentacao-tecnica',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 const AuthenticatedAdminEmpresasRoute =
   AuthenticatedAdminEmpresasRouteImport.update({
     id: '/empresas',
@@ -414,6 +421,7 @@ export interface FileRoutesByFullPath {
   '/privacidade/exclusao-de-dados': typeof PrivacidadeExclusaoDeDadosRoute
   '/admin/crm-dispatch': typeof AuthenticatedAdminCrmDispatchRoute
   '/admin/custom-fields': typeof AuthenticatedAdminCustomFieldsRoute
+  '/admin/documentacao-tecnica': typeof AuthenticatedAdminDocumentacaoTecnicaRoute
   '/admin/empresas': typeof AuthenticatedAdminEmpresasRoute
   '/admin/funnel': typeof AuthenticatedAdminFunnelRoute
   '/admin/notifications': typeof AuthenticatedAdminNotificationsRoute
@@ -471,6 +479,7 @@ export interface FileRoutesByTo {
   '/privacidade/exclusao-de-dados': typeof PrivacidadeExclusaoDeDadosRoute
   '/admin/crm-dispatch': typeof AuthenticatedAdminCrmDispatchRoute
   '/admin/custom-fields': typeof AuthenticatedAdminCustomFieldsRoute
+  '/admin/documentacao-tecnica': typeof AuthenticatedAdminDocumentacaoTecnicaRoute
   '/admin/empresas': typeof AuthenticatedAdminEmpresasRoute
   '/admin/funnel': typeof AuthenticatedAdminFunnelRoute
   '/admin/notifications': typeof AuthenticatedAdminNotificationsRoute
@@ -532,6 +541,7 @@ export interface FileRoutesById {
   '/privacidade/exclusao-de-dados': typeof PrivacidadeExclusaoDeDadosRoute
   '/_authenticated/admin/crm-dispatch': typeof AuthenticatedAdminCrmDispatchRoute
   '/_authenticated/admin/custom-fields': typeof AuthenticatedAdminCustomFieldsRoute
+  '/_authenticated/admin/documentacao-tecnica': typeof AuthenticatedAdminDocumentacaoTecnicaRoute
   '/_authenticated/admin/empresas': typeof AuthenticatedAdminEmpresasRoute
   '/_authenticated/admin/funnel': typeof AuthenticatedAdminFunnelRoute
   '/_authenticated/admin/notifications': typeof AuthenticatedAdminNotificationsRoute
@@ -593,6 +603,7 @@ export interface FileRouteTypes {
     | '/privacidade/exclusao-de-dados'
     | '/admin/crm-dispatch'
     | '/admin/custom-fields'
+    | '/admin/documentacao-tecnica'
     | '/admin/empresas'
     | '/admin/funnel'
     | '/admin/notifications'
@@ -650,6 +661,7 @@ export interface FileRouteTypes {
     | '/privacidade/exclusao-de-dados'
     | '/admin/crm-dispatch'
     | '/admin/custom-fields'
+    | '/admin/documentacao-tecnica'
     | '/admin/empresas'
     | '/admin/funnel'
     | '/admin/notifications'
@@ -710,6 +722,7 @@ export interface FileRouteTypes {
     | '/privacidade/exclusao-de-dados'
     | '/_authenticated/admin/crm-dispatch'
     | '/_authenticated/admin/custom-fields'
+    | '/_authenticated/admin/documentacao-tecnica'
     | '/_authenticated/admin/empresas'
     | '/_authenticated/admin/funnel'
     | '/_authenticated/admin/notifications'
@@ -979,6 +992,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminCustomFieldsRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/documentacao-tecnica': {
+      id: '/_authenticated/admin/documentacao-tecnica'
+      path: '/documentacao-tecnica'
+      fullPath: '/admin/documentacao-tecnica'
+      preLoaderRoute: typeof AuthenticatedAdminDocumentacaoTecnicaRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/admin/empresas': {
       id: '/_authenticated/admin/empresas'
       path: '/empresas'
@@ -1174,6 +1194,7 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminCrmDispatchRoute: typeof AuthenticatedAdminCrmDispatchRoute
   AuthenticatedAdminCustomFieldsRoute: typeof AuthenticatedAdminCustomFieldsRoute
+  AuthenticatedAdminDocumentacaoTecnicaRoute: typeof AuthenticatedAdminDocumentacaoTecnicaRoute
   AuthenticatedAdminEmpresasRoute: typeof AuthenticatedAdminEmpresasRoute
   AuthenticatedAdminFunnelRoute: typeof AuthenticatedAdminFunnelRoute
   AuthenticatedAdminNotificationsRoute: typeof AuthenticatedAdminNotificationsRoute
@@ -1188,6 +1209,8 @@ interface AuthenticatedAdminRouteChildren {
 const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminCrmDispatchRoute: AuthenticatedAdminCrmDispatchRoute,
   AuthenticatedAdminCustomFieldsRoute: AuthenticatedAdminCustomFieldsRoute,
+  AuthenticatedAdminDocumentacaoTecnicaRoute:
+    AuthenticatedAdminDocumentacaoTecnicaRoute,
   AuthenticatedAdminEmpresasRoute: AuthenticatedAdminEmpresasRoute,
   AuthenticatedAdminFunnelRoute: AuthenticatedAdminFunnelRoute,
   AuthenticatedAdminNotificationsRoute: AuthenticatedAdminNotificationsRoute,
