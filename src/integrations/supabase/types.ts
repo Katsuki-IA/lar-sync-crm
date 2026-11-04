@@ -310,6 +310,44 @@ export type Database = {
           },
         ]
       }
+      crm_commercial_tags: {
+        Row: {
+          ativo: boolean
+          cor: string
+          descricao: string
+          id: number
+          id_empresa: number
+          nome: string
+          revision: number
+        }
+        Insert: {
+          ativo?: boolean
+          cor: string
+          descricao?: string
+          id?: never
+          id_empresa: number
+          nome: string
+          revision?: number
+        }
+        Update: {
+          ativo?: boolean
+          cor?: string
+          descricao?: string
+          id?: never
+          id_empresa?: number
+          nome?: string
+          revision?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_commercial_tags_id_empresa_fkey"
+            columns: ["id_empresa"]
+            isOneToOne: false
+            referencedRelation: "empresa_dados"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       crm_conversation_classifications: {
         Row: {
           ai_count: number
@@ -1412,10 +1450,13 @@ export type Database = {
           opportunity_id: string | null
           prazo: string
           prioridade: Database["public"]["Enums"]["crm_task_priority"]
+          priority_rank: number | null
+          reminder_minutes: number | null
           request_id: string | null
           revision: number
           source_offer_id: string | null
           status: Database["public"]["Enums"]["crm_task_status"]
+          tipo: string
           titulo: string
           updated_at: string
         }
@@ -1433,10 +1474,13 @@ export type Database = {
           opportunity_id?: string | null
           prazo: string
           prioridade?: Database["public"]["Enums"]["crm_task_priority"]
+          priority_rank?: number | null
+          reminder_minutes?: number | null
           request_id?: string | null
           revision?: number
           source_offer_id?: string | null
           status?: Database["public"]["Enums"]["crm_task_status"]
+          tipo?: string
           titulo: string
           updated_at?: string
         }
@@ -1454,10 +1498,13 @@ export type Database = {
           opportunity_id?: string | null
           prazo?: string
           prioridade?: Database["public"]["Enums"]["crm_task_priority"]
+          priority_rank?: number | null
+          reminder_minutes?: number | null
           request_id?: string | null
           revision?: number
           source_offer_id?: string | null
           status?: Database["public"]["Enums"]["crm_task_status"]
+          tipo?: string
           titulo?: string
           updated_at?: string
         }
@@ -2214,7 +2261,8 @@ export type Database = {
         Row: {
           assigned_to: string | null
           created_at: string
-          created_by: string
+          created_by: string | null
+          creation_origin: string
           funnel_id: number
           id: string
           id_empresa: number
@@ -2229,7 +2277,8 @@ export type Database = {
         Insert: {
           assigned_to?: string | null
           created_at?: string
-          created_by: string
+          created_by?: string | null
+          creation_origin?: string
           funnel_id: number
           id?: string
           id_empresa: number
@@ -2244,7 +2293,8 @@ export type Database = {
         Update: {
           assigned_to?: string | null
           created_at?: string
-          created_by?: string
+          created_by?: string | null
+          creation_origin?: string
           funnel_id?: number
           id?: string
           id_empresa?: number
@@ -2359,6 +2409,42 @@ export type Database = {
             columns: ["opportunity_id", "id_empresa"]
             isOneToOne: false
             referencedRelation: "crm_opportunities"
+            referencedColumns: ["id", "id_empresa"]
+          },
+        ]
+      }
+      crm_opportunity_tags: {
+        Row: {
+          created_at: string
+          id_empresa: number
+          opportunity_id: string
+          tag_id: number
+        }
+        Insert: {
+          created_at?: string
+          id_empresa: number
+          opportunity_id: string
+          tag_id: number
+        }
+        Update: {
+          created_at?: string
+          id_empresa?: number
+          opportunity_id?: string
+          tag_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_opportunity_tags_opportunity_id_id_empresa_fkey"
+            columns: ["opportunity_id", "id_empresa"]
+            isOneToOne: false
+            referencedRelation: "crm_opportunities"
+            referencedColumns: ["id", "id_empresa"]
+          },
+          {
+            foreignKeyName: "crm_opportunity_tags_tag_id_id_empresa_fkey"
+            columns: ["tag_id", "id_empresa"]
+            isOneToOne: false
+            referencedRelation: "crm_commercial_tags"
             referencedColumns: ["id", "id_empresa"]
           },
         ]
@@ -5179,33 +5265,36 @@ export type Database = {
       hub_sales_distributions: {
         Row: {
           created_at: string
-          created_by: string
+          created_by: string | null
           finished_at: string | null
           id: string
           id_empresa: number
           opportunity_id: string
+          origin: string
           queue_id: string
           request_id: string
           status: string
         }
         Insert: {
           created_at?: string
-          created_by: string
+          created_by?: string | null
           finished_at?: string | null
           id?: string
           id_empresa: number
           opportunity_id: string
+          origin?: string
           queue_id: string
           request_id: string
           status?: string
         }
         Update: {
           created_at?: string
-          created_by?: string
+          created_by?: string | null
           finished_at?: string | null
           id?: string
           id_empresa?: number
           opportunity_id?: string
+          origin?: string
           queue_id?: string
           request_id?: string
           status?: string
@@ -5334,18 +5423,21 @@ export type Database = {
         Row: {
           id_empresa: number
           member_id: string
+          paused: boolean
           position: number
           queue_id: string
         }
         Insert: {
           id_empresa: number
           member_id: string
+          paused?: boolean
           position: number
           queue_id: string
         }
         Update: {
           id_empresa?: number
           member_id?: string
+          paused?: boolean
           position?: number
           queue_id?: string
         }
@@ -5372,38 +5464,85 @@ export type Database = {
           created_at: string
           creation_payload: Json
           cursor_position: number
+          destination_funnel_id: number | null
+          development_id: number | null
+          ends_at: string
           id: string
           id_empresa: number
           name: string
+          priority: number
           request_id: string
           revision: number
+          routing_creation_payload: Json | null
+          schedule_enabled: boolean
+          starts_at: string
           timeout_minutes: number
+          timezone: string
+          trigger_qualified: boolean
+          trigger_stage_ids: number[]
+          weekdays: number[]
         }
         Insert: {
           active?: boolean
           created_at?: string
           creation_payload: Json
           cursor_position?: number
+          destination_funnel_id?: number | null
+          development_id?: number | null
+          ends_at?: string
           id?: string
           id_empresa: number
           name: string
+          priority?: number
           request_id: string
           revision?: number
+          routing_creation_payload?: Json | null
+          schedule_enabled?: boolean
+          starts_at?: string
           timeout_minutes: number
+          timezone?: string
+          trigger_qualified?: boolean
+          trigger_stage_ids?: number[]
+          weekdays?: number[]
         }
         Update: {
           active?: boolean
           created_at?: string
           creation_payload?: Json
           cursor_position?: number
+          destination_funnel_id?: number | null
+          development_id?: number | null
+          ends_at?: string
           id?: string
           id_empresa?: number
           name?: string
+          priority?: number
           request_id?: string
           revision?: number
+          routing_creation_payload?: Json | null
+          schedule_enabled?: boolean
+          starts_at?: string
           timeout_minutes?: number
+          timezone?: string
+          trigger_qualified?: boolean
+          trigger_stage_ids?: number[]
+          weekdays?: number[]
         }
         Relationships: [
+          {
+            foreignKeyName: "hub_sales_queues_destination_funnel_id_fkey"
+            columns: ["destination_funnel_id"]
+            isOneToOne: false
+            referencedRelation: "crm_funnels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hub_sales_queues_development_id_fkey"
+            columns: ["development_id"]
+            isOneToOne: false
+            referencedRelation: "empreendimento"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "hub_sales_queues_id_empresa_fkey"
             columns: ["id_empresa"]
@@ -5696,7 +5835,7 @@ export type Database = {
           created_at: string | null
           descricao: string | null
           id: number
-          id_empreendimento: number
+          id_empreendimento: number | null
           id_empresa: number
           id_imagem: string
           nome: string | null
@@ -5706,7 +5845,7 @@ export type Database = {
           created_at?: string | null
           descricao?: string | null
           id?: number
-          id_empreendimento: number
+          id_empreendimento?: number | null
           id_empresa: number
           id_imagem: string
           nome?: string | null
@@ -5716,7 +5855,7 @@ export type Database = {
           created_at?: string | null
           descricao?: string | null
           id?: number
-          id_empreendimento?: number
+          id_empreendimento?: number | null
           id_empresa?: number
           id_imagem?: string
           nome?: string | null
@@ -6743,6 +6882,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      wa_marketing_cooldown_events: {
+        Row: {
+          id_empresa: number | null
+          occurred_at: string
+          phone_number_id: string
+          recipient_key: string
+          source_key: string
+        }
+        Insert: {
+          id_empresa?: number | null
+          occurred_at: string
+          phone_number_id: string
+          recipient_key: string
+          source_key: string
+        }
+        Update: {
+          id_empresa?: number | null
+          occurred_at?: string
+          phone_number_id?: string
+          recipient_key?: string
+          source_key?: string
+        }
+        Relationships: []
       }
       wa_marketing_opt_outs: {
         Row: {
@@ -8070,6 +8233,8 @@ export type Database = {
         }
         Returns: number
       }
+      hub_commercial_config: { Args: { p_company_id: number }; Returns: Json }
+      hub_commercial_tags: { Args: { p_company_id: number }; Returns: Json }
       hub_company_catalog: { Args: never; Returns: Json }
       hub_create_contact_opportunity: {
         Args: {
@@ -8084,7 +8249,8 @@ export type Database = {
         Returns: {
           assigned_to: string | null
           created_at: string
-          created_by: string
+          created_by: string | null
+          creation_origin: string
           funnel_id: number
           id: string
           id_empresa: number
@@ -8115,7 +8281,8 @@ export type Database = {
         Returns: {
           assigned_to: string | null
           created_at: string
-          created_by: string
+          created_by: string | null
+          creation_origin: string
           funnel_id: number
           id: string
           id_empresa: number
@@ -8160,6 +8327,10 @@ export type Database = {
           p_lead: number
           p_request: string
         }
+        Returns: Json
+      }
+      hub_dispatch_internal_crm: {
+        Args: { p_company_id: number; p_kind?: string; p_lead_id: number }
         Returns: Json
       }
       hub_edit_contact: {
@@ -8220,11 +8391,12 @@ export type Database = {
         Args: { p_opportunity: string; p_queue: string; p_request_id: string }
         Returns: {
           created_at: string
-          created_by: string
+          created_by: string | null
           finished_at: string | null
           id: string
           id_empresa: number
           opportunity_id: string
+          origin: string
           queue_id: string
           request_id: string
           status: string
@@ -8247,6 +8419,8 @@ export type Database = {
         Returns: Json
       }
       hub_integration_overview: { Args: { p_company: number }; Returns: Json }
+      hub_kp_notice_seen: { Args: { p_id: string }; Returns: boolean }
+      hub_kp_notices: { Args: never; Returns: Json }
       hub_lead_directory_metadata: {
         Args: { p_company_id: number }
         Returns: Json
@@ -8273,7 +8447,8 @@ export type Database = {
         Returns: {
           assigned_to: string | null
           created_at: string
-          created_by: string
+          created_by: string | null
+          creation_origin: string
           funnel_id: number
           id: string
           id_empresa: number
@@ -8314,15 +8489,20 @@ export type Database = {
         }
         Returns: Json
       }
+      hub_pause_queue_member: {
+        Args: { p_member: string; p_paused: boolean; p_queue: string }
+        Returns: undefined
+      }
       hub_process_sales_distribution: {
         Args: { p_cancel?: boolean; p_id: string }
         Returns: {
           created_at: string
-          created_by: string
+          created_by: string | null
           finished_at: string | null
           id: string
           id_empresa: number
           opportunity_id: string
+          origin: string
           queue_id: string
           request_id: string
           status: string
@@ -8351,6 +8531,32 @@ export type Database = {
       hub_respond_sales_offer: {
         Args: { p_action: string; p_offer: string }
         Returns: Json
+      }
+      hub_sales_queue_overview: {
+        Args: { p_company_id: number }
+        Returns: Json
+      }
+      hub_save_commercial_definition: {
+        Args: {
+          p_company_id: number
+          p_data: Json
+          p_id: number
+          p_kind: string
+          p_revision: number
+        }
+        Returns: undefined
+      }
+      hub_save_commercial_tag: {
+        Args: {
+          p_active: boolean
+          p_color: string
+          p_company_id: number
+          p_description: string
+          p_id: number
+          p_name: string
+          p_revision: number
+        }
+        Returns: number
       }
       hub_save_company_profile: {
         Args: {
@@ -8398,6 +8604,15 @@ export type Database = {
         }
         Returns: Json
       }
+      hub_save_internal_crm: {
+        Args: {
+          p_company_id: number
+          p_destinations: Json
+          p_enabled: boolean
+          p_revision: number
+        }
+        Returns: undefined
+      }
       hub_save_sales_queue: {
         Args: {
           p_active: boolean
@@ -8414,12 +8629,65 @@ export type Database = {
           created_at: string
           creation_payload: Json
           cursor_position: number
+          destination_funnel_id: number | null
+          development_id: number | null
+          ends_at: string
           id: string
           id_empresa: number
           name: string
+          priority: number
           request_id: string
           revision: number
+          routing_creation_payload: Json | null
+          schedule_enabled: boolean
+          starts_at: string
           timeout_minutes: number
+          timezone: string
+          trigger_qualified: boolean
+          trigger_stage_ids: number[]
+          weekdays: number[]
+        }
+        SetofOptions: {
+          from: "*"
+          to: "hub_sales_queues"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      hub_save_sales_queue_v2: {
+        Args: {
+          p_active: boolean
+          p_company_id: number
+          p_id: string
+          p_members: string[]
+          p_name: string
+          p_request_id: string
+          p_revision: number
+          p_rules: Json
+          p_timeout: number
+        }
+        Returns: {
+          active: boolean
+          created_at: string
+          creation_payload: Json
+          cursor_position: number
+          destination_funnel_id: number | null
+          development_id: number | null
+          ends_at: string
+          id: string
+          id_empresa: number
+          name: string
+          priority: number
+          request_id: string
+          revision: number
+          routing_creation_payload: Json | null
+          schedule_enabled: boolean
+          starts_at: string
+          timeout_minutes: number
+          timezone: string
+          trigger_qualified: boolean
+          trigger_stage_ids: number[]
+          weekdays: number[]
         }
         SetofOptions: {
           from: "*"
@@ -8463,6 +8731,25 @@ export type Database = {
           p_status: string
           p_task_id: string
           p_title: string
+        }
+        Returns: Json
+      }
+      hub_save_task_v2: {
+        Args: {
+          p_assigned_to: string
+          p_company_id: number
+          p_description: string
+          p_due_at: string
+          p_expected_revision: number
+          p_lead_id: number
+          p_opportunity_id: string
+          p_priority: string
+          p_reminder_minutes: number
+          p_request_id: string
+          p_status: string
+          p_task_id: string
+          p_title: string
+          p_type: string
         }
         Returns: Json
       }
@@ -8527,9 +8814,17 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      hub_set_opportunity_tag: {
+        Args: { p_applied: boolean; p_opportunity: string; p_tag: number }
+        Returns: undefined
+      }
       hub_set_secretary_automation: {
         Args: { p_company_id: number; p_enabled: boolean }
         Returns: undefined
+      }
+      hub_task_reminder_options: {
+        Args: { p_company_id: number }
+        Returns: Json
       }
       import_followup_v1_config_v2: {
         Args: { p_id_empresa: number }
@@ -8902,6 +9197,26 @@ export type Database = {
           wa_user_id: string
         }[]
       }
+      wa_marketing_cooldown_key: {
+        Args: { p_recipient: string }
+        Returns: string
+      }
+      wa_marketing_cooldown_send_guard: {
+        Args: {
+          p_attempt_id?: number
+          p_phone_number_id: string
+          p_recipient: string
+        }
+        Returns: boolean
+      }
+      wa_marketing_cooldown_until: {
+        Args: {
+          p_id_empresa: number
+          p_phone_number_id: string
+          p_recipient: string
+        }
+        Returns: string
+      }
       wa_marketing_is_opted_out: {
         Args: {
           p_id_empresa: number
@@ -8944,6 +9259,16 @@ export type Database = {
           telefone: string
           wa_identity_id: string
         }[]
+      }
+      wa_record_marketing_cooldown: {
+        Args: {
+          p_event_at: string
+          p_id_empresa?: number
+          p_phone_number_id: string
+          p_recipient: string
+          p_source_key: string
+        }
+        Returns: undefined
       }
       wa_record_marketing_opt_out: {
         Args: {
