@@ -230,7 +230,7 @@ Deno.serve(async (req) => {
     }
 
     let attachment: {
-      kind: "image" | "document";
+      kind: "image" | "document" | "audio";
       path: string;
       filename: string;
       mime: string;
@@ -285,7 +285,7 @@ Deno.serve(async (req) => {
       validateMediaSignature(prefix.slice(0, prefixLength), mime);
       attachment = { kind, path, filename, mime, size, url: signed.signedUrl };
       text =
-        (kind === "image" ? "[Imagem] " : "[PDF] ") + filename + (caption ? "\n" + caption : "");
+        (kind === "audio" ? "[Áudio] " : kind === "image" ? "[Imagem] " : "[PDF] ") + filename + (caption && kind !== "audio" ? "\n" + caption : "");
     }
 
     let identity: IdentityRow | null = null;
@@ -457,7 +457,7 @@ Deno.serve(async (req) => {
               type: attachment.kind,
               [attachment.kind]: {
                 link: attachment.url,
-                ...(caption ? { caption } : {}),
+                ...(caption && attachment.kind !== "audio" ? { caption } : {}),
                 ...(attachment.kind === "document" ? { filename: attachment.filename } : {}),
               },
             }

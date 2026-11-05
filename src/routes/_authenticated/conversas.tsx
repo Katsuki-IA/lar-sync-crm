@@ -848,6 +848,10 @@ function ConversationsWorkspace() {
               <footer className="shrink-0 space-y-3 border-t bg-background px-3 py-3 sm:px-4">
                 <div className="flex items-center gap-2">
                   {uncertainLeads.has(selectedConversation.lead_id)&&<p role="alert" className="text-sm text-destructive">O envio pode ter ocorrido. Não repita a mensagem; confira a entrega e o histórico antes de continuar.</p>}
+                  <ConversationAttachmentComposer audioOnly key={`audio-${activeEmpresaId}-${selectedConversation.lead_id}`} leadId={selectedConversation.lead_id} canSend={canSendMessage} onSent={()=>{
+                    queryClient.invalidateQueries({queryKey:["whatsapp-conversation-messages"]});
+                    queryClient.invalidateQueries({queryKey:["whatsapp-conversations"]});
+                  }}/>
                   <ConversationAttachmentComposer key={selectedConversation.lead_id} leadId={selectedConversation.lead_id} canSend={canSendMessage} onSent={()=>{
                     queryClient.invalidateQueries({queryKey:["whatsapp-conversation-messages"]});
                     queryClient.invalidateQueries({queryKey:["whatsapp-conversations"]});

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { FileText, Paperclip } from "lucide-react";
+import { FileText, Paperclip, Mic } from "lucide-react";
+import { ConversationRecorder } from "@/components/conversation-recorder";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -40,20 +41,23 @@ export function ConversationAttachmentComposer({
   leadId,
   canSend,
   onSent,
+  audioOnly = false,
 }: {
   leadId: number;
   canSend: boolean;
   onSent: () => void;
+  audioOnly?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [caption, setCaption] = useState("");
   const [preview, setPreview] = useState("");
   const [validationError, setValidationError] = useState("");
+  const [recordingBusy, setRecordingBusy] = useState(false);
   const uploaded = useRef<{ file: File; path: string; id: string } | null>(null);
   const requestId = useRef(crypto.randomUUID());
   useEffect(() => {
-    const url = file?.type.startsWith("image/") ? URL.createObjectURL(file) : "";
+    const url = file && (file.type.startsWith("image/") || file.type.startsWith("audio/")) ? URL.createObjectURL(file) : "";
     setPreview(url);
     return () => {
       if (url) URL.revokeObjectURL(url);
@@ -104,30 +108,33 @@ export function ConversationAttachmentComposer({
         type="button"
         variant="outline"
         size="icon"
-        aria-label="Anexar imagem ou PDF"
-        title="Anexar imagem (5 MB) ou PDF (100 MB)"
+        aria-label={audioOnly ? "Gravar ou enviar áudio" : "Anexar imagem ou PDF"}
+        title={audioOnly ? "Gravar ou enviar áudio" : "Anexar imagem (5 MB) ou PDF (100 MB)"}
         disabled={!canSend}
         onClick={() => setOpen(true)}
       >
-        <Paperclip className="h-4 w-4" />
+        {audioOnly ? <Mic className="h-4 w-4" /> : <Paperclip className="h-4 w-4" />}
       </Button>
       <Dialog
         open={open}
         onOpenChange={(value) => {
-          if (!mutation.isPending) setOpen(value);
+          if (!mutation.isPending) { setOpen(value); if (!value) { setRecordingBusy(false); setFile(null); uploaded.current = null; requestId.current = crypto.randomUUID(); } }
         }}
       >
         <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Enviar imagem ou PDF</DialogTitle>
-            <DialogDescription>{MEDIA_HELP}</DialogDescription>
+            <DialogTitle>{audioOnly ? "Enviar áudio" : "Enviar imagem ou PDF"}</DialogTitle>
+            <DialogDescription>{audioOnly ? "Grave ou selecione um MP3 de até 16 MB. Envio na conversa assumida, dentro da janela de 24 horas." : MEDIA_HELP}</DialogDescription>
           </DialogHeader>
+          {audioOnly && open && <ConversationRecorder disabled={!canSend || mutation.isPending}
+            onBusy={busy => { setRecordingBusy(busy); if (busy) { setFile(null); uploaded.current = null; } }}
+            onReady={recorded => { setFile(recorded); setValidationError(""); requestId.current = crypto.randomUUID(); }} />}
           <label className="space-y-2 text-sm">
             Arquivo
             <Input
               type="file"
-              accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf"
-              disabled={mutation.isPending}
+              accept={audioOnly ? ".mp3,audio/mpeg" : ".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf"}
+              disabled={mutation.isPending || recordingBusy}
               onChange={(event) => {
                 const selected = event.target.files?.[0] ?? null;
                 uploaded.current = null;
@@ -151,7 +158,7 @@ export function ConversationAttachmentComposer({
           ) : null}
           {file ? (
             <div className="rounded-lg border bg-muted/30 p-3">
-              {preview ? (
+              {preview && audioOnly ? <audio controls src={preview} className="w-full" aria-label="Ouvir áudio antes de enviar" /> : preview ? (
                 <img
                   src={preview}
                   alt="Prévia do anexo"
@@ -164,9 +171,10 @@ export function ConversationAttachmentComposer({
               <p className="text-xs text-muted-foreground">
                 {(file.size / 1024 / 1024).toFixed(2)} MB
               </p>
+              {audioOnly && <Button variant="ghost" size="sm" disabled={mutation.isPending} onClick={() => { setFile(null); uploaded.current = null; requestId.current = crypto.randomUUID(); }}>Descartar áudio</Button>}
             </div>
           ) : null}
-          <label className="space-y-2 text-sm">
+          {!audioOnly && <label className="space-y-2 text-sm">
             Legenda (opcional)
             <Textarea
               value={caption}
@@ -176,7 +184,7 @@ export function ConversationAttachmentComposer({
               placeholder="Adicione uma legenda ao arquivo"
             />
             <span className="text-xs text-muted-foreground">{caption.length}/1.024 caracteres</span>
-          </label>
+          </label>}
           {!canSend ? (
             <p role="alert" className="text-sm text-destructive">
               A janela de atendimento está fechada ou esta conversa não está mais atribuída a você.
@@ -184,10 +192,10 @@ export function ConversationAttachmentComposer({
             </p>
           ) : null}
           <Button
-            disabled={!file || !canSend || mutation.isPending}
+            disabled={!file || !canSend || mutation.isPending || recordingBusy}
             onClick={() => mutation.mutate()}
           >
-            {mutation.isPending ? "Carregando e enviando…" : "Enviar anexo"}
+            {mutation.isPending ? "Carregando e enviando…" : audioOnly ? "Enviar áudio" : "Enviar anexo"}
           </Button>
         </DialogContent>
       </Dialog>
@@ -196,7 +204,7 @@ export function ConversationAttachmentComposer({
 }
 
 type Attachment = {
-  kind: "image" | "document";
+  kind: "image" | "document" | "audio";
   storagePath: string;
   filename: string;
   caption?: string;
@@ -205,7 +213,7 @@ export function getConversationAttachment(message: unknown): Attachment | null {
   if (!message || typeof message !== "object" || !("attachment" in message)) return null;
   const a = (message as { attachment?: Partial<Attachment> }).attachment;
   return a &&
-    (a.kind === "image" || a.kind === "document") &&
+    (a.kind === "image" || a.kind === "document" || a.kind === "audio") &&
     typeof a.storagePath === "string" &&
     typeof a.filename === "string"
     ? (a as Attachment)
@@ -228,7 +236,7 @@ export function ConversationAttachment({ attachment }: { attachment: Attachment 
   });
   return (
     <div className="space-y-2">
-      {url.data ? (
+      {url.data && attachment.kind === "audio" ? <audio controls preload="metadata" src={url.data} className="w-64 max-w-full" aria-label="Áudio enviado" /> : url.data ? (
         <a
           href={url.data}
           target="_blank"

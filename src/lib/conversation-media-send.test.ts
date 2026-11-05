@@ -19,12 +19,12 @@ function setup(
   } = {},
 ) {
   const filename =
-    options.mime === "image/png"
+    options.mime === "audio/mpeg" ? "file.mp3" : options.mime === "image/png"
       ? "file.png"
       : options.mime === "image/jpeg"
         ? "file.jpg"
         : "file.pdf";
-  const kind = options.mime?.startsWith("image/") ? "image" : "document";
+  const kind = options.mime === "audio/mpeg" ? "audio" : options.mime?.startsWith("image/") ? "image" : "document";
   const writes: Array<{ table: string; value: Record<string, unknown> }> = [];
   const lead = {
     id: 10,
@@ -61,11 +61,17 @@ function setup(
   const admin = {
     auth: { getUser: async () => ({ data: { user: { id: "auth" } } }) },
     storage: { from: () => storage },
-    rpc: vi.fn(async () => ({
-      data: [
-        { window_open: options.closeDuringUpload ? ++windowChecks === 1 : (options.open ?? true) },
-      ],
-    })),
+    rpc: vi.fn(async (name: string, args: any) => {
+      if(name === 'hub_delivery_lookup') return {data:null};
+      if(name === 'hub_delivery_reserve') return {data:{id:'delivery',claim_token:'claim',owned:true}};
+      if(name === 'hub_delivery_receipt') {
+        writes.push({table:'wa_messages',value:args.p_receipt.transport});
+        writes.push({table:'n8n_chat_conversas',value:args.p_receipt.history});
+        return {};
+      }
+      if(name === 'hub_delivery_finalize') return {data:{ok:true,messageId:'wamid.pdf'}};
+      return {data:[{window_open:options.closeDuringUpload ? ++windowChecks === 1 : (options.open ?? true)}]};
+    }),
     from: (table: string) => {
       const q: Record<string, unknown> = {};
       for (const key of ["select", "eq", "not", "limit", "order"]) q[key] = () => q;
@@ -91,7 +97,7 @@ function setup(
       return new Response(
         new Uint8Array(
           options.signature ??
-            (options.mime === "image/png"
+            (options.mime === "audio/mpeg" ? [255,251,144,0] : options.mime === "image/png"
               ? [137, 80, 78, 71, 13, 10, 26, 10]
               : options.mime === "image/jpeg"
                 ? [255, 216, 255]
@@ -104,10 +110,15 @@ function setup(
       type: kind,
       [kind]: {
         ...(kind === "document" ? { filename } : {}),
-        caption: "Planta do imóvel",
+        ...(kind === "audio" ? {} : { caption: "Planta do imóvel" }),
         link: "https://storage.example/file",
       },
     });
+    if (kind === "audio") {
+      const payload = JSON.parse(String(init?.body));
+      expect(payload.audio).not.toHaveProperty("caption");
+      expect(payload.audio).not.toHaveProperty("filename");
+    }
     return Response.json({ messages: [{ id: "wamid.pdf", message_status: "accepted" }] });
   });
   let handler!: (req: Request) => Promise<Response>;
@@ -149,6 +160,20 @@ function setup(
   return { request, fetchMock, writes, storage };
 }
 describe("anexos do atendimento humano", () => {
+  it("envia MP3 como áudio, sem legenda e com player no histórico", async () => {
+    const t=setup({mime:"audio/mpeg"}); expect((await t.request()).status).toBe(200);
+    expect(t.writes.find(w=>w.table==="n8n_chat_conversas")?.value.message).toMatchObject({attachment:{kind:"audio",filename:"file.mp3"}});
+  });
+  it.each([{open:false},{assigned:"other"},{company:2},{closeDuringUpload:true}])("protege envio de áudio %j",async options=>{
+    const t=setup({...options,mime:"audio/mpeg"}); expect((await t.request()).status).toBe(400);
+    expect(t.fetchMock.mock.calls.filter(c=>String(c[0]).includes("graph.facebook"))).toHaveLength(0);
+  });
+  it("recusa áudio falso, grande demais ou formato não suportado",()=>{
+    expect(()=>media.validateMediaFile("audio.mp3","audio/mpeg",16777217)).toThrow("16 MB");
+    expect(()=>media.validateMediaFile("audio.webm","audio/webm",100)).toThrow();
+    expect(()=>media.validateMediaSignature(new Uint8Array([0,1,2,3]),"audio/mpeg")).toThrow();
+  });
+
   it("prepara upload privado sem enviar mensagem", async () => {
     const t = setup();
     const r = await t.request({ action: "prepare_media" });
