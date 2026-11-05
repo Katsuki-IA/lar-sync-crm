@@ -14,12 +14,12 @@ const LEGAL_PAGES = [
     title: "Política de Privacidade",
     description:
       "Tratamento de dados pessoais, LGPD, cookies, integrações e direitos dos titulares.",
-    url: "https://hub.katsuki.com.br/politica-de-privacidade",
+    url: "https://myhub.katsuki.com.br/politica-de-privacidade",
   },
   {
     title: "Termos de Uso",
     description: "Condições públicas de acesso e utilização do Hub Katsuki.",
-    url: "https://hub.katsuki.com.br/termos-de-uso",
+    url: "https://myhub.katsuki.com.br/termos-de-uso",
   },
 ] as const;
 

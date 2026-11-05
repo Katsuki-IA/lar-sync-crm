@@ -1,3 +1,4 @@
+import { resolveAppBaseUrl } from "../_shared/app-base-url.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.48.1";
 
 const corsHeaders = {
@@ -547,7 +548,7 @@ Deno.serve(async (req) => {
     messages = [...messages].sort((a, b) => sortTimestamp(a) - sortTimestamp(b));
 
     const transcript = buildTranscript(messages);
-    const appBaseUrl = (Deno.env.get("APP_BASE_URL")?.trim() || "https://hub.katsuki.com.br").replace(/\/+$/, "");
+    const appBaseUrl = resolveAppBaseUrl(Deno.env.get("APP_BASE_URL"));
     const conversationUrl = `${appBaseUrl}/historico/${lead.historico_token ?? lead.id}`;
     const whatsappUrl = buildWhatsAppUrl(lead.telefone, empreendimentoNomes[0] ?? null);
 

@@ -26,7 +26,7 @@ export function prepareAlert(row) {
     `Empreendimento: ${clean(row.project_name) || 'Não informado'}`, '',
     `💡 Motivo: ${reason || 'Motivo não registrado no histórico de qualificação.'}`, '',
     '✅ Envio ao CRM confirmado.',
-    `Hub: https://hub.katsuki.com.br/leads/${Number(row.lead_id)}`, '',
+    `Hub: https://myhub.katsuki.com.br/leads/${Number(row.lead_id)}`, '',
     'Qualificado por Katsuki IA',
   ].join('\n')};
 }

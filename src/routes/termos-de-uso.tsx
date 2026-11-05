@@ -21,7 +21,7 @@ function TermsOfUsePage() {
   return (
     <LegalPageLayout
       title="Termos de Uso"
-      description="Estes Termos estabelecem as condições para acesso e utilização do Hub Katsuki, disponível em hub.katsuki.com.br."
+      description="Estes Termos estabelecem as condições para acesso e utilização do Hub Katsuki, disponível em myhub.katsuki.com.br."
       updatedAt="26 de agosto de 2026"
     >
       <section>

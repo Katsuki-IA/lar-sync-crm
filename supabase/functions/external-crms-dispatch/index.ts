@@ -1,3 +1,4 @@
+import { resolveAppBaseUrl } from "../_shared/app-base-url.ts";
 import { dispatchMaestro } from "./maestro.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.48.1";
 import { qualifiedDispatchJob, reusableScheduledReceipt } from "./qualified-attendance.ts";
@@ -1211,7 +1212,7 @@ Deno.serve(async (req) => {
       body.externalStageKind,
     ));
     const appBaseUrl = (
-      Deno.env.get("APP_BASE_URL")?.trim() || "https://hub.katsuki.com.br"
+      resolveAppBaseUrl(Deno.env.get("APP_BASE_URL"))
     ).replace(/\/+$/, "");
     const conversationUrl = `${appBaseUrl}/historico/${lead.historico_token ?? lead.id}`;
     const whatsappUrl = buildWhatsAppUrl(lead.telefone, empreendimentoNome);

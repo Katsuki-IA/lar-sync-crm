@@ -85,7 +85,7 @@ export const technicalDocs: TechnicalDocs = {
         {
           title: "HUB • produção",
           text: "Aplicação utilizada pelas empresas. O domínio público exige autenticação para as áreas internas.",
-          href: "https://hub.katsuki.com.br",
+          href: "https://myhub.katsuki.com.br",
           source: "PROJECT_CONTEXT.md; docs/commercial-settings.md",
         },
         {
@@ -342,7 +342,7 @@ export const technicalDocs: TechnicalDocs = {
         },
         {
           title: "Publicar frontend",
-          text: "Revisar e integrar somente os arquivos da mudança no GitHub. Confirmar que o projeto correto do Lovable sincronizou a revisão esperada; publicar e verificar hub.katsuki.com.br. Um push não comprova publicação. Não subir builds locais com chaves fictícias usados em validação.",
+          text: "Revisar e integrar somente os arquivos da mudança no GitHub. Confirmar que o projeto correto do Lovable sincronizou a revisão esperada; publicar e verificar myhub.katsuki.com.br. Um push não comprova publicação. Não subir builds locais com chaves fictícias usados em validação.",
           source: "docs/commercial-settings.md; docs/distribution-v2.md",
         },
         {
