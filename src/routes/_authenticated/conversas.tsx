@@ -40,6 +40,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { ConversationTemplateDialog } from "@/components/conversation-template-dialog";
 import { ConversationAudio } from "@/components/conversation-audio";
+import { ConversationLeadActions } from "@/components/conversation-lead-actions";
 import { ConversationAttachment, ConversationAttachmentComposer, getConversationAttachment } from "@/components/conversation-attachment";
 
 export const Route = createFileRoute("/_authenticated/conversas")({
@@ -661,7 +662,8 @@ function ConversationsWorkspace() {
                   </div>
                 </div>
 
-                <div className="flex max-w-[5rem] flex-wrap items-center justify-end gap-1 md:max-w-none md:gap-2">
+                <div className="col-span-2 flex flex-wrap items-center justify-end gap-2 md:col-auto">
+                  {selectedCrmLeadId && activeEmpresaId ? <ConversationLeadActions key={`${activeEmpresaId}:${selectedCrmLeadId}`} companyId={activeEmpresaId} leadId={selectedCrmLeadId} name={selectedLeadName}/> : null}
                   {selectedCrmLeadId ? (
                     <Button asChild variant="outline" size="sm" className="h-9 w-9 p-0 md:h-8 md:w-auto md:px-3">
                       <Link to="/leads/$id" params={{ id: String(selectedCrmLeadId) }} aria-label="Abrir lead" title="Abrir lead">

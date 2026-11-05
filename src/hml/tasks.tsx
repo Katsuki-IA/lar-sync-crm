@@ -491,7 +491,7 @@ export function TaskWorkspace({
     </section>
   );
 }
-function TaskEditor({
+export function TaskEditor({
   companyId,
   leadId,
   opportunityId,
@@ -526,13 +526,13 @@ function TaskEditor({
     localDate(task?.prazo ?? new Date(Date.now() + 86400000).toISOString()),
   );
   const [assignee, setAssignee] = useState(
-    task?.assigned_to ?? (me?.id_empresa === companyId ? me.id : ""),
+    task?.assigned_to ?? (me?.id_empresa === companyId || me?.role === "super_admin" ? me!.id : ""),
   );
   const eligible = context.members.filter(
     (m) =>
       m.active &&
       (me?.role !== "agent" || m.id === me.id) &&
-      (m.role === "manager" ||
+      ((m.role === "super_admin" && m.id === me?.id) || m.role === "manager" ||
         (op
           ? context.opportunities.some((o) => o.id === op && o.assigned_to === m.id)
           : context.contacts.some((c) => c.id === Number(contact) && c.crm_assigned_to === m.id) ||
