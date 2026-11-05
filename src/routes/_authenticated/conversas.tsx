@@ -39,6 +39,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { ConversationTemplateDialog } from "@/components/conversation-template-dialog";
+import { ConversationAudio } from "@/components/conversation-audio";
 import { ConversationAttachment, ConversationAttachmentComposer, getConversationAttachment } from "@/components/conversation-attachment";
 
 export const Route = createFileRoute("/_authenticated/conversas")({
@@ -789,7 +790,9 @@ function ConversationsWorkspace() {
                                 deliveryFailed && "border border-destructive/50 bg-destructive/10",
                               )}
                             >
-                              {getConversationAttachment(message.message)
+                              {text.trim().toLowerCase() === "[audio]"
+                                ? <ConversationAudio leadId={selectedConversation.lead_id} chatId={message.id} />
+                                : getConversationAttachment(message.message)
                                 ? <ConversationAttachment attachment={getConversationAttachment(message.message)!} />
                                 : <MessageContent text={text || "Mensagem sem conteúdo"} />}
                               {deliveryFailed && message.error_code === "131049" && (
@@ -961,4 +964,3 @@ function MessageContent({ text }: { text: string }) {
     </div>
   );
 }
-
