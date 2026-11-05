@@ -30,7 +30,10 @@ Deno.serve(async (req) => {
     if (authError || !auth.user) return response({ error: "Sessão inválida" }, 401);
     const input = await req.json();
     const leadId = Number(input.leadId);
-    const chatId = Number(input.chatId);
+    // The Hub prefixes history IDs for React keys; accept only this known prefix.
+    const chatValue = String(input.chatId ?? "");
+    const chatId = /^(?:chat-)?[1-9][0-9]*$/.test(chatValue)
+      ? Number(chatValue.replace(/^chat-/, "")) : NaN;
     if (![leadId, chatId].every(n => Number.isSafeInteger(n) && n > 0 && n < Number.MAX_SAFE_INTEGER)) {
       return response({ error: "Conversa inválida" }, 400);
     }

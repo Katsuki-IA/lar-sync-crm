@@ -44,3 +44,6 @@ verify_jwt = false
 
 [functions.n8n-agent-images]
 verify_jwt = false
+
+[functions.conversation-audio]
+verify_jwt = true

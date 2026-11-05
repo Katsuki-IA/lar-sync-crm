@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 
-export function ConversationAudio({ leadId, chatId }: { leadId: number; chatId: number }) {
+export function ConversationAudio({ leadId, chatId }: { leadId: number; chatId: number | string }) {
   const [playbackError, setPlaybackError] = useState(false);
   const audio = useQuery({
     queryKey: ["conversation-audio", leadId, chatId],

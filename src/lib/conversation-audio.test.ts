@@ -30,11 +30,19 @@ function setup(options: { denied?: boolean; anonymous?: boolean; tenant?: number
   const compiled = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None } }).outputText;
   new Function("createClient", "Deno", "fetch", compiled)(() => client,
     { env: { get: () => "test" }, serve: (h: typeof handler) => handler = h }, fetchMock);
-  const request = () => handler(new Request("https://example.com", { method: "POST", headers: { authorization: "Bearer test" }, body: JSON.stringify({ leadId: 10, chatId: 20 }) }));
+  const request = (chatId: string | number = 20) => handler(new Request("https://example.com", { method: "POST", headers: { authorization: "Bearer test" }, body: JSON.stringify({ leadId: 10, chatId }) }));
   return { request, storage, fetchMock, client };
 }
 
 describe("áudio privado do Hub", () => {
+  it("aceita o identificador prefixado enviado pela tela real", async () => {
+    const t = setup(); expect((await t.request("chat-20")).status).toBe(200);
+    expect(t.client.rpc).toHaveBeenCalledWith("crm_whatsapp_conversation_messages_v2", { p_lead_id: 10, p_before_id: 21, p_limit: 1 });
+  });
+  it.each(["chat-20x", "other-20", "chat--20", "chat-0"])("recusa identificador malformado %s", async id => {
+    const t = setup(); expect((await t.request(id)).status).toBe(400);
+    expect(t.client.rpc).not.toHaveBeenCalled();
+  });
   it("baixa o áudio autenticado, armazena e entrega URL temporária", async () => {
     const t = setup(); const r = await t.request();
     expect(r.status).toBe(200);
