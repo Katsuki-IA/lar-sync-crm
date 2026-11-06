@@ -1,4 +1,5 @@
 import { Bell, ExternalLink, AlertCircle } from "lucide-react";
+import { PushNotificationSettings } from "@/components/push-notification-settings";
 import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import {
@@ -47,6 +48,7 @@ export function NotificationsBell() {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-96 max-w-[calc(100vw-1.5rem)] p-0">
+        <PushNotificationSettings />
         <div className="flex items-center justify-between px-3 py-2 border-b border-border">
           <span className="text-sm font-semibold">Notificações</span>
           <span className="text-xs text-muted-foreground">

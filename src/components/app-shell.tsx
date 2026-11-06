@@ -1,4 +1,6 @@
 import { ModuleBoundary } from "@/hml/modules";
+import { PushNavigation } from "@/components/push-navigation";
+import { disableDevicePush } from "@/lib/web-push";
 import { SalesOfferAlert } from "@/components/sales-offer-alert";
 import { ProspectReplyAlert } from "@/components/prospect-reply-alert";
 import { useNavigate, useRouterState, Link } from "@tanstack/react-router";
@@ -113,6 +115,7 @@ function AppShellContent({ children }: { children: ReactNode }) {
   } = useActiveEmpresa();
 
   async function handleSignOut() {
+    await disableDevicePush().catch(() => {});
     await qc.cancelQueries();
     qc.clear();
     await supabase.auth.signOut();
@@ -278,6 +281,7 @@ function AppShellContent({ children }: { children: ReactNode }) {
         <main className="min-w-0 flex-1 overflow-x-auto p-3 md:p-6"><ModuleBoundary>{children}</ModuleBoundary></main>
       </div>
       <SalesOfferAlert />
+      <PushNavigation />
       <ProspectReplyAlert />
       <Dialog open={requiresSelection}>
         <DialogContent
@@ -308,4 +312,3 @@ function AppShellContent({ children }: { children: ReactNode }) {
     </div>
   );
 }
-
