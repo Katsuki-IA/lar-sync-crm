@@ -36,10 +36,10 @@ function RdOAuthCallback() {
 
     void (async () => {
       try {
-        await exchangeRdCode({ code, state });
+        const result = await exchangeRdCode({ code, state });
         setStatus("ok");
         setMessage("Conta RD Station conectada com sucesso.");
-        send({ ok: true });
+        send({ ok: true, warning: result.warning });
         setTimeout(() => window.close(), 800);
       } catch (exchangeError) {
         const text = exchangeError instanceof Error ? exchangeError.message : "Erro desconhecido";

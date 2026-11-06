@@ -84,7 +84,7 @@ export function createRdOAuthUrl(empreendimentoId: number, funnelId: number) {
 }
 
 export function exchangeRdCode(data: { code: string; state: string }) {
-  return invokeRdFunction<{ ok: true; connection: RdConnectionStatus }>("rd-oauth-exchange", data);
+  return invokeRdFunction<{ ok: true; connection: RdConnectionStatus; warning?: string | null }>("rd-oauth-exchange", data);
 }
 
 export function saveRdSettings(empreendimentoId: number, funnelId: number) {

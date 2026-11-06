@@ -45,3 +45,14 @@ o vínculo existente; será necessário tratar essa conexão antes de tentar nov
   elas continuam precisando dos secrets `RD_MYHUB_*` para renovar seus tokens.
 - A liberação do host antigo para outro projeto também exige a conclusão dos ajustes
   de Meta, Auth e redirecionamentos históricos descritos em `myhub-domain-migration.md`.
+
+## Estado aplicado em 06/11/2026
+
+- Credenciais novas cadastradas em RD_MYHUB_*; secrets RD_* antigos preservados.
+- RD_MYHUB_ENABLED=true; novas autorizações usam o app MyHub.
+- myhub.katsuki.com.br definido como domínio principal no Lovable; HTTP 200 verificado.
+- APP_ORIGIN e META_REDIRECT_URI atualizados para MyHub.
+- Inocoop continua ativa com oauth_client_id NULL (app original), sem erro registrado.
+- Reconexão real da Inocoop e validação de leads após essa reconexão ainda pendentes.
+- Usar o botão Reconectar no card RD Station Marketing, sem desconectar antes.
+- O host antigo permanece no projeto durante a transição; ainda não liberar para outro site.

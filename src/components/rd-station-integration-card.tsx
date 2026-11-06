@@ -44,6 +44,7 @@ import { useActiveEmpresa } from "@/hooks/use-active-empresa";
 
 type RdOAuthCallbackMessage = {
   source?: string;
+  warning?: string | null;
   ok?: boolean;
   code?: string | null;
   state?: string | null;
@@ -186,7 +187,8 @@ export function RdStationIntegrationCard() {
         }
         await qc.invalidateQueries({ queryKey: ["rd-integration-status"] });
         setConnectOpen(false);
-        toast.success("Conta RD Station conectada");
+        if (message.warning) toast.warning(message.warning);
+        else toast.success("Conta RD Station conectada");
       } else {
         toast.error(message.errorDescription ?? message.error ?? "Falha ao conectar RD Station");
       }
@@ -357,6 +359,16 @@ export function RdStationIntegrationCard() {
                   >
                     <Settings className="h-4 w-4" />
                     Acessar
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                    disabled={connecting}
+                    onClick={() => setConnectOpen(true)}
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                    Reconectar
                   </Button>
                   <RdDisconnectButton
                     compact
