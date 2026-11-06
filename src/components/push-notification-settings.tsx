@@ -41,15 +41,11 @@ export function PushNotificationSettings() {
    setState("on"); toast.success("Notificações ativadas neste aparelho");
   } catch (e) { toast.error((e as Error).message); } finally { setBusy(false); }
  }
- async function run(action: "test" | "off") {
+ async function disable() {
   setBusy(true);
   try {
-   if (action === "off") { await disableDevicePush(); setState("off"); }
-   else {
-    const sub = await (await navigator.serviceWorker.ready).pushManager.getSubscription();
-    await pushApi("test", { endpoint: sub?.endpoint });
-    toast.success("Teste agendado. A notificação deve chegar em até um minuto.");
-   }
+   await disableDevicePush();
+   setState("off");
   } catch(e) { toast.error((e as Error).message); } finally { setBusy(false); }
  }
  if (!me?.active) return null;
@@ -65,8 +61,7 @@ export function PushNotificationSettings() {
   </p>
   {["off", "error"].includes(state) && <Button size="sm" disabled={busy} onClick={enable}>Ativar notificações</Button>}
   {state === "on" && <div className="flex flex-wrap gap-2">
-   <Button size="sm" variant="outline" disabled={busy} onClick={() => run("test")}>Enviar teste</Button>
-   <Button size="sm" variant="ghost" disabled={busy} onClick={() => run("off")}>Desativar</Button>
+   <Button size="sm" variant="ghost" disabled={busy} onClick={disable}>Desativar</Button>
   </div>}
  </section>;
 }
