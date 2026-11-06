@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { summarizeConversationLead, type ConversationCommercialData } from './conversation-commercial-summary';
+import { summarizeConversationLead, matchesCommercialStage, type ConversationCommercialData } from './conversation-commercial-summary';
 
 const data: ConversationCommercialData = {
  opportunities: [{id:'a',lead_id:1,stage_id:10,funnel_id:20},{id:'b',lead_id:1,stage_id:11,funnel_id:21}],
@@ -23,4 +23,16 @@ describe('conversation commercial summary',()=>{
   expect(summary.stages).toEqual([]);expect(summary.pendingTasks).toBe(1);
   expect(summarizeConversationLead(data,3).totalTasks).toBe(0);
  });
+});
+
+it('filters any commercial opportunity and includes contacts without CRM opportunities', () => {
+ expect(matchesCommercialStage(data,1,'11')).toBe(true);
+ expect(matchesCommercialStage(data,1,'none')).toBe(false);
+ expect(matchesCommercialStage(data,2,'none')).toBe(true);
+ expect(matchesCommercialStage(data,null,'none')).toBe(true);
+ expect(matchesCommercialStage(data,2,'10')).toBe(false);
+});
+it('shows the earliest pending task and hides completed-only tasks', () => {
+ expect(summarizeConversationLead(data,1).nextTask?.id).toBe('b');
+ expect(summarizeConversationLead({...data,tasks:data.tasks.filter(t=>t.status==='concluida')},1).nextTask).toBeUndefined();
 });

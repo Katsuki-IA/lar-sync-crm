@@ -17,7 +17,8 @@ import {
   MessagesSquare,
   Search,
   Send,
-  UserCheck,
+  SlidersHorizontal,
+  ChevronDown,
   UserRound,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -37,6 +38,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { matchesCommercialStage } from "@/lib/conversation-commercial-summary";
 import { cn } from "@/lib/utils";
 import { ConversationTemplateDialog } from "@/components/conversation-template-dialog";
 import { ConversationAudio } from "@/components/conversation-audio";
@@ -215,7 +217,9 @@ function ConversationsWorkspace() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const deferredSearch = useDeferredValue(search.trim());
-  const [onlyHuman, setOnlyHuman] = useState(false);
+  const [humanFilter, setHumanFilter] = useState("all");
+  const [stageFilter, setStageFilter] = useState("all");
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [projectFilter, setProjectFilter] = useState<{ companyId: number | null; value: string }>({
     companyId: null,
     value: "all",
@@ -246,19 +250,23 @@ function ConversationsWorkspace() {
 
   const conversationsQuery = useQuery({
     enabled: !!me && !!activeEmpresaId,
-    queryKey: ["whatsapp-conversations", activeEmpresaId, me?.id, deferredSearch, onlyHuman, projectId],
+    queryKey: ["whatsapp-conversations", activeEmpresaId, me?.id, deferredSearch, projectId],
     refetchInterval: 5_000,
     queryFn: async (): Promise<ConversationItem[]> => {
+      const rows: ConversationItem[] = [];
+      for (let offset = 0; ; offset += 100) {
       const { data, error } = await supabase.rpc("crm_whatsapp_list_conversations_v2", {
         p_id_empresa: activeEmpresaId!,
         p_id_empreendimento: projectId === "all" ? undefined : Number(projectId),
         p_search: deferredSearch || undefined,
-        p_only_human: onlyHuman,
+        p_only_human: false,
         p_limit: 100,
-        p_offset: 0,
+        p_offset: offset,
       });
       if (error) throw error;
-      return data ?? [];
+      rows.push(...(data ?? []));
+      if (!data?.length || data.length < 100 || rows.length >= Number(data[0].total_count)) return rows;
+      }
     },
   });
 
@@ -271,6 +279,10 @@ function ConversationsWorkspace() {
   const conversations = useMemo(() => conversationsQuery.data ?? [], [conversationsQuery.data]);
   const commercialLeadIds = useMemo(() => conversations.map(c => crmLeadId(c.id_crm)).filter((id): id is number => id !== null), [conversations]);
   const commercialSummary = useConversationCommercialData(activeEmpresaId, me?.id, commercialLeadIds);
+  const visibleConversations = conversations.filter(c =>
+    (humanFilter === "all" || (humanFilter === "human" ? c.atendimento_humano : !c.atendimento_humano)) &&
+    (stageFilter === "all" || (!!commercialSummary.data && matchesCommercialStage(commercialSummary.data, crmLeadId(c.id_crm), stageFilter)))
+  );
   const conversationLeadIds = useMemo(
     () => conversations.map((conversation) => conversation.lead_id),
     [conversations],
@@ -487,8 +499,8 @@ function ConversationsWorkspace() {
           </p>
         </div>
         <Badge variant="outline" className="hidden sm:inline-flex">
-          {conversations[0]?.total_count ?? conversations.length} conversa
-          {(conversations[0]?.total_count ?? conversations.length) === 1 ? "" : "s"}
+          {visibleConversations.length} conversa
+          {visibleConversations.length === 1 ? "" : "s"}
         </Badge>
       </div>
 
@@ -540,16 +552,25 @@ function ConversationsWorkspace() {
                 Erro ao carregar empreendimentos. Tentar novamente.
               </button>
             )}
-            <Button
-              type="button"
-              variant={onlyHuman ? "default" : "outline"}
-              size="sm"
-              className="mt-3 w-full"
-              onClick={() => setOnlyHuman((value) => !value)}
-            >
-              <UserCheck className="mr-2 h-4 w-4" />
-              {onlyHuman ? "Mostrando atendimento humano" : "Filtrar atendimento humano"}
+            <Button type="button" variant="outline" className="mt-3 w-full justify-between" aria-expanded={filtersOpen} aria-controls="conversation-filters" onClick={() => setFiltersOpen(v => !v)}>
+              <span className="flex items-center gap-2"><SlidersHorizontal className="h-4 w-4" />Filtro{stageFilter !== "all" || humanFilter !== "all" ? " · ativo" : ""}</span>
+              <ChevronDown className={cn("h-4 w-4", filtersOpen && "rotate-180")} />
             </Button>
+            {filtersOpen && <div id="conversation-filters" className="mt-2 space-y-3 rounded-lg bg-muted/50 p-3">
+              {commercialSummary.available && <label className="block space-y-1 text-sm">Estágio do funil
+                <select className="h-10 w-full rounded-md border bg-background px-2" value={stageFilter} onChange={e => setStageFilter(e.target.value)} disabled={!commercialSummary.data}>
+                  <option value="all">Todos</option><option value="none">Sem oportunidade</option>
+                  {commercialSummary.data?.stages.map(s => <option key={s.id} value={String(s.id)}>{commercialSummary.data?.funnels.find(f => f.id === s.id_funnel)?.nome} · {s.nome}</option>)}
+                </select>
+              </label>}
+              <label className="block space-y-1 text-sm">Atendimento humano
+                <select className="h-10 w-full rounded-md border bg-background px-2" value={humanFilter} onChange={e => setHumanFilter(e.target.value)}>
+                  <option value="all">Todos</option><option value="human">Em atendimento humano</option><option value="other">Sem atendimento humano</option>
+                </select>
+              </label>
+              {commercialSummary.isError && <p role="alert" className="text-xs text-destructive">Não foi possível carregar os estágios.</p>}
+            </div>}
+
           </div>
 
           <div className="h-[calc(100dvh-22rem)] min-h-[280px] overflow-y-auto lg:h-[calc(100dvh-230px)]">
@@ -557,14 +578,14 @@ function ConversationsWorkspace() {
               <div className="p-4 text-sm text-muted-foreground">Carregando conversas...</div>
             ) : conversationsQuery.error ? (
               <div className="p-4 text-sm text-destructive">Erro ao carregar conversas.</div>
-            ) : !conversations.length ? (
+            ) : !visibleConversations.length ? (
               <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center text-sm text-muted-foreground">
                 <Inbox className="h-8 w-8" />
                 Nenhuma conversa encontrada.
               </div>
             ) : (
               <div className="divide-y">
-                {conversations.map((conversation) => {
+                {visibleConversations.map((conversation) => {
                   const active = selectedConversation?.lead_id === conversation.lead_id;
                   const conversationWindow = windowsByLeadId.get(conversation.lead_id);
                   const identity =
@@ -735,7 +756,7 @@ function ConversationsWorkspace() {
                     <Button
                       type="button"
                       size="sm"
-                      className="h-9 w-9 p-0 md:h-8 md:w-auto md:px-3"
+                      className="hidden md:inline-flex md:h-8 md:w-auto md:px-3"
                       aria-label={assignedToOther ? "Assumir deste atendente" : "Assumir conversa"}
                       title={assignedToOther ? "Assumir deste atendente" : "Assumir conversa"}
                       disabled={
@@ -917,6 +938,12 @@ function ConversationsWorkspace() {
                   </div>
                 )}
 
+                {!assignedToMe && (!assignedToOther || canForceAssignment) && selectedWindow?.window_open && (
+                  <Button className="w-full md:hidden" disabled={attendanceMutation.isPending || windowsQuery.isLoading || !!windowsQuery.error}
+                    onClick={() => attendanceMutation.mutate({leadId: selectedConversation.lead_id, enabled: true, force: assignedToOther && canForceAssignment})}>
+                    <BotOff className="mr-2 h-4 w-4" />{assignedToOther ? "Assumir deste atendente" : "Assumir conversa"}
+                  </Button>
+                )}
                 <div className="text-xs text-muted-foreground">
                   Última mensagem: {formatDateTime(selectedConversation.last_message_at)}
                   {selectedConversation.atendimento_humano_desde ? (
