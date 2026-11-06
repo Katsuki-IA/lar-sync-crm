@@ -41,6 +41,7 @@ import { cn } from "@/lib/utils";
 import { ConversationTemplateDialog } from "@/components/conversation-template-dialog";
 import { ConversationAudio } from "@/components/conversation-audio";
 import { ConversationLeadActions } from "@/components/conversation-lead-actions";
+import { ConversationCommercialSummary, useConversationCommercialData } from "@/components/conversation-commercial-summary";
 import { ConversationAttachment, ConversationAttachmentComposer, getConversationAttachment } from "@/components/conversation-attachment";
 
 export const Route = createFileRoute("/_authenticated/conversas")({
@@ -268,6 +269,8 @@ function ConversationsWorkspace() {
     queryFn:()=>nativeApi.context(activeEmpresaId!,Number(lead)),
   });
   const conversations = useMemo(() => conversationsQuery.data ?? [], [conversationsQuery.data]);
+  const commercialLeadIds = useMemo(() => conversations.map(c => crmLeadId(c.id_crm)).filter((id): id is number => id !== null), [conversations]);
+  const commercialSummary = useConversationCommercialData(activeEmpresaId, me?.id, commercialLeadIds);
   const conversationLeadIds = useMemo(
     () => conversations.map((conversation) => conversation.lead_id),
     [conversations],
@@ -625,6 +628,13 @@ function ConversationsWorkspace() {
                           ) : null}
                         </div>
                       </div>
+                      {commercialSummary.available && crmLeadId(conversation.id_crm) ? (
+                        <ConversationCommercialSummary data={commercialSummary.data}
+                          leadId={crmLeadId(conversation.id_crm)!}
+                          loading={commercialSummary.isPending} error={commercialSummary.isError} />
+                      ) : commercialSummary.available ? (
+                        <p className="mt-2 text-xs text-muted-foreground">Sem vínculo no CRM comercial</p>
+                      ) : null}
                     </button>
                   );
                 })}
