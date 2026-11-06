@@ -69,7 +69,12 @@ function CommercialWorkspace({ companyId }: { companyId: number }) {
           .eq("module", "crm")
           .eq("ativo", true)
           .order("ordem"),
-        db.from("crm_opportunities").select("*").eq("id_empresa", companyId).order("created_at"),
+        db
+          .from("crm_opportunities")
+          .select("*")
+          .eq("id_empresa", companyId)
+          .order("created_at", { ascending: false })
+          .order("id", { ascending: false }),
         db
           .from("crm_leads")
           .select("id,nome,telefone,email,crm_stage_id,crm_assigned_to")
