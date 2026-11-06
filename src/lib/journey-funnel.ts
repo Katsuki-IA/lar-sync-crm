@@ -111,3 +111,16 @@ export function calculateJourneyFunnel(input: JourneyFunnelInput): JourneyFunnel
     { received: 0, engaged: 0, hot: 0, sentToCrm: 0, scheduled: 0 },
   );
 }
+
+export function isProspectFunnel(companyId: number | null | undefined) {
+  return companyId === 35 || companyId === 36;
+}
+export function journeyMetricDefinitions(prospect: boolean) {
+  return [
+    { key: 'received', label: 'Leads recebidos', color: '#C14F21' },
+    { key: 'engaged', label: 'Interagiram com a IA', color: '#C14F21' },
+    ...(!prospect ? [{ key: 'hot', label: 'Leads qualificados', color: '#C14F21' }] : []),
+    { key: 'sentToCrm', label: prospect ? 'Enviados à Ana / CRM' : 'Enviados ao corretor / CRM', color: '#2D7D52' },
+    ...(!prospect ? [{ key: 'scheduled', label: 'Visitas agendadas', color: '#2D7D52' }] : []),
+  ] as { key: keyof JourneyFunnelCounts; label: string; color: string }[];
+}

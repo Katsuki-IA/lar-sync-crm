@@ -1,4 +1,4 @@
-import type { JourneyFunnelCounts } from "@/lib/journey-funnel";
+import { journeyMetricDefinitions, type JourneyFunnelCounts } from "@/lib/journey-funnel";
 
 type JourneyReportImageInput = {
   companyName: string;
@@ -7,12 +7,12 @@ type JourneyReportImageInput = {
   dateFrom: string;
   dateTo: string;
   counts: JourneyFunnelCounts;
+  prospect?: boolean;
 };
 
 const WIDTH = 1200;
 const HEIGHT = 860;
 const ORANGE = "#C14F21";
-const GREEN = "#2D7D52";
 const TRACK = "#F2F3F5";
 
 function brDate(value: string) {
@@ -45,13 +45,7 @@ export async function createJourneyFunnelReportImage(input: JourneyReportImageIn
   ctx.fillText(crop(`${input.companyName} · ${input.empreendimentoName} · ${input.typeLabel}`), 72, 132);
   ctx.fillText(`${brDate(input.dateFrom)} a ${brDate(input.dateTo)}`, 72, 166);
 
-  const metrics = [
-    ["Leads recebidos", input.counts.received, ORANGE],
-    ["Interagiram com a IA", input.counts.engaged, ORANGE],
-    ["Leads qualificados", input.counts.hot, ORANGE],
-    ["Enviados ao corretor / CRM", input.counts.sentToCrm, GREEN],
-    ["Visitas agendadas", input.counts.scheduled, GREEN],
-  ] as const;
+  const metrics = journeyMetricDefinitions(!!input.prospect).map(m => [m.label, input.counts[m.key], m.color] as const);
   const total = input.counts.received;
   const startX = 72;
   const endX = WIDTH - 72;

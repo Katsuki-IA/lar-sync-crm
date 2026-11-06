@@ -150,3 +150,12 @@ describe("journey funnel", () => {
     expect(result.scheduled).toBe(1);
   });
 });
+
+import { isProspectFunnel, journeyMetricDefinitions } from './journey-funnel';
+it('uses prospect metrics only for the two campaign companies', () => {
+ expect(isProspectFunnel(35)).toBe(true);
+ expect(isProspectFunnel(36)).toBe(true);
+ expect(isProspectFunnel(19)).toBe(false);
+ expect(journeyMetricDefinitions(true).map(m=>m.key)).toEqual(['received','engaged','sentToCrm']);
+ expect(journeyMetricDefinitions(false).map(m=>m.key)).toEqual(['received','engaged','hot','sentToCrm','scheduled']);
+});

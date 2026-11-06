@@ -7,6 +7,7 @@ import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 
+import { db } from "@/hml/modules";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { useActiveEmpresa } from "@/hooks/use-active-empresa";
@@ -24,6 +25,8 @@ import {
 } from "@/components/ui/select";
 import {
   calculateJourneyFunnel,
+  isProspectFunnel,
+  journeyMetricDefinitions,
   createJourneySessionIds,
   type JourneyFunnelCounts,
 } from "@/lib/journey-funnel";
@@ -125,6 +128,7 @@ function metadataEvent(metadata: unknown) {
 function ConversationAnalysisPage() {
   const { data: me } = useCrmUser();
   const { activeEmpresaId: companyId, activeEmpresa, isSuperAdmin } = useActiveEmpresa();
+  const prospect = isProspectFunnel(companyId);
   const sendReportFn = useServerFn(sendJourneyFunnelReport);
   const canView = me?.role === "manager" || me?.role === "super_admin" || me?.role === "analyst";
   const [empreendimentoId, setEmpreendimentoId] = useState<string>(ALL);
@@ -157,6 +161,14 @@ function ConversationAnalysisPage() {
     queryKey: ["conversation-analysis", companyId, empreendimentoId, typeFilter, dateFrom, dateTo],
     queryFn: async () => {
       if (!companyId) return emptyJourneyCounts;
+      if (isProspectFunnel(companyId)) {
+        const {data,error} = await db.rpc('hub_kp_funnel_counts', {
+          p_company_id: companyId, p_date_from: dateFrom, p_date_to: dateTo,
+          p_project_id: empreendimentoId === ALL ? null : Number(empreendimentoId), p_type: typeFilter,
+        });
+        if (error) throw error;
+        return data as JourneyFunnelCounts;
+      }
 
       let crmLeadQuery = supabase
         .from("crm_leads")
@@ -322,6 +334,7 @@ function ConversationAnalysisPage() {
         dateFrom,
         dateTo,
         counts: totals,
+        prospect,
       });
       return sendReportFn({
         data: {
@@ -500,36 +513,9 @@ function ConversationAnalysisPage() {
             </div>
           ) : (
             <>
-              <FunnelMetricRow
-                label="Leads recebidos"
-                value={totals.received}
-                total={totals.received}
-                color="bg-[#C14F21]"
-              />
-              <FunnelMetricRow
-                label="Interagiram com a IA"
-                value={totals.engaged}
-                total={totals.received}
-                color="bg-[#C14F21]"
-              />
-              <FunnelMetricRow
-                label="Leads qualificados"
-                value={totals.hot}
-                total={totals.received}
-                color="bg-[#C14F21]"
-              />
-              <FunnelMetricRow
-                label="Enviados ao corretor / CRM"
-                value={totals.sentToCrm}
-                total={totals.received}
-                color="bg-[#2D7D52]"
-              />
-              <FunnelMetricRow
-                label="Visitas agendadas"
-                value={totals.scheduled}
-                total={totals.received}
-                color="bg-[#2D7D52]"
-              />
+              {journeyMetricDefinitions(prospect).map(metric => <FunnelMetricRow key={metric.key}
+                label={metric.label} value={totals[metric.key]} total={totals.received} color={metric.color} />)}
+              {prospect && <p className="text-xs text-muted-foreground">Respostas recebidas e encaminhamentos à Ana/CRM dos leads cadastrados no período. A prospecção é considerada Ativação no filtro de tipo.</p>}
             </>
           )}
         </CardContent>
@@ -572,8 +558,8 @@ function FunnelMetricRow({
       </div>
       <div className="h-2 overflow-hidden rounded-full bg-muted">
         <div
-          className={cn("h-full rounded-full", color)}
-          style={{ width: `${Math.min(pct, 100)}%` }}
+          className="h-full rounded-full"
+          style={{ width: `${Math.min(pct, 100)}%`, backgroundColor: color }}
         />
       </div>
     </div>
