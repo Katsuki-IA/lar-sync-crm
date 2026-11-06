@@ -1,5 +1,6 @@
 import { createSupabaseAdmin } from "./meta.ts";
 import { resolveLeadOrigin } from "./lead-origin.ts";
+import { resolveRdAppCredentials } from "./rd-app-config.ts";
 
 const DEFAULT_APP_ORIGIN = "https://lar-sync-crm.lovable.app";
 
@@ -8,6 +9,7 @@ type RdConnectionToken = {
   access_token: string | null;
   refresh_token: string | null;
   token_expires_at: string | null;
+  oauth_client_id?: string | null;
 };
 
 type RdTokenResponse = {
@@ -55,13 +57,13 @@ async function signPayload(payload: string, secret: string): Promise<string> {
   return base64UrlEncode(new Uint8Array(signature));
 }
 
-export function getRdConfig() {
-  const clientId = Deno.env.get("RD_CLIENT_ID") ?? "";
-  const clientSecret = Deno.env.get("RD_CLIENT_SECRET") ?? "";
+export function getRdConfig(connectionClientId: string | null = null) {
+  const credentials = resolveRdAppCredentials((name) => Deno.env.get(name), connectionClientId);
+  const { clientId, clientSecret } = credentials;
   const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
   const appOrigin = Deno.env.get("APP_ORIGIN") ?? DEFAULT_APP_ORIGIN;
   const redirectUri =
-    Deno.env.get("RD_REDIRECT_URI") ??
+    credentials.redirectUri ??
     `${appOrigin}/integracoes/rd`;
 
   if (!clientId || !clientSecret) {
@@ -72,6 +74,21 @@ export function getRdConfig() {
   }
 
   return { clientId, clientSecret, redirectUri, supabaseUrl, appOrigin };
+}
+
+export function getRdAuthorizationConfig() {
+  const { clientId } = resolveRdAppCredentials((name) => Deno.env.get(name));
+  return getRdConfig(clientId);
+}
+
+// Only choose among configured apps here. verifyRdSignedState still verifies the
+// HMAC, user, company and expiration before exchanging any authorization code.
+export function getRdStateConfig(state: string) {
+  const parsed = JSON.parse(base64UrlDecode(state.split(".")[0])) as { clientId?: unknown };
+  if (parsed.clientId !== undefined && typeof parsed.clientId !== "string") {
+    throw new Error("Aplicativo do state OAuth inválido");
+  }
+  return getRdConfig((parsed.clientId as string | undefined) ?? null);
 }
 
 export function getRdDestinationConfig() {
@@ -88,6 +105,7 @@ export function getRdDestinationConfig() {
 }
 
 export async function createRdSignedState(args: {
+  clientId?: string;
   userId: string;
   idEmpresa: number;
   empreendimentoId: number;
@@ -97,6 +115,7 @@ export async function createRdSignedState(args: {
   const payload = base64UrlEncode(
     JSON.stringify({
       userId: args.userId,
+      clientId: args.clientId,
       idEmpresa: args.idEmpresa,
       empreendimentoId: args.empreendimentoId,
       funnelId: args.funnelId,
@@ -279,7 +298,7 @@ export async function exchangeRdCrmAuthorizationCode(code: string, config: RdOAu
 
 export async function refreshRdAccessToken(connection: RdConnectionToken) {
   if (!connection.refresh_token) throw new Error("Refresh token do RD Station ausente");
-  const { clientId, clientSecret } = getRdConfig();
+  const { clientId, clientSecret } = getRdConfig(connection.oauth_client_id ?? null);
   const response = await fetch("https://api.rd.services/auth/token", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -300,11 +319,15 @@ export async function refreshRdAccessToken(connection: RdConnectionToken) {
     token_expires_at: tokenExpiresAt(payload.expires_in),
   };
   const supabaseAdmin = createSupabaseAdmin();
-  const { error } = await supabaseAdmin
+  const { data: refreshed, error } = await supabaseAdmin
     .from("crm_rd_connections")
     .update(next)
-    .eq("id", connection.id);
+    .eq("id", connection.id)
+    .eq("refresh_token", connection.refresh_token)
+    .select("id")
+    .maybeSingle();
   if (error) throw new Error(error.message);
+  if (!refreshed) throw new Error("Conexão RD alterada durante a renovação; tente novamente");
   return { accessToken: next.access_token, refreshToken: next.refresh_token };
 }
 

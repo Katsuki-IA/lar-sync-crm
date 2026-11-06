@@ -8,7 +8,7 @@ import {
 import {
   buildRdOAuthUrl,
   createRdSignedState,
-  getRdConfig,
+  getRdAuthorizationConfig,
 } from "../_shared/rd.ts";
 
 Deno.serve(async (req) => {
@@ -49,8 +49,9 @@ Deno.serve(async (req) => {
     if (!empreendimentoResult.data) throw new Error("Empreendimento não pertence à empresa atual");
     if (!funnelResult.data) throw new Error("Funil não pertence à empresa atual");
 
-    const { clientId, clientSecret, redirectUri } = getRdConfig();
+    const { clientId, clientSecret, redirectUri } = getRdAuthorizationConfig();
     const state = await createRdSignedState({
+      clientId,
       userId,
       idEmpresa: crmUser.id_empresa,
       empreendimentoId,
