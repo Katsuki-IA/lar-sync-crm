@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useId, useState } from "react";
 import { TaskCalendar } from "@/components/task-calendar";
 import { taskTypes, reminderOptions, calendarDays, taskGroup } from "@/lib/task-presentation";
 import { useQuery } from "@tanstack/react-query";
@@ -508,6 +508,8 @@ export function TaskEditor({
 }) {
   const { data: me } = useCrmUser();
   const [requestId] = useState(() => crypto.randomUUID());
+  const validationId = useId();
+  const [submitted, setSubmitted] = useState(false);
   const [contact, setContact] = useState(String(task?.lead_id ?? leadId ?? ""));
   const [op, setOp] = useState(task?.opportunity_id ?? opportunityId ?? "");
   const [title, setTitle] = useState(task?.titulo ?? "");
@@ -561,6 +563,23 @@ export function TaskEditor({
     task ? "Tarefa atualizada" : "Tarefa criada",
     onClose,
   );
+  const errors = {
+    contact: !contact ? "Selecione o lead da tarefa." : "",
+    title: !title.trim() ? "Preencha o título da tarefa." : title.trim().length < 2 ? "Use pelo menos 2 caracteres no título." : "",
+    due: !due || !Number.isFinite(new Date(due).getTime()) ? "Informe a data e o horário do prazo." : "",
+    assignee: !assignee ? "Selecione um responsável." : "",
+  };
+  const fieldProps = (field: keyof typeof errors) => ({
+    "data-task-field": field,
+    "aria-invalid": submitted && !!errors[field],
+    "aria-describedby": submitted && errors[field] ? `${validationId}-${field}` : undefined,
+  });
+  const fieldClass = (field: keyof typeof errors) =>
+    submitted && errors[field] ? " !border-red-500 !bg-red-50 !text-slate-900 focus-visible:!ring-red-500" : "";
+  const fieldError = (field: keyof typeof errors) => submitted && errors[field] ? (
+    <span id={`${validationId}-${field}`} className="mt-1 block text-sm text-red-700" role="alert">{errors[field]}</span>
+  ) : null;
+  const requiredMark = <span className="text-red-600" aria-hidden="true">*</span>;
   const dirty =
     !task ||
     type !== task.tipo ||
@@ -589,11 +608,21 @@ export function TaskEditor({
         </DialogHeader>
         <form
           className="space-y-4"
+          noValidate
           onSubmit={(e) => {
             e.preventDefault();
-            save.mutate();
+            setSubmitted(true);
+            const invalid = (Object.keys(errors) as (keyof typeof errors)[]).find((field) => errors[field]);
+            if (invalid) {
+              const control = e.currentTarget.querySelector<HTMLElement>(`[data-task-field="${invalid}"]`);
+              control?.focus();
+              control?.scrollIntoView({ block: "center", behavior: "smooth" });
+              return;
+            }
+            if (!save.isPending) save.mutate();
           }}
         >
+          <p className="text-sm text-muted-foreground">{requiredMark} Campos obrigatórios.</p>
           <fieldset disabled={save.isPending} className="space-y-4">
             <fieldset>
               <legend className="mb-2 text-sm">Tipo</legend>
@@ -614,10 +643,11 @@ export function TaskEditor({
               </div>
             </fieldset>
             <label className="block text-sm">
-              Lead
+              Lead {requiredMark}
               <select
-                className={inputClass + " mt-1"}
+                className={inputClass + " mt-1 min-h-11 text-base" + fieldClass("contact")}
                 aria-label="Lead da tarefa"
+                {...fieldProps("contact")}
                 required
                 disabled={!!task || !!leadId}
                 value={contact}
@@ -634,6 +664,7 @@ export function TaskEditor({
                   </option>
                 ))}
               </select>
+              {fieldError("contact")}
             </label>
             <label className="block text-sm">
               Oportunidade
@@ -658,10 +689,11 @@ export function TaskEditor({
               </select>
             </label>
             <label className="block text-sm">
-              Título
+              Título {requiredMark}
               <Input
-                className="mt-1"
+                className={"mt-1 min-h-11 text-base" + fieldClass("title")}
                 aria-label="Título da tarefa"
+                {...fieldProps("title")}
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 minLength={2}
@@ -669,6 +701,7 @@ export function TaskEditor({
                 required
                 placeholder="Ex.: confirmar interesse após a visita"
               />
+              {fieldError("title")}
             </label>
             <label className="block text-sm">
               Descrição
@@ -682,15 +715,17 @@ export function TaskEditor({
             </label>
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="block text-sm">
-                Prazo
+                Prazo {requiredMark}
                 <Input
-                  className="mt-1"
+                  className={"mt-1 min-h-11 text-base" + fieldClass("due")}
                   aria-label="Prazo da tarefa"
+                  {...fieldProps("due")}
                   type="datetime-local"
                   value={due}
                   onChange={(e) => setDue(e.target.value)}
                   required
                 />
+                {fieldError("due")}
               </label>
               <label className="block text-sm">
                 Prioridade
@@ -709,10 +744,11 @@ export function TaskEditor({
               </label>
             </div>
             <label className="block text-sm">
-              Responsável
+              Responsável {requiredMark}
               <select
-                className={inputClass + " mt-1"}
+                className={inputClass + " mt-1 min-h-11 text-base" + fieldClass("assignee")}
                 aria-label="Responsável da tarefa"
+                {...fieldProps("assignee")}
                 value={assignee}
                 onChange={(e) => setAssignee(e.target.value)}
                 required
@@ -735,6 +771,7 @@ export function TaskEditor({
               <span className="mt-1 block text-xs text-muted-foreground">
                 Novas atribuições exigem acesso ao lead e à oportunidade.
               </span>
+              {fieldError("assignee")}
             </label>
             {task && (
               <label className="block text-sm">
@@ -800,7 +837,7 @@ export function TaskEditor({
             <Button type="button" variant="outline" disabled={save.isPending} onClick={onClose}>
               Cancelar
             </Button>
-            <Button disabled={save.isPending || !dirty || !contact || !assignee}>
+            <Button disabled={save.isPending || !dirty}>
               {save.isPending ? "Salvando…" : task ? "Salvar tarefa" : "Criar tarefa"}
             </Button>
           </div>
