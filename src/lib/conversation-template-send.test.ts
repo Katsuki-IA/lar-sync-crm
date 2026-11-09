@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import * as helpers from "../../supabase/functions/_shared/conversation-templates";
 
 // Run the actual Edge handler with isolated transport and database adapters.
-function setup(options: { company?: number; assigned?: string; open?: boolean } = {}) {
+function setup(options: { company?: number; assigned?: string; open?: boolean; templateName?: string } = {}) {
   const writes: Array<{ table: string; value: Record<string, unknown> }> = [];
   const lead = {
     id: 10,
@@ -27,7 +27,12 @@ function setup(options: { company?: number; assigned?: string; open?: boolean } 
   };
   const admin = {
     auth: { getUser: async () => ({ data: { user: { id: "auth-user" } } }) },
-    rpc: vi.fn(async () => ({ data: [{ window_open: options.open ?? false }] })),
+    rpc: vi.fn(async (name: string) => ({ data:
+      name === "hub_delivery_lookup" || name === "wa_marketing_cooldown_until" ? null :
+      name === "hub_delivery_reserve" ? {owned:true,id:"delivery",claim_token:"token"} :
+      name === "hub_delivery_finalize" ? {ok:true,messageId:"wamid.test"} :
+      name === "hub_delivery_receipt" ? null : [{ window_open: options.open ?? false }]
+    })),
     from: (table: string) => {
       const query: Record<string, unknown> = {};
       for (const method of ["select", "eq", "not", "limit", "order"]) query[method] = () => query;
@@ -49,9 +54,10 @@ function setup(options: { company?: number; assigned?: string; open?: boolean } 
     },
   };
   const approved = {
-    name: "assumir_conversa_1",
+    name: options.templateName ?? "assumir_conversa_1",
     language: "pt_BR",
     status: "APPROVED",
+    category: "MARKETING",
     components: [{ type: "BODY", text: "Podemos conversar?" }],
   };
   const fetchMock = vi.fn(async (url: string | URL, init?: RequestInit) => {
@@ -115,12 +121,12 @@ describe("envio de template na conversa", () => {
   it("lista apenas modelos aprovados para assumir a conversa", async () => {
     const { request, writes, admin } = setup();
     const response = await request({ action: "list_templates" });
-    expect(response.status).toBe(200);
+    expect(response.status, await response.clone().text()).toBe(200);
     expect((await response.json()).templates.map((t: { name: string }) => t.name)).toEqual([
       "assumir_conversa_1",
     ]);
     expect(writes).toEqual([]);
-    expect(admin.rpc).not.toHaveBeenCalled();
+    expect(admin.rpc).toHaveBeenCalledWith("wa_marketing_cooldown_until", expect.any(Object));
   });
   it("envia template com janela fechada e registra o histórico sem abrir a janela", async () => {
     const { request, writes, admin } = setup();
@@ -130,18 +136,17 @@ describe("envio de template na conversa", () => {
       templateLanguage: "pt_BR",
       templateValues: {},
     });
-    expect(response.status).toBe(200);
+    expect(response.status, await response.clone().text()).toBe(200);
     expect(await response.json()).toMatchObject({ ok: true, messageId: "wamid.test" });
-    expect(writes.find((w) => w.table === "wa_messages")?.value).toMatchObject({
-      type: "template",
-      tenant_id: 1,
-      template_name: "assumir_conversa_1",
-    });
-    expect(writes.find((w) => w.table === "n8n_chat_conversas")?.value).toMatchObject({
-      type: "ai",
-      message: "Podemos conversar?",
-    });
-    expect(admin.rpc).not.toHaveBeenCalled();
+    expect(admin.rpc).toHaveBeenCalledWith("hub_delivery_receipt", expect.objectContaining({
+      p_receipt: expect.objectContaining({transport: expect.objectContaining({type:"template", tenant_id:1, template_name:"assumir_conversa_1"})})
+    }));
+  });
+  it.each(["atendimento_1", "atendimento_2"])("permite o novo modelo aprovado %s com janela fechada", async (templateName) => {
+    const {request}=setup({templateName});
+    const response=await request({action:"send_template",templateName,templateLanguage:"pt_BR",templateValues:{}});
+    expect(response.status, await response.clone().text()).toBe(200);
+    expect(await response.json()).toMatchObject({ok:true,messageId:"wamid.test"});
   });
   it("mantém o bloqueio de texto livre com janela fechada", async () => {
     const { request, fetchMock } = setup();
@@ -166,3 +171,4 @@ describe("envio de template na conversa", () => {
     }
   });
 });
+

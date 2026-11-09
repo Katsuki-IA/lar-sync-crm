@@ -13,7 +13,7 @@ export type ConversationTemplate = {
 };
 
 export function isAttendanceTemplate(template: ConversationTemplate) {
-  return template.status === "APPROVED" && /^assumir_conversa_[1-9]\d*$/.test(template.name);
+  return template.status === "APPROVED" && /^(?:assumir_conversa_[1-9]\d*|atendimento_[12])$/.test(template.name);
 }
 
 export type TemplateField = {

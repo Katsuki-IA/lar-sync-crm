@@ -17,12 +17,15 @@ const template: ConversationTemplate = {
 describe("templates para assumir conversas", () => {
   it("aceita somente modelos aprovados com o nome e número definidos", () => {
     expect(
-      ["assumir_conversa_1", "assumir_conversa_2", "assumir_conversa_15"].every((name) =>
+      ["assumir_conversa_1", "assumir_conversa_2", "assumir_conversa_15", "atendimento_1", "atendimento_2"].every((name) =>
         isAttendanceTemplate({ ...template, name }),
       ),
     ).toBe(true);
     for (const name of [
       "default",
+      "atendimento_0",
+      "atendimento_3",
+      "atendimento_1_teste",
       "assumir_conversa",
       "assumir_conversa_0",
       "assumir_conversa_1_teste",

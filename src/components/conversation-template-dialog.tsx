@@ -100,9 +100,9 @@ export function ConversationTemplateDialog({
     }
   }, [selected]);
   const isCustomerNameField = (key: string) =>
-    selected?.name === "assumir_conversa_1" && key === "body:1";
+    ["assumir_conversa_1", "atendimento_1", "atendimento_2"].includes(selected?.name ?? "") && key === "body:1";
   const resolvedValues: Record<string, string> = {
-    ...(selected?.name === "assumir_conversa_1" ? { "body:1": leadName?.trim() ?? "" } : {}),
+    ...(["assumir_conversa_1", "atendimento_1", "atendimento_2"].includes(selected?.name ?? "") ? { "body:1": leadName?.trim() ?? "" } : {}),
     ...values,
   };
   const send = useMutation({
@@ -182,7 +182,7 @@ export function ConversationTemplateDialog({
           </div>
         ) : !templates.length ? (
           <p className="text-sm text-muted-foreground">
-            Nenhum template aprovado com nome assumir_conversa_1, assumir_conversa_2, etc. foi
+            Nenhum template de atendimento aprovado (assumir_conversa_1, atendimento_1, atendimento_2, etc.) foi
             encontrado nesta empresa.
           </p>
         ) : (
