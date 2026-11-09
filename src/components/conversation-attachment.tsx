@@ -57,7 +57,7 @@ export function ConversationAttachmentComposer({
   const uploaded = useRef<{ file: File; path: string; id: string } | null>(null);
   const requestId = useRef(crypto.randomUUID());
   useEffect(() => {
-    const url = file && (file.type.startsWith("image/") || file.type.startsWith("audio/")) ? URL.createObjectURL(file) : "";
+    const url = file && (file.type.startsWith("image/") || file.type.startsWith("audio/") || file.type === "video/mp4") ? URL.createObjectURL(file) : "";
     setPreview(url);
     return () => {
       if (url) URL.revokeObjectURL(url);
@@ -108,8 +108,8 @@ export function ConversationAttachmentComposer({
         type="button"
         variant="outline"
         size="icon"
-        aria-label={audioOnly ? "Gravar ou enviar áudio" : "Anexar imagem ou PDF"}
-        title={audioOnly ? "Gravar ou enviar áudio" : "Anexar imagem (5 MB) ou PDF (100 MB)"}
+        aria-label={audioOnly ? "Gravar ou enviar áudio" : "Anexar imagem, vídeo ou PDF"}
+        title={audioOnly ? "Gravar ou enviar áudio" : "Anexar imagem (5 MB), MP4 (16 MB) ou PDF (100 MB)"}
         disabled={!canSend}
         onClick={() => setOpen(true)}
       >
@@ -123,7 +123,7 @@ export function ConversationAttachmentComposer({
       >
         <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{audioOnly ? "Enviar áudio" : "Enviar imagem ou PDF"}</DialogTitle>
+            <DialogTitle>{audioOnly ? "Enviar áudio" : "Enviar imagem, vídeo ou PDF"}</DialogTitle>
             <DialogDescription>{audioOnly ? "Grave ou selecione um MP3 de até 16 MB. Envio na conversa assumida, dentro da janela de 24 horas." : MEDIA_HELP}</DialogDescription>
           </DialogHeader>
           {audioOnly && open && <ConversationRecorder disabled={!canSend || mutation.isPending}
@@ -133,13 +133,14 @@ export function ConversationAttachmentComposer({
             Arquivo
             <Input
               type="file"
-              accept={audioOnly ? ".mp3,audio/mpeg" : ".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf"}
+              accept={audioOnly ? ".mp3,audio/mpeg" : ".jpg,.jpeg,.png,.mp4,.pdf,image/jpeg,image/png,video/mp4,application/pdf"}
               disabled={mutation.isPending || recordingBusy}
               onChange={(event) => {
                 const selected = event.target.files?.[0] ?? null;
                 uploaded.current = null;
                 requestId.current = crypto.randomUUID();
                 setValidationError("");
+                mutation.reset();
                 setFile(null);
                 if (selected)
                   try {
@@ -151,14 +152,14 @@ export function ConversationAttachmentComposer({
               }}
             />
           </label>
-          {validationError ? (
+          {validationError || mutation.error ? (
             <p role="alert" className="text-sm text-destructive">
-              {validationError}
+              {validationError || mutation.error?.message}
             </p>
           ) : null}
           {file ? (
             <div className="rounded-lg border bg-muted/30 p-3">
-              {preview && audioOnly ? <audio controls src={preview} className="w-full" aria-label="Ouvir áudio antes de enviar" /> : preview ? (
+              {preview && audioOnly ? <audio controls src={preview} className="w-full" aria-label="Ouvir áudio antes de enviar" /> : preview && file.type === "video/mp4" ? <video controls playsInline preload="metadata" src={preview} className="mx-auto max-h-56 w-full rounded" aria-label="Prévia do vídeo" /> : preview ? (
                 <img
                   src={preview}
                   alt="Prévia do anexo"
@@ -204,7 +205,7 @@ export function ConversationAttachmentComposer({
 }
 
 type Attachment = {
-  kind: "image" | "document" | "audio";
+  kind: "image" | "document" | "audio" | "video";
   storagePath: string;
   filename: string;
   caption?: string;
@@ -213,7 +214,7 @@ export function getConversationAttachment(message: unknown): Attachment | null {
   if (!message || typeof message !== "object" || !("attachment" in message)) return null;
   const a = (message as { attachment?: Partial<Attachment> }).attachment;
   return a &&
-    (a.kind === "image" || a.kind === "document" || a.kind === "audio") &&
+    (a.kind === "image" || a.kind === "document" || a.kind === "audio" || a.kind === "video") &&
     typeof a.storagePath === "string" &&
     typeof a.filename === "string"
     ? (a as Attachment)
@@ -236,7 +237,7 @@ export function ConversationAttachment({ attachment }: { attachment: Attachment 
   });
   return (
     <div className="space-y-2">
-      {url.data && attachment.kind === "audio" ? <audio controls preload="metadata" src={url.data} className="w-64 max-w-full" aria-label="Áudio enviado" /> : url.data ? (
+      {url.data && attachment.kind === "video" ? <div className="space-y-1"><video controls playsInline preload="metadata" src={url.data} className="max-h-[360px] w-72 max-w-full rounded" aria-label="Vídeo enviado" /><a href={url.data} target="_blank" rel="noreferrer" className="block break-all text-xs underline">Abrir vídeo · {attachment.filename}</a></div> : url.data && attachment.kind === "audio" ? <audio controls preload="metadata" src={url.data} className="w-64 max-w-full" aria-label="Áudio enviado" /> : url.data ? (
         <a
           href={url.data}
           target="_blank"

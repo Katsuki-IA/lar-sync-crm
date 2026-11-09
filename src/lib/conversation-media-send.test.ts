@@ -19,12 +19,12 @@ function setup(
   } = {},
 ) {
   const filename =
-    options.mime === "audio/mpeg" ? "file.mp3" : options.mime === "image/png"
+    options.mime === "video/mp4" ? "file.mp4" : options.mime === "audio/mpeg" ? "file.mp3" : options.mime === "image/png"
       ? "file.png"
       : options.mime === "image/jpeg"
         ? "file.jpg"
         : "file.pdf";
-  const kind = options.mime === "audio/mpeg" ? "audio" : options.mime?.startsWith("image/") ? "image" : "document";
+  const kind = options.mime === "video/mp4" ? "video" : options.mime === "audio/mpeg" ? "audio" : options.mime?.startsWith("image/") ? "image" : "document";
   const writes: Array<{ table: string; value: Record<string, unknown> }> = [];
   const lead = {
     id: 10,
@@ -97,7 +97,7 @@ function setup(
       return new Response(
         new Uint8Array(
           options.signature ??
-            (options.mime === "audio/mpeg" ? [255,251,144,0] : options.mime === "image/png"
+            (options.mime === "video/mp4" ? [0,0,0,24,102,116,121,112,105,115,111,109,0,0,0,0] : options.mime === "audio/mpeg" ? [255,251,144,0] : options.mime === "image/png"
               ? [137, 80, 78, 71, 13, 10, 26, 10]
               : options.mime === "image/jpeg"
                 ? [255, 216, 255]
@@ -174,6 +174,19 @@ describe("anexos do atendimento humano", () => {
     expect(()=>media.validateMediaSignature(new Uint8Array([0,1,2,3]),"audio/mpeg")).toThrow();
   });
 
+  it("envia MP4 como vídeo e registra o anexo no histórico", async () => {
+    const t=setup({mime:"video/mp4"});
+    const response=await t.request();
+    expect(response.status, await response.clone().text()).toBe(200);
+    expect(t.writes.find(w=>w.table==="wa_messages")?.value).toMatchObject({type:"video"});
+    expect(t.writes.find(w=>w.table==="n8n_chat_conversas")?.value.message).toMatchObject({attachment:{kind:"video",filename:"file.mp4"}});
+  });
+  it("recusa MP4 acima de 16 MB e conteúdo falso", () => {
+    expect(media.validateMediaFile("video.mp4","video/mp4",16*1024*1024)).toBe("video");
+    expect(()=>media.validateMediaFile("video.mp4","video/mp4",16*1024*1024+1)).toThrow("16 MB");
+    expect(()=>media.validateMediaFile("video.mov","video/quicktime",100)).toThrow();
+    expect(()=>media.validateMediaSignature(new Uint8Array([0,1,2]),"video/mp4")).toThrow();
+  });
   it("prepara upload privado sem enviar mensagem", async () => {
     const t = setup();
     const r = await t.request({ action: "prepare_media" });

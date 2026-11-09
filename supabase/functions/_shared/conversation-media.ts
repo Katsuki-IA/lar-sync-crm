@@ -1,23 +1,24 @@
 export const MEDIA_BUCKET = "conversation-attachments";
 export const MEDIA_HELP =
-  "Limites da Meta: JPG/PNG até 5 MB e PDF até 100 MB. Legenda até 1.024 caracteres. Envio apenas nas 24 horas após a última mensagem do cliente.";
-export type MediaKind = "image" | "document" | "audio";
+  "Limites da Meta: JPG/PNG até 5 MB, vídeo MP4 até 16 MB e PDF até 100 MB. MP4: vídeo H.264 e áudio AAC (se houver). Legenda até 1.024 caracteres. Envio apenas nas 24 horas após a última mensagem do cliente.";
+export type MediaKind = "image" | "document" | "audio" | "video";
 export function validateMediaFile(name: string, mime: string, size: number): MediaKind {
   const image = mime === "image/jpeg" || mime === "image/png";
   const pdf = mime === "application/pdf";
+  const video = mime === "video/mp4" && /\.mp4$/i.test(name);
   const audio = mime === "audio/mpeg" && /\.mp3$/i.test(name);
-  if (!audio && ((!image && !pdf) || !(image ? /\.(jpe?g|png)$/i : /\.pdf$/i).test(name)))
-    throw new Error("Selecione uma imagem JPG/PNG ou um documento PDF.");
-  const limit = (audio ? 16 : image ? 5 : 100) * 1024 * 1024;
+  if (!video && !audio && ((!image && !pdf) || !(image ? /\.(jpe?g|png)$/i : /\.pdf$/i).test(name)))
+    throw new Error("Selecione uma imagem JPG/PNG, vídeo MP4, áudio MP3 ou documento PDF.");
+  const limit = (audio || video ? 16 : image ? 5 : 100) * 1024 * 1024;
   if (!Number.isSafeInteger(size) || size <= 0)
     throw new Error("O arquivo está vazio ou possui tamanho inválido.");
   if (size > limit)
     throw new Error(
-      audio ? "O áudio excede o limite de 16 MB." : image
+      video ? "O vídeo excede o limite da Meta de 16 MB. Reduza ou comprima o MP4 antes de enviar." : audio ? "O áudio excede o limite de 16 MB." : image
         ? "A imagem excede o limite da Meta de 5 MB."
         : "O PDF excede o limite da Meta de 100 MB.",
     );
-  return audio ? "audio" : image ? "image" : "document";
+  return video ? "video" : audio ? "audio" : image ? "image" : "document";
 }
 export function mediaPath(
   company: number,
@@ -35,7 +36,9 @@ export function mediaPath(
 }
 export function validateMediaSignature(bytes: Uint8Array, mime: string) {
   const valid =
-    mime === "audio/mpeg"
+    mime === "video/mp4"
+      ? bytes.length >= 12 && new TextDecoder().decode(bytes.slice(4, 8)) === "ftyp" && new TextDecoder().decode(bytes.slice(8, 12)) !== "qt  "
+      : mime === "audio/mpeg"
       ? new TextDecoder().decode(bytes.slice(0, 3)) === "ID3" ||
         (bytes[0] === 255 && (bytes[1] & 224) === 224 && (bytes[1] & 6) !== 0 && (bytes[2] & 240) !== 240)
       : mime === "application/pdf"
@@ -44,5 +47,5 @@ export function validateMediaSignature(bytes: Uint8Array, mime: string) {
         ? [137, 80, 78, 71, 13, 10, 26, 10].every((v, i) => bytes[i] === v)
         : mime === "image/jpeg" && bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255;
   if (!valid)
-    throw new Error("O conteúdo do arquivo não corresponde ao formato JPG, PNG ou PDF informado.");
+    throw new Error("O conteúdo do arquivo não corresponde ao formato informado (JPG, PNG, MP4, MP3 ou PDF).");
 }

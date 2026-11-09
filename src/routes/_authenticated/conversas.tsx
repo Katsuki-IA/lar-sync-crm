@@ -889,7 +889,7 @@ function ConversationsWorkspace() {
                     queryClient.invalidateQueries({queryKey:["whatsapp-conversation-messages"]});
                     queryClient.invalidateQueries({queryKey:["whatsapp-conversations"]});
                   }}/>
-                  <p className="text-xs text-muted-foreground">JPG/PNG até 5 MB · PDF até 100 MB. Anexos exigem janela de 24h aberta.</p>
+                  <p className="text-xs text-muted-foreground">JPG/PNG até 5 MB · MP4 até 16 MB · PDF até 100 MB. Anexos exigem janela de 24h aberta.</p>
                 </div>
                 {canSendMessage ? (
                   <div className="flex items-end gap-2">
