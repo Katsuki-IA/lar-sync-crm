@@ -2537,6 +2537,7 @@ export type Database = {
           id_empresa: number
           last_error: string | null
           last_event_at: string | null
+          oauth_client_id: string | null
           platform_account_id: string | null
           refresh_token: string | null
           token_expires_at: string | null
@@ -2555,6 +2556,7 @@ export type Database = {
           id_empresa: number
           last_error?: string | null
           last_event_at?: string | null
+          oauth_client_id?: string | null
           platform_account_id?: string | null
           refresh_token?: string | null
           token_expires_at?: string | null
@@ -2573,6 +2575,7 @@ export type Database = {
           id_empresa?: number
           last_error?: string | null
           last_event_at?: string | null
+          oauth_client_id?: string | null
           platform_account_id?: string | null
           refresh_token?: string | null
           token_expires_at?: string | null
@@ -5724,6 +5727,7 @@ export type Database = {
           id_empresa: number
           inbound_verified_at: string | null
           instance: string
+          kp_notices_enabled: boolean
           last_dispatch_at: string | null
           provider: string
           revision: number
@@ -5735,6 +5739,7 @@ export type Database = {
           id_empresa: number
           inbound_verified_at?: string | null
           instance: string
+          kp_notices_enabled?: boolean
           last_dispatch_at?: string | null
           provider?: string
           revision?: number
@@ -5746,6 +5751,7 @@ export type Database = {
           id_empresa?: number
           inbound_verified_at?: string | null
           instance?: string
+          kp_notices_enabled?: boolean
           last_dispatch_at?: string | null
           provider?: string
           revision?: number
@@ -8419,6 +8425,16 @@ export type Database = {
         Returns: Json
       }
       hub_integration_overview: { Args: { p_company: number }; Returns: Json }
+      hub_kp_funnel_counts: {
+        Args: {
+          p_company_id: number
+          p_date_from: string
+          p_date_to: string
+          p_project_id?: number
+          p_type?: string
+        }
+        Returns: Json
+      }
       hub_kp_notice_seen: { Args: { p_id: string }; Returns: boolean }
       hub_kp_notices: { Args: never; Returns: Json }
       hub_lead_directory_metadata: {
@@ -8513,6 +8529,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      hub_push_service: {
+        Args: { p_action: string; p_data?: Json }
+        Returns: Json
       }
       hub_register_company: {
         Args: {
