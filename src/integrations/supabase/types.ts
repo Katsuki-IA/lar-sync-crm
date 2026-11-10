@@ -3521,6 +3521,50 @@ export type Database = {
           },
         ]
       }
+      empresa_conhecimento: {
+        Row: {
+          categoria: string
+          conteudo: string
+          created_at: string
+          id: number
+          id_empresa: number
+          ordem: number
+          titulo: string
+          updated_at: string
+          versao: number
+        }
+        Insert: {
+          categoria: string
+          conteudo: string
+          created_at?: string
+          id?: never
+          id_empresa: number
+          ordem?: number
+          titulo: string
+          updated_at?: string
+          versao?: number
+        }
+        Update: {
+          categoria?: string
+          conteudo?: string
+          created_at?: string
+          id?: never
+          id_empresa?: number
+          ordem?: number
+          titulo?: string
+          updated_at?: string
+          versao?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "empresa_conhecimento_id_empresa_fkey"
+            columns: ["id_empresa"]
+            isOneToOne: false
+            referencedRelation: "empresa_dados"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       empresa_dados: {
         Row: {
           admin_revision: number
@@ -3545,6 +3589,7 @@ export type Database = {
           nome_atendente_ia: string | null
           numero: string | null
           numero_superior: string | null
+          perfil_atendimento: string | null
           redes_sociais: string | null
           run_report: boolean | null
           site: string | null
@@ -3575,6 +3620,7 @@ export type Database = {
           nome_atendente_ia?: string | null
           numero?: string | null
           numero_superior?: string | null
+          perfil_atendimento?: string | null
           redes_sociais?: string | null
           run_report?: boolean | null
           site?: string | null
@@ -3605,6 +3651,7 @@ export type Database = {
           nome_atendente_ia?: string | null
           numero?: string | null
           numero_superior?: string | null
+          perfil_atendimento?: string | null
           redes_sociais?: string | null
           run_report?: boolean | null
           site?: string | null
@@ -7503,6 +7550,32 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      commercial_schedule_context: {
+        Args: {
+          p_company: number
+          p_from?: string
+          p_lead: number
+          p_limit?: number
+        }
+        Returns: Json
+      }
+      commercial_schedule_manage: {
+        Args: {
+          p_action: string
+          p_booking: number
+          p_company: number
+          p_day: string
+          p_lead: number
+          p_request: string
+          p_revision: number
+          p_time: string
+        }
+        Returns: Json
+      }
+      commercial_slot_allowed: {
+        Args: { p_company: number; p_start: string }
+        Returns: boolean
       }
       complete_followup_completion_event_v2: {
         Args: {
