@@ -43,6 +43,7 @@ import { cn } from "@/lib/utils";
 import { ConversationTemplateDialog } from "@/components/conversation-template-dialog";
 import { ConversationAudio } from "@/components/conversation-audio";
 import { ConversationLeadActions } from "@/components/conversation-lead-actions";
+import { ProspectResumeFollowups } from "@/components/prospect-resume-followups";
 import { ConversationCommercialSummary, useConversationCommercialData } from "@/components/conversation-commercial-summary";
 import { ConversationAttachment, ConversationAttachmentComposer, getConversationAttachment } from "@/components/conversation-attachment";
 
@@ -694,6 +695,7 @@ function ConversationsWorkspace() {
                 </div>
 
                 <div className="col-span-2 flex flex-wrap items-center justify-end gap-2 md:col-auto">
+                  {activeEmpresaId && [35, 36].includes(activeEmpresaId) && (assignedToMe || canForceAssignment) ? <ProspectResumeFollowups key={`resume-${activeEmpresaId}-${selectedConversation.lead_id}`} companyId={activeEmpresaId} leadId={selectedConversation.lead_id} name={selectedConversation.nome || "Lead"} /> : null}
                   {selectedCrmLeadId && activeEmpresaId ? <ConversationLeadActions key={`${activeEmpresaId}:${selectedCrmLeadId}`} companyId={activeEmpresaId} leadId={selectedCrmLeadId} name={selectedLeadName}/> : null}
                   {selectedCrmLeadId ? (
                     <Button asChild variant="outline" size="sm" className="h-9 w-9 p-0 md:h-8 md:w-auto md:px-3">
