@@ -17,8 +17,8 @@ function localInput(value: string) {
 export function ProspectResumeFollowups({ companyId, leadId, name }: { companyId: number; leadId: number; name: string }) {
   const [open, setOpen] = useState(false);
   return <>
-    <Button type="button" variant="outline" size="sm" className="h-9 w-9 p-0 md:h-8 md:w-auto md:px-3" title="Retomar follow-ups" aria-label="Retomar follow-ups" onClick={() => setOpen(true)}>
-      <CalendarClock className="h-4 w-4 md:mr-2" /><span className="sr-only md:not-sr-only">Retomar follow-ups</span>
+    <Button type="button" variant="outline" size="sm" className="h-9 w-9 shrink-0 p-0 lg:h-8 lg:w-auto lg:px-3" title="Retomar follow-ups" aria-label="Retomar follow-ups" onClick={() => setOpen(true)}>
+      <CalendarClock className="h-4 w-4 lg:mr-2" /><span className="hidden lg:inline">Retomar follow-ups</span>
     </Button>
     {open && <ResumeDialog companyId={companyId} leadId={leadId} name={name} onClose={() => setOpen(false)} />}
   </>;
