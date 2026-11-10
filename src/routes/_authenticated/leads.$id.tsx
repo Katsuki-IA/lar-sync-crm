@@ -25,7 +25,10 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import {
-  buildCustomFieldValueRows,
+  buildGroupSavePlan,
+  splitCustomFieldsByGroup,
+  type LeadCustomField,
+  type LeadCustomFieldGroup,
   isCustomFieldValueValid,
   type LeadCustomFieldValue,
   type LeadCustomFieldValues,
@@ -80,6 +83,7 @@ function LeadDetail() {
   const [confirmText, setConfirmText] = useState("");
   const [sendCrmConfirmOpen, setSendCrmConfirmOpen] = useState(false);
   const [customFieldsOpen, setCustomFieldsOpen] = useState(false);
+  const [editingGroup, setEditingGroup] = useState<LeadCustomFieldGroup>("custom");
   const [customDraft, setCustomDraft] = useState<LeadCustomFieldValues>({});
   const [customErrors, setCustomErrors] = useState<Record<number, string>>({});
   const sendLeadToCrmFn = useServerFn(sendLeadToExternalCrm);
@@ -168,7 +172,11 @@ function LeadDetail() {
     return values;
   }, {});
 
-  function openCustomFields() {
+  const fieldGroups = splitCustomFieldsByGroup(customFields);
+  const editingFields = fieldGroups[editingGroup];
+
+  function openCustomFields(group: LeadCustomFieldGroup) {
+    setEditingGroup(group);
     setCustomDraft({ ...customValues });
     setCustomErrors({});
     setCustomFieldsOpen(true);
@@ -184,7 +192,7 @@ function LeadDetail() {
   const saveCustomFields = useMutation({
     mutationFn: async () => {
       const nextErrors: Record<number, string> = {};
-      for (const field of customFields) {
+      for (const field of editingFields) {
         if (field.obrigatorio && !isCustomFieldValueValid(field, customDraft[field.id])) {
           nextErrors[field.id] = "Campo obrigatório";
         }
@@ -192,7 +200,11 @@ function LeadDetail() {
       setCustomErrors(nextErrors);
       if (Object.keys(nextErrors).length > 0) throw new Error("Preencha os campos obrigatórios");
 
-      const rows = buildCustomFieldValueRows(leadId, customFields, customDraft);
+      const { upserts: rows, deleteFieldIds: emptyFieldIds } = buildGroupSavePlan(
+        leadId,
+        editingFields,
+        customDraft,
+      );
       if (rows.length > 0) {
         const { error } = await supabase
           .from("crm_lead_custom_values")
@@ -200,9 +212,6 @@ function LeadDetail() {
         if (error) throw error;
       }
 
-      const emptyFieldIds = customFields
-        .filter((field) => !rows.some((row) => row.field_id === field.id))
-        .map((field) => field.id);
       if (emptyFieldIds.length > 0) {
         const { error } = await supabase
           .from("crm_lead_custom_values")
@@ -216,7 +225,7 @@ function LeadDetail() {
         lead_id: leadId,
         crm_user_id: me!.id,
         tipo: "custom_fields",
-        descricao: "Campos personalizados atualizados",
+        descricao: editingGroup === "commercial" ? "Dados comerciais atualizados" : "Campos personalizados atualizados",
       });
     },
     onSuccess: () => {
@@ -605,41 +614,48 @@ function LeadDetail() {
             </Card>
           )}
 
-          {customFields.length > 0 && (
-            <Card className="rounded-2xl">
-              <CardHeader className="flex-row items-center justify-between space-y-0">
-                <CardTitle className="text-base">Campos personalizados</CardTitle>
-                {canManage && <Button size="icon" variant="ghost" title="Editar campos" onClick={openCustomFields}>
-                  <Pencil className="h-4 w-4" />
-                </Button>}
-              </CardHeader>
-              <CardContent className="space-y-4 text-sm">
-                {customFields.map((field) => {
-                  const value = customValues[field.id];
-                  return (
-                    <div key={field.id}>
-                      <div className="text-xs text-muted-foreground">{field.nome}</div>
-                      {Array.isArray(value) && value.length > 0 ? (
-                        <div className="mt-1 flex flex-wrap gap-1">
-                          {value.map((option) => <Badge key={option} variant="secondary">{option}</Badge>)}
-                        </div>
-                      ) : (
-                        <div className="mt-0.5">{typeof value === "string" && value ? value : "—"}</div>
-                      )}
-                    </div>
-                  );
-                })}
-              </CardContent>
-            </Card>
-          )}
+          {([
+            ["commercial", "Dados comerciais", "Editar dados comerciais"],
+            ["custom", "Campos personalizados", "Editar campos"],
+          ] as const).map(([group, title, editLabel]) => {
+            const groupFields: LeadCustomField[] = fieldGroups[group];
+            if (groupFields.length === 0) return null;
+            return (
+              <Card key={group} className="rounded-2xl">
+                <CardHeader className="flex-row items-center justify-between space-y-0">
+                  <CardTitle className="text-base">{title}</CardTitle>
+                  {canManage && <Button size="icon" variant="ghost" title={editLabel} aria-label={editLabel} onClick={() => openCustomFields(group)}>
+                    <Pencil className="h-4 w-4" />
+                  </Button>}
+                </CardHeader>
+                <CardContent className="space-y-4 text-sm">
+                  {groupFields.map((field) => {
+                    const value = customValues[field.id];
+                    return (
+                      <div key={field.id}>
+                        <div className="text-xs text-muted-foreground">{field.nome}</div>
+                        {Array.isArray(value) && value.length > 0 ? (
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            {value.map((option) => <Badge key={option} variant="secondary">{option}</Badge>)}
+                          </div>
+                        ) : (
+                          <div className="mt-0.5">{typeof value === "string" && value ? value : "—"}</div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       </div>
 
       <Dialog open={customFieldsOpen} onOpenChange={setCustomFieldsOpen}>
         <DialogContent className="max-w-2xl">
-          <DialogHeader><DialogTitle>Editar campos personalizados</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editingGroup === "commercial" ? "Editar dados comerciais" : "Editar campos personalizados"}</DialogTitle></DialogHeader>
           <LeadCustomFieldsForm
-            fields={customFields}
+            fields={editingFields}
             values={customDraft}
             errors={customErrors}
             onChange={updateCustomDraft}

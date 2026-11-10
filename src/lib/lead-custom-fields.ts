@@ -9,7 +9,51 @@ export type LeadCustomField = {
   opcoes: string[];
   ordem: number;
   ativo: boolean;
+  commercial_key?: LeadCommercialKey | null;
 };
+
+export const LEAD_COMMERCIAL_KEYS = [
+  "empresa_cliente",
+  "site",
+  "faturamento",
+  "volume_whatsapp",
+  "oferta",
+  "cnpj_status",
+] as const;
+
+export type LeadCommercialKey = (typeof LEAD_COMMERCIAL_KEYS)[number];
+export type LeadCustomFieldGroup = "commercial" | "custom";
+
+export function parseCommercialKey(value: unknown): LeadCommercialKey | null {
+  return typeof value === "string" &&
+    (LEAD_COMMERCIAL_KEYS as readonly string[]).includes(value)
+    ? (value as LeadCommercialKey)
+    : null;
+}
+
+export function customFieldGroup(field: LeadCustomField): LeadCustomFieldGroup {
+  return parseCommercialKey(field.commercial_key) ? "commercial" : "custom";
+}
+
+export function splitCustomFieldsByGroup(fields: LeadCustomField[]) {
+  return {
+    commercial: fields.filter((field) => customFieldGroup(field) === "commercial"),
+    custom: fields.filter((field) => customFieldGroup(field) === "custom"),
+  };
+}
+
+/** Plano de gravação restrito aos campos do grupo editado: nunca toca outro grupo. */
+export function buildGroupSavePlan(
+  leadId: number,
+  groupFields: LeadCustomField[],
+  values: LeadCustomFieldValues,
+) {
+  const upserts = buildCustomFieldValueRows(leadId, groupFields, values);
+  const deleteFieldIds = groupFields
+    .filter((field) => !upserts.some((row) => row.field_id === field.id))
+    .map((field) => field.id);
+  return { upserts, deleteFieldIds };
+}
 
 export type LeadCustomFieldValue = string | string[];
 export type LeadCustomFieldValues = Record<number, LeadCustomFieldValue>;
