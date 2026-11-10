@@ -93,7 +93,8 @@ export function TaskWorkspace({
     return () => clearInterval(timer);
   }, []);
   const context = useQuery({
-    queryKey: ["task-context", companyId, me?.id, me?.role],
+    queryKey: ["task-context", companyId, me?.id, me?.role, me?.active, me?.nome],
+    enabled: !!me?.active,
     queryFn: async () => {
       const results = await Promise.all([
         db
@@ -113,8 +114,15 @@ export function TaskWorkspace({
           .eq("id_empresa", companyId),
       ]);
       for (const r of results) if (r.error) throw r.error;
+      // The server permits a global administrator to assign tasks to themselves.
+      // They have no company ID, so the company member query does not include them.
+      const members = [...(results[0].data ?? [])];
+      if (me?.role === "super_admin" && me.active && !members.some((m) => m.id === me.id)) {
+        members.push({ id: me.id, nome: me.nome, role: me.role, active: true });
+        members.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+      }
       return {
-        members: results[0].data,
+        members,
         contacts: results[1].data,
         opportunities: results[2].data,
       } as Context;
