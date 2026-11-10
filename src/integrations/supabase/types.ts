@@ -7551,6 +7551,37 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      commercial_followup_block_reason: {
+        Args: { p_company: number; p_lead: number }
+        Returns: string
+      }
+      commercial_followup_context: {
+        Args: { p_company: number; p_lead: number; p_legacy_context: string }
+        Returns: string
+      }
+      commercial_followup_prepare_payload: {
+        Args: { p_attempt: number; p_dispatch: number; p_worker: string }
+        Returns: Json
+      }
+      commercial_qualification_apply: {
+        Args: {
+          p_company: number
+          p_lead: number
+          p_result: Json
+          p_revision: number
+        }
+        Returns: Json
+      }
+      commercial_qualification_context: {
+        Args: {
+          p_at: string
+          p_company: number
+          p_lead: number
+          p_message: string
+          p_text: string
+        }
+        Returns: Json
+      }
       commercial_schedule_context: {
         Args: {
           p_company: number
@@ -8623,6 +8654,16 @@ export type Database = {
       }
       hub_respond_sales_offer: {
         Args: { p_action: string; p_offer: string }
+        Returns: Json
+      }
+      hub_resume_prospect_followups: {
+        Args: {
+          p_company: number
+          p_generation?: number
+          p_lead: number
+          p_request?: string
+          p_start?: string
+        }
         Returns: Json
       }
       hub_sales_queue_overview: {
