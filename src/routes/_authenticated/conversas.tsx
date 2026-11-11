@@ -757,6 +757,7 @@ function ConversationsWorkspace() {
                   ) : null}
 
                   {selectedConversation.atendimento_humano && assignedToMe ? (
+                    [35, 36].includes(activeEmpresaId ?? 0) ? null : (
                     <Button
                       type="button"
                       variant="outline"
@@ -775,6 +776,7 @@ function ConversationsWorkspace() {
                       <Bot className="h-4 w-4 md:mr-2" />
                       <span className="sr-only md:not-sr-only">Devolver para a IA</span>
                     </Button>
+                    )
                   ) : assignedToOther && !canForceAssignment ? (
                     <Button type="button" variant="outline" size="sm" className="h-9 w-9 p-0 md:h-8 md:w-auto md:px-3" aria-label="Em atendimento" title="Em atendimento" disabled>
                       <UserRound className="h-4 w-4 md:mr-2" />
