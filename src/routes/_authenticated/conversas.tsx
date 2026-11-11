@@ -719,7 +719,7 @@ function ConversationsWorkspace() {
                 </div>
 
                 <div className="col-span-2 flex flex-wrap items-center justify-end gap-2 md:col-auto">
-                  {activeEmpresaId && [35, 36].includes(activeEmpresaId) && (assignedToMe || canForceAssignment) ? <ProspectResumeFollowups key={`resume-${activeEmpresaId}-${selectedConversation.lead_id}`} companyId={activeEmpresaId} leadId={selectedConversation.lead_id} name={selectedConversation.nome || "Lead"} /> : null}
+                  {activeEmpresaId && [35, 36].includes(activeEmpresaId) && (assignedToMe || canForceAssignment) && followupsQuery.isSuccess && !followupsByLeadId.has(selectedConversation.lead_id) ? <ProspectResumeFollowups key={`resume-${activeEmpresaId}-${selectedConversation.lead_id}`} companyId={activeEmpresaId} leadId={selectedConversation.lead_id} name={selectedConversation.nome || "Lead"} /> : null}
                   {selectedCrmLeadId && activeEmpresaId ? <ConversationLeadActions key={`${activeEmpresaId}:${selectedCrmLeadId}`} companyId={activeEmpresaId} leadId={selectedCrmLeadId} name={selectedLeadName}/> : null}
                   {selectedCrmLeadId ? (
                     <Button asChild variant="outline" size="sm" className="h-9 w-9 p-0 md:h-8 md:w-auto md:px-3">
