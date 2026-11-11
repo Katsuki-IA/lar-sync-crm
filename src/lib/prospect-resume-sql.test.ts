@@ -30,7 +30,7 @@ create function public.crm_whatsapp_set_conversation_attendance(bigint,boolean,b
 async function call(extra = "") { return (await db.query<{result: any}>(`select public.hub_resume_prospect_followups(35,100${extra}) result`)).rows[0].result; }
 let future: string;
 describe("manual prospect follow-up resumption", () => {
-  beforeAll(async () => { db = new PGlite(); await db.exec(fixture + sql); }, 30000);
+  beforeAll(async () => { db = new PGlite(); await db.exec(fixture + sql + readFileSync(resolve("docs/prospect-fast-resume-worker.sql"), "utf8").split("do $patch$")[0]); }, 30000);
   afterAll(async () => { await db.close(); });
   beforeEach(async () => {
     await db.exec(`truncate private.kp_resume_requests,private.kp_contacts,public.crm_users cascade;
@@ -49,6 +49,19 @@ describe("manual prospect follow-up resumption", () => {
   it("previews without releasing the conversation or scheduling", async () => {
     expect((await call()).steps).toEqual([1,2,3]);
     expect((await db.query<{status:string}>("select status from private.kp_contacts")).rows[0].status).toBe("human");
+  });
+  it("automatically schedules in five minutes or the next window, and retries are idempotent", async () => {
+    await db.exec("update private.kp_contacts set last_sent_at=clock_timestamp(); update private.kp_jobs set status='accepted' where step=1");
+    const preview = await call();
+    expect(preview.scheduled.map((x:any)=>x.step)).toEqual([2,3]);
+    const result = await call(`,null,5,'${req}'`);
+    expect(result.fast_resume).toBe(true);
+    expect(result.scheduled.map((x:any)=>x.step)).toEqual([2,3]);
+    const expected = (await db.query<{at:string}>("select private.kp_next_business_time(clock_timestamp()+interval '5 minutes')::text at")).rows[0].at;
+    expect(Math.abs(new Date(result.scheduled[0].due_at).getTime()-new Date(expected).getTime())).toBeLessThan(3000);
+    expect(await call(`,null,5,'${req}'`)).toEqual(result);
+    expect((await db.query(`select private.kp_is_fast_resume('${contact}',6,2) allowed, private.kp_is_fast_resume('${contact}',5,2) stale, private.kp_is_fast_resume('${contact}',6,3) later`)).rows[0]).toEqual({allowed:true,stale:false,later:false});
+    expect(new Date(result.scheduled[1].due_at).getTime()-new Date(result.scheduled[0].due_at).getTime()).toBeGreaterThanOrEqual(27*3600000);
   });
   it("releases and schedules only unsent steps; duplicate request is harmless", async () => {
     await db.exec("update private.kp_jobs set status='accepted',message_id='wamid.done' where step=1");

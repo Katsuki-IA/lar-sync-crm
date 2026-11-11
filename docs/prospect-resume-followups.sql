@@ -26,6 +26,7 @@ returns jsonb language plpgsql security definer set search_path='' set lock_time
 declare actor public.crm_users;c private.kp_contacts; cfg private.kp_companies; l public.lead;
  saved private.kp_resume_requests; remaining int[]; first_step int; offsets int[]:=array[0,21,48];
  i int; previous_step int; at_time timestamptz; previous_at timestamptz; plan jsonb:='[]'; result jsonb; reason text;
+ automatic_start boolean:=p_start is null;
 begin
  select * into actor from public.crm_users where auth_user_id=auth.uid() and active;
  if actor.id is null or actor.role not in ('super_admin','manager','gestor','agent','corretor')
@@ -41,7 +42,7 @@ begin
  if p_request is not null then
   select * into saved from private.kp_resume_requests where id=p_request;
   if found then
-   if saved.contact_id<>c.id or saved.actor_id<>actor.id or saved.requested_at is distinct from p_start then
+   if saved.contact_id<>c.id or saved.actor_id<>actor.id or (not automatic_start and saved.requested_at is distinct from p_start) then
     raise exception 'Solicitação já utilizada com outros dados';end if;
    return saved.result;
   end if;
@@ -70,25 +71,25 @@ begin
   reason:='Há template de follow-up indisponível.';
  end if;
  if reason is not null then
-  if p_start is not null then raise exception '%',reason;end if;
+  if p_start is not null or p_request is not null then raise exception '%',reason;end if;
   return jsonb_build_object('available',false,'reason',reason);
  end if;
- if p_start is null then
-  return jsonb_build_object('available',true,'generation',c.generation,'steps',remaining,
-   'suggested_at',private.kp_next_business_time(greatest(clock_timestamp()+interval '2 hours',coalesce(c.last_sent_at,clock_timestamp())+interval '1 hour')));
- end if;
- if p_request is null or p_generation is distinct from c.generation then
+ if automatic_start then p_start:=private.kp_next_business_time(clock_timestamp()+interval '5 minutes');end if;
+ if (p_request is not null or not automatic_start) and (p_request is null or p_generation is distinct from c.generation) then
   raise exception 'A conversa mudou. Feche e reabra a janela antes de confirmar.' using errcode='PT409';end if;
  if not isfinite(p_start) or p_start<=clock_timestamp() or p_start>clock_timestamp()+interval '365 days' then
   raise exception 'Escolha uma data futura, dentro dos próximos 365 dias.';end if;
  first_step:=remaining[1];
  foreach i in array remaining loop
   at_time:=private.kp_next_business_time(greatest(coalesce(previous_at+(offsets[i]-offsets[previous_step])*interval '1 hour',p_start),
-    coalesce(c.last_sent_at,p_start-interval '1 hour')+interval '1 hour'));
+    case when automatic_start then p_start else coalesce(c.last_sent_at,p_start-interval '1 hour')+interval '1 hour' end));
   plan:=plan||jsonb_build_array(jsonb_build_object('step',i,'due_at',at_time));
   previous_at:=at_time;
   previous_step:=i;
  end loop;
+ if automatic_start and p_request is null then
+  return jsonb_build_object('available',true,'generation',c.generation,'steps',remaining,'suggested_at',p_start,'scheduled',plan);
+ end if;
  -- Release and reschedule commit together. No change to commercial stages/ownership.
  perform * from public.crm_whatsapp_set_conversation_attendance(p_lead,false,false);
  update private.kp_contacts set status='active',generation=generation+1 where id=c.id returning * into c;
@@ -102,7 +103,7 @@ begin
  -- Dismiss the old handoff notice; a fresh reply will re-open it.
  update private.kp_handoffs set status='assumed',seen_at=coalesce(seen_at,clock_timestamp()),
   notice_state=case when notice_state='pending' then 'cancelled' else notice_state end where contact_id=c.id;
- result:=jsonb_build_object('scheduled',plan,'generation',c.generation,'available',true);
+ result:=jsonb_build_object('scheduled',plan,'generation',c.generation,'available',true,'fast_resume',automatic_start);
  insert into private.kp_resume_requests(id,contact_id,actor_id,requested_at,result) values(p_request,c.id,actor.id,p_start,result);
  insert into public.crm_lead_activities(lead_id,crm_user_id,tipo,descricao,metadata)
  values(c.crm_lead_id,actor.id,'assignment','Cadência de follow-ups retomada manualmente.',
