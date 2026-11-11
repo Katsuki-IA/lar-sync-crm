@@ -26,11 +26,12 @@ create table private.kp_templates(id_empresa bigint,step int,approved boolean);
 create table private.kp_handoffs(contact_id uuid,status text,seen_at timestamptz,notice_state text);
 create function public.wa_marketing_send_guard(text,text,bigint) returns boolean language sql as $$select coalesce(current_setting('test.blocked',true),'false')<>'true'$$;
 create function public.crm_whatsapp_set_conversation_attendance(bigint,boolean,boolean) returns boolean language plpgsql as $$begin update public.lead set atendimento_humano=false,wa_conversation_assigned_to=null where id=$1;return true;end$$;
+create function private.hub_agent_operational_lead_ids() returns setof bigint language sql as $$select id from public.lead where wa_conversation_assigned_to=auth.uid()$$;
 `;
 async function call(extra = "") { return (await db.query<{result: any}>(`select public.hub_resume_prospect_followups(35,100${extra}) result`)).rows[0].result; }
 let future: string;
 describe("manual prospect follow-up resumption", () => {
-  beforeAll(async () => { db = new PGlite(); await db.exec(fixture + sql + readFileSync(resolve("docs/prospect-fast-resume-worker.sql"), "utf8").split("do $patch$")[0]); }, 30000);
+  beforeAll(async () => { db = new PGlite(); await db.exec(fixture + sql + readFileSync(resolve("docs/prospect-fast-resume-worker.sql"), "utf8").split("do $patch$")[0] + readFileSync(resolve("docs/prospect-followup-indicators.sql"), "utf8")); }, 30000);
   afterAll(async () => { await db.close(); });
   beforeEach(async () => {
     await db.exec(`truncate private.kp_resume_requests,private.kp_contacts,public.crm_users cascade;
@@ -49,6 +50,22 @@ describe("manual prospect follow-up resumption", () => {
   it("previews without releasing the conversation or scheduling", async () => {
     expect((await call()).steps).toEqual([1,2,3]);
     expect((await db.query<{status:string}>("select status from private.kp_contacts")).rows[0].status).toBe("human");
+  });
+  it("indicates only active remaining follow-ups and respects tenant and attendance", async () => {
+    const indicators = () => db.query("select * from public.hub_prospect_followup_indicators(35,array[100]::bigint[])");
+    expect((await indicators()).rows).toHaveLength(0);
+    await call(`,null,5,'${req}'`);
+    expect((await indicators()).rows[0]).toMatchObject({lead_id:100,next_step:1});
+    await db.exec("update private.kp_jobs set status='accepted' where step=1");
+    expect((await indicators()).rows[0]).toMatchObject({next_step:2});
+    await db.exec("update public.lead set atendimento_humano=true");
+    expect((await indicators()).rows).toHaveLength(0);
+    await db.exec("update public.lead set atendimento_humano=false; update private.kp_companies set enabled=false");
+    expect((await indicators()).rows).toHaveLength(0);
+    await db.exec("update private.kp_companies set enabled=true; update private.kp_jobs set generation=0");
+    expect((await indicators()).rows).toHaveLength(0);
+    await db.exec("update public.crm_users set role='agent',id_empresa=36");
+    await expect(indicators()).rejects.toThrow('Sem acesso');
   });
   it("automatically schedules in five minutes or the next window, and retries are idempotent", async () => {
     await db.exec("update private.kp_contacts set last_sent_at=clock_timestamp(); update private.kp_jobs set status='accepted' where step=1");

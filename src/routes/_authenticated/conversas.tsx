@@ -305,6 +305,21 @@ function ConversationsWorkspace() {
     () => new Map((windowsQuery.data ?? []).map((window) => [window.lead_id, window])),
     [windowsQuery.data],
   );
+  const followupsQuery = useQuery({
+    enabled: !!me && [35, 36].includes(activeEmpresaId ?? 0) && conversationLeadIds.length > 0,
+    queryKey: ["conversation-active-followups", activeEmpresaId, me?.id, conversationLeadIds],
+    refetchInterval: 5_000,
+    queryFn: async (): Promise<{ lead_id: number; next_step: number; next_due_at: string }[]> => {
+      const { data, error } = await db.rpc("hub_prospect_followup_indicators", {
+        p_company: activeEmpresaId!, p_leads: conversationLeadIds,
+      });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+  const followupsByLeadId = useMemo(() => new Map(
+    (followupsQuery.isError ? [] : followupsQuery.data ?? []).map(f => [f.lead_id, f]),
+  ), [followupsQuery.data, followupsQuery.isError]);
   useEffect(() => {
     setSelectedId(null);
   }, [activeEmpresaId]);
@@ -589,6 +604,7 @@ function ConversationsWorkspace() {
                 {visibleConversations.map((conversation) => {
                   const active = selectedConversation?.lead_id === conversation.lead_id;
                   const conversationWindow = windowsByLeadId.get(conversation.lead_id);
+                  const followup = followupsByLeadId.get(conversation.lead_id);
                   const identity =
                     conversation.telefone ||
                     conversation.wa_username ||
@@ -622,6 +638,14 @@ function ConversationsWorkspace() {
                                 className="h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20"
                                 aria-label="Janela de 24 horas aberta"
                                 title={`Janela aberta até ${formatDateTime(conversationWindow.window_expires_at)}`}
+                              />
+                            ) : null}
+                            {followup && !conversation.atendimento_humano && !conversation.assigned_to ? (
+                              <span
+                                role="img"
+                                className="h-2.5 w-2.5 shrink-0 rounded-full bg-amber-400 ring-2 ring-amber-400/25"
+                                aria-label={`Follow-up ativo. Próxima etapa: ${followup.next_step}, ${formatDateTime(followup.next_due_at)}`}
+                                title={`Follow-up ativo · próxima etapa ${followup.next_step}: ${formatDateTime(followup.next_due_at)}`}
                               />
                             ) : null}
                           </div>
