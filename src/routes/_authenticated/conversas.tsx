@@ -44,6 +44,7 @@ import { ConversationTemplateDialog } from "@/components/conversation-template-d
 import { ConversationAudio } from "@/components/conversation-audio";
 import { ConversationLeadActions } from "@/components/conversation-lead-actions";
 import { ProspectResumeFollowups } from "@/components/prospect-resume-followups";
+import { ProspectPauseFollowups } from "@/components/prospect-pause-followups";
 import { ConversationCommercialSummary, useConversationCommercialData } from "@/components/conversation-commercial-summary";
 import { ConversationAttachment, ConversationAttachmentComposer, getConversationAttachment } from "@/components/conversation-attachment";
 
@@ -719,6 +720,7 @@ function ConversationsWorkspace() {
                 </div>
 
                 <div className="col-span-2 flex flex-wrap items-center justify-end gap-2 md:col-auto">
+                  {activeEmpresaId && (assignedToMe || canForceAssignment) && followupsQuery.isSuccess && followupsByLeadId.has(selectedConversation.lead_id) ? <ProspectPauseFollowups key={`pause-${activeEmpresaId}-${selectedConversation.lead_id}`} companyId={activeEmpresaId} leadId={selectedConversation.lead_id} name={selectedConversation.nome || "Lead"} /> : null}
                   {activeEmpresaId && [35, 36].includes(activeEmpresaId) && (assignedToMe || canForceAssignment) && followupsQuery.isSuccess && !followupsByLeadId.has(selectedConversation.lead_id) ? <ProspectResumeFollowups key={`resume-${activeEmpresaId}-${selectedConversation.lead_id}`} companyId={activeEmpresaId} leadId={selectedConversation.lead_id} name={selectedConversation.nome || "Lead"} /> : null}
                   {selectedCrmLeadId && activeEmpresaId ? <ConversationLeadActions key={`${activeEmpresaId}:${selectedCrmLeadId}`} companyId={activeEmpresaId} leadId={selectedCrmLeadId} name={selectedLeadName}/> : null}
                   {selectedCrmLeadId ? (

@@ -92,7 +92,7 @@ begin
  end if;
  -- Release and reschedule commit together. No change to commercial stages/ownership.
  perform * from public.crm_whatsapp_set_conversation_attendance(p_lead,false,false);
- update private.kp_contacts set status='active',generation=generation+1 where id=c.id returning * into c;
+ update private.kp_contacts set followups_paused=false,status='active',generation=generation+1 where id=c.id returning * into c;
  update private.kp_jobs set status='cancelled' where contact_id=c.id and status='pending';
  for i,at_time in select (x->>'step')::int,(x->>'due_at')::timestamptz from jsonb_array_elements(plan) x loop
   insert into private.kp_jobs(contact_id,step,due_at,generation)

@@ -31,7 +31,7 @@ create function private.hub_agent_operational_lead_ids() returns setof bigint la
 async function call(extra = "") { return (await db.query<{result: any}>(`select public.hub_resume_prospect_followups(35,100${extra}) result`)).rows[0].result; }
 let future: string;
 describe("manual prospect follow-up resumption", () => {
-  beforeAll(async () => { db = new PGlite(); await db.exec(fixture + sql + readFileSync(resolve("docs/prospect-fast-resume-worker.sql"), "utf8").split("do $patch$")[0] + readFileSync(resolve("docs/prospect-followup-indicators.sql"), "utf8")); }, 30000);
+  beforeAll(async () => { db = new PGlite(); await db.exec(fixture + sql + readFileSync(resolve("docs/prospect-fast-resume-worker.sql"), "utf8").split("do $patch$")[0] + readFileSync(resolve("docs/prospect-pause-followups.sql"), "utf8").split("do $patch$")[0] + readFileSync(resolve("docs/prospect-followup-indicators.sql"), "utf8")); }, 30000);
   afterAll(async () => { await db.close(); });
   beforeEach(async () => {
     await db.exec(`truncate private.kp_resume_requests,private.kp_contacts,public.crm_users cascade;
@@ -50,6 +50,20 @@ describe("manual prospect follow-up resumption", () => {
   it("previews without releasing the conversation or scheduling", async () => {
     expect((await call()).steps).toEqual([1,2,3]);
     expect((await db.query<{status:string}>("select status from private.kp_contacts")).rows[0].status).toBe("human");
+  });
+  it("pauses follow-ups without taking over or sending; resume clears the pause", async () => {
+    await call(`,null,5,'${req}'`);
+    await db.exec("update private.kp_jobs set status='accepted' where step=1; insert into private.kp_jobs(contact_id,step,status) values('"+contact+"',4,'pending')");
+    const pause = () => db.query<{result:any}>("select public.hub_pause_prospect_followups(35,100) result");
+    expect((await pause()).rows[0].result).toMatchObject({paused:true,cancelled:2,in_flight:false});
+    expect((await db.query("select status,followups_paused from private.kp_contacts")).rows[0]).toEqual({status:'active',followups_paused:true});
+    expect((await db.query("select status from private.kp_jobs where step=4")).rows[0]).toEqual({status:'pending'});
+    expect((await db.query("select * from public.hub_prospect_followup_indicators(35,array[100]::bigint[])")).rows).toHaveLength(0);
+    expect((await pause()).rows[0].result.cancelled).toBe(0);
+    await call(",null,6,'00000000-0000-0000-0000-000000000099'");
+    expect((await db.query("select followups_paused from private.kp_contacts")).rows[0]).toEqual({followups_paused:false});
+    await db.exec("update public.crm_users set id_empresa=36,role='agent'");
+    await expect(pause()).rejects.toThrow('Sem acesso');
   });
   it("indicates only active remaining follow-ups and respects tenant and attendance", async () => {
     const indicators = () => db.query("select * from public.hub_prospect_followup_indicators(35,array[100]::bigint[])");

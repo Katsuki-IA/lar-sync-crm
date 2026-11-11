@@ -20,7 +20,7 @@ begin
   and job.step between 1 and 3 and job.status in ('pending','sending')
   order by job.due_at,job.step limit 1
  ) j on true
- where l.id_empresa=p_company and l.id=any(p_leads) and c.status='active'
+ where l.id_empresa=p_company and l.id=any(p_leads) and c.status='active' and not c.followups_paused
  and not coalesce(l.atendimento_humano,false) and l.wa_conversation_assigned_to is null
  and c.first_sent_at is not null
  and (actor.role not in ('agent','corretor') or l.id in(select private.hub_agent_operational_lead_ids()))
