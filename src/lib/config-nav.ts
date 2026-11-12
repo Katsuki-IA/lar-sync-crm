@@ -26,6 +26,7 @@ export function configNavFor(role?: string | null, modules?: Modules): ConfigNav
   }
   if (role === "super_admin") {
     items.push(
+      { to: "/admin/custos-ia", label: "Custos de IA", scope: "global" },
       { to: "/modulos", label: "Empresas e módulos", scope: "global" },
       { to: "/admin/empresas", label: "Lista de empresas", scope: "global" },
       { to: "/admin/users", label: "Usuários (todas as empresas)", scope: "global" },
