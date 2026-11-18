@@ -66,6 +66,228 @@ export type Database = {
           },
         ]
       }
+      ai_cost_execution_queue: {
+        Row: {
+          attempts: number
+          collected_at: string | null
+          created_at: string
+          execution_id: string
+          last_error: string | null
+          lease_until: string | null
+          started_at: string
+          status: string
+          workflow_id: string
+        }
+        Insert: {
+          attempts?: number
+          collected_at?: string | null
+          created_at?: string
+          execution_id: string
+          last_error?: string | null
+          lease_until?: string | null
+          started_at: string
+          status?: string
+          workflow_id: string
+        }
+        Update: {
+          attempts?: number
+          collected_at?: string | null
+          created_at?: string
+          execution_id?: string
+          last_error?: string | null
+          lease_until?: string | null
+          started_at?: string
+          status?: string
+          workflow_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_cost_execution_queue_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "ai_cost_sources"
+            referencedColumns: ["workflow_id"]
+          },
+        ]
+      }
+      ai_cost_rates: {
+        Row: {
+          cached_usd_per_million: number
+          input_usd_per_million: number
+          model: string
+          notes: string
+          output_usd_per_million: number
+          provider: string
+          source_url: string
+          valid_from: string
+          valid_to: string | null
+        }
+        Insert: {
+          cached_usd_per_million: number
+          input_usd_per_million: number
+          model: string
+          notes?: string
+          output_usd_per_million: number
+          provider: string
+          source_url: string
+          valid_from: string
+          valid_to?: string | null
+        }
+        Update: {
+          cached_usd_per_million?: number
+          input_usd_per_million?: number
+          model?: string
+          notes?: string
+          output_usd_per_million?: number
+          provider?: string
+          source_url?: string
+          valid_from?: string
+          valid_to?: string | null
+        }
+        Relationships: []
+      }
+      ai_cost_sources: {
+        Row: {
+          enabled: boolean
+          environment: string
+          last_scan_at: string | null
+          name: string
+          workflow_id: string
+        }
+        Insert: {
+          enabled?: boolean
+          environment?: string
+          last_scan_at?: string | null
+          name: string
+          workflow_id: string
+        }
+        Update: {
+          enabled?: boolean
+          environment?: string
+          last_scan_at?: string | null
+          name?: string
+          workflow_id?: string
+        }
+        Relationships: []
+      }
+      ai_provider_cost_periods: {
+        Row: {
+          amount_usd: number
+          imported_at: string
+          period_end: string
+          period_start: string
+          provider: string
+          scope: string
+          source_file: string
+        }
+        Insert: {
+          amount_usd: number
+          imported_at?: string
+          period_end: string
+          period_start: string
+          provider: string
+          scope: string
+          source_file: string
+        }
+        Update: {
+          amount_usd?: number
+          imported_at?: string
+          period_end?: string
+          period_start?: string
+          provider?: string
+          scope?: string
+          source_file?: string
+        }
+        Relationships: []
+      }
+      ai_usage_events: {
+        Row: {
+          attribution_status: string
+          cached_tokens: number | null
+          collected_at: string
+          event_key: string
+          execution_id: string
+          id_empresa: number | null
+          input_tokens: number | null
+          model: string | null
+          model_source: string
+          node_id: string
+          node_name: string
+          occurred_at: string
+          operation: string
+          output_tokens: number | null
+          provider: string
+          request_id: string | null
+          run_index: number
+          usage_status: string
+          workflow_id: string
+        }
+        Insert: {
+          attribution_status: string
+          cached_tokens?: number | null
+          collected_at?: string
+          event_key: string
+          execution_id: string
+          id_empresa?: number | null
+          input_tokens?: number | null
+          model?: string | null
+          model_source: string
+          node_id: string
+          node_name: string
+          occurred_at: string
+          operation: string
+          output_tokens?: number | null
+          provider: string
+          request_id?: string | null
+          run_index: number
+          usage_status: string
+          workflow_id: string
+        }
+        Update: {
+          attribution_status?: string
+          cached_tokens?: number | null
+          collected_at?: string
+          event_key?: string
+          execution_id?: string
+          id_empresa?: number | null
+          input_tokens?: number | null
+          model?: string | null
+          model_source?: string
+          node_id?: string
+          node_name?: string
+          occurred_at?: string
+          operation?: string
+          output_tokens?: number | null
+          provider?: string
+          request_id?: string | null
+          run_index?: number
+          usage_status?: string
+          workflow_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_usage_events_execution_id_fkey"
+            columns: ["execution_id"]
+            isOneToOne: false
+            referencedRelation: "ai_cost_execution_queue"
+            referencedColumns: ["execution_id"]
+          },
+          {
+            foreignKeyName: "ai_usage_events_id_empresa_fkey"
+            columns: ["id_empresa"]
+            isOneToOne: false
+            referencedRelation: "empresa_dados"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_usage_events_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "ai_cost_sources"
+            referencedColumns: ["workflow_id"]
+          },
+        ]
+      }
       blocked_numbers: {
         Row: {
           created_at: string
@@ -1143,6 +1365,7 @@ export type Database = {
       crm_lead_custom_fields: {
         Row: {
           ativo: boolean
+          commercial_key: string | null
           created_at: string
           global_field_id: number | null
           hub_revision: number
@@ -1157,6 +1380,7 @@ export type Database = {
         }
         Insert: {
           ativo?: boolean
+          commercial_key?: string | null
           created_at?: string
           global_field_id?: number | null
           hub_revision?: number
@@ -1171,6 +1395,7 @@ export type Database = {
         }
         Update: {
           ativo?: boolean
+          commercial_key?: string | null
           created_at?: string
           global_field_id?: number | null
           hub_revision?: number
@@ -7216,6 +7441,56 @@ export type Database = {
       }
     }
     Views: {
+      ai_usage_priced: {
+        Row: {
+          attribution_status: string | null
+          cached_tokens: number | null
+          collected_at: string | null
+          cost_max_usd: number | null
+          cost_min_usd: number | null
+          environment: string | null
+          event_key: string | null
+          execution_id: string | null
+          id_empresa: number | null
+          input_tokens: number | null
+          model: string | null
+          model_source: string | null
+          node_id: string | null
+          node_name: string | null
+          occurred_at: string | null
+          operation: string | null
+          output_tokens: number | null
+          provider: string | null
+          rate_source: string | null
+          request_id: string | null
+          run_index: number | null
+          usage_status: string | null
+          workflow_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_usage_events_execution_id_fkey"
+            columns: ["execution_id"]
+            isOneToOne: false
+            referencedRelation: "ai_cost_execution_queue"
+            referencedColumns: ["execution_id"]
+          },
+          {
+            foreignKeyName: "ai_usage_events_id_empresa_fkey"
+            columns: ["id_empresa"]
+            isOneToOne: false
+            referencedRelation: "empresa_dados"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_usage_events_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "ai_cost_sources"
+            referencedColumns: ["workflow_id"]
+          },
+        ]
+      }
       crm_meta_connections_monitor: {
         Row: {
           active: boolean | null
@@ -7363,6 +7638,8 @@ export type Database = {
         Args: { p_sequence_id: number }
         Returns: Json
       }
+      ai_cost_monthly_report: { Args: { p_month: string }; Returns: Json }
+      ai_cost_record_execution: { Args: { p_payload: Json }; Returns: number }
       authorize_followup_test_v2: {
         Args: {
           p_expected_phone: string
@@ -7563,6 +7840,10 @@ export type Database = {
         Args: { p_attempt: number; p_dispatch: number; p_worker: string }
         Returns: Json
       }
+      commercial_hub_fields: {
+        Args: { p_company: number; p_lead: number }
+        Returns: Json
+      }
       commercial_qualification_apply: {
         Args: {
           p_company: number
@@ -7580,6 +7861,10 @@ export type Database = {
           p_message: string
           p_text: string
         }
+        Returns: Json
+      }
+      commercial_reset_lead: {
+        Args: { p_company: number; p_phone: string; p_user: string }
         Returns: Json
       }
       commercial_schedule_context: {
@@ -7601,6 +7886,15 @@ export type Database = {
           p_request: string
           p_revision: number
           p_time: string
+        }
+        Returns: Json
+      }
+      commercial_schedule_options: {
+        Args: {
+          p_company: number
+          p_from?: string
+          p_lead: number
+          p_period?: string
         }
         Returns: Json
       }
@@ -8609,6 +8903,10 @@ export type Database = {
         }
         Returns: Json
       }
+      hub_pause_prospect_followups: {
+        Args: { p_company: number; p_lead: number }
+        Returns: Json
+      }
       hub_pause_queue_member: {
         Args: { p_member: string; p_paused: boolean; p_queue: string }
         Returns: undefined
@@ -8633,6 +8931,14 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      hub_prospect_followup_indicators: {
+        Args: { p_company: number; p_leads: number[] }
+        Returns: {
+          lead_id: number
+          next_due_at: string
+          next_step: number
+        }[]
       }
       hub_push_service: {
         Args: { p_action: string; p_data?: Json }
@@ -9060,6 +9366,7 @@ export type Database = {
         Args: { p_limit?: number }
         Returns: Json
       }
+      meta_cost_monthly_report: { Args: { p_month: string }; Returns: Json }
       prepare_followup_attempt_v2: {
         Args: { p_dispatch_id: number; p_worker_id: string }
         Returns: Json
