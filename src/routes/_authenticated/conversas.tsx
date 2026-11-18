@@ -1,6 +1,6 @@
 // Native Conversations activated only in HML; production route remains separate.
 import { nativeConversationApi, sendNativeConversationText, type NativeTextRequest } from '@/hml/native-conversation-api';
-import { parseConversationLead, selectNativeConversation } from '@/hml/conversation-selection';
+import { activeDeepLink, parseConversationLead, selectNativeConversation, shouldReportDeepLinkError } from '@/hml/conversation-selection';
 import { db, useCompanyModules } from '@/hml/modules';
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -229,6 +229,8 @@ function ConversationsWorkspace() {
   // Never reuse a project selection when switching companies.
   const projectId = projectFilter.companyId === activeEmpresaId ? projectFilter.value : "all";
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [dismissedLead, setDismissedLead] = useState<string | null>(null);
+  const deepLinkLead = activeDeepLink(lead, selectedId, dismissedLead);
   const [mobileChatOpen, setMobileChatOpen] = useState(!!lead);
 
   useEffect(() => { setMobileChatOpen(!!lead); }, [lead]);
@@ -273,11 +275,15 @@ function ConversationsWorkspace() {
   });
 
   const requestedContext=useQuery({
-    queryKey:['native-conversation-context',activeEmpresaId,me?.id,lead],
-    enabled:!!activeEmpresaId&&!!me&&!!lead,
+    queryKey:['native-conversation-context',activeEmpresaId,me?.id,deepLinkLead],
+    enabled:!!activeEmpresaId&&!!me&&!!deepLinkLead,
     refetchInterval:5000,
-    queryFn:()=>nativeApi.context(activeEmpresaId!,Number(lead)),
+    queryFn:()=>nativeApi.context(activeEmpresaId!,Number(deepLinkLead)),
   });
+  useEffect(()=>{
+    // Abort a context request that is no longer the active selection.
+    if(!deepLinkLead&&lead)void queryClient.cancelQueries({queryKey:['native-conversation-context',activeEmpresaId,me?.id,lead],exact:true});
+  },[deepLinkLead,lead,activeEmpresaId,me?.id,queryClient]);
   const conversations = useMemo(() => conversationsQuery.data ?? [], [conversationsQuery.data]);
   const commercialLeadIds = useMemo(() => conversations.map(c => crmLeadId(c.id_crm)).filter((id): id is number => id !== null), [conversations]);
   const commercialSummary = useConversationCommercialData(activeEmpresaId, me?.id, commercialLeadIds);
@@ -325,13 +331,13 @@ function ConversationsWorkspace() {
     setSelectedId(null);
   }, [activeEmpresaId]);
 
-  useEffect(()=>setSelectedId(null),[lead]);
-  const selectedConversation = selectNativeConversation(conversations,selectedId,lead,
+  useEffect(()=>{setSelectedId(null);setDismissedLead(null);},[lead]);
+  const selectedConversation = selectNativeConversation(conversations,selectedId,deepLinkLead,
     requestedContext.isError ? null : (requestedContext.data?.conversation as unknown as ConversationItem) ?? null);
 
   const messageQuery = useQuery({
     enabled: !!selectedConversation,
-    queryKey: ["whatsapp-conversation-messages", activeEmpresaId, me?.id, selectedConversation?.lead_id, lead, selectedId],
+    queryKey: ["whatsapp-conversation-messages", activeEmpresaId, me?.id, selectedConversation?.lead_id, deepLinkLead, selectedId],
     staleTime: 0,
     refetchOnMount: "always",
     refetchInterval: 3_000,
@@ -366,8 +372,8 @@ function ConversationsWorkspace() {
             error_message: message.error_message,
           }));
 
-      if(lead && selectedId===null){
-        const page=await nativeApi.messages(activeEmpresaId!,Number(lead),null,100);
+      if(deepLinkLead){
+        const page=await nativeApi.messages(activeEmpresaId!,Number(deepLinkLead),null,100);
         return sortMessages(mapChatRows(page.items as WhatsappConversationMessageRow[]));
       }
       const { data, error } = await supabase.rpc("crm_whatsapp_conversation_messages_v2", {
@@ -389,8 +395,8 @@ function ConversationsWorkspace() {
       enabled: boolean;
       force?: boolean;
     }) => {
-      if(lead && selectedId===null){
-        return nativeApi.attendance(activeEmpresaId!,Number(lead),enabled,force);
+      if(deepLinkLead){
+        return nativeApi.attendance(activeEmpresaId!,Number(deepLinkLead),enabled,force);
       }
       const { data, error } = await supabase.rpc("crm_whatsapp_set_conversation_attendance", {
         p_lead_id: leadId,
@@ -444,8 +450,8 @@ function ConversationsWorkspace() {
   });
 
   useEffect(()=>{
-    if(requestedContext.isError)toast.error('Não foi possível abrir este lead. Confira a empresa e o vínculo da conversa.');
-  },[requestedContext.isError]);
+    if(shouldReportDeepLinkError(deepLinkLead,requestedContext.isError))toast.error('Não foi possível abrir este lead. Confira a empresa e o vínculo da conversa.');
+  },[requestedContext.isError,deepLinkLead]);
   const selectedLeadName = selectedConversation?.nome || "Conversa";
   const selectedLeadIdentity = selectedConversation
     ? selectedConversation.telefone ||
@@ -460,7 +466,7 @@ function ConversationsWorkspace() {
   const assignedToOther = !!selectedConversation?.assigned_to && !assignedToMe;
   const canForceAssignment = me?.role === "manager" || me?.role === "super_admin";
   const selectedWindow = selectedConversation
-    ? (lead && selectedId===null ? requestedContext.data?.window : windowsByLeadId.get(selectedConversation.lead_id))
+    ? (deepLinkLead ? requestedContext.data?.window : windowsByLeadId.get(selectedConversation.lead_id))
     : null;
   const canSendMessage =
     !!selectedConversation?.atendimento_humano &&
@@ -617,7 +623,7 @@ function ConversationsWorkspace() {
                     <button
                       key={conversation.lead_id}
                       type="button"
-                      onClick={() => { setSelectedId(conversation.lead_id); setMobileChatOpen(true); }}
+                      onClick={() => { if(lead)setDismissedLead(lead); setSelectedId(conversation.lead_id); setMobileChatOpen(true); }}
                       className={cn(
                         "w-full cursor-pointer px-4 py-3 text-left transition-colors hover:bg-muted/60",
                         conversation.atendimento_humano

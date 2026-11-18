@@ -10,3 +10,12 @@ export function selectNativeConversation<T extends {lead_id:number}>(rows:T[],se
   return rows[0]??null;
 }
 
+// The URL deep link drives the selection only until the user picks a list item.
+// Once dismissed it stays dismissed for that lead value, even if a filter resets selectedId.
+export function activeDeepLink(lead:string|undefined,selectedId:number|null,dismissedLead:string|null):string|undefined {
+  return lead && selectedId===null && dismissedLead!==lead ? lead : undefined;
+}
+// Only report a context error when it belongs to the deep link currently being shown.
+export function shouldReportDeepLinkError(active:string|undefined,isError:boolean):boolean {
+  return !!active && isError;
+}
