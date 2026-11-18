@@ -30,6 +30,7 @@ function RecipientReplyAlert({ memberId }: { memberId: string }) {
   const opening = useRef(false);
   const [soundReady, setSoundReady] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [dismissing, setDismissing] = useState(false);
   const queryKey = ["katsuki-prospect-notices", memberId];
   const fetchNotices = async (): Promise<ProspectNotice[]> => {
     const { data, error } = await supabase.rpc("hub_kp_notices");
@@ -128,6 +129,7 @@ function RecipientReplyAlert({ memberId }: { memberId: string }) {
     const cutoff = Date.now();
     opening.current = true;
     setBusy(true);
+    setDismissing(true);
     try {
       await qc.cancelQueries({ queryKey });
       const { failed } = await dismissProspectNoticesUntil(cutoff, fetchNotices, async id => {
@@ -142,6 +144,7 @@ function RecipientReplyAlert({ memberId }: { memberId: string }) {
       await qc.invalidateQueries({ queryKey });
       opening.current = false;
       setBusy(false);
+      setDismissing(false);
     }
   };
 
@@ -153,7 +156,7 @@ function RecipientReplyAlert({ memberId }: { memberId: string }) {
       <p className="mt-1 break-words text-sm text-muted-foreground">{first.company_name}</p>
       <p className="mt-3 text-sm">A automação está pausada. Abra a conversa e use “Assumir conversa” para continuar pelo mesmo número.</p>
       {notices.length > 1 && <p className="mt-2 text-xs">{notices.length} interessados aguardando atendimento.</p>}
-      <Button className="mt-4 w-full" disabled={busy || query.isError} onClick={() => void open()}>{busy ? "Abrindo…" : "Abrir conversa no Hub"}</Button>
+      <Button className="mt-4 w-full" disabled={busy || query.isError} onClick={() => void open()}>{busy ? (dismissing ? "Fechando avisos…" : "Abrindo…") : "Abrir conversa no Hub"}</Button>
       {!soundReady && <Button variant="ghost" className="mt-2" onClick={unlockSound}><Volume2 className="size-4" /> Ativar som</Button>}
     </aside>
   );
