@@ -8,6 +8,7 @@ import { Download, Search } from "lucide-react";
 import { useActiveEmpresa } from "@/hooks/use-active-empresa";
 import { useCrmUser } from "@/hooks/use-crm-user";
 import { getLeadReport, type LeadReportRow } from "@/lib/lead-report.functions";
+import { LEAD_REPORT_ATTRIBUTION_COLUMNS } from "@/lib/lead-report-attribution";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -20,6 +21,14 @@ import {
 } from "@/components/ui/select";
 
 export const Route = createFileRoute("/_authenticated/relatorio-leads")({
+  head: () => ({ meta: [
+    { title: "Relatório de Leads | Hub Katsuki" },
+    { name: "description", content: "Relatório de leads com atendimento, visitas e atribuição de origem e campanhas por empresa." },
+    { property: "og:title", content: "Relatório de Leads | Hub Katsuki" },
+    { property: "og:description", content: "Consulte leads, atendimento, visitas e atribuição de campanhas da empresa." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+  ] }),
   component: () => <NativeReportsBoundary><LeadReportPage /></NativeReportsBoundary>,
 });
 
@@ -69,6 +78,7 @@ function exportCsv(rows: LeadReportRow[]) {
     "Visita",
     "Datas das visitas ativas",
     "Follow-ups registrados",
+    ...LEAD_REPORT_ATTRIBUTION_COLUMNS.map(column => column.label),
   ];
   const lines = [
     header,
@@ -88,6 +98,7 @@ function exportCsv(rows: LeadReportRow[]) {
       visitLabel(row.visit),
       row.visitDays.join(" | "),
       row.followups.join(" | "),
+      ...LEAD_REPORT_ATTRIBUTION_COLUMNS.map(column => row[column.key]),
     ]),
   ].map((values) => values.map(csvCell).join(";"));
   const blob = new Blob([`\uFEFF${lines.join("\r\n")}`], { type: "text/csv;charset=utf-8" });
@@ -471,7 +482,7 @@ function LeadReportPage() {
           <Card>
             <CardContent className="p-0">
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[1150px] text-sm">
+                <table className="w-full min-w-[2000px] text-sm">
                   <thead className="border-b bg-muted/30 text-left text-xs text-muted-foreground">
                     <tr>
                       {[
@@ -485,6 +496,7 @@ function LeadReportPage() {
                         "Humano",
                         "Bloqueio",
                         "Follow-ups",
+                        ...LEAD_REPORT_ATTRIBUTION_COLUMNS.map(column => column.label),
                       ].map((title) => (
                         <th className="px-4 py-3 font-medium" key={title}>
                           {title}
@@ -518,6 +530,11 @@ function LeadReportPage() {
                         <td className="px-4 py-3">{row.human ? "Sim" : "Não"}</td>
                         <td className="px-4 py-3">{row.blockReason ?? "—"}</td>
                         <td className="px-4 py-3">{row.followups.join(", ") || "—"}</td>
+                        {LEAD_REPORT_ATTRIBUTION_COLUMNS.map(column => (
+                          <td key={column.key} className="min-w-40 max-w-64 px-4 py-3 whitespace-normal break-words [overflow-wrap:anywhere]">
+                            {row[column.key]}
+                          </td>
+                        ))}
                       </tr>
                     ))}
                   </tbody>

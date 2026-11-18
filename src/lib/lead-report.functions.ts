@@ -4,6 +4,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { loadLeadReportAttribution, reportAttribution, reportCrmLeadId, type LeadReportAttribution } from "./lead-report-attribution";
 
 const input = z.object({
   companyId: z.number().int().positive(),
@@ -43,7 +44,7 @@ function historyTags(value: string | null) {
     .filter(Boolean);
 }
 
-export type LeadReportRow = {
+export type LeadReportRow = LeadReportAttribution & {
   id: number;
   crmId: string | null;
   nome: string;
@@ -119,6 +120,10 @@ export const getLeadReport = createServerFn({ method: "POST" })
         throw new Error("Período muito amplo. Selecione um intervalo menor.");
     }
     if (!leads.length) return [];
+
+    const attributionById = await loadLeadReportAttribution(
+      supabaseAdmin, data.companyId, leads.map(lead => lead.id_crm),
+    );
 
     const [projectsResult, stagesResult] = await Promise.all([
       supabaseAdmin.from("empreendimento").select("id,nome").eq("id_empresa", data.companyId),
@@ -220,6 +225,7 @@ export const getLeadReport = createServerFn({ method: "POST" })
       for (const tag of tags)
         if (/^(fup\s*\d+|follow[ -]?up\s*\d+)$/i.test(tag)) followups.add(tag);
       return {
+        ...(attributionById.get(reportCrmLeadId(lead.id_crm) ?? 0) ?? reportAttribution()),
         id: lead.id,
         crmId: lead.id_crm,
         nome: lead.nome,

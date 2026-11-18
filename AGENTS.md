@@ -1,4 +1,5 @@
 ## Authorization boundaries
+- Lead-report attribution enrichment uses tenant-filtered batched/paginated reads and one shared column definition for table/CSV to preserve isolation and export parity.
 - Route IA-stage and tag-definition mutations through authenticated server functions that verify the existing database-derived current role before invoking user-scoped RPCs; lead-tag associations and commercial CRM operations stay separate to preserve normal lead workflows.
 
 ## Settings presentation
