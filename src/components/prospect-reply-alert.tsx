@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { BellRing, Volume2 } from "lucide-react";
+import { BellRing, Volume2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useCrmUser } from "@/hooks/use-crm-user";
 import { useActiveEmpresa } from "@/hooks/use-active-empresa";
 import { supabase } from "@/integrations/supabase/client";
 import {
+  dismissProspectNoticesUntil,
   isProspectNoticeRecipient,
   loadProspectNotices,
   type ProspectNotice,
@@ -30,16 +31,17 @@ function RecipientReplyAlert({ memberId }: { memberId: string }) {
   const [soundReady, setSoundReady] = useState(false);
   const [busy, setBusy] = useState(false);
   const queryKey = ["katsuki-prospect-notices", memberId];
+  const fetchNotices = async (): Promise<ProspectNotice[]> => {
+    const { data, error } = await supabase.rpc("hub_kp_notices");
+    if (error?.code === "PGRST202" || error?.code === "42883") return [];
+    if (error) throw error;
+    return (data ?? []) as unknown as ProspectNotice[];
+  };
   const query = useQuery({
     queryKey,
     refetchInterval: 10000,
     refetchIntervalInBackground: true,
-    queryFn: () => loadProspectNotices({ id: memberId, active: true }, async () => {
-      const { data, error } = await supabase.rpc("hub_kp_notices");
-      if (error?.code === "PGRST202" || error?.code === "42883") return [];
-      if (error) throw error;
-      return (data ?? []) as unknown as ProspectNotice[];
-    }),
+    queryFn: () => loadProspectNotices({ id: memberId, active: true }, fetchNotices),
   });
   const notices = query.data ?? [];
   const first = notices[0];
@@ -121,10 +123,33 @@ function RecipientReplyAlert({ memberId }: { memberId: string }) {
     }
   };
 
+  const dismissAll = async () => {
+    if (opening.current) return;
+    const cutoff = Date.now();
+    opening.current = true;
+    setBusy(true);
+    try {
+      await qc.cancelQueries({ queryKey });
+      const { failed } = await dismissProspectNoticesUntil(cutoff, fetchNotices, async id => {
+        const { data, error } = await supabase.rpc("hub_kp_notice_seen", { p_id: id });
+        if (error) throw error;
+        return data === true;
+      });
+      if (failed) toast.error("Não foi possível fechar todos os avisos. Os pendentes continuam visíveis.");
+    } catch {
+      toast.error("Não foi possível fechar os avisos. Tente novamente.");
+    } finally {
+      await qc.invalidateQueries({ queryKey });
+      opening.current = false;
+      setBusy(false);
+    }
+  };
+
   return (
     <aside aria-label="Resposta positiva da prospecção" className="fixed bottom-4 right-4 z-40 w-[calc(100%-2rem)] max-w-sm rounded-2xl border bg-card p-5 text-card-foreground shadow-xl md:bottom-6 md:right-6">
-      <p role="status" className="flex items-center gap-2 text-sm font-semibold text-primary"><BellRing className="size-4 shrink-0" /> Interessado em conhecer a IA</p>
-      <h2 className="mt-3 break-words text-lg font-semibold">{first.lead_name}</h2>
+      <Button type="button" variant="ghost" size="icon" aria-label="Fechar todos os avisos" title="Fechar todos os avisos" className="absolute right-2 top-2 size-10" disabled={busy} onClick={() => void dismissAll()}><X className="size-4" /></Button>
+      <p role="status" className="flex items-center gap-2 pr-10 text-sm font-semibold text-primary"><BellRing className="size-4 shrink-0" /> Interessado em conhecer a IA</p>
+      <h2 className="mt-3 break-words pr-8 text-lg font-semibold">{first.lead_name}</h2>
       <p className="mt-1 break-words text-sm text-muted-foreground">{first.company_name}</p>
       <p className="mt-3 text-sm">A automação está pausada. Abra a conversa e use “Assumir conversa” para continuar pelo mesmo número.</p>
       {notices.length > 1 && <p className="mt-2 text-xs">{notices.length} interessados aguardando atendimento.</p>}

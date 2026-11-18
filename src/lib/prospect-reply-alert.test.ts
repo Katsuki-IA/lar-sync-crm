@@ -24,3 +24,29 @@ describe("aviso de interesse exclusivo de Ana Katsuki", () => {
     expect(fetchNotices).not.toHaveBeenCalled();
   });
 });
+import { dismissProspectNoticesUntil as dismissAll } from "./prospect-reply-alert";
+describe("fechar todos os avisos", () => {
+  const mk = (i: number, t: number) => ({ id: `n${i}`, company_id: 35, company_name: "P1", lead_id: i, lead_name: `L${i}`, created_at: new Date(t).toISOString() });
+  it("fecha em lotes de 100 até o clique e preserva avisos novos", async () => {
+    const cutoff = 1_000_000;
+    let pending = [...Array.from({ length: 230 }, (_, i) => mk(i, cutoff - 1000 + i)), mk(999, cutoff + 5)];
+    const seen: string[] = [];
+    const r = await dismissAll(cutoff, async () => pending.slice(0, 100), async id => { seen.push(id); pending = pending.filter(n => n.id !== id); return true; });
+    expect(r).toEqual({ closed: 230, failed: 0 });
+    expect(seen).not.toContain("n999");
+    expect(pending.map(n => n.id)).toEqual(["n999"]);
+  });
+  it("erro parcial é informado e mantém pendentes", async () => {
+    let pending = [mk(1, 1), mk(2, 2), mk(3, 3)];
+    const r = await dismissAll(10, async () => pending, async id => {
+      if (id === "n2") throw new Error("falha");
+      pending = pending.filter(n => n.id !== id); return true;
+    });
+    expect(r).toEqual({ closed: 2, failed: 1 });
+    expect(pending.map(n => n.id)).toEqual(["n2"]);
+  });
+  it("resposta não confirmada conta como falha", async () => {
+    const r = await dismissAll(10, async () => [mk(1, 1)], async () => false);
+    expect(r).toEqual({ closed: 0, failed: 1 });
+  });
+});
