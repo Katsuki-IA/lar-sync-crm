@@ -1,3 +1,4 @@
+import claraProfile from "@/assets/clara-profile.jpg.asset.json";
 import { useEffect, useRef, useState } from "react";
 import { ArrowUp, RotateCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -146,6 +147,7 @@ export function ClaraChat() {
 
 function Avatar({ config, small }: { config: Config | null; small?: boolean }) {
   const size = small ? "size-7 text-xs" : "size-10 text-sm";
-  if (config?.avatar_url) return <img src={config.avatar_url} alt={config.assistant_name} className={`${size} shrink-0 rounded-full object-cover`} />;
-  return <span aria-hidden className={`${size} flex shrink-0 items-center justify-center rounded-full bg-primary font-semibold text-primary-foreground`}>{config?.avatar_fallback ?? "C"}</span>;
+  // avatar_url configurado tem prioridade; a foto oficial é o padrão.
+  const src = config?.avatar_url || claraProfile.url;
+  return <img src={src} alt={config?.assistant_name ?? "Clara"} className={`${size} shrink-0 rounded-full object-cover object-[50%_30%]`} />;
 }
