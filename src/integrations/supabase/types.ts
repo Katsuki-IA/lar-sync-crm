@@ -7828,6 +7828,11 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      clara_web_inference_claim: {
+        Args: { p_id: string; p_token: string }
+        Returns: Json
+      }
+      clara_web_inference_create: { Args: { p_payload: Json }; Returns: Json }
       commercial_followup_block_reason: {
         Args: { p_company: number; p_lead: number }
         Returns: string
