@@ -93,8 +93,8 @@ export const Route = createFileRoute("/api/public/clara-chat")({
         const leaseArgs = { p_empresa: CLARA_EMPRESA_ID, p_token_hash: tokenHash, p_request: begin.request_id, p_lease: begin.lease_token };
         const finish = (reply: string) => admin.rpc("web_chat_finish", { ...leaseArgs, p_reply: reply });
         try {
-          const history = (begin.history as { role: "user" | "assistant"; content: string }[])
-            .map(({ role, content }) => ({ role, content }));
+          const history = (begin.history as { role: "user" | "assistant"; content: string; created_at?: string }[])
+            .map(({ role, content, created_at }) => ({ role, content, created_at }));
           const system = await srv.loadSystemPrompt(admin, (begin.prompt_ids as number[]).map(Number));
           const out = await srv.generateClaraReply({
             system, history, greeting: body.kind === "greeting",
@@ -102,6 +102,7 @@ export const Route = createFileRoute("/api/public/clara-chat")({
             runTool: srv.createToolRunner({
               admin, tokenHash, requestId: begin.request_id, leaseToken: begin.lease_token,
               userTexts: history.filter((m) => m.role === "user").map((m) => m.content),
+              history, leadId: begin.lead_id == null ? null : Number(begin.lead_id),
             }),
           });
           const { data: done, error: fe } = await finish(out.text);

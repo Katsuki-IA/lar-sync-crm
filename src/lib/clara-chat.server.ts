@@ -3,6 +3,16 @@
 import {
   buildSystemPrompt, CLARA_EMPRESA_ID, contactFromUserMessages, INFERENCE_DEADLINE_MS, parseContact,
 } from "./clara-chat";
+import { nowInTZ, parseDataRawToYMD, resolveScheduleRequest, type Turn } from "./clara-schedule-guard.server";
+
+export const CLARA_TZ = "America/Sao_Paulo";
+export type HistoryMsg = { role: "user" | "assistant"; content: string; created_at?: string };
+
+/** Data/hora reais do servidor no fuso da Clara, injetadas a cada turno. */
+export function currentTimeNote(clock: Date = new Date()): string {
+  const f = new Intl.DateTimeFormat("pt-BR", { timeZone: CLARA_TZ, weekday: "long", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false });
+  return `Data e hora atuais (${CLARA_TZ}): ${f.format(clock)}.`;
+}
 
 const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
 
@@ -89,7 +99,16 @@ export type ToolRunner = (name: string, args: any) => Promise<unknown>;
 
 export function createToolRunner(opts: {
   admin: Pick<Admin, "rpc">; tokenHash: string; requestId: string; leaseToken: string; userTexts: string[];
+  history?: HistoryMsg[]; leadId?: number | null; clock?: () => Date;
 }): ToolRunner {
+  // ID do lead vinculado à sessão: vem do begin/save_contact, só no servidor, nunca do modelo.
+  let leadId = Number.isSafeInteger(Number(opts.leadId)) && Number(opts.leadId) > 0 ? Number(opts.leadId) : null;
+  const clock = () => opts.clock?.() ?? new Date();
+  const history = opts.history ?? [];
+  const turns: Turn[] = history.filter((m) => m.content && m.created_at)
+    .map((m) => ({ type: m.role === "user" ? "human" : "ai", text: m.content, at: String(m.created_at) }));
+  const lastMsg = history.at(-1);
+  const current = lastMsg?.role === "user" ? lastMsg.content : "";
   const base = { p_empresa: CLARA_EMPRESA_ID, p_token_hash: opts.tokenHash, p_request: opts.requestId, p_lease: opts.leaseToken };
   const call = async (fnName: string, args: Record<string, unknown>) => {
     const { data, error } = await opts.admin.rpc(fnName, { ...base, ...args });
@@ -101,19 +120,34 @@ export function createToolRunner(opts: {
       const parsed = parseContact(args ?? {});
       const c = parsed && contactFromUserMessages(parsed, opts.userTexts);
       if (!c) return { outcome: "invalid", motivo: "use apenas dados escritos pelo visitante (nome e e-mail ou telefone)" };
-      return call("web_chat_save_contact", { p_nome: c.nome, p_email: c.email, p_telefone: c.telefone });
+      const saved: any = await call("web_chat_save_contact", { p_nome: c.nome, p_email: c.email, p_telefone: c.telefone });
+      if (saved && typeof saved === "object") {
+        if (Number(saved.lead_id) > 0) leadId = Number(saved.lead_id);
+        const { lead_id: _omit, ...rest } = saved;
+        return rest;
+      }
+      return saved;
     }
-    const day = typeof args?.dia === "string" && /^\d{4}-\d{2}-\d{2}$/.test(args.dia) ? args.dia : null;
     if (name === "consultar_horarios") {
+      // Consulta pode normalizar a data do modelo; nada é reservado aqui.
+      const raw = typeof args?.dia === "string" ? args.dia : null;
+      const day = raw ? (/^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : parseDataRawToYMD(raw, nowInTZ(CLARA_TZ, clock()))) : null;
       const period = args?.periodo === "manha" || args?.periodo === "tarde" ? args.periodo : null;
       return call("web_chat_schedule", { p_op: "opcoes", p_day: day, p_time: null, p_period: period, p_booking: null, p_revision: null });
     }
     if (name === "agendar_reuniao" && ["agendar", "reagendar", "cancelar"].includes(args?.acao)) {
-      const time = typeof args?.hora === "string" && /^\d{2}:\d{2}$/.test(args.hora) ? args.hora : null;
+      if (!leadId) return { outcome: "contact_required" };
+      // Reserva/cancelamento exigem evidência nas mensagens; valores do guard vencem os do modelo.
+      const g = resolveScheduleRequest({
+        empresa: CLARA_EMPRESA_ID, lead_id: leadId, acao: args.acao,
+        data_raw: typeof args?.dia === "string" ? args.dia : "", hora_raw: typeof args?.hora === "string" ? args.hora : "",
+        booking: Number.isInteger(args?.reserva_id) ? args.reserva_id : 0, revision: Number.isInteger(args?.revisao) ? args.revisao : 0,
+        request: opts.requestId, mensagem_atual: current,
+      }, { recent_turns: turns, server_now: clock().toISOString(), booking_rules: { tz: CLARA_TZ, slot_minutes: 60 } });
+      if (!g.valid) return { outcome: g.outcome, reason: g.reason, customer_message: g.customer_message };
       return call("web_chat_schedule", {
-        p_op: args.acao, p_day: day, p_time: time, p_period: null,
-        p_booking: Number.isInteger(args?.reserva_id) ? args.reserva_id : null,
-        p_revision: Number.isInteger(args?.revisao) ? args.revisao : null,
+        p_op: g.acao, p_day: g.dia || null, p_time: g.hora || null, p_period: null,
+        p_booking: g.booking > 0 ? g.booking : null, p_revision: g.revision > 0 ? g.revision : null,
       });
     }
     return { outcome: "invalid" };
@@ -122,11 +156,13 @@ export function createToolRunner(opts: {
 
 export async function generateClaraReply(opts: {
   system: string; history: Msg[]; greeting: boolean; model: string; temperature: number;
-  transport: CompletionTransport; runTool: ToolRunner; deadlineMs?: number;
+  transport: CompletionTransport; runTool: ToolRunner; deadlineMs?: number; clock?: Date;
 }): Promise<{ text: string }> {
   // Prazo total de inferência (todos os passos) — menor que o lease de 120s.
   const signal = AbortSignal.timeout(opts.deadlineMs ?? INFERENCE_DEADLINE_MS);
-  const messages: any[] = [{ role: "system", content: opts.system }, ...opts.history];
+  const messages: any[] = [{ role: "system", content: opts.system },
+    ...opts.history.map(({ role, content }) => ({ role, content })),
+    { role: "system", content: currentTimeNote(opts.clock ?? new Date()) }];
   if (opts.greeting) messages.push({ role: "system", content: "O visitante acabou de abrir o chat do site. Apresente-se conforme suas instruções, em uma mensagem curta." });
   for (let step = 0; step < 4; step++) {
     const data: any = await opts.transport({ model: opts.model, temperature: opts.temperature, messages, tools: TOOLS }, signal);

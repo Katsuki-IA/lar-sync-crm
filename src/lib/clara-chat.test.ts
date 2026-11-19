@@ -33,6 +33,12 @@ describe("contato informado", () => {
     expect(contactFromUserMessages({ nome: "Ana Souza", email: "ana@x.com", telefone: null }, user)).toBeNull();
     expect(contactFromUserMessages({ nome: "Maria", email: null, telefone: "11988887777" }, user)).toBeNull();
   });
+  it("não aceita DDD/prefixo inventado; só dígitos literais ou +55", () => {
+    const user = ["Ana Souza", "11988887777"];
+    expect(contactFromUserMessages({ nome: "Ana Souza", email: null, telefone: "21988887777" }, user)).toBeNull();
+    expect(contactFromUserMessages({ nome: "Ana Souza", email: null, telefone: "5511988887777" }, user)).not.toBeNull();
+    expect(contactFromUserMessages({ nome: "Ana Souza", email: null, telefone: "4411988887777" }, user)).toBeNull();
+  });
 });
 
 describe("origem e acesso", () => {
@@ -195,6 +201,27 @@ describe("SQL candidato (PGlite)", () => {
     expect((await db.query(`select count(*)::int n from private.hub_queue_intake`)).rows[0]).toEqual({ n: 0 });
     expect((await db.query(`select tipo from public.crm_lead_activities`)).rows).toEqual([{ tipo: "web_chat" }]);
     expect((await db.query(`select id_crm is not null ok, status, numero from public.lead`)).rows).toEqual([{ ok: true, status: "web_chat", numero: "11988887777" }]);
+  });
+
+  it("sessão promovida: e-mail/nome posteriores só atualizam os registros dela; telefone novo não reatribui", async () => {
+    await open();
+    const b = await begin(rid(1), "message", "x");
+    const first = await save(rid(1), b.lease_token, "Ana", null, "11988887777");
+    expect(first.lead_id).toBeGreaterThan(0);
+    await db.exec(`insert into public.lead (id_empresa, nome, numero, status) values (38, 'Outro', '11977776666', 'ativo')`);
+    const again = await save(rid(1), b.lease_token, "Ana Souza", "ana@x.com", "11977776666");
+    expect(again).toMatchObject({ crm: "promoted", telefone_ignorado: true });
+    const rows = (await db.query(`select nome, numero, email from public.lead order by id`)).rows;
+    expect(rows).toEqual([{ nome: "Ana Souza", numero: "11988887777", email: "ana@x.com" }, { nome: "Outro", numero: "11977776666", email: null }]);
+    expect((await db.query(`select nome, email, telefone from public.crm_leads`)).rows).toEqual([{ nome: "Ana Souza", email: "ana@x.com", telefone: "11988887777" }]);
+  });
+
+  it("erro na agenda não expõe detalhe do banco", async () => {
+    await open();
+    const b = await begin(rid(1), "message", "x");
+    await save(rid(1), b.lease_token, "Ana", null, "11988887777");
+    await db.exec(`create or replace function public.commercial_schedule_options(p_company bigint, p_lead bigint, p_from date, p_period text) returns jsonb language plpgsql as $$ begin raise exception 'segredo interno'; end $$`);
+    expect(await call("web_chat_schedule", [38, H("a"), rid(1), b.lease_token, "opcoes", null, null, null, null, null])).toEqual({ outcome: "error" });
   });
 
   it("telefone já existente não mescla nem cria lead", async () => {

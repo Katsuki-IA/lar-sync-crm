@@ -11,7 +11,11 @@ export const WEB_CHANNEL_NOTE =
   "Canal atual: chat no site da Katsuki (não é WhatsApp); não há envio de áudio, imagem ou mensagem por WhatsApp neste canal. " +
   "Use registrar_contato apenas com dados que o visitante escreveu nesta conversa. Para agendar a reunião é preciso nome e telefone do visitante; " +
   "use consultar_horarios e agendar_reuniao e só confirme uma reserva quando a ferramenta retornar outcome created ou rescheduled. " +
-  "Não envie nem prometa link de Meet, convite de calendário ou contato da equipe: diga apenas o que a ferramenta confirmou.";
+  "Não envie nem prometa link de Meet, convite de calendário ou contato da equipe: diga apenas o que a ferramenta confirmou. " +
+  "Use a data e hora atuais informadas pelo sistema a cada turno; nunca invente dia ou horário. " +
+  "Continue a conversa a partir do histórico: se o visitante aceitou a reunião, não recomece a qualificação. " +
+  "Para agendar, pergunte primeiro se prefere manhã ou tarde; depois ofereça no máximo 2 horários simples (ex.: amanhã às 9h ou 10h). " +
+  "Uma escolha explícita do visitante basta: agende sem pedir nova confirmação. Não ofereça ajustar ou trocar horário por conta própria.";
 
 export function buildSystemPrompt(promptIds: number[], prompts: PromptRow[], knowledge: KnowledgeRow[]): string {
   const byId = new Map(prompts.map((p) => [Number(p.id), p]));
@@ -64,13 +68,20 @@ function normalize(v: string) {
   return v.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
 }
 
+/** Telefone só vale com os dígitos literais do visitante, ou com o país 55 acrescentado a um número BR (10/11 dígitos). */
+export function phoneWrittenByUser(telefone: string, digitsPerMsg: string[]): boolean {
+  if (digitsPerMsg.some((d) => d.includes(telefone))) return true;
+  const m = /^55(\d{10,11})$/.exec(telefone);
+  return !!m && digitsPerMsg.some((d) => d.includes(m[1]));
+}
+
 /** Só aceita dados que aparecem literalmente nas mensagens do próprio visitante. */
 export function contactFromUserMessages(contact: Contact, userTexts: string[]): Contact | null {
   const text = normalize(userTexts.join(" \n "));
   const digitsPerMsg = userTexts.map((t) => t.replace(/\D/g, ""));
   if (!text.includes(normalize(contact.nome))) return null;
   const email = contact.email && text.includes(contact.email) ? contact.email : null;
-  const telefone = contact.telefone && digitsPerMsg.some((d) => d.includes(contact.telefone!.slice(-10))) ? contact.telefone : null;
+  const telefone = contact.telefone && phoneWrittenByUser(contact.telefone, digitsPerMsg) ? contact.telefone : null;
   if (contact.email && !email) return null;
   if (contact.telefone && !telefone) return null;
   return { nome: contact.nome, email, telefone };

@@ -209,7 +209,7 @@ begin
   return jsonb_build_object('status','proceed', 'request_id', p_request, 'lease_token', v_lease,
     'model', v_cfg.model, 'temperature', v_cfg.temperature, 'prompt_ids', to_jsonb(v_cfg.prompt_ids),
     'assistant_name', v_cfg.assistant_name, 'contact', v_s.contact,
-    'crm_status', v_s.crm_status, 'history', private.web_chat_history(v_s.id, 40));
+    'crm_status', v_s.crm_status, 'lead_id', v_s.lead_id, 'history', private.web_chat_history(v_s.id, 40));
 end $$;
 
 -- Valida e trava a sessão do detentor do lease vigente.
@@ -275,10 +275,22 @@ begin
      or (v_email is null and v_tel is null) then
     return jsonb_build_object('outcome','invalid');
   end if;
+  if v_s.crm_status = 'promoted' then
+    -- Sessão já promovida: nome/e-mail atualizam SÓ os registros novos desta sessão/empresa
+    -- (por id, nunca por busca de telefone). Telefone diferente não reatribui nada.
+    update private.web_chat_sessions set contact = contact || jsonb_strip_nulls(jsonb_build_object(
+        'nome', v_nome, 'email', v_email, 'informado_em', now()))
+      where id = v_s.id;
+    update public.lead set nome = v_nome, email = coalesce(v_email, email)
+      where id = v_s.lead_id and id_empresa = p_empresa and status = 'web_chat';
+    update public.crm_leads set nome = v_nome, email = coalesce(v_email, email)
+      where id = v_s.crm_lead_id and id_empresa = p_empresa;
+    return jsonb_build_object('outcome','saved','crm','promoted', 'lead_id', v_s.lead_id,
+      'telefone_ignorado', v_tel is not null and v_tel is distinct from (v_s.contact->>'telefone'));
+  end if;
   update private.web_chat_sessions set contact = contact || jsonb_strip_nulls(jsonb_build_object(
       'nome', v_nome, 'email', v_email, 'telefone', v_tel, 'informado_em', now()))
     where id = v_s.id;
-  if v_s.crm_status = 'promoted' then return jsonb_build_object('outcome','saved','crm','promoted'); end if;
   if v_tel is null then return jsonb_build_object('outcome','saved','crm','none'); end if;
 
   perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended('clara-phone:' || p_empresa || ':' || v_tel, 0));
@@ -305,7 +317,7 @@ begin
       jsonb_build_object('source','web_chat','session_id', v_s.id, 'lead_id', v_lead));
   update private.web_chat_sessions set crm_status = 'promoted', crm_lead_id = v_crm,
     lead_id = v_lead, promoted_at = now() where id = v_s.id;
-  return jsonb_build_object('outcome','saved','crm','promoted');
+  return jsonb_build_object('outcome','saved','crm','promoted', 'lead_id', v_lead);
 end $$;
 
 -- Agenda: só para a sessão promovida, usando o lead NOVO vinculado a ela.
@@ -329,7 +341,8 @@ begin
     end if;
     return jsonb_build_object('outcome','invalid');
   exception when others then
-    return jsonb_build_object('outcome','error', 'code', left(sqlerrm, 60));
+    -- Detalhe do erro nunca sai na resposta (vai ao modelo/visitante).
+    return jsonb_build_object('outcome','error');
   end;
 end $$;
 
