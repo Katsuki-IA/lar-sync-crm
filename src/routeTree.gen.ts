@@ -22,6 +22,7 @@ import { Route as TermosDeUsoRouteImport } from './routes/termos-de-uso'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedAdministracaoRouteImport } from './routes/_authenticated/administracao'
 import { Route as AuthenticatedAnaliseConversasRouteImport } from './routes/_authenticated/analise-conversas'
+import { Route as AuthenticatedChatWebRouteImport } from './routes/_authenticated/chat-web'
 import { Route as AuthenticatedConfiguracoesRouteImport } from './routes/_authenticated/configuracoes'
 import { Route as AuthenticatedConversasRouteImport } from './routes/_authenticated/conversas'
 import { Route as AuthenticatedCrmRouteImport } from './routes/_authenticated/crm'
@@ -137,6 +138,11 @@ const AuthenticatedAnaliseConversasRoute =
     path: '/analise-conversas',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedChatWebRoute = AuthenticatedChatWebRouteImport.update({
+  id: '/chat-web',
+  path: '/chat-web',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedConfiguracoesRoute =
   AuthenticatedConfiguracoesRouteImport.update({
     id: '/configuracoes',
@@ -416,6 +422,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AuthenticatedAdminRouteWithChildren
   '/administracao': typeof AuthenticatedAdministracaoRoute
   '/analise-conversas': typeof AuthenticatedAnaliseConversasRoute
+  '/chat-web': typeof AuthenticatedChatWebRoute
   '/configuracoes': typeof AuthenticatedConfiguracoesRouteWithChildren
   '/conversas': typeof AuthenticatedConversasRoute
   '/crm': typeof AuthenticatedCrmRoute
@@ -477,6 +484,7 @@ export interface FileRoutesByTo {
   '/termos-de-uso': typeof TermosDeUsoRoute
   '/administracao': typeof AuthenticatedAdministracaoRoute
   '/analise-conversas': typeof AuthenticatedAnaliseConversasRoute
+  '/chat-web': typeof AuthenticatedChatWebRoute
   '/configuracoes': typeof AuthenticatedConfiguracoesRouteWithChildren
   '/conversas': typeof AuthenticatedConversasRoute
   '/crm': typeof AuthenticatedCrmRoute
@@ -540,6 +548,7 @@ export interface FileRoutesById {
   '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
   '/_authenticated/administracao': typeof AuthenticatedAdministracaoRoute
   '/_authenticated/analise-conversas': typeof AuthenticatedAnaliseConversasRoute
+  '/_authenticated/chat-web': typeof AuthenticatedChatWebRoute
   '/_authenticated/configuracoes': typeof AuthenticatedConfiguracoesRouteWithChildren
   '/_authenticated/conversas': typeof AuthenticatedConversasRoute
   '/_authenticated/crm': typeof AuthenticatedCrmRoute
@@ -604,6 +613,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/administracao'
     | '/analise-conversas'
+    | '/chat-web'
     | '/configuracoes'
     | '/conversas'
     | '/crm'
@@ -665,6 +675,7 @@ export interface FileRouteTypes {
     | '/termos-de-uso'
     | '/administracao'
     | '/analise-conversas'
+    | '/chat-web'
     | '/configuracoes'
     | '/conversas'
     | '/crm'
@@ -727,6 +738,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin'
     | '/_authenticated/administracao'
     | '/_authenticated/analise-conversas'
+    | '/_authenticated/chat-web'
     | '/_authenticated/configuracoes'
     | '/_authenticated/conversas'
     | '/_authenticated/crm'
@@ -890,6 +902,13 @@ declare module '@tanstack/react-router' {
       path: '/analise-conversas'
       fullPath: '/analise-conversas'
       preLoaderRoute: typeof AuthenticatedAnaliseConversasRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/chat-web': {
+      id: '/_authenticated/chat-web'
+      path: '/chat-web'
+      fullPath: '/chat-web'
+      preLoaderRoute: typeof AuthenticatedChatWebRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/configuracoes': {
@@ -1317,6 +1336,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRouteWithChildren
   AuthenticatedAdministracaoRoute: typeof AuthenticatedAdministracaoRoute
   AuthenticatedAnaliseConversasRoute: typeof AuthenticatedAnaliseConversasRoute
+  AuthenticatedChatWebRoute: typeof AuthenticatedChatWebRoute
   AuthenticatedConfiguracoesRoute: typeof AuthenticatedConfiguracoesRouteWithChildren
   AuthenticatedConversasRoute: typeof AuthenticatedConversasRoute
   AuthenticatedCrmRoute: typeof AuthenticatedCrmRoute
@@ -1340,6 +1360,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRouteWithChildren,
   AuthenticatedAdministracaoRoute: AuthenticatedAdministracaoRoute,
   AuthenticatedAnaliseConversasRoute: AuthenticatedAnaliseConversasRoute,
+  AuthenticatedChatWebRoute: AuthenticatedChatWebRoute,
   AuthenticatedConfiguracoesRoute: AuthenticatedConfiguracoesRouteWithChildren,
   AuthenticatedConversasRoute: AuthenticatedConversasRoute,
   AuthenticatedCrmRoute: AuthenticatedCrmRoute,

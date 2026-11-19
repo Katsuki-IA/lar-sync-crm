@@ -11,6 +11,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCrmUser } from "@/hooks/use-crm-user";
+import { useActiveEmpresa } from "@/hooks/use-active-empresa";
+import { canSeeWebChat } from "@/lib/clara-chat";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { getInitials, colorFromString } from "@/lib/lead-visuals";
 import { adminSidebarFor, isConfigPath } from "@/lib/config-nav";
@@ -37,6 +39,7 @@ export function AppSidebar({
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { data: me } = useCrmUser();
   const { data: modules } = useCompanyModules();
+  const { activeEmpresaId } = useActiveEmpresa();
 
   const mainItems: Item[] = [
     { title: "Dashboard", url: "/dashboard", match: "/dashboard", icon: LayoutDashboard },
@@ -73,6 +76,9 @@ export function AppSidebar({
       {title:"CRM comercial",url:"/crm",match:"/crm",icon:Users},
       {title:"Tarefas",url:"/tarefas",match:"/tarefas",icon:LayoutDashboard},
       {title:me?.role === "agent" ? "Minhas ofertas" : "Filas de distribuição",url:"/filas",match:"/filas",icon:Users});
+  }
+  if (canSeeWebChat(me?.role, activeEmpresaId)) {
+    mainItems.push({ title: "Chat web", url: "/chat-web", match: "/chat-web", icon: MessagesSquare });
   }
   const adminItems: Item[] = adminSidebarFor(me?.role, modules).map((i) => ({
     title: i.title,

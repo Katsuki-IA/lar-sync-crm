@@ -1,14 +1,14 @@
 // Chat web público da Clara. Sessão por cookie httpOnly (banco guarda só hash),
-// idempotência por requestId, lease por sessão e limites no banco (web_chat_*).
+// idempotência por requestId, lease com token por tentativa e limites no banco.
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
-import { CLARA_EMPRESA_ID, statusToHttp, type BeginStatus } from "@/lib/clara-chat";
+import { CLARA_EMPRESA_ID, isAllowedOrigin, MAX_BODY_BYTES, statusToHttp, type BeginStatus } from "@/lib/clara-chat";
 
 const COOKIE = "clara_sid";
 const postSchema = z.object({
   requestId: z.string().uuid(),
   kind: z.enum(["greeting", "message"]),
-  text: z.string().trim().max(2000).optional(),
+  text: z.string().trim().min(1).max(2000).optional(),
 }).strict();
 
 async function sha256(v: string) {
@@ -30,6 +30,24 @@ function json(body: unknown, status = 200, cookie?: string) {
   if (cookie) h.append("Set-Cookie", `${COOKIE}=${cookie}; Path=/api/public/clara-chat; HttpOnly; Secure; SameSite=Lax; Max-Age=2592000`);
   return new Response(JSON.stringify(body), { status, headers: h });
 }
+/** Lê o corpo com limite real de bytes antes de interpretar o JSON. */
+async function readLimited(req: Request): Promise<string | null> {
+  const declared = Number(req.headers.get("content-length") ?? "0");
+  if (declared > MAX_BODY_BYTES) return null;
+  const reader = req.body?.getReader();
+  if (!reader) return "";
+  const chunks: Uint8Array[] = []; let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > MAX_BODY_BYTES) { await reader.cancel(); return null; }
+    chunks.push(value);
+  }
+  const all = new Uint8Array(size); let o = 0;
+  for (const c of chunks) { all.set(c, o); o += c.byteLength; }
+  return new TextDecoder().decode(all);
+}
 
 export const Route = createFileRoute("/api/public/clara-chat")({
   server: {
@@ -43,23 +61,25 @@ export const Route = createFileRoute("/api/public/clara-chat")({
           p_empresa: CLARA_EMPRESA_ID, p_token_hash: await sha256(token), p_ip_hash: await ipHash(request),
         });
         if (error) return json({ status: "unavailable" }, 503);
-        const status = (data?.status ?? "invalid") as BeginStatus;
-        if (status !== "ok" as any) return json({ status }, statusToHttp(status));
+        if (data?.status !== "ok") return json({ status: data?.status ?? "invalid" }, statusToHttp(data?.status ?? "invalid"));
         return json(data, 200, isNew ? token : undefined);
       },
       POST: async ({ request }) => {
+        if (!isAllowedOrigin(request.headers.get("origin"), request.url)) return json({ status: "forbidden" }, 403);
+        if (!(request.headers.get("content-type") ?? "").toLowerCase().startsWith("application/json")) return json({ status: "invalid" }, 415);
+        const raw = await readLimited(request);
+        if (raw === null) return json({ status: "invalid" }, 413);
         const token = readToken(request);
         if (!token) return json({ status: "no_session" }, 401);
         let body: z.infer<typeof postSchema>;
-        try { body = postSchema.parse(await request.json()); } catch { return json({ status: "invalid" }, 400); }
-        if (body.kind === "message" && !body.text) return json({ status: "invalid" }, 400);
+        try { body = postSchema.parse(JSON.parse(raw)); } catch { return json({ status: "invalid" }, 400); }
+        if ((body.kind === "message") !== !!body.text) return json({ status: "invalid" }, 400);
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        const { ClaraNotConfiguredError, generateClaraReply, loadSystemPrompt, resolveCompletionTransport } = await import("@/lib/clara-chat.server");
+        const srv = await import("@/lib/clara-chat.server");
         const admin = supabaseAdmin as any;
         const tokenHash = await sha256(token);
-
-        const transport = resolveCompletionTransport(admin);
+        const transport = srv.resolveCompletionTransport(admin);
         if (!transport) return json({ status: "ai_not_configured" }, 503);
 
         const { data: begin, error } = await admin.rpc("web_chat_begin", {
@@ -68,27 +88,29 @@ export const Route = createFileRoute("/api/public/clara-chat")({
         });
         if (error) return json({ status: "unavailable" }, 503);
         const status = begin?.status as BeginStatus;
-        if (status !== "proceed") return json(begin, statusToHttp(status));
+        if (status !== "proceed") return json({ status, reply: begin?.reply ?? null }, statusToHttp(status));
 
-        const finish = (reply: string, contact: unknown) => admin.rpc("web_chat_finish", {
-          p_empresa: CLARA_EMPRESA_ID, p_token_hash: tokenHash, p_request: begin.request_id,
-          p_reply: reply, p_contact: contact ?? null,
-        });
+        const leaseArgs = { p_empresa: CLARA_EMPRESA_ID, p_token_hash: tokenHash, p_request: begin.request_id, p_lease: begin.lease_token };
+        const finish = (reply: string) => admin.rpc("web_chat_finish", { ...leaseArgs, p_reply: reply });
         try {
-          const system = await loadSystemPrompt(admin, (begin.prompt_ids as number[]).map(Number));
           const history = (begin.history as { role: "user" | "assistant"; content: string }[])
             .map(({ role, content }) => ({ role, content }));
-          const out = await generateClaraReply({
+          const system = await srv.loadSystemPrompt(admin, (begin.prompt_ids as number[]).map(Number));
+          const out = await srv.generateClaraReply({
             system, history, greeting: body.kind === "greeting",
             model: String(begin.model), temperature: Number(begin.temperature), transport,
+            runTool: srv.createToolRunner({
+              admin, tokenHash, requestId: begin.request_id, leaseToken: begin.lease_token,
+              userTexts: history.filter((m) => m.role === "user").map((m) => m.content),
+            }),
           });
-          const { data: done, error: fe } = await finish(out.text, out.contact ? { ...out.contact, informado_em: new Date().toISOString() } : null);
+          const { data: done, error: fe } = await finish(out.text);
           if (fe) return json({ status: "unavailable" }, 503);
           return json(done, statusToHttp(done?.status ?? "failed"));
         } catch (e) {
-          await finish("", null);
-          if (e instanceof ClaraNotConfiguredError) return json({ status: "ai_not_configured" }, 503);
-          console.error("[clara-chat] geração falhou", e instanceof Error ? e.message : "erro");
+          await finish("");
+          if (e instanceof srv.ClaraNotConfiguredError) return json({ status: "ai_not_configured" }, 503);
+          console.error("[clara-chat] geração falhou", e instanceof Error ? e.name : "erro");
           return json({ status: "failed" }, 502);
         }
       },

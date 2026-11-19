@@ -8,9 +8,10 @@ export type PromptRow = { id: number; node: string | null; prompt: string | null
 export type KnowledgeRow = { titulo: string | null; categoria: string | null; conteudo: string | null; ordem: number | null };
 
 export const WEB_CHANNEL_NOTE =
-  "Canal atual: chat no site (não é WhatsApp). Não há envio de mensagens, áudios ou imagens por WhatsApp neste canal. " +
-  "Nesta fase, agendamento de reunião não está disponível pelo site: quando o visitante quiser agendar, peça nome, e-mail e, se ele quiser, telefone, " +
-  "registre com a ferramenta registrar_contato e informe que a equipe Katsuki entrará em contato para confirmar o horário. Nunca invente horários nem confirme reserva.";
+  "Canal atual: chat no site da Katsuki (não é WhatsApp); não há envio de áudio, imagem ou mensagem por WhatsApp neste canal. " +
+  "Use registrar_contato apenas com dados que o visitante escreveu nesta conversa. Para agendar a reunião é preciso nome e telefone do visitante; " +
+  "use consultar_horarios e agendar_reuniao e só confirme uma reserva quando a ferramenta retornar outcome created ou rescheduled. " +
+  "Não envie nem prometa link de Meet, convite de calendário ou contato da equipe: diga apenas o que a ferramenta confirmou.";
 
 export function buildSystemPrompt(promptIds: number[], prompts: PromptRow[], knowledge: KnowledgeRow[]): string {
   const byId = new Map(prompts.map((p) => [Number(p.id), p]));
@@ -45,7 +46,7 @@ export function parseContact(input: ContactInput): Contact | null {
   return { nome, email, telefone };
 }
 
-export type BeginStatus = "proceed" | "done" | "busy" | "rate_limited" | "disabled" | "no_session" | "invalid" | "failed";
+export type BeginStatus = "proceed" | "done" | "busy" | "rate_limited" | "disabled" | "no_session" | "invalid" | "failed" | "lease_lost";
 
 export function statusToHttp(status: BeginStatus | "ai_not_configured" | "lease_lost"): number {
   switch (status) {
@@ -57,4 +58,47 @@ export function statusToHttp(status: BeginStatus | "ai_not_configured" | "lease_
     case "failed": case "lease_lost": return 502;
     default: return 200;
   }
+}
+
+function normalize(v: string) {
+  return v.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+/** Só aceita dados que aparecem literalmente nas mensagens do próprio visitante. */
+export function contactFromUserMessages(contact: Contact, userTexts: string[]): Contact | null {
+  const text = normalize(userTexts.join(" \n "));
+  const digitsPerMsg = userTexts.map((t) => t.replace(/\D/g, ""));
+  if (!text.includes(normalize(contact.nome))) return null;
+  const email = contact.email && text.includes(contact.email) ? contact.email : null;
+  const telefone = contact.telefone && digitsPerMsg.some((d) => d.includes(contact.telefone!.slice(-10))) ? contact.telefone : null;
+  if (contact.email && !email) return null;
+  if (contact.telefone && !telefone) return null;
+  return { nome: contact.nome, email, telefone };
+}
+
+export const ALLOWED_ORIGINS = [
+  "https://myhub.katsuki.com.br",
+  "https://lar-sync-crm.lovable.app",
+  "https://id-preview--49e843b7-5b71-4684-91bf-93d45886e53a.lovable.app",
+  "https://project--49e843b7-5b71-4684-91bf-93d45886e53a.lovable.app",
+  "https://project--49e843b7-5b71-4684-91bf-93d45886e53a-dev.lovable.app",
+];
+
+/** Origin obrigatório: mesmo host da requisição ou domínio publicado/preview conhecido. */
+export function isAllowedOrigin(origin: string | null, requestUrl: string): boolean {
+  if (!origin) return false;
+  try {
+    const o = new URL(origin);
+    const r = new URL(requestUrl);
+    if (o.origin === r.origin) return true;
+    return ALLOWED_ORIGINS.includes(o.origin);
+  } catch { return false; }
+}
+
+export const MAX_BODY_BYTES = 8192;
+export const INFERENCE_DEADLINE_MS = 95_000;
+
+/** Hub > Chat web: super_admin ou gestor, com a empresa da Clara ativa (o banco revalida). */
+export function canSeeWebChat(role: string | undefined, activeEmpresaId: number | null): boolean {
+  return activeEmpresaId === CLARA_EMPRESA_ID && (role === "super_admin" || role === "manager");
 }
