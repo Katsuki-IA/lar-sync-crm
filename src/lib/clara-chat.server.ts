@@ -1,7 +1,7 @@
 // Geração da Clara no servidor. Credenciais só no servidor; modelo fixo pela
 // config (gpt-4.1 / 0.5). Transporte: OpenAI direto (OPENAI_API_KEY) ou ponte n8n.
 import {
-  buildSystemPrompt, CLARA_EMPRESA_ID, contactFromUserMessages, INFERENCE_DEADLINE_MS, parseContact,
+  buildSystemPrompt, CLARA_EMPRESA_ID, CLARA_GREETING, contactFromUserMessages, INFERENCE_DEADLINE_MS, parseContact,
 } from "./clara-chat";
 import { nowInTZ, parseDataRawToYMD, resolveScheduleRequest, type Turn } from "./clara-schedule-guard.server";
 
@@ -158,12 +158,13 @@ export async function generateClaraReply(opts: {
   system: string; history: Msg[]; greeting: boolean; model: string; temperature: number;
   transport: CompletionTransport; runTool: ToolRunner; deadlineMs?: number; clock?: Date;
 }): Promise<{ text: string }> {
+  // A abertura é persistida pelo mesmo finish/lease das demais respostas, sem inferência.
+  if (opts.greeting) return { text: CLARA_GREETING };
   // Prazo total de inferência (todos os passos) — menor que o lease de 120s.
   const signal = AbortSignal.timeout(opts.deadlineMs ?? INFERENCE_DEADLINE_MS);
   const messages: any[] = [{ role: "system", content: opts.system },
     ...opts.history.map(({ role, content }) => ({ role, content })),
     { role: "system", content: currentTimeNote(opts.clock ?? new Date()) }];
-  if (opts.greeting) messages.push({ role: "system", content: "O visitante acabou de abrir o chat do site. Apresente-se conforme suas instruções, em uma mensagem curta." });
   for (let step = 0; step < 4; step++) {
     const data: any = await opts.transport({ model: opts.model, temperature: opts.temperature, messages, tools: TOOLS }, signal);
     const msg = data?.choices?.[0]?.message;

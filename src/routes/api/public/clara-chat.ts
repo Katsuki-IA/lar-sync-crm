@@ -95,7 +95,7 @@ export const Route = createFileRoute("/api/public/clara-chat")({
         try {
           const history = (begin.history as { role: "user" | "assistant"; content: string; created_at?: string }[])
             .map(({ role, content, created_at }) => ({ role, content, created_at }));
-          const system = await srv.loadSystemPrompt(admin, (begin.prompt_ids as number[]).map(Number));
+          const system = body.kind === "greeting" ? "" : await srv.loadSystemPrompt(admin, (begin.prompt_ids as number[]).map(Number));
           const out = await srv.generateClaraReply({
             system, history, greeting: body.kind === "greeting",
             model: String(begin.model), temperature: Number(begin.temperature), transport,

@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowUp, RotateCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { claraMessageParts } from "@/lib/clara-chat";
 
 type Msg = { id: number | string; role: "user" | "assistant"; content: string; pendingId?: string; failed?: boolean };
 type Config = { assistant_name: string; avatar_url: string | null; avatar_fallback: string };
@@ -46,7 +47,7 @@ export function ClaraChat() {
       if (cancelled) return;
       if (data?.status !== "ok") { setState("unavailable"); setError(ERRORS[data?.status] ?? "O chat está temporariamente indisponível."); return; }
       setConfig(data.config); setMessages(data.messages ?? []); setState("ready");
-      if (!data.greeted) {
+      if (!data.greeted && !data.messages?.length) {
         // Mesmo requestId em recargas/retries: a abertura acontece uma vez.
         const rid = sessionStorage.getItem(GREET_KEY) ?? crypto.randomUUID();
         sessionStorage.setItem(GREET_KEY, rid);
@@ -102,13 +103,13 @@ export function ClaraChat() {
 
       <main className="mx-auto w-full max-w-2xl flex-1 space-y-3 px-4 py-6" aria-live="polite">
         {state === "loading" && <p className="text-center text-sm text-muted-foreground">Abrindo conversa…</p>}
-        {messages.map((m) => (
-          <div key={m.id} className={m.role === "user" ? "flex justify-end" : "flex items-end gap-2"}>
+        {messages.flatMap((m) => claraMessageParts(m.role, m.content).map((content, part) => (
+          <div key={`${m.id}:${part}`} className={m.role === "user" ? "flex justify-end" : "flex items-end gap-2"}>
             {m.role === "assistant" && <Avatar config={config} small />}
             <div className={m.role === "user"
               ? "max-w-[80%] whitespace-pre-wrap break-words rounded-2xl rounded-br-sm bg-primary px-4 py-2.5 text-sm text-primary-foreground"
               : "max-w-[80%] whitespace-pre-wrap break-words rounded-2xl rounded-bl-sm bg-muted px-4 py-2.5 text-sm"}>
-              {m.content}
+              {content}
               {m.failed && (
                 <button type="button" className="mt-1 flex items-center gap-1 text-xs underline" disabled={sending}
                   onClick={() => void send(m.content, String(m.pendingId))}>
@@ -117,7 +118,7 @@ export function ClaraChat() {
               )}
             </div>
           </div>
-        ))}
+        )))}
         {sending && (
           <div className="flex items-end gap-2" aria-label={`${name} está digitando`}>
             <Avatar config={config} small />

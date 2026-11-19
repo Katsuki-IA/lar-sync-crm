@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { PGlite } from "@electric-sql/pglite";
 import { beforeEach, describe, expect, it } from "vitest";
-import { buildSystemPrompt, canSeeWebChat, contactFromUserMessages, isAllowedOrigin, parseContact, WEB_CHANNEL_NOTE } from "./clara-chat";
+import { buildSystemPrompt, canSeeWebChat, CLARA_GREETING, contactFromUserMessages, isAllowedOrigin, parseContact, WEB_CHANNEL_NOTE } from "./clara-chat";
 
 describe("montagem do prompt", () => {
   it("usa 55 e 56 do banco na ordem e o conhecimento por ordem", () => {
@@ -58,6 +58,24 @@ describe("origem e acesso", () => {
 });
 
 describe("transporte e ferramentas", () => {
+  it("abertura determinística não chama inferência nem ferramentas", async () => {
+    const { generateClaraReply } = await import("./clara-chat.server");
+    const out = await generateClaraReply({ system: "", history: [], greeting: true, model: "gpt-4.1", temperature: 0.5,
+      transport: async () => { throw new Error("inferência indevida"); }, runTool: async () => { throw new Error("ferramenta indevida"); } });
+    expect(out.text).toBe(CLARA_GREETING);
+  });
+  it("nome recebido mantém abertura como assistant no contexto, sem gerar outra apresentação", async () => {
+    const { generateClaraReply } = await import("./clara-chat.server");
+    const history = [{ role: "assistant" as const, content: CLARA_GREETING }, { role: "user" as const, content: "Ana" }];
+    let calls = 0;
+    await generateClaraReply({ system: "S", history, greeting: false, model: "gpt-4.1", temperature: 0.5,
+      transport: async (body) => {
+        calls++;
+        expect((body.messages as unknown[]).slice(1, 3)).toEqual(history);
+        return { choices: [{ message: { content: "Prazer, Ana!" } }] };
+      }, runTool: async () => { throw new Error("ferramenta indevida"); } });
+    expect(calls).toBe(1);
+  });
   it("ponte: cria job, envia só job_id/token e força o modelo", async () => {
     const { n8nBridgeTransport, BRIDGE_URL } = await import("./clara-chat.server");
     const rpc: any[] = []; const posts: any[] = [];
@@ -145,9 +163,15 @@ describe("SQL candidato (PGlite)", () => {
   it("abertura acontece uma vez, mesmo com outro requestId", async () => {
     await open();
     const b = await begin(rid(1), "greeting", null);
-    expect((await finish(rid(1), b.lease_token, "Oi, sou a Clara")).status).toBe("done");
+    expect((await finish(rid(1), b.lease_token, CLARA_GREETING)).status).toBe("done");
+    expect((await begin(rid(1), "greeting", null)).reply.content).toBe(CLARA_GREETING);
     expect((await begin(rid(2), "greeting", null)).status).toBe("done");
     expect((await open()).messages).toHaveLength(1);
+    const next = await begin(rid(3), "message", "Ana");
+    expect(next.history).toEqual(expect.arrayContaining([
+      expect.objectContaining({ role: "assistant", content: CLARA_GREETING }),
+      expect.objectContaining({ role: "user", content: "Ana" }),
+    ]));
   });
 
   it("retry devolve a resposta salva; mesmo requestId com outro texto é inválido", async () => {

@@ -4,6 +4,17 @@
 
 export const CLARA_EMPRESA_ID = 38;
 
+export const CLARA_GREETING_PARTS = [
+  "Oi! Eu sou a Clara, a assistente de IA do Hub. Eu atendo no WhatsApp de empresas 24 horas por dia, e agora vou te mostrar na prática como funciona.",
+  "Em poucas perguntas eu entendo o seu cenário. No fim, você escolhe um horário e conversa ao vivo com alguém do nosso time sobre como colocar uma IA no seu WhatsApp oficial. Não custa nada. Como você se chama?",
+] as const;
+export const CLARA_GREETING = CLARA_GREETING_PARTS.join("\n\n");
+
+/** Só a abertura conhecida tem dois balões; históricos antigos ficam intactos. */
+export function claraMessageParts(role: "user" | "assistant", content: string): readonly string[] {
+  return role === "assistant" && content === CLARA_GREETING ? CLARA_GREETING_PARTS : [content];
+}
+
 export type PromptRow = { id: number; node: string | null; prompt: string | null };
 export type KnowledgeRow = { titulo: string | null; categoria: string | null; conteudo: string | null; ordem: number | null };
 
