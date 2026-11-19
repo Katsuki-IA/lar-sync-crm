@@ -1,4 +1,4 @@
-import claraProfile from "@/assets/clara-profile.jpg.asset.json";
+import claraProfile from "@/assets/clara-profile-512.webp.asset.json";
 import { useEffect, useRef, useState } from "react";
 import { ArrowUp, RotateCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
