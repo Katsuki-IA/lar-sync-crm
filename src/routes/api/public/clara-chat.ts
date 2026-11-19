@@ -59,7 +59,7 @@ export const Route = createFileRoute("/api/public/clara-chat")({
         const admin = supabaseAdmin as any;
         const tokenHash = await sha256(token);
 
-        const transport = resolveCompletionTransport();
+        const transport = resolveCompletionTransport(admin);
         if (!transport) return json({ status: "ai_not_configured" }, 503);
 
         const { data: begin, error } = await admin.rpc("web_chat_begin", {

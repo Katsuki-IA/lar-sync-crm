@@ -9,6 +9,7 @@
 --   chat fica pendente na própria sessão; cadastro no CRM é fase posterior.
 -- * Sessão anônima nunca é vinculada a lead existente por e-mail/telefone.
 -- * Somente service_role executa os wrappers; tabelas com RLS e sem grants.
+-- * Lease de 300s cobre até 3 passos de ferramenta com timeout de 95s da ponte.
 -- * Idempotência por (sessão, request_id); lease por sessão impede duas
 --   gerações simultâneas; a abertura (greeting) ocorre no máximo uma vez.
 
@@ -173,7 +174,7 @@ begin
   end if;
 
   update private.web_chat_sessions set lease_request = p_request,
-    lease_until = now() + interval '120 seconds', last_seen_at = now() where id = v_s.id;
+    lease_until = now() + interval '300 seconds', last_seen_at = now() where id = v_s.id;
 
   return jsonb_build_object('status','proceed', 'request_id', p_request,
     'model', v_cfg.model, 'temperature', v_cfg.temperature, 'prompt_ids', to_jsonb(v_cfg.prompt_ids),

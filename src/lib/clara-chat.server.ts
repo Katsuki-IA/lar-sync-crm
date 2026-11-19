@@ -55,14 +55,41 @@ function openAiDirectTransport(apiKey: string): CompletionTransport {
 
 /**
  * Seleciona o transporte da mesma conta/modelo OpenAI. Sem OPENAI_API_KEY,
- * o fallback será a ponte n8n (job persistido + job_id/token no webhook), cujo
- * contrato ainda não foi entregue: até lá, fail-closed (503 ai_not_configured).
+ * o fallback é a ponte n8n abaixo. Se a RPC do job não existir, fail-closed.
  * Nunca usa outro provedor/modelo.
  */
-export function resolveCompletionTransport(): CompletionTransport | null {
+export const BRIDGE_URL = "https://n8n2.katsuki.com.br/webhook/clara-web-inference-v1";
+export const BRIDGE_TIMEOUT_MS = 95_000;
+
+/**
+ * Ponte n8n (mesma conta OpenAI, sem extrair chave): cria job via RPC
+ * service_role (token de uso único, 2 min) e envia só {job_id, token} ao
+ * webhook. Job/token nunca saem do servidor. Modelo forçado no payload.
+ */
+export function n8nBridgeTransport(admin: { rpc: (fn: string, args: Record<string, unknown>) => any }, fetchImpl: typeof fetch = fetch): CompletionTransport {
+  return async (body) => {
+    const payload = { ...body, model: "gpt-4.1", temperature: 0.5, max_tokens: 1800, stream: false };
+    const { data, error } = await admin.rpc("clara_web_inference_create", { p_payload: payload });
+    const job = Array.isArray(data) ? data[0] : data;
+    if (error || !job?.job_id || !job?.token) throw new ClaraNotConfiguredError();
+    const res = await fetchImpl(BRIDGE_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ job_id: job.job_id, token: job.token }),
+      signal: AbortSignal.timeout(BRIDGE_TIMEOUT_MS),
+    });
+    if (!res.ok) throw new Error(`bridge_${res.status}`);
+    const out = await res.json();
+    if (!Array.isArray(out?.choices)) throw new Error("bridge_invalid_response");
+    return out;
+  };
+}
+
+/** OPENAI_API_KEY no runtime -> cliente direto; senão -> ponte n8n. */
+export function resolveCompletionTransport(admin?: Parameters<typeof n8nBridgeTransport>[0]): CompletionTransport | null {
   const apiKey = String(process.env["OPENAI_API_KEY"] ?? "").trim();
   if (apiKey) return openAiDirectTransport(apiKey);
-  return null; // TODO(ponte n8n): implementar quando o contrato chegar.
+  return admin ? n8nBridgeTransport(admin) : null;
 }
 
 export async function generateClaraReply(opts: {

@@ -112,6 +112,23 @@ describe("SQL candidato (PGlite)", () => {
 });
 
 describe("transporte da Clara", () => {
+  it("ponte: cria job, envia só job_id/token e força o modelo", async () => {
+    const { n8nBridgeTransport, BRIDGE_URL } = await import("./clara-chat.server");
+    const rpc: any[] = []; const posts: any[] = [];
+    const t = n8nBridgeTransport({ rpc: async (fn: string, args: any) => { rpc.push({ fn, args }); return { data: { job_id: "j1", token: "tk" }, error: null }; } },
+      (async (url: string, init: any) => { posts.push({ url, body: JSON.parse(init.body) }); return new Response(JSON.stringify({ choices: [{ message: { content: "ok" } }] })); }) as any);
+    await t({ model: "outro", temperature: 1, messages: [] });
+    expect(rpc[0].fn).toBe("clara_web_inference_create");
+    expect(rpc[0].args.p_payload).toMatchObject({ model: "gpt-4.1", temperature: 0.5, max_tokens: 1800, stream: false });
+    expect(posts).toEqual([{ url: BRIDGE_URL, body: { job_id: "j1", token: "tk" } }]);
+  });
+  it("ponte: sem RPC de job, não chama o webhook", async () => {
+    const { n8nBridgeTransport, ClaraNotConfiguredError } = await import("./clara-chat.server");
+    let posted = false;
+    const t = n8nBridgeTransport({ rpc: async () => ({ data: null, error: { code: "PGRST202" } }) }, (async () => { posted = true; return new Response("{}"); }) as any);
+    await expect(t({ messages: [] })).rejects.toBeInstanceOf(ClaraNotConfiguredError);
+    expect(posted).toBe(false);
+  });
   it("sem OPENAI_API_KEY e sem ponte, fica indisponível (sem outro provedor)", async () => {
     const prev = process.env.OPENAI_API_KEY; delete process.env.OPENAI_API_KEY;
     const { resolveCompletionTransport } = await import("./clara-chat.server");
