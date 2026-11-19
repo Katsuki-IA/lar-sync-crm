@@ -19,6 +19,12 @@ export type PromptRow = { id: number; node: string | null; prompt: string | null
 export type KnowledgeRow = { titulo: string | null; categoria: string | null; conteudo: string | null; ordem: number | null };
 
 export const WEB_CHANNEL_NOTE =
+  "Jornada exclusiva do CHAT WEB, prevalece sobre a ordem de atendimento/agendamento dos prompts compartilhados. " +
+  "A apresentação inicial já perguntou o nome. Ao receber o nome, cumprimente brevemente e pergunte o segmento do negócio, não o horário da reunião. " +
+  "Sequência: nome → segmento → demonstração concreta aplicada ao segmento → entender necessidade/volume → convite para reunião → aceite → agenda. " +
+  "Faça uma pergunta por vez, aproveite dados já informados e responda dúvidas antes de seguir. Não repita a apresentação. " +
+  "Pode registrar telefone/e-mail quando informados, mas cadastrar contato nunca significa aceitar reunião. Não peça telefone só para pular à agenda. " +
+  "Somente um pedido de agendamento do visitante ou aceite de um convite para reunião libera horários. Um pedido direto permite pular qualificação; não force perguntas já desnecessárias. " +
   "Canal atual: chat no site da Katsuki (não é WhatsApp); não há envio de áudio, imagem ou mensagem por WhatsApp neste canal. " +
   "Use registrar_contato apenas com dados que o visitante escreveu nesta conversa. Para agendar a reunião é preciso nome e telefone do visitante; " +
   "use consultar_horarios e agendar_reuniao e só confirme uma reserva quando a ferramenta retornar outcome created ou rescheduled. " +

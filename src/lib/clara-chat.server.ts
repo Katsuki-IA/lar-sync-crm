@@ -4,6 +4,7 @@ import {
   buildSystemPrompt, CLARA_EMPRESA_ID, CLARA_GREETING, contactFromUserMessages, INFERENCE_DEADLINE_MS, parseContact,
 } from "./clara-chat";
 import { nowInTZ, parseDataRawToYMD, resolveScheduleRequest, type Turn } from "./clara-schedule-guard.server";
+import { webBookingAccepted, webCancellationRequested, webStageNote } from "./clara-web-stage";
 
 export const CLARA_TZ = "America/Sao_Paulo";
 export type HistoryMsg = { role: "user" | "assistant"; content: string; created_at?: string };
@@ -129,6 +130,7 @@ export function createToolRunner(opts: {
       return saved;
     }
     if (name === "consultar_horarios") {
+      if (!webBookingAccepted(history)) return { outcome: "meeting_consent_required", reason: "Continue a descoberta/demonstração. Dados de contato não autorizam agenda." };
       // Consulta pode normalizar a data do modelo; nada é reservado aqui.
       const raw = typeof args?.dia === "string" ? args.dia : null;
       const day = raw ? (/^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : parseDataRawToYMD(raw, nowInTZ(CLARA_TZ, clock()))) : null;
@@ -136,6 +138,7 @@ export function createToolRunner(opts: {
       return call("web_chat_schedule", { p_op: "opcoes", p_day: day, p_time: null, p_period: period, p_booking: null, p_revision: null });
     }
     if (name === "agendar_reuniao" && ["agendar", "reagendar", "cancelar"].includes(args?.acao)) {
+      if (args.acao !== "cancelar" && !webBookingAccepted(history)) return { outcome: "meeting_consent_required" };
       if (!leadId) return { outcome: "contact_required" };
       // Reserva/cancelamento exigem evidência nas mensagens; valores do guard vencem os do modelo.
       const g = resolveScheduleRequest({
@@ -164,9 +167,11 @@ export async function generateClaraReply(opts: {
   const signal = AbortSignal.timeout(opts.deadlineMs ?? INFERENCE_DEADLINE_MS);
   const messages: any[] = [{ role: "system", content: opts.system },
     ...opts.history.map(({ role, content }) => ({ role, content })),
-    { role: "system", content: currentTimeNote(opts.clock ?? new Date()) }];
+    { role: "system", content: currentTimeNote(opts.clock ?? new Date()) + "\n" + webStageNote(opts.history) }];
   for (let step = 0; step < 4; step++) {
-    const data: any = await opts.transport({ model: opts.model, temperature: opts.temperature, messages, tools: TOOLS }, signal);
+    const allowedTools = webBookingAccepted(opts.history) ? TOOLS : TOOLS.filter((t) => t.function.name === "registrar_contato"
+      || (t.function.name === "agendar_reuniao" && webCancellationRequested(opts.history)));
+    const data: any = await opts.transport({ model: opts.model, temperature: opts.temperature, messages, tools: allowedTools }, signal);
     const msg = data?.choices?.[0]?.message;
     const calls = msg?.tool_calls ?? [];
     if (!calls.length) return { text: String(msg?.content ?? "").trim() };

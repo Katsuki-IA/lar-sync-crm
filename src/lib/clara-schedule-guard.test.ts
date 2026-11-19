@@ -45,6 +45,7 @@ describe("guard de agenda", () => {
 
 describe("ferramenta agendar_reuniao", () => {
   const history = [
+    { role: "user" as const, content: "Quero agendar uma reunião", created_at: at(3) },
     { role: "assistant" as const, content: offer8e9.text, created_at: at(2) },
     { role: "user" as const, content: "10h", created_at: at(1) },
   ];
