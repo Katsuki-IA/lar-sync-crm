@@ -106,7 +106,7 @@ create table public.crm_leads (id bigserial primary key, id_empresa bigint not n
 create table private.hub_queue_intake (lead_id bigint primary key, id_empresa bigint);
 create function private.intake() returns trigger language plpgsql as $$ begin insert into private.hub_queue_intake values (new.id, new.id_empresa); return new; end $$;
 create trigger hub_capture_queue_intake_insert after insert on public.crm_leads for each row execute function private.intake();
-create table public.lead (id bigserial primary key, id_empresa bigint not null, nome text not null, numero text, email text, id_crm text, atendimento_humano boolean);
+create table public.lead (id bigserial primary key, id_empresa bigint not null, nome text not null, numero text, email text, id_crm text, atendimento_humano boolean, status text);
 create table public.crm_lead_activities (id bigserial primary key, lead_id bigint not null, crm_user_id uuid, tipo text not null, descricao text, metadata jsonb);
 create function public.crm_get_or_create_ai_user(p bigint) returns uuid language sql as $$ select '00000000-0000-0000-0000-0000000000aa'::uuid $$;
 create function public.crm_can_manage_empresa(p bigint) returns boolean language sql as $$ select current_setting('app.can_manage', true) = 'on' $$;
@@ -194,7 +194,7 @@ describe("SQL candidato (PGlite)", () => {
     expect(crm).toEqual([{ origem: "SI", id_empreendimento: null, qualificado: 0 }]);
     expect((await db.query(`select count(*)::int n from private.hub_queue_intake`)).rows[0]).toEqual({ n: 0 });
     expect((await db.query(`select tipo from public.crm_lead_activities`)).rows).toEqual([{ tipo: "web_chat" }]);
-    expect((await db.query(`select id_crm is not null ok from public.lead`)).rows).toEqual([{ ok: true }]);
+    expect((await db.query(`select id_crm is not null ok, status, numero from public.lead`)).rows).toEqual([{ ok: true, status: "web_chat", numero: "11988887777" }]);
   });
 
   it("telefone já existente não mescla nem cria lead", async () => {

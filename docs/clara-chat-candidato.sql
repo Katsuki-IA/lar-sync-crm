@@ -13,6 +13,10 @@
 --   task (reminder_minutes nulo => sem lembrete) e activity; não envia WhatsApp.
 --   O retorno 'notify' é ignorado pelo chat web.
 --
+-- Revisão de seletores (2026-11-19): followups v2 e crm_preserve_qualified_attendance filtram
+--   status ativo/agendando => 'web_chat' fica fora. wa_get_or_create_lead e
+--   wa_resolve_conversation_identity casam por telefone SEM filtro de status: uma
+--   mensagem futura de WhatsApp desse número reutilizará este lead (ver limitações).
 -- Decisões:
 -- * Promoção ao CRM só com nome + telefone presentes nas mensagens do visitante;
 --   sem empreendimento, qualificado=0, origem 'SI' (site), marcada "Chat web".
@@ -290,8 +294,10 @@ begin
     returning id into v_crm;
   -- Gatilho hub_capture_queue_intake criou entrada de fila: remover na mesma transação.
   delete from private.hub_queue_intake where lead_id = v_crm;
-  insert into public.lead (id_empresa, nome, numero, email, id_crm, atendimento_humano)
-    values (p_empresa, v_nome, v_tel, v_email, v_crm::text, false)
+  -- status 'web_chat': fora de followup_dispatch_validation_v2, live/preview_followup_candidates_v2
+  -- e crm_preserve_qualified_attendance (todos exigem ativo/agendando); agenda segue permitida.
+  insert into public.lead (id_empresa, nome, numero, email, id_crm, atendimento_humano, status)
+    values (p_empresa, v_nome, v_tel, v_email, v_crm::text, false, 'web_chat')
     returning id into v_lead;
   v_actor := public.crm_get_or_create_ai_user(p_empresa);
   insert into public.crm_lead_activities (lead_id, crm_user_id, tipo, descricao, metadata)
