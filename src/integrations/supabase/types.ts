@@ -9774,6 +9774,66 @@ export type Database = {
           wa_user_id: string
         }[]
       }
+      web_chat_begin: {
+        Args: {
+          p_empresa: number
+          p_ip_hash: string
+          p_kind: string
+          p_request: string
+          p_text: string
+          p_token_hash: string
+        }
+        Returns: Json
+      }
+      web_chat_finish: {
+        Args: {
+          p_empresa: number
+          p_lease: string
+          p_reply: string
+          p_request: string
+          p_token_hash: string
+        }
+        Returns: Json
+      }
+      web_chat_hub_messages: {
+        Args: { p_empresa: number; p_session: string }
+        Returns: Json
+      }
+      web_chat_hub_sessions: {
+        Args: { p_empresa: number; p_limit: number; p_offset: number }
+        Returns: Json
+      }
+      web_chat_open: {
+        Args: { p_empresa: number; p_ip_hash: string; p_token_hash: string }
+        Returns: Json
+      }
+      web_chat_save_contact: {
+        Args: {
+          p_email: string
+          p_empresa: number
+          p_lease: string
+          p_nome: string
+          p_request: string
+          p_telefone: string
+          p_token_hash: string
+        }
+        Returns: Json
+      }
+      web_chat_schedule: {
+        Args: {
+          p_booking: number
+          p_day: string
+          p_empresa: number
+          p_lease: string
+          p_op: string
+          p_period: string
+          p_request: string
+          p_revision: number
+          p_time: string
+          p_token_hash: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
       crm_task_priority: "baixa" | "normal" | "alta"
