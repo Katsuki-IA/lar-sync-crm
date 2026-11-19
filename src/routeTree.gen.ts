@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as ChatRouteImport } from './routes/chat'
 import { Route as DefinirSenhaRouteImport } from './routes/definir-senha'
 import { Route as IntegracoesRouteImport } from './routes/integracoes'
 import { Route as PoliticaDePrivacidadeRouteImport } from './routes/politica-de-privacidade'
@@ -65,6 +66,7 @@ import { Route as AuthenticatedSettingsTagsRouteImport } from './routes/_authent
 import { Route as AuthenticatedSettingsUsersRouteImport } from './routes/_authenticated/settings.users'
 import { Route as ApiIntegrationsLeadsRouteImport } from './routes/api/integrations/leads'
 import { Route as ApiMcpAnalystRouteImport } from './routes/api/mcp/analyst'
+import { Route as ApiPublicClaraChatRouteImport } from './routes/api/public/clara-chat'
 import { Route as ApiPublicGloriaLeadsRouteImport } from './routes/api/public/gloria-leads'
 import { Route as ApiPublicPulseFunilIaRouteImport } from './routes/api/public/pulse-funil-ia'
 import { Route as ApiPublicSecretaryInterpretRouteImport } from './routes/api/public/secretary/interpret'
@@ -81,6 +83,11 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ChatRoute = ChatRouteImport.update({
+  id: '/chat',
+  path: '/chat',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DefinirSenhaRoute = DefinirSenhaRouteImport.update({
@@ -374,6 +381,11 @@ const ApiMcpAnalystRoute = ApiMcpAnalystRouteImport.update({
   path: '/api/mcp/analyst',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicClaraChatRoute = ApiPublicClaraChatRouteImport.update({
+  id: '/api/public/clara-chat',
+  path: '/api/public/clara-chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicGloriaLeadsRoute = ApiPublicGloriaLeadsRouteImport.update({
   id: '/api/public/gloria-leads',
   path: '/api/public/gloria-leads',
@@ -394,6 +406,7 @@ const ApiPublicSecretaryInterpretRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/chat': typeof ChatRoute
   '/definir-senha': typeof DefinirSenhaRoute
   '/integracoes': typeof IntegracoesRoute
   '/politica-de-privacidade': typeof PoliticaDePrivacidadeRoute
@@ -444,6 +457,7 @@ export interface FileRoutesByFullPath {
   '/settings/users': typeof AuthenticatedSettingsUsersRoute
   '/api/integrations/leads': typeof ApiIntegrationsLeadsRoute
   '/api/mcp/analyst': typeof ApiMcpAnalystRoute
+  '/api/public/clara-chat': typeof ApiPublicClaraChatRoute
   '/api/public/gloria-leads': typeof ApiPublicGloriaLeadsRoute
   '/api/public/pulse-funil-ia': typeof ApiPublicPulseFunilIaRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
@@ -454,6 +468,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/chat': typeof ChatRoute
   '/definir-senha': typeof DefinirSenhaRoute
   '/integracoes': typeof IntegracoesRoute
   '/politica-de-privacidade': typeof PoliticaDePrivacidadeRoute
@@ -502,6 +517,7 @@ export interface FileRoutesByTo {
   '/settings/users': typeof AuthenticatedSettingsUsersRoute
   '/api/integrations/leads': typeof ApiIntegrationsLeadsRoute
   '/api/mcp/analyst': typeof ApiMcpAnalystRoute
+  '/api/public/clara-chat': typeof ApiPublicClaraChatRoute
   '/api/public/gloria-leads': typeof ApiPublicGloriaLeadsRoute
   '/api/public/pulse-funil-ia': typeof ApiPublicPulseFunilIaRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
@@ -514,6 +530,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/chat': typeof ChatRoute
   '/definir-senha': typeof DefinirSenhaRoute
   '/integracoes': typeof IntegracoesRoute
   '/politica-de-privacidade': typeof PoliticaDePrivacidadeRoute
@@ -564,6 +581,7 @@ export interface FileRoutesById {
   '/_authenticated/settings/users': typeof AuthenticatedSettingsUsersRoute
   '/api/integrations/leads': typeof ApiIntegrationsLeadsRoute
   '/api/mcp/analyst': typeof ApiMcpAnalystRoute
+  '/api/public/clara-chat': typeof ApiPublicClaraChatRoute
   '/api/public/gloria-leads': typeof ApiPublicGloriaLeadsRoute
   '/api/public/pulse-funil-ia': typeof ApiPublicPulseFunilIaRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
@@ -576,6 +594,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/chat'
     | '/definir-senha'
     | '/integracoes'
     | '/politica-de-privacidade'
@@ -626,6 +645,7 @@ export interface FileRouteTypes {
     | '/settings/users'
     | '/api/integrations/leads'
     | '/api/mcp/analyst'
+    | '/api/public/clara-chat'
     | '/api/public/gloria-leads'
     | '/api/public/pulse-funil-ia'
     | '/admin/'
@@ -636,6 +656,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/chat'
     | '/definir-senha'
     | '/integracoes'
     | '/politica-de-privacidade'
@@ -684,6 +705,7 @@ export interface FileRouteTypes {
     | '/settings/users'
     | '/api/integrations/leads'
     | '/api/mcp/analyst'
+    | '/api/public/clara-chat'
     | '/api/public/gloria-leads'
     | '/api/public/pulse-funil-ia'
     | '/admin'
@@ -695,6 +717,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/chat'
     | '/definir-senha'
     | '/integracoes'
     | '/politica-de-privacidade'
@@ -745,6 +768,7 @@ export interface FileRouteTypes {
     | '/_authenticated/settings/users'
     | '/api/integrations/leads'
     | '/api/mcp/analyst'
+    | '/api/public/clara-chat'
     | '/api/public/gloria-leads'
     | '/api/public/pulse-funil-ia'
     | '/_authenticated/admin/'
@@ -757,6 +781,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  ChatRoute: typeof ChatRoute
   DefinirSenhaRoute: typeof DefinirSenhaRoute
   IntegracoesRoute: typeof IntegracoesRoute
   PoliticaDePrivacidadeRoute: typeof PoliticaDePrivacidadeRoute
@@ -768,6 +793,7 @@ export interface RootRouteChildren {
   PrivacidadeExclusaoDeDadosRoute: typeof PrivacidadeExclusaoDeDadosRoute
   ApiIntegrationsLeadsRoute: typeof ApiIntegrationsLeadsRoute
   ApiMcpAnalystRoute: typeof ApiMcpAnalystRoute
+  ApiPublicClaraChatRoute: typeof ApiPublicClaraChatRoute
   ApiPublicGloriaLeadsRoute: typeof ApiPublicGloriaLeadsRoute
   ApiPublicPulseFunilIaRoute: typeof ApiPublicPulseFunilIaRoute
   ApiPublicSecretaryInterpretRoute: typeof ApiPublicSecretaryInterpretRoute
@@ -794,6 +820,13 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/chat': {
+      id: '/chat'
+      path: '/chat'
+      fullPath: '/chat'
+      preLoaderRoute: typeof ChatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/definir-senha': {
@@ -1167,6 +1200,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiMcpAnalystRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/clara-chat': {
+      id: '/api/public/clara-chat'
+      path: '/api/public/clara-chat'
+      fullPath: '/api/public/clara-chat'
+      preLoaderRoute: typeof ApiPublicClaraChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/gloria-leads': {
       id: '/api/public/gloria-leads'
       path: '/api/public/gloria-leads'
@@ -1326,6 +1366,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  ChatRoute: ChatRoute,
   DefinirSenhaRoute: DefinirSenhaRoute,
   IntegracoesRoute: IntegracoesRoute,
   PoliticaDePrivacidadeRoute: PoliticaDePrivacidadeRoute,
@@ -1337,6 +1378,7 @@ const rootRouteChildren: RootRouteChildren = {
   PrivacidadeExclusaoDeDadosRoute: PrivacidadeExclusaoDeDadosRoute,
   ApiIntegrationsLeadsRoute: ApiIntegrationsLeadsRoute,
   ApiMcpAnalystRoute: ApiMcpAnalystRoute,
+  ApiPublicClaraChatRoute: ApiPublicClaraChatRoute,
   ApiPublicGloriaLeadsRoute: ApiPublicGloriaLeadsRoute,
   ApiPublicPulseFunilIaRoute: ApiPublicPulseFunilIaRoute,
   ApiPublicSecretaryInterpretRoute: ApiPublicSecretaryInterpretRoute,
