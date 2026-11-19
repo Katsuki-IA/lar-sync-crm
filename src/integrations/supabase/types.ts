@@ -9301,6 +9301,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      katsuki_followup_business_hours: {
+        Args: { p_at: string }
+        Returns: boolean
+      }
       kommo_project_acquire_lock: {
         Args: { p_company: number; p_token: string }
         Returns: boolean
