@@ -110,3 +110,24 @@ describe("SQL candidato (PGlite)", () => {
     expect(rows[0]).toEqual({ a: true });
   });
 });
+
+describe("transporte da Clara", () => {
+  it("sem OPENAI_API_KEY e sem ponte, fica indisponível (sem outro provedor)", async () => {
+    const prev = process.env.OPENAI_API_KEY; delete process.env.OPENAI_API_KEY;
+    const { resolveCompletionTransport } = await import("./clara-chat.server");
+    expect(resolveCompletionTransport()).toBeNull();
+    if (prev !== undefined) process.env.OPENAI_API_KEY = prev;
+  });
+  it("executa a ferramenta de contato e devolve o texto final via transporte injetado", async () => {
+    const { generateClaraReply } = await import("./clara-chat.server");
+    const calls: any[] = [];
+    const replies = [
+      { choices: [{ message: { role: "assistant", content: null, tool_calls: [{ id: "t1", type: "function", function: { name: "registrar_contato", arguments: JSON.stringify({ nome: "Ana", email: "ana@x.com", telefone: null }) } }] } }] },
+      { choices: [{ message: { role: "assistant", content: "Obrigada, Ana!" } }] },
+    ];
+    const out = await generateClaraReply({ system: "S", history: [{ role: "user", content: "oi" }], greeting: false,
+      model: "gpt-4.1", temperature: 0.5, transport: async (b) => { calls.push(b); return replies[calls.length - 1]; } });
+    expect(out).toEqual({ text: "Obrigada, Ana!", contact: { nome: "Ana", email: "ana@x.com", telefone: null } });
+    expect(calls[0]).toMatchObject({ model: "gpt-4.1", temperature: 0.5 });
+  });
+});

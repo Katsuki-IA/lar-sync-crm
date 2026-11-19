@@ -55,11 +55,12 @@ export const Route = createFileRoute("/api/public/clara-chat")({
         if (body.kind === "message" && !body.text) return json({ status: "invalid" }, 400);
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        const { ClaraNotConfiguredError, generateClaraReply, loadSystemPrompt } = await import("@/lib/clara-chat.server");
+        const { ClaraNotConfiguredError, generateClaraReply, loadSystemPrompt, resolveCompletionTransport } = await import("@/lib/clara-chat.server");
         const admin = supabaseAdmin as any;
         const tokenHash = await sha256(token);
 
-        if (!String(process.env["OPENAI_API_KEY"] ?? "").trim()) return json({ status: "ai_not_configured" }, 503);
+        const transport = resolveCompletionTransport();
+        if (!transport) return json({ status: "ai_not_configured" }, 503);
 
         const { data: begin, error } = await admin.rpc("web_chat_begin", {
           p_empresa: CLARA_EMPRESA_ID, p_token_hash: tokenHash, p_ip_hash: await ipHash(request),
@@ -79,7 +80,7 @@ export const Route = createFileRoute("/api/public/clara-chat")({
             .map(({ role, content }) => ({ role, content }));
           const out = await generateClaraReply({
             system, history, greeting: body.kind === "greeting",
-            model: String(begin.model), temperature: Number(begin.temperature),
+            model: String(begin.model), temperature: Number(begin.temperature), transport,
           });
           const { data: done, error: fe } = await finish(out.text, out.contact ? { ...out.contact, informado_em: new Date().toISOString() } : null);
           if (fe) return json({ status: "unavailable" }, 503);

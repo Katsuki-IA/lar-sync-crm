@@ -37,22 +37,45 @@ const TOOLS = [{
   },
 }];
 
+/** Corpo Chat Completions -> JSON de resposta Chat Completions. */
+export type CompletionTransport = (body: Record<string, unknown>) => Promise<any>;
+
+/** Cliente OpenAI direto, isolado. Usado só se OPENAI_API_KEY existir no runtime. */
+function openAiDirectTransport(apiKey: string): CompletionTransport {
+  return async (body) => {
+    const res = await fetch(OPENAI_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error(`openai_${res.status}`);
+    return res.json();
+  };
+}
+
+/**
+ * Seleciona o transporte da mesma conta/modelo OpenAI. Sem OPENAI_API_KEY,
+ * o fallback será a ponte n8n (job persistido + job_id/token no webhook), cujo
+ * contrato ainda não foi entregue: até lá, fail-closed (503 ai_not_configured).
+ * Nunca usa outro provedor/modelo.
+ */
+export function resolveCompletionTransport(): CompletionTransport | null {
+  const apiKey = String(process.env["OPENAI_API_KEY"] ?? "").trim();
+  if (apiKey) return openAiDirectTransport(apiKey);
+  return null; // TODO(ponte n8n): implementar quando o contrato chegar.
+}
+
 export async function generateClaraReply(opts: {
   system: string; history: Msg[]; greeting: boolean; model: string; temperature: number;
+  transport?: CompletionTransport | null;
 }): Promise<{ text: string; contact: Contact | null }> {
-  const apiKey = String(process.env["OPENAI_API_KEY"] ?? "").trim();
-  if (!apiKey) throw new ClaraNotConfiguredError();
+  const transport = opts.transport ?? resolveCompletionTransport();
+  if (!transport) throw new ClaraNotConfiguredError();
   const messages: any[] = [{ role: "system", content: opts.system }, ...opts.history];
   if (opts.greeting) messages.push({ role: "system", content: "O visitante acabou de abrir o chat do site. Apresente-se conforme suas instruções, em uma mensagem curta." });
   let contact: Contact | null = null;
   for (let step = 0; step < 3; step++) {
-    const res = await fetch(OPENAI_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({ model: opts.model, temperature: opts.temperature, messages, tools: TOOLS }),
-    });
-    if (!res.ok) throw new Error(`openai_${res.status}`);
-    const data: any = await res.json();
+    const data: any = await transport({ model: opts.model, temperature: opts.temperature, messages, tools: TOOLS });
     const msg = data?.choices?.[0]?.message;
     const calls = msg?.tool_calls ?? [];
     if (!calls.length) return { text: String(msg?.content ?? "").trim(), contact };
