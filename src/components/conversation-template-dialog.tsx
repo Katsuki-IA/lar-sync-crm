@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  attendanceTemplateDefaults,
   templateFields,
   templatePreview,
   type ConversationTemplate,
@@ -100,9 +101,9 @@ export function ConversationTemplateDialog({
     }
   }, [selected]);
   const isCustomerNameField = (key: string) =>
-    ["assumir_conversa_1", "atendimento_1", "atendimento_2"].includes(selected?.name ?? "") && key === "body:1";
+    ["assumir_conversa_1", "atendimento_1", "atendimento_2", "atendimento_3"].includes(selected?.name ?? "") && key === "body:1";
   const resolvedValues: Record<string, string> = {
-    ...(["assumir_conversa_1", "atendimento_1", "atendimento_2"].includes(selected?.name ?? "") ? { "body:1": leadName?.trim() ?? "" } : {}),
+    ...attendanceTemplateDefaults(selected?.name ?? "", companyId, leadName),
     ...values,
   };
   const send = useMutation({

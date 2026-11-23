@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  attendanceTemplateDefaults,
   buildTemplateComponents,
   isAttendanceTemplate,
   templateFields,
@@ -15,16 +16,27 @@ const template: ConversationTemplate = {
 };
 
 describe("templates para assumir conversas", () => {
+  it("preenche nome e imagem do atendimento 3 nas duas prospecções", () => {
+    const mediaTemplate = { ...template, name: "atendimento_3", components: [{ type: "HEADER", format: "IMAGE" }, { type: "BODY", text: "Olá {{1}}" }] };
+    for (const company of [35, 36]) {
+      expect(buildTemplateComponents(mediaTemplate, attendanceTemplateDefaults("atendimento_3", company, " Ana "))).toEqual([
+        { type: "header", parameters: [{ type: "image", image: { link: "https://myhub.katsuki.com.br/templates/atendimento3.jpeg" } }] },
+        { type: "body", parameters: [{ type: "text", text: "Ana" }] },
+      ]);
+    }
+    expect(attendanceTemplateDefaults("atendimento_3", 38, "Ana")).not.toHaveProperty("header:media");
+    expect(attendanceTemplateDefaults("atendimento_2", 35, "Ana")).not.toHaveProperty("header:media");
+  });
   it("aceita somente modelos aprovados com o nome e número definidos", () => {
     expect(
-      ["assumir_conversa_1", "assumir_conversa_2", "assumir_conversa_15", "atendimento_1", "atendimento_2"].every((name) =>
+      ["assumir_conversa_1", "assumir_conversa_2", "assumir_conversa_15", "atendimento_1", "atendimento_2", "atendimento_3"].every((name) =>
         isAttendanceTemplate({ ...template, name }),
       ),
     ).toBe(true);
     for (const name of [
       "default",
       "atendimento_0",
-      "atendimento_3",
+      "atendimento_4",
       "atendimento_1_teste",
       "assumir_conversa",
       "assumir_conversa_0",

@@ -13,7 +13,7 @@ export type ConversationTemplate = {
 };
 
 export function isAttendanceTemplate(template: ConversationTemplate) {
-  return template.status === "APPROVED" && /^(?:assumir_conversa_[1-9]\d*|atendimento_[12])$/.test(template.name);
+  return template.status === "APPROVED" && /^(?:assumir_conversa_[1-9]\d*|atendimento_[123])$/.test(template.name);
 }
 
 export type TemplateField = {
@@ -124,4 +124,11 @@ export function buildTemplateComponents(
     }
   }
   return components;
+}
+
+export function attendanceTemplateDefaults(name: string, companyId: number, leadName: string | null): Record<string, string> {
+ return {
+ ...(["assumir_conversa_1", "atendimento_1", "atendimento_2", "atendimento_3"].includes(name) ? { "body:1": leadName?.trim() ?? "" } : {}),
+ ...(name === "atendimento_3" && [35,36].includes(companyId) ? { "header:media": "https://myhub.katsuki.com.br/templates/atendimento3.jpeg" } : {}),
+ };
 }
