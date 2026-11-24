@@ -21,10 +21,11 @@ export function summarizeConversationLead(data: ConversationCommercialData, lead
  return { stages, nextTask, totalTasks: tasks.length, pendingTasks: pending.length, overdueTasks: overdue.length };
 }
 
-export function matchesCommercialStage(data: ConversationCommercialData, leadId: number | null, filter: string) {
- if (filter === "all") return true;
+export function matchesCommercialStage(data: ConversationCommercialData, leadId: number | null, selected: readonly string[]) {
+ if (selected.length === 0) return true;
  const opportunities = data.opportunities.filter(o => o.lead_id === leadId);
- return filter === "none" ? opportunities.length === 0 : opportunities.some(o => String(o.stage_id) === filter);
+ if (opportunities.length === 0) return selected.includes("none");
+ return opportunities.some(o => selected.includes(String(o.stage_id)));
 }
 export function taskDateLabel(value: string | null) {
  if (!value) return "Sem data";

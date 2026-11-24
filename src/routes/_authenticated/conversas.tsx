@@ -29,6 +29,7 @@ import { useActiveEmpresa } from "@/hooks/use-active-empresa";
 import { useCrmUser } from "@/hooks/use-crm-user";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -220,7 +221,7 @@ function ConversationsWorkspace() {
   const [search, setSearch] = useState("");
   const deferredSearch = useDeferredValue(search.trim());
   const [humanFilter, setHumanFilter] = useState("all");
-  const [stageFilter, setStageFilter] = useState("all");
+  const [selectedStages, setSelectedStages] = useState<string[]>([]);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [projectFilter, setProjectFilter] = useState<{ companyId: number | null; value: string }>({
     companyId: null,
@@ -287,9 +288,19 @@ function ConversationsWorkspace() {
   const conversations = useMemo(() => conversationsQuery.data ?? [], [conversationsQuery.data]);
   const commercialLeadIds = useMemo(() => conversations.map(c => crmLeadId(c.id_crm)).filter((id): id is number => id !== null), [conversations]);
   const commercialSummary = useConversationCommercialData(activeEmpresaId, me?.id, commercialLeadIds);
+  const stageOptions = [
+    { value: "none", label: "Sem oportunidade" },
+    ...(commercialSummary.data?.stages.map(stage => {
+      const funnel = commercialSummary.data?.funnels.find(f => f.id === stage.id_funnel);
+      return { value: String(stage.id), label: funnel ? funnel.nome + " · " + stage.nome : stage.nome };
+    }) ?? []),
+  ];
+  const selectionLabel = selectedStages.length > 1
+    ? selectedStages.length + " selecionados"
+    : stageOptions.find(option => option.value === selectedStages[0])?.label ?? "Todos";
   const visibleConversations = conversations.filter(c =>
     (humanFilter === "all" || (humanFilter === "human" ? c.atendimento_humano : !c.atendimento_humano)) &&
-    (stageFilter === "all" || (!!commercialSummary.data && matchesCommercialStage(commercialSummary.data, crmLeadId(c.id_crm), stageFilter)))
+    (selectedStages.length === 0 || (!!commercialSummary.data && matchesCommercialStage(commercialSummary.data, crmLeadId(c.id_crm), selectedStages)))
   );
   const conversationLeadIds = useMemo(
     () => conversations.map((conversation) => conversation.lead_id),
@@ -576,16 +587,34 @@ function ConversationsWorkspace() {
               </button>
             )}
             <Button type="button" variant="outline" className="mt-3 w-full justify-between" aria-expanded={filtersOpen} aria-controls="conversation-filters" onClick={() => setFiltersOpen(v => !v)}>
-              <span className="flex items-center gap-2"><SlidersHorizontal className="h-4 w-4" />Filtro{stageFilter !== "all" || humanFilter !== "all" ? " · ativo" : ""}</span>
+              <span className="flex items-center gap-2"><SlidersHorizontal className="h-4 w-4" />Filtro{selectedStages.length > 0 || humanFilter !== "all" ? " · ativo" : ""}</span>
               <ChevronDown className={cn("h-4 w-4", filtersOpen && "rotate-180")} />
             </Button>
             {filtersOpen && <div id="conversation-filters" className="mt-2 space-y-3 rounded-lg bg-muted/50 p-3">
-              {commercialSummary.available && <label className="block space-y-1 text-sm">Estágio do funil
-                <select className="h-10 w-full rounded-md border bg-background px-2" value={stageFilter} onChange={e => setStageFilter(e.target.value)} disabled={!commercialSummary.data}>
-                  <option value="all">Todos</option><option value="none">Sem oportunidade</option>
-                  {commercialSummary.data?.stages.map(s => <option key={s.id} value={String(s.id)}>{commercialSummary.data?.funnels.find(f => f.id === s.id_funnel)?.nome} · {s.nome}</option>)}
-                </select>
-              </label>}
+              {commercialSummary.available && <div className="space-y-1 text-sm">
+                <label htmlFor="conversation-stage-filter">Estágio do funil</label>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button id="conversation-stage-filter" variant="outline" disabled={!commercialSummary.data}
+                      aria-label={`Estágio do funil, ${selectionLabel}`} className="flex h-10 w-full justify-between font-normal">
+                      <span className="truncate">{selectionLabel}</span><ChevronDown className="size-4 shrink-0" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-[var(--radix-dropdown-menu-trigger-width)]">
+                    <DropdownMenuCheckboxItem checked={selectedStages.length === 0} onCheckedChange={() => setSelectedStages([])}
+                      onSelect={event => event.preventDefault()}>Todos</DropdownMenuCheckboxItem>
+                    {stageOptions.map(option => (
+                      <DropdownMenuCheckboxItem key={option.value} checked={selectedStages.includes(option.value)}
+                        onSelect={event => event.preventDefault()}
+                        onCheckedChange={checked => setSelectedStages(current => checked
+                          ? [...current, option.value]
+                          : current.filter(value => value !== option.value))}>
+                        {option.label}
+                      </DropdownMenuCheckboxItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>}
               <label className="block space-y-1 text-sm">Atendimento humano
                 <select className="h-10 w-full rounded-md border bg-background px-2" value={humanFilter} onChange={e => setHumanFilter(e.target.value)}>
                   <option value="all">Todos</option><option value="human">Em atendimento humano</option><option value="other">Sem atendimento humano</option>

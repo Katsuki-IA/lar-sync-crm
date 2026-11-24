@@ -26,11 +26,14 @@ describe('conversation commercial summary',()=>{
 });
 
 it('filters any commercial opportunity and includes contacts without CRM opportunities', () => {
- expect(matchesCommercialStage(data,1,'11')).toBe(true);
- expect(matchesCommercialStage(data,1,'none')).toBe(false);
- expect(matchesCommercialStage(data,2,'none')).toBe(true);
- expect(matchesCommercialStage(data,null,'none')).toBe(true);
- expect(matchesCommercialStage(data,2,'10')).toBe(false);
+ expect(matchesCommercialStage(data,1,['12','11'])).toBe(true);
+ expect(matchesCommercialStage(data,1,['12','none'])).toBe(false);
+ expect(matchesCommercialStage(data,1,['11','none'])).toBe(true);
+ expect(matchesCommercialStage(data,2,['11','none'])).toBe(true);
+ expect(matchesCommercialStage(data,null,['none'])).toBe(true);
+ expect(matchesCommercialStage(data,2,['10'])).toBe(false);
+ expect(matchesCommercialStage(data,1,[])).toBe(true);
+ expect(matchesCommercialStage(data,null,[])).toBe(true);
 });
 it('shows the earliest pending task and hides completed-only tasks', () => {
  expect(summarizeConversationLead(data,1).nextTask?.id).toBe('b');
