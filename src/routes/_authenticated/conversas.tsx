@@ -7,7 +7,6 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ArrowUpRight,
   ArrowLeft,
   Bot,
   BotOff,
@@ -44,6 +43,7 @@ import { matchesCommercialStage } from "@/lib/conversation-commercial-summary";
 import { cn } from "@/lib/utils";
 import { ConversationTemplateDialog } from "@/components/conversation-template-dialog";
 import { ConversationAudio } from "@/components/conversation-audio";
+import { ConversationLeadTags } from "@/components/conversation-lead-tags";
 import { ConversationLeadActions } from "@/components/conversation-lead-actions";
 import { ProspectResumeFollowups } from "@/components/prospect-resume-followups";
 import { ProspectPauseFollowups } from "@/components/prospect-pause-followups";
@@ -696,7 +696,7 @@ function ConversationsWorkspace() {
                   </div>
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h2 className="truncate font-semibold">{selectedLeadName}</h2>
+                      <h2 className="truncate font-semibold">{selectedCrmLeadId ? <Link className="hover:text-primary hover:underline focus-visible:underline" to="/leads/$id" params={{id:String(selectedCrmLeadId)}} title="Abrir ficha do lead">{selectedLeadName}</Link> : selectedLeadName}</h2>
                       {selectedConversation.atendimento_humano ? (
                         <Badge className="bg-amber-100 text-[10px] text-amber-800 hover:bg-amber-100 md:text-xs">
                           Atendimento humano
@@ -716,14 +716,10 @@ function ConversationsWorkspace() {
                   {activeEmpresaId && (assignedToMe || canForceAssignment) && followupsQuery.isSuccess && followupsByLeadId.has(selectedConversation.lead_id) ? <ProspectPauseFollowups key={`pause-${activeEmpresaId}-${selectedConversation.lead_id}`} companyId={activeEmpresaId} leadId={selectedConversation.lead_id} name={selectedConversation.nome || "Lead"} /> : null}
                   {activeEmpresaId && [35, 36].includes(activeEmpresaId) && (assignedToMe || canForceAssignment) && followupsQuery.isSuccess && !followupsByLeadId.has(selectedConversation.lead_id) ? <ProspectResumeFollowups key={`resume-${activeEmpresaId}-${selectedConversation.lead_id}`} companyId={activeEmpresaId} leadId={selectedConversation.lead_id} name={selectedConversation.nome || "Lead"} /> : null}
                   {selectedCrmLeadId && activeEmpresaId ? <ConversationLeadActions key={`${activeEmpresaId}:${selectedCrmLeadId}`} companyId={activeEmpresaId} leadId={selectedCrmLeadId} name={selectedLeadName}/> : null}
-                  {selectedCrmLeadId ? (
-                    <Button asChild variant="outline" size="sm" className="h-9 w-9 p-0 md:h-8 md:w-auto md:px-3">
-                      <Link to="/leads/$id" params={{ id: String(selectedCrmLeadId) }} aria-label="Abrir lead" title="Abrir lead">
-                        <span className="sr-only md:not-sr-only">Abrir lead</span>
-                        <ArrowUpRight className="h-4 w-4 md:ml-2" />
-                      </Link>
-                    </Button>
-                  ) : null}
+                  {selectedCrmLeadId && activeEmpresaId && me && <ConversationLeadTags
+                    key={activeEmpresaId + ":" + selectedConversation.lead_id}
+                    companyId={activeEmpresaId} contactId={selectedCrmLeadId} leadId={selectedConversation.lead_id}
+                    actorId={me.id} canEdit={me.role === "super_admin"} name={selectedLeadName}/>}
 
                   {selectedWindow &&
                   !selectedWindow.window_open &&

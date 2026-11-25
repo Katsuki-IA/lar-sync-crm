@@ -466,7 +466,7 @@ function LeadDetail() {
               </div>
               <div>
                 <div className="flex items-center justify-between">
-                  <label className="text-xs text-muted-foreground">Tags do sistema (IA) · somente leitura</label>
+                  <label className="text-xs text-muted-foreground">Tags do lead</label>
 
                 </div>
                 <div className="flex flex-wrap gap-1 mt-2">
