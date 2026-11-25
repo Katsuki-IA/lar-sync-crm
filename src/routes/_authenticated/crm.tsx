@@ -1,7 +1,7 @@
 import { loadFunnels, moveLead, attendanceStage, readPages } from "@/hml/unified-stages";
 import { useCompanyModules } from "@/hml/modules";
 import { AttendanceColumn } from "@/components/attendance-column";
-import { OpportunityTags } from "@/hml/commercial-tags";
+import { OpportunityDetail } from "@/components/opportunity-detail";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -14,7 +14,7 @@ import {
   useDroppable,
   type DragEndEvent,
 } from "@dnd-kit/core";
-import { Plus, ArrowUpRight, UserRound, GripVertical } from "lucide-react";
+import { Plus, UserRound, GripVertical } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/dialog";
 import { useActiveEmpresa } from "@/hooks/use-active-empresa";
 import { useCrmUser } from "@/hooks/use-crm-user";
-import { TaskWorkspace } from "@/hml/tasks";
+
 import {
   db,
   one,
@@ -40,9 +40,22 @@ import {
   type Member,
 } from "@/hml/modules";
 
-export const Route = createFileRoute("/_authenticated/crm")({ component: CommercialPage });
+export const Route = createFileRoute("/_authenticated/crm")({
+  validateSearch: (search: Record<string, unknown>): { oportunidade?: string } =>
+    typeof search.oportunidade === "string" ? { oportunidade: search.oportunidade } : {},
+  component: CommercialPage,
+});
 function CommercialPage() {
   const { activeEmpresaId } = useActiveEmpresa();
+  const { oportunidade } = Route.useSearch();
+  if (activeEmpresaId && oportunidade)
+    return (
+      <OpportunityDetail
+        key={activeEmpresaId + ":" + oportunidade}
+        companyId={activeEmpresaId}
+        id={oportunidade}
+      />
+    );
   return activeEmpresaId ? (
     <CommercialWorkspace key={activeEmpresaId} companyId={activeEmpresaId} />
   ) : null;
@@ -52,7 +65,6 @@ function CommercialWorkspace({ companyId }: { companyId: number }) {
   const qc = useQueryClient();
   const [funnelId, setFunnelId] = useState<number | null>(null);
   const [creating, setCreating] = useState(false);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
   const modules = useCompanyModules(companyId);
   const unified = !!(modules.data?.crm && modules.data.atendimento_ia);
   const [view, setView] = useState("Todos");
@@ -154,7 +166,6 @@ function CommercialWorkspace({ companyId }: { companyId: number }) {
   const stages = query.data?.stages.filter((s) => s.id_funnel === activeFunnel?.id) ?? [];
   const opportunities =
     query.data?.opportunities.filter((o) => o.funnel_id === activeFunnel?.id) ?? [];
-  const selected = query.data?.opportunities.find((o) => o.id === selectedId);
   const move = useMutation({
     mutationFn: async ({ op, stageId }: { op: Opportunity; stageId: number }) => {
       const { data, error } = await db.rpc("hub_move_opportunity", {
@@ -287,7 +298,6 @@ function CommercialWorkspace({ companyId }: { companyId: number }) {
                   contacts={query.data.contacts}
                   members={query.data.members}
                   disabled={move.isPending}
-                  onOpen={setSelectedId}
                 />
               ))}
           </div>
@@ -307,76 +317,7 @@ function CommercialWorkspace({ companyId }: { companyId: number }) {
           defaultAssignee={me?.id_empresa === companyId ? me.id : ""}
         />
       )}
-      <Dialog
-        open={!!selected}
-        onOpenChange={(open) => {
-          if (!open) setSelectedId(null);
-        }}
-      >
-        <DialogContent className="max-h-[90dvh] max-w-3xl overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{selected?.title}</DialogTitle>
-            <DialogDescription>
-              Oportunidade comercial vinculada ao lead. Alterar esta etapa não altera a IA.
-            </DialogDescription>
-          </DialogHeader>
-          {selected && (
-            <div className="space-y-5">
-              <div className="rounded-lg bg-muted p-4">
-                <p className="font-medium">
-                  {query.data.contacts.find((c) => c.id === selected.lead_id)?.nome}
-                </p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Responsável:{" "}
-                  {query.data.members.find((m) => m.id === selected.assigned_to)?.nome ??
-                    "Sem responsável"}
-                </p>
-                <Link
-                  className="mt-3 inline-flex items-center gap-1 text-sm text-primary underline"
-                  to="/leads/$id"
-                  params={{ id: String(selected.lead_id) }}
-                >
-                  Abrir ficha do lead
-                  <ArrowUpRight size={14} />
-                </Link>
-              </div>
-              <label className="block text-sm font-medium">
-                Etapa comercial
-                <select
-                  aria-label="Etapa comercial"
-                  className={inputClass + " mt-2"}
-                  disabled={move.isPending}
-                  value={selected.stage_id}
-                  onChange={(e) => move.mutate({ op: selected, stageId: Number(e.target.value) })}
-                >
-                  {stages.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.nome}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <OpportunityTags
-                key={selected.id + "-tags"}
-                companyId={companyId}
-                opportunityId={selected.id}
-              />
-              <TaskWorkspace
-                key={selected.id}
-                companyId={companyId}
-                leadId={selected.lead_id}
-                opportunityId={selected.id}
-                compact
-              />
-              <OpportunityHistory
-                opportunity={selected}
-                stages={stages}
-                members={me ? [...query.data.members, me] : query.data.members}
-              />
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+
       <p className="text-xs text-muted-foreground">
         Nesta etapa, cada lead tem uma oportunidade por funil. Oportunidades sem responsável podem
         ser distribuídas pelo menu Filas de distribuição.
@@ -391,7 +332,6 @@ function Column({
   contacts,
   members,
   disabled,
-  onOpen,
 }: {
   stage: Stage;
   group?: string;
@@ -399,7 +339,6 @@ function Column({
   contacts: Contact[];
   members: Member[];
   disabled: boolean;
-  onOpen: (id: string) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: stage.id });
   return (
@@ -424,7 +363,6 @@ function Column({
             contact={contacts.find((c) => c.id === op.lead_id)}
             member={members.find((m) => m.id === op.assigned_to)}
             disabled={disabled}
-            onOpen={onOpen}
           />
         ))}
         {!opportunities.length && (
@@ -439,13 +377,11 @@ function OpportunityCard({
   contact,
   member,
   disabled,
-  onOpen,
 }: {
   op: Opportunity;
   contact?: Contact;
   member?: Member;
   disabled: boolean;
-  onOpen: (id: string) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({ id: op.id, disabled });
   return (
@@ -471,21 +407,26 @@ function OpportunityCard({
         >
           <GripVertical size={16} />
         </button>
-        <button
+        <Link
+          to="/crm"
+          search={{ oportunidade: op.id }}
           className="text-left text-sm font-semibold hover:text-primary"
-          onClick={() => onOpen(op.id)}
         >
           {contact?.nome ?? op.title}
-        </button>
+        </Link>
       </div>
       <p className="mt-2 text-xs text-muted-foreground">{op.title}</p>
       <div className="mt-4 flex items-center gap-2 border-t pt-3 text-xs text-muted-foreground">
         <UserRound size={13} />
         {member?.nome ?? "Sem responsável"}
       </div>
-      <button className="mt-3 text-xs font-medium text-primary" onClick={() => onOpen(op.id)}>
+      <Link
+        className="mt-3 inline-block text-xs font-medium text-primary"
+        to="/crm"
+        search={{ oportunidade: op.id }}
+      >
         Abrir oportunidade →
-      </button>
+      </Link>
     </article>
   );
 }
@@ -702,54 +643,5 @@ export function NewOpportunity({
         </form>
       </DialogContent>
     </Dialog>
-  );
-}
-function OpportunityHistory({
-  opportunity,
-  stages,
-  members,
-}: {
-  opportunity: Opportunity;
-  stages: Stage[];
-  members: Member[];
-}) {
-  const history = useQuery({
-    queryKey: ["opportunity-events", opportunity.id, opportunity.version],
-    queryFn: async () => {
-      const { data, error } = await db
-        .from("crm_opportunity_events")
-        .select("id,kind,from_stage_id,to_stage_id,created_at,actor_id")
-        .eq("opportunity_id", opportunity.id)
-        .eq("id_empresa", opportunity.id_empresa)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data;
-    },
-  });
-  return (
-    <div>
-      <h3 className="mb-3 text-sm font-semibold">Histórico comercial</h3>
-      {history.isPending ? (
-        <p className="text-sm">Carregando…</p>
-      ) : history.isError ? (
-        <p className="text-sm text-red-700">Não foi possível carregar o histórico.</p>
-      ) : (
-        <ul className="max-h-52 space-y-3 overflow-y-auto">
-          {history.data.map((event) => (
-            <li key={event.id} className="border-l-2 border-primary/25 pl-3 text-sm">
-              <p>
-                {event.kind === "created"
-                  ? "Oportunidade criada"
-                  : `${stages.find((s) => s.id === event.from_stage_id)?.nome ?? "Etapa anterior"} → ${stages.find((s) => s.id === event.to_stage_id)?.nome ?? "Nova etapa"}`}
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {new Date(event.created_at).toLocaleString("pt-BR")} ·{" "}
-                {members.find((m) => m.id === event.actor_id)?.nome ?? "Usuário não disponível"}
-              </p>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
   );
 }
