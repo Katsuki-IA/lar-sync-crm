@@ -68,7 +68,7 @@ export function AppSidebar({
     { title: "Relatórios", url: "/relatorios", match: "/relatorios", icon: BarChart2 },
   ];
 
-  if (me?.role !== "analyst" && modules?.atendimento_ia) {
+  if (me?.role !== "analyst" && modules?.atendimento_ia && !modules.crm) {
     mainItems.push({title:"Atendimento IA",url:"/kanban",match:"/kanban",icon:MessagesSquare});
   }
   if (me?.role !== "analyst" && modules?.crm) {

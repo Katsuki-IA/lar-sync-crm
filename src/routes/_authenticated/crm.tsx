@@ -1,4 +1,7 @@
-import { OpportunityTags } from '@/hml/commercial-tags';
+import { loadFunnels, moveLead, attendanceStage, readPages } from "@/hml/unified-stages";
+import { useCompanyModules } from "@/hml/modules";
+import { AttendanceColumn } from "@/components/attendance-column";
+import { OpportunityTags } from "@/hml/commercial-tags";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -50,36 +53,34 @@ function CommercialWorkspace({ companyId }: { companyId: number }) {
   const [funnelId, setFunnelId] = useState<number | null>(null);
   const [creating, setCreating] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const modules = useCompanyModules(companyId);
+  const unified = !!(modules.data?.crm && modules.data.atendimento_ia);
+  const [view, setView] = useState("Todos");
   const canCreate = me?.role === "manager" || me?.role === "super_admin";
   const query = useQuery({
-    queryKey: ["commercial-workspace", companyId, me?.id],
+    queryKey: ["commercial-workspace", companyId, me?.id, unified],
+    enabled: !!modules.data && !!me,
     queryFn: async () => {
-      const results = await Promise.all([
-        db
-          .from("crm_funnels")
-          .select("id,id_empresa,nome,module,is_default")
-          .eq("id_empresa", companyId)
-          .eq("module", "crm")
-          .eq("ativo", true)
-          .order("ordem"),
-        db
-          .from("crm_stages")
-          .select("id,id_funnel,nome,cor,ordem")
-          .eq("id_empresa", companyId)
-          .eq("module", "crm")
-          .eq("ativo", true)
-          .order("ordem"),
-        db
-          .from("crm_opportunities")
-          .select("*")
-          .eq("id_empresa", companyId)
-          .order("created_at", { ascending: false })
-          .order("id", { ascending: false }),
-        db
-          .from("crm_leads")
-          .select("id,nome,telefone,email,crm_stage_id,crm_assigned_to")
-          .eq("id_empresa", companyId)
-          .order("nome"),
+      const [catalog, allOps, allContacts, users] = await Promise.all([
+        loadFunnels(companyId, unified),
+        readPages<Opportunity>((a, b) =>
+          db
+            .from("crm_opportunities")
+            .select("*")
+            .eq("id_empresa", companyId)
+            .order("created_at", { ascending: false })
+            .order("id")
+            .range(a, b),
+        ),
+        readPages<Contact>((a, b) =>
+          db
+            .from("crm_leads")
+            .select("id,nome,telefone,email,crm_stage_id,crm_assigned_to")
+            .eq("id_empresa", companyId)
+            .order("nome")
+            .order("id")
+            .range(a, b),
+        ),
         db
           .from("crm_users")
           .select("id,nome,role,active")
@@ -87,20 +88,69 @@ function CommercialWorkspace({ companyId }: { companyId: number }) {
           .in("role", ["manager", "agent"])
           .order("nome"),
       ]);
-      for (const r of results) if (r.error) throw r.error;
+      if (users.error) throw users.error;
       return {
-        funnels: results[0].data as Funnel[],
-        stages: results[1].data as Stage[],
-        opportunities: results[2].data as Opportunity[],
-        contacts: results[3].data as Contact[],
-        members: results[4].data as Member[],
+        ...catalog,
+        opportunities: allOps,
+        contacts: allContacts,
+        members: users.data as Member[],
       };
     },
   });
+  const funnels = query.data?.funnels.filter((f) => f.module === "crm") ?? [];
   const activeFunnel =
-    query.data?.funnels.find((f) => f.id === funnelId) ??
-    query.data?.funnels.find((f) => f.is_default) ??
-    query.data?.funnels[0];
+    funnels.find((f) => f.id === funnelId) ?? funnels.find((f) => f.is_default) ?? funnels[0];
+  const iaFunnels = query.data?.funnels.filter((f) => f.module === "ia") ?? [];
+  const linked = new Set(query.data?.opportunities.map((o) => o.lead_id));
+  const attendance =
+    query.data?.contacts.filter(
+      (c) => !linked.has(c.id) && (me?.role !== "agent" || c.crm_assigned_to === me.id),
+    ) ?? [];
+  const iaStages =
+    query.data?.stages.filter((s) => iaFunnels.some((f) => f.id === s.id_funnel)) ?? [];
+  const leadTargets =
+    query.data?.stages.filter(
+      (s) =>
+        (me?.role === "super_admin" && iaStages.some((a) => a.id === s.id)) ||
+        (canCreate && s.id_funnel === activeFunnel?.id),
+    ) ?? [];
+  const contactsByStage = new Map<number | undefined, Contact[]>();
+  for (const contact of unified ? attendance : []) {
+    const id = attendanceStage(contact.crm_stage_id, iaFunnels, iaStages)?.id;
+    const group = contactsByStage.get(id);
+    if (group) group.push(contact);
+    else contactsByStage.set(id, [contact]);
+  }
+  const attendanceColumns: { stage?: Stage; funnelName?: string; contacts: Contact[] }[] =
+    iaFunnels.flatMap((f) =>
+      iaStages
+        .filter((s) => s.id_funnel === f.id)
+        .map((stage) => ({
+          stage,
+          funnelName: f.nome,
+          contacts: contactsByStage.get(stage.id) ?? [],
+        })),
+    );
+  if (contactsByStage.has(undefined))
+    attendanceColumns.push({ contacts: contactsByStage.get(undefined)! });
+  const promote = useMutation({
+    mutationFn: async ({ contact, stage }: { contact: Contact; stage: Stage }) => {
+      const funnel = query.data?.funnels.find((f) => f.id === stage.id_funnel);
+      if (!me || !funnel || !canCreate || (funnel.module === "ia" && me.role !== "super_admin"))
+        throw new Error("Movimentação indisponível para seu perfil.");
+      await moveLead(
+        companyId,
+        contact,
+        stage,
+        funnel,
+        me.id,
+        attendanceStage(contact.crm_stage_id, query.data!.funnels, query.data!.stages)?.nome,
+      );
+    },
+    onSuccess: () => toast.success("Etapa atualizada"),
+    onError: (error: Error) => toast.error(error.message),
+    onSettled: () => qc.invalidateQueries(),
+  });
   const stages = query.data?.stages.filter((s) => s.id_funnel === activeFunnel?.id) ?? [];
   const opportunities =
     query.data?.opportunities.filter((o) => o.funnel_id === activeFunnel?.id) ?? [];
@@ -126,7 +176,13 @@ function CommercialWorkspace({ companyId }: { companyId: number }) {
   });
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 7 } }));
   const onDragEnd = (event: DragEndEvent) => {
-    if (!event.over || move.isPending) return;
+    if (!event.over || move.isPending || promote.isPending) return;
+    const contact = attendance.find((c) => "lead-" + c.id === event.active.id);
+    if (unified && contact) {
+      const stage = query.data?.stages.find((s) => s.id === Number(event.over?.id));
+      if (stage && stage.id !== contact.crm_stage_id) promote.mutate({ contact, stage });
+      return;
+    }
     const op = opportunities.find((o) => o.id === event.active.id);
     const stageId = Number(event.over.id);
     if (op && stageId !== op.stage_id && stages.some((s) => s.id === stageId))
@@ -151,7 +207,9 @@ function CommercialWorkspace({ companyId }: { companyId: number }) {
           </div>
           <h1 className="text-2xl font-bold">CRM comercial</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {opportunities.length} oportunidades · O atendimento IA mantém seu próprio estágio.
+            {unified
+              ? `${attendance.length} leads em atendimento · ${opportunities.length} oportunidades neste funil`
+              : `${opportunities.length} oportunidades`}
           </p>
         </div>
         <div className="flex gap-3">
@@ -161,7 +219,7 @@ function CommercialWorkspace({ companyId }: { companyId: number }) {
             value={activeFunnel?.id ?? ""}
             onChange={(e) => setFunnelId(Number(e.target.value))}
           >
-            {query.data.funnels.map((f) => (
+            {funnels.map((f) => (
               <option key={f.id} value={f.id}>
                 {f.nome}
               </option>
@@ -179,24 +237,59 @@ function CommercialWorkspace({ companyId }: { companyId: number }) {
           )}
         </div>
       </header>
-      {!activeFunnel ? (
+      {unified && (
+        <div className="flex gap-2" aria-label="Filtrar quadro">
+          {["Todos", "Atendimento", "Vendas"].map((v) => (
+            <button
+              key={v}
+              aria-pressed={view === v}
+              className={view === v ? actionClass : secondaryClass}
+              onClick={() => setView(v)}
+            >
+              {v}
+            </button>
+          ))}
+          {view === "Atendimento" && (
+            <Link className={secondaryClass} to="/kanban">
+              Detalhes do atendimento
+            </Link>
+          )}
+        </div>
+      )}
+      {!activeFunnel && !unified ? (
         <Notice title="Nenhum funil comercial disponível">
           Solicite a configuração do módulo ao administrador.
         </Notice>
       ) : (
         <DndContext sensors={sensors} onDragEnd={onDragEnd}>
           <div className="flex gap-4 overflow-x-auto pb-5">
-            {stages.map((stage) => (
-              <Column
-                key={stage.id}
-                stage={stage}
-                opportunities={opportunities.filter((o) => o.stage_id === stage.id)}
-                contacts={query.data.contacts}
-                members={query.data.members}
-                disabled={move.isPending}
-                onOpen={setSelectedId}
-              />
-            ))}
+            {unified &&
+              view !== "Vendas" &&
+              attendanceColumns.map(({ stage, funnelName, contacts }) => (
+                <AttendanceColumn
+                  key={stage?.id ?? "unassigned"}
+                  stage={stage}
+                  funnelName={funnelName}
+                  contacts={contacts}
+                  draggable={canCreate && !promote.isPending}
+                  targets={leadTargets}
+                  funnels={query.data.funnels}
+                  onMove={(contact, stage) => promote.mutate({ contact, stage })}
+                />
+              ))}
+            {(!unified || view !== "Atendimento") &&
+              stages.map((stage) => (
+                <Column
+                  key={stage.id}
+                  group={unified ? "Vendas" : undefined}
+                  stage={stage}
+                  opportunities={opportunities.filter((o) => o.stage_id === stage.id)}
+                  contacts={query.data.contacts}
+                  members={query.data.members}
+                  disabled={move.isPending}
+                  onOpen={setSelectedId}
+                />
+              ))}
           </div>
         </DndContext>
       )}
@@ -263,7 +356,11 @@ function CommercialWorkspace({ companyId }: { companyId: number }) {
                   ))}
                 </select>
               </label>
-              <OpportunityTags key={selected.id + "-tags"} companyId={companyId} opportunityId={selected.id} />
+              <OpportunityTags
+                key={selected.id + "-tags"}
+                companyId={companyId}
+                opportunityId={selected.id}
+              />
               <TaskWorkspace
                 key={selected.id}
                 companyId={companyId}
@@ -281,15 +378,15 @@ function CommercialWorkspace({ companyId }: { companyId: number }) {
         </DialogContent>
       </Dialog>
       <p className="text-xs text-muted-foreground">
-        Nesta etapa, cada lead tem uma oportunidade por funil. Oportunidades sem responsável
-        podem ser distribuídas pelo menu Filas de distribuição. A passagem da IA será adicionada
-        depois.
+        Nesta etapa, cada lead tem uma oportunidade por funil. Oportunidades sem responsável podem
+        ser distribuídas pelo menu Filas de distribuição.
       </p>
     </div>
   );
 }
 function Column({
   stage,
+  group,
   opportunities,
   contacts,
   members,
@@ -297,6 +394,7 @@ function Column({
   onOpen,
 }: {
   stage: Stage;
+  group?: string;
   opportunities: Opportunity[];
   contacts: Contact[];
   members: Member[];
@@ -310,6 +408,7 @@ function Column({
       aria-label={stage.nome}
       className={`w-64 shrink-0 rounded-xl border bg-muted ${isOver ? "ring-2 ring-orange-300" : ""}`}
     >
+      {group && <p className="px-4 pt-3 text-xs text-muted-foreground">{group}</p>}
       <header className="flex items-center justify-between border-b p-4">
         <h2 className="flex items-center gap-2 text-sm font-semibold">
           <span className="h-2 w-2 rounded-full" style={{ background: stage.cor }} />
@@ -654,4 +753,3 @@ function OpportunityHistory({
     </div>
   );
 }
-

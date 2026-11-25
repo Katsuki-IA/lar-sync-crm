@@ -11,6 +11,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { db, inputClass, useCompanyModules, type Funnel, type Contact } from "@/hml/modules";
+import { loadFunnels, moveLead, attendanceStage } from "@/hml/unified-stages";
 import { TaskEditor } from "@/hml/tasks";
 import { useCrmUser } from "@/hooks/use-crm-user";
 import { NewOpportunity } from "@/routes/_authenticated/crm";
@@ -34,7 +35,9 @@ export function ConversationLeadActions({
           variant="outline"
           size="icon"
           className="h-11 w-11"
-          aria-label="Alterar estágio da oportunidade"
+          aria-label={
+            modules.atendimento_ia ? "Mover para etapa" : "Alterar estágio da oportunidade"
+          }
           title="Alterar estágio"
           onClick={() => setOpen("stage")}
         >
@@ -56,6 +59,7 @@ export function ConversationLeadActions({
       {open && (
         <LeadActionDialog
           key={`${companyId}:${leadId}:${open}`}
+          unified={!!modules?.atendimento_ia && !!modules.crm}
           companyId={companyId}
           leadId={leadId}
           name={name}
@@ -68,6 +72,7 @@ export function ConversationLeadActions({
 }
 
 function LeadActionDialog({
+  unified,
   companyId,
   leadId,
   name,
@@ -77,6 +82,7 @@ function LeadActionDialog({
   companyId: number;
   leadId: number;
   name: string;
+  unified: boolean;
   action: "stage" | "task";
   onClose: () => void;
 }) {
@@ -87,7 +93,7 @@ function LeadActionDialog({
   const [funnelId, setFunnelId] = useState("");
   const [creating, setCreating] = useState(false);
   const query = useQuery({
-    queryKey: ["conversation-lead-action", companyId, leadId, action, me?.id],
+    queryKey: ["conversation-lead-action", companyId, leadId, action, me?.id, unified],
     queryFn: async () => {
       const contact = await db
         .from("crm_leads")
@@ -97,28 +103,14 @@ function LeadActionDialog({
         .single();
       if (contact.error) throw contact.error;
       if (action === "stage") {
-        const stages = await db
-          .from("crm_stages")
-          .select("id,nome,id_funnel")
-          .eq("id_empresa", companyId)
-          .eq("module", "crm")
-          .eq("ativo", true)
-          .order("ordem");
-        if (stages.error) throw stages.error;
-        const [ops, funnels, members] = await Promise.all([
+        const [catalog, ops, members] = await Promise.all([
+          loadFunnels(companyId, unified),
           db
             .from("crm_opportunities")
             .select("id,lead_id,title,assigned_to,stage_id,funnel_id,version")
             .eq("id_empresa", companyId)
             .eq("lead_id", leadId)
             .order("created_at"),
-          db
-            .from("crm_funnels")
-            .select("id,id_empresa,nome,module,is_default")
-            .eq("id_empresa", companyId)
-            .eq("module", "crm")
-            .eq("ativo", true)
-            .order("ordem"),
           db
             .from("crm_users")
             .select("id,nome,role,active")
@@ -127,13 +119,13 @@ function LeadActionDialog({
             .in("role", ["manager", "agent", "gestor", "corretor"])
             .order("nome"),
         ]);
-        for (const r of [ops, funnels, members]) if (r.error) throw r.error;
+        for (const r of [ops, members]) if (r.error) throw r.error;
         return {
           contact: contact.data,
-          stages: stages.data,
+          stages: catalog.stages,
           members: members.data!,
           opportunities: ops.data!,
-          funnels: funnels.data! as Funnel[],
+          funnels: catalog.funnels,
         };
       }
       const [members, opportunities] = await Promise.all([
@@ -176,8 +168,32 @@ function LeadActionDialog({
     query.data?.funnels.find((f) => String(f.id) === funnelId) ??
     query.data?.funnels.find((f) => f.is_default) ??
     query.data?.funnels[0];
+  const preSale = unified && query.data?.opportunities.length === 0;
+  const destinations =
+    query.data?.funnels.filter((f) =>
+      f.module === "ia"
+        ? me?.role === "super_admin"
+        : ["manager", "super_admin"].includes(me?.role ?? ""),
+    ) ?? [];
+  const current =
+    query.data && preSale
+      ? attendanceStage(query.data.contact.crm_stage_id, query.data.funnels, query.data.stages)
+      : undefined;
   const save = useMutation({
     mutationFn: async () => {
+      if (preSale && query.data && me) {
+        const target = query.data.stages.find((s) => s.id === Number(stage));
+        const funnel = destinations.find((f) => f.id === target?.id_funnel);
+        if (!target || !funnel) throw new Error("Selecione uma etapa disponível.");
+        return moveLead(
+          companyId,
+          query.data.contact as Contact,
+          target,
+          funnel,
+          me.id,
+          current?.nome,
+        );
+      }
       if (!selectedOpportunity || !availableStages.some((s) => String(s.id) === stage))
         throw new Error("Selecione um estágio válido.");
       const result = await db.rpc("hub_move_opportunity", {
@@ -195,7 +211,7 @@ function LeadActionDialog({
     },
     onError: async (error: Error) => {
       toast.error(error.message);
-      await query.refetch();
+      await qc.invalidateQueries();
     },
   });
   if (creating && query.data && selectedFunnel)
@@ -237,7 +253,13 @@ function LeadActionDialog({
     >
       <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{action === "stage" ? "Alterar estágio" : "Nova tarefa"}</DialogTitle>
+          <DialogTitle>
+            {action === "stage"
+              ? unified
+                ? "Mover para etapa"
+                : "Alterar estágio"
+              : "Nova tarefa"}
+          </DialogTitle>
           <DialogDescription>{name}</DialogDescription>
         </DialogHeader>
         {query.isPending ? (
@@ -258,8 +280,9 @@ function LeadActionDialog({
             }}
           >
             <p className="text-sm text-muted-foreground">
-              Estágio do CRM comercial. Atual:{" "}
-              {query.data.stages.find((s) => s.id === selectedOpportunity?.stage_id)?.nome ??
+              {unified ? "Etapa atual · " : "Estágio do CRM comercial. Atual: "}
+              {current?.nome ??
+                query.data.stages.find((s) => s.id === selectedOpportunity?.stage_id)?.nome ??
                 "Sem estágio"}
               .
             </p>
@@ -286,7 +309,7 @@ function LeadActionDialog({
                 </select>
               </label>
             )}
-            {!query.data.opportunities.length && (
+            {!preSale && !query.data.opportunities.length && (
               <div className="space-y-3">
                 <p className="text-sm">
                   Este lead ainda não tem uma oportunidade comercial acessível.
@@ -319,6 +342,11 @@ function LeadActionDialog({
                 )}
               </div>
             )}
+            {preSale && !destinations.length && (
+              <p className="text-sm text-muted-foreground">
+                Peça ao gestor para encaminhar este lead a Vendas.
+              </p>
+            )}
             <label className="block text-sm">
               Novo estágio
               <select
@@ -326,10 +354,25 @@ function LeadActionDialog({
                 className={inputClass + " mt-2 min-h-11 text-base"}
                 value={stage}
                 required
-                disabled={save.isPending || !selectedOpportunity}
+                disabled={save.isPending || (!selectedOpportunity && !preSale)}
                 onChange={(e) => setStage(e.target.value)}
               >
                 <option value="">Selecione o estágio</option>
+                {preSale &&
+                  destinations.map((f) => (
+                    <optgroup
+                      key={f.id}
+                      label={(f.module === "ia" ? "Atendimento" : "Vendas") + " · " + f.nome}
+                    >
+                      {query.data.stages
+                        .filter((s) => s.id_funnel === f.id)
+                        .map((s) => (
+                          <option key={s.id} value={s.id} disabled={s.id === current?.id}>
+                            {s.nome}
+                          </option>
+                        ))}
+                    </optgroup>
+                  ))}
                 {availableStages.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.nome}
@@ -349,8 +392,8 @@ function LeadActionDialog({
                 disabled={
                   save.isPending ||
                   !stage ||
-                  !selectedOpportunity ||
-                  Number(stage) === selectedOpportunity.stage_id
+                  (!selectedOpportunity && !preSale) ||
+                  Number(stage) === selectedOpportunity?.stage_id
                 }
               >
                 {save.isPending ? "Salvando…" : "Salvar estágio"}

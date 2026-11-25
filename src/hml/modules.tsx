@@ -173,7 +173,7 @@ export function AppSidebar({ mobile = false, onNavigate }: { mobile?: boolean; o
     ["/relatorios", "Relatórios"],
     ...(modules?.atendimento_ia && me?.role !== 'analyst'
       ? [
-          ["/kanban", "Atendimento IA"],
+          ...(!modules.crm ? [["/kanban", "Atendimento IA"]] : []),
           ["/conversas", "Conversas"],
         ]
       : []),

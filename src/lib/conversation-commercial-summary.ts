@@ -1,6 +1,7 @@
 export type ConversationOpportunity = { id: string; lead_id: number; stage_id: number | null; funnel_id: number };
 export type ConversationTask = { id: string; lead_id: number; status: string; prazo: string | null };
 export type ConversationCommercialData = {
+ attendance?: Record<number, number | null>;
  opportunities: ConversationOpportunity[];
  tasks: ConversationTask[];
  stages: { id: number; nome: string; cor?: string | null; id_funnel?: number }[];
@@ -18,13 +19,14 @@ export function summarizeConversationLead(data: ConversationCommercialData, lead
  const pending = tasks.filter(t => ["pendente", "em_andamento", "vencida"].includes(t.status));
  const overdue = pending.filter(t => t.status === "vencida" || (t.prazo && new Date(t.prazo).getTime() < now));
  const nextTask = [...pending].sort((a,b) => (a.prazo ? Date.parse(a.prazo) : Infinity) - (b.prazo ? Date.parse(b.prazo) : Infinity))[0];
- return { stages, nextTask, totalTasks: tasks.length, pendingTasks: pending.length, overdueTasks: overdue.length };
+ const attendanceLabel = data.attendance && leadId in data.attendance ? "Etapa atual · " + (data.stages.find(s => s.id === data.attendance?.[leadId])?.nome ?? "Sem etapa ativa") : undefined;
+ return { attendanceLabel, stages, nextTask, totalTasks: tasks.length, pendingTasks: pending.length, overdueTasks: overdue.length };
 }
 
 export function matchesCommercialStage(data: ConversationCommercialData, leadId: number | null, selected: readonly string[]) {
  if (selected.length === 0) return true;
  const opportunities = data.opportunities.filter(o => o.lead_id === leadId);
- if (opportunities.length === 0) return selected.includes("none");
+ if (opportunities.length === 0) return selected.includes("none") || (leadId != null && data.attendance?.[leadId] != null && selected.includes(String(data.attendance[leadId])));
  return opportunities.some(o => selected.includes(String(o.stage_id)));
 }
 export function taskDateLabel(value: string | null) {
