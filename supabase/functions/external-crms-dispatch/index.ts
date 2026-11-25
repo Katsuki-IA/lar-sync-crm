@@ -1307,9 +1307,6 @@ Deno.serve(async (req) => {
             : {}),
           idsituacao: toScalarId(externalStageId),
           permitir_alteracao: true,
-          ...(Number(lead.id_empresa) === 41 && body.enforceScheduledRule === true && requestedTags.includes("ativacao-modan")
-            ? { lead_utilizar_fila: true }
-            : {}),
           tags,
         };
         const attributionFields = cvAttributionCustomFields(attribution, lead.id_empresa, cvUrl);
@@ -1324,6 +1321,11 @@ Deno.serve(async (req) => {
         );
         if (cvDistributionQueueId != null) {
           requestPayload.idfila_distribuicao_leads = cvDistributionQueueId;
+        }
+        const prospectVisit = body.enforceScheduledRule === true && requestedTags.includes("ativacao-modan");
+        if (Number(lead.id_empresa) === 41 && (cvDistributionQueueId != null || prospectVisit)) {
+          requestPayload.tags = normalizeDispatchTags([...tags, "ativacao-modan"]);
+          requestPayload.lead_utilizar_fila = true;
         }
 
         if (summaryPayload?.summary) {
