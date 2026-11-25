@@ -498,7 +498,10 @@ Deno.serve(async (req) => {
       }
     }
     const {data:delivery,error:reserveError}=await admin.rpc('hub_delivery_reserve',deliveryArgs);
-    if(reserveError)throw new Error(reserveError.message);
+    if (reserveError?.code === "PT429" || reserveError?.code === "PT409") {
+      return jsonResponse({ error: reserveError.message }, reserveError.code === "PT429" ? 429 : 409);
+    }
+    if (reserveError) throw new Error(reserveError.message);
     if(!delivery?.owned)return finishDelivery(delivery);
     deliveryStarted=true;
     // The committed reservation is never automatically expired/retried after provider I/O.
@@ -515,6 +518,14 @@ Deno.serve(async (req) => {
     );
     const graphResult = (await graphResponse.json()) as MetaSendResult;
     if (!graphResponse.ok || graphResult.error) {
+      const releaseRejectedTemplate = async () => {
+        if (!selectedTemplate || !graphResult.error || graphResponse.status < 400 ||
+            graphResponse.status >= 500 || graphResponse.status === 408) return;
+        const { error } = await admin.rpc("hub_release_rejected_template", {
+          p_id: delivery.id, p_token: delivery.claim_token,
+        });
+        if (!error) deliveryStarted = false;
+      };
       if (graphResult.error?.code === 131049) {
         const eventAt = new Date().toISOString();
         const { error: cooldownError } = await admin.rpc("wa_record_marketing_cooldown", {
@@ -522,8 +533,10 @@ Deno.serve(async (req) => {
           p_event_at: eventAt, p_id_empresa: lead.id_empresa,
         });
         if (cooldownError) console.error("Unable to persist Meta marketing cooldown", cooldownError.code);
+        if (!cooldownError) await releaseRejectedTemplate();
         return jsonResponse({ error: "A Meta restringiu temporariamente a entrega para este contato (131049). " + (cooldownError ? "Não repita o envio agora; não foi possível registrar a pausa automática." : "Novos templates de marketing estão pausados por 24 horas. A entrega após esse prazo ainda depende da Meta."), code: "131049" }, 429);
       }
+      await releaseRejectedTemplate();
       const code = graphResult.error?.code ? ` (código ${graphResult.error.code})` : "";
       throw new Error(`${graphResult.error?.message ?? "Falha ao enviar pela Meta"}${code}`);
     }
