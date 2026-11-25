@@ -77,6 +77,25 @@ function LeadDetail() {
   const [customErrors, setCustomErrors] = useState<Record<number, string>>({});
   const sendLeadToCrmFn = useServerFn(sendLeadToExternalCrm);
 
+  const [renameTarget, setRenameTarget] = useState<{ company: number; contact: number; name: string } | null>(null);
+  const rename = useMutation({
+    mutationFn: async (target: NonNullable<typeof renameTarget>) => {
+      const { error } = await supabase.rpc("hub_rename_crm_lead", {
+        p_company: target.company, p_contact: target.contact, p_name: target.name.trim(),
+      });
+      if (error) throw error;
+    },
+    onSuccess: (_, target) => {
+      setRenameTarget(null);
+      void qc.invalidateQueries({ queryKey: ["lead", target.contact, target.company] });
+      for (const key of ["whatsapp-conversations", "native-conversation-context", "leads", "leads-list", "kanban-leads"]) {
+        void qc.invalidateQueries({ queryKey: [key] });
+      }
+      toast.success("Nome atualizado");
+    },
+    onError: (error: Error) => toast.error(error.message || "Erro ao atualizar o nome"),
+  });
+
   const deleteMut = useMutation({
     mutationFn: async () => {
       const { error } = await supabase.from("crm_leads").delete().eq("id", leadId).eq("id_empresa", activeEmpresaId!);
@@ -357,6 +376,12 @@ function LeadDetail() {
         <div className="flex-1">
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-semibold tracking-tight">{lead.nome ?? "Sem nome"}</h1>
+            {me?.active && ["super_admin", "manager", "agent"].includes(me.role) && (
+              <Button variant="ghost" size="icon" title="Editar nome" aria-label="Editar nome"
+                onClick={() => setRenameTarget({ company: lead.id_empresa, contact: lead.id, name: lead.nome ?? "" })}>
+                <Pencil className="size-4" />
+              </Button>
+            )}
             {lead.lead_quente && (
               <Badge className="bg-primary/15 text-primary border-0"><Flame className="h-3 w-3 mr-1" /> Quente</Badge>
             )}
@@ -575,6 +600,32 @@ function LeadDetail() {
         </div>
       </div>
 
+      {renameTarget?.contact === lead.id && renameTarget.company === lead.id_empresa && (
+        <Dialog open onOpenChange={open => { if (!open && !rename.isPending) setRenameTarget(null); }}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Editar nome do lead</DialogTitle>
+              <DialogDescription>O nome também aparece na conversa vinculada.</DialogDescription>
+            </DialogHeader>
+            <form className="space-y-4" onSubmit={event => {
+              event.preventDefault();
+              if (renameTarget.name.trim() && !rename.isPending) rename.mutate(renameTarget);
+            }}>
+              <label className="block space-y-1 text-sm">
+                <span>Nome do lead</span>
+                <Input autoFocus required maxLength={150} value={renameTarget.name} disabled={rename.isPending}
+                  onChange={event => setRenameTarget({ ...renameTarget, name: event.target.value })} />
+              </label>
+              <DialogFooter>
+                <Button type="button" variant="outline" disabled={rename.isPending} onClick={() => setRenameTarget(null)}>Cancelar</Button>
+                <Button type="submit" disabled={rename.isPending || !renameTarget.name.trim() || renameTarget.name.trim() === lead.nome}>
+                  {rename.isPending ? "Salvando..." : "Salvar"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      )}
       <Dialog open={customFieldsOpen} onOpenChange={setCustomFieldsOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader><DialogTitle>{editingGroup === "commercial" ? "Editar dados comerciais" : "Editar campos personalizados"}</DialogTitle></DialogHeader>

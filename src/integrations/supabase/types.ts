@@ -8029,6 +8029,10 @@ export type Database = {
       }
       crm_generate_hub_access_code: { Args: never; Returns: string }
       crm_get_allowed_empresas: { Args: never; Returns: number[] }
+      hub_rename_crm_lead: {
+        Args: { p_company: number; p_contact: number; p_name: string }
+        Returns: undefined
+      }
       crm_get_lead_attribution: {
         Args: { p_lead_id: number }
         Returns: {
