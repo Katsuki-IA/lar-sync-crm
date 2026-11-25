@@ -1,3 +1,4 @@
+import { ConversationListViewport, orderConversations, type ConversationOrder } from "@/components/conversation-list-viewport";
 import {messageToText,isToolMessage,isEmptyInternalAiMessage,parseDateValue,MessageContent} from "@/components/conversation-message-content";
 // Native Conversations activated only in HML; production route remains separate.
 import { nativeConversationApi, sendNativeConversationText, type NativeTextRequest } from '@/hml/native-conversation-api';
@@ -179,6 +180,7 @@ function ConversationsWorkspace() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const deferredSearch = useDeferredValue(search.trim());
+  const [listOrder, setListOrder] = useState<ConversationOrder>("recent");
   const [humanFilter, setHumanFilter] = useState("all");
   const [selectedStages, setSelectedStages] = useState<string[]>([]);
   const [selectedTags,setSelectedTags] = useState<string[]>([]);
@@ -275,11 +277,11 @@ function ConversationsWorkspace() {
       return {native,contacts};
     },
   });
-  const visibleConversations = conversations.filter(c =>
+  const visibleConversations = useMemo(() => orderConversations(conversations.filter(c =>
     (humanFilter === "all" || (humanFilter === "human" ? c.atendimento_humano : !c.atendimento_humano)) &&
     (selectedTags.length === 0 || tagMatches.data?.native.has(c.lead_id) || tagMatches.data?.contacts.has(crmLeadId(c.id_crm) ?? -1)) &&
     (selectedStages.length === 0 || (!!commercialSummary.data && matchesCommercialStage(commercialSummary.data, crmLeadId(c.id_crm), selectedStages)))
-  );
+  ), listOrder), [conversations, humanFilter, selectedTags, tagMatches.data, selectedStages, commercialSummary.data, listOrder]);
   const conversationLeadIds = useMemo(
     () => conversations.map((conversation) => conversation.lead_id),
     [conversations],
@@ -528,6 +530,14 @@ function ConversationsWorkspace() {
                 className="pl-9"
               />
             </div>
+            <label className="mt-3 block space-y-1 text-sm">
+              <span>Ordenar por última mensagem</span>
+              <select className="h-10 w-full rounded-md border bg-background px-2" value={listOrder}
+                onChange={event => setListOrder(event.target.value === "oldest" ? "oldest" : "recent")}>
+                <option value="recent">Mais recentes primeiro</option>
+                <option value="oldest">Mais antigas primeiro</option>
+              </select>
+            </label>
             {(projectsQuery.data?.length ?? 0) > 1 && (
               <div className="mt-3">
                 <Select
@@ -582,7 +592,7 @@ function ConversationsWorkspace() {
 
           </div>
 
-          <div className="h-[calc(100dvh-22rem)] min-h-[280px] overflow-y-auto lg:h-[calc(100dvh-230px)]">
+          <ConversationListViewport rows={visibleConversations} order={listOrder}>
             {conversationsQuery.isLoading ? (
               <div className="p-4 text-sm text-muted-foreground">Carregando conversas...</div>
             ) : conversationsQuery.error ? (
@@ -598,7 +608,7 @@ function ConversationsWorkspace() {
               </div>
             ) : (
               <div className="divide-y">
-                {visibleConversations.map((conversation) => {
+                {visibleConversations.map((conversation, index) => {
                   const active = selectedConversation?.lead_id === conversation.lead_id;
                   const conversationWindow = windowsByLeadId.get(conversation.lead_id);
                   const followup = followupsByLeadId.get(conversation.lead_id);
@@ -611,6 +621,7 @@ function ConversationsWorkspace() {
 
                   return (
                     <button
+                      data-conversation-row={index}
                       key={conversation.lead_id}
                       type="button"
                       onClick={() => { if(lead)setDismissedLead(lead); setSelectedId(conversation.lead_id); setMobileChatOpen(true); }}
@@ -683,7 +694,7 @@ function ConversationsWorkspace() {
                 })}
               </div>
             )}
-          </div>
+          </ConversationListViewport>
         </aside>
 
         <section className={cn("min-w-0 min-h-0 flex-col md:h-[calc(100dvh-11rem)] md:min-h-[480px] lg:h-[calc(100dvh-160px)] lg:min-h-[640px]", isSuperAdmin ? "h-[calc(100dvh-9rem)] sm:h-[calc(100dvh-5rem)]" : "h-[calc(100dvh-5rem)]", mobileChatOpen && selectedConversation ? "flex" : "hidden lg:flex")}>
