@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Tags } from "lucide-react";
+import { Tags, X } from "lucide-react";
 import { toast } from "sonner";
+import { nativeConversationApi } from "@/hml/native-conversation-api";
 import { db } from "@/hml/modules";
 import { readPages } from "@/hml/unified-stages";
 import { Button } from "@/components/ui/button";
@@ -37,6 +38,27 @@ export function ConversationLeadTags(props: Props) {
   );
 }
 
+export function useConversationTagCatalog(
+  companyId: number | null,
+  actorId: string | undefined,
+  enabled: boolean,
+) {
+  return useQuery({
+    queryKey: ["conversation-tag-catalog", companyId, actorId],
+    enabled: enabled && !!companyId && !!actorId,
+    queryFn: () =>
+      readPages<Tag>((a, b) =>
+        db
+          .from("crm_tags")
+          .select("id,nome")
+          .eq("id_empresa", companyId!)
+          .order("nome")
+          .order("id")
+          .range(a, b),
+      ),
+  });
+}
+
 function TagDialog({
   companyId,
   contactId,
@@ -49,35 +71,26 @@ function TagDialog({
   const [search, setSearch] = useState("");
   const client = useQueryClient();
   const tags = useQuery({
-    queryKey: ["conversation-lead-tags", companyId, contactId, actorId],
+    queryKey: ["conversation-lead-tags", companyId, contactId, leadId, actorId],
     queryFn: async () => {
-      const [catalog, links] = await Promise.all([
-        readPages<Tag>((a, b) =>
-          db
-            .from("crm_tags")
-            .select("id,nome")
-            .eq("id_empresa", companyId)
-            .order("nome")
-            .order("id")
-            .range(a, b),
-        ),
-        readPages<{ tag_id: number }>((a, b) =>
-          db
-            .from("crm_lead_tags")
-            .select("tag_id")
-            .eq("lead_id", contactId)
-            .order("tag_id")
-            .range(a, b),
-        ),
-      ]);
-      const linked = new Set(links.map((l) => l.tag_id));
-      return {
-        assigned: catalog.filter((t) => linked.has(t.id)),
-        available: catalog.filter((t) => !linked.has(t.id)),
-        catalog,
-      };
+      const identity = await nativeConversationApi(db).context(companyId, contactId);
+      if (identity.lead_id !== leadId) throw new Error("Esta conversa não corresponde ao lead.");
+      const links = await readPages<{ tag_id: number }>((a, b) =>
+        db
+          .from("crm_lead_tags")
+          .select("tag_id")
+          .eq("lead_id", contactId)
+          .order("tag_id")
+          .range(a, b),
+      );
+      return links.map((link) => link.tag_id);
     },
   });
+  const catalogQuery = useConversationTagCatalog(companyId, actorId, true);
+  const catalog = catalogQuery.data ?? [];
+  const linked = new Set(tags.data);
+  const assigned = catalog.filter((tag) => linked.has(tag.id));
+  const available = catalog.filter((tag) => !linked.has(tag.id));
   const attach = useMutation({
     mutationFn: async (tag: Tag | null) => {
       const { error } = await db.rpc("hub_add_conversation_lead_tag", {
@@ -96,10 +109,27 @@ function TagDialog({
     },
     onError: (error: Error) => toast.error(error.message),
   });
+  const remove = useMutation({
+    mutationFn: async (tag: Tag) => {
+      const { error } = await db
+        .from("crm_lead_tags")
+        .delete()
+        .eq("lead_id", contactId)
+        .eq("tag_id", tag.id)
+        .select("lead_id")
+        .single();
+      if (error) throw error;
+    },
+    onSuccess: async () => {
+      await client.invalidateQueries();
+      toast.success("Tag removida deste lead");
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+  const busy = attach.isPending || remove.isPending;
   const term = search.trim().toLocaleLowerCase();
-  const matches =
-    tags.data?.available.filter((tag) => tag.nome.toLocaleLowerCase().includes(term)) ?? [];
-  const exists = tags.data?.catalog.some((tag) => tag.nome.trim().toLocaleLowerCase() === term);
+  const matches = available.filter((tag) => tag.nome.toLocaleLowerCase().includes(term)) ?? [];
+  const exists = catalog.some((tag) => tag.nome.trim().toLocaleLowerCase() === term);
   return (
     <Dialog
       open
@@ -112,21 +142,39 @@ function TagDialog({
           <DialogTitle>Tags do lead</DialogTitle>
           <DialogDescription>{name}</DialogDescription>
         </DialogHeader>
-        {tags.isPending ? (
+        {tags.isPending || catalogQuery.isPending ? (
           <p role="status">Carregando tags…</p>
-        ) : tags.isError ? (
-          <Button variant="outline" onClick={() => tags.refetch()}>
+        ) : tags.isError || catalogQuery.isError ? (
+          <Button
+            variant="outline"
+            onClick={() => {
+              void tags.refetch();
+              void catalogQuery.refetch();
+            }}
+          >
             Falha ao carregar. Tentar novamente
           </Button>
         ) : (
           <div className="space-y-4">
             <div className="flex flex-wrap gap-2">
-              {tags.data.assigned.map((tag) => (
+              {assigned.map((tag) => (
                 <Badge variant="secondary" key={tag.id}>
                   {tag.nome}
+                  {canEdit && (
+                    <button
+                      type="button"
+                      className="ml-1 rounded p-1 hover:bg-muted-foreground/20 focus-visible:ring-2"
+                      aria-label={`Remover ${tag.nome} deste lead`}
+                      title={`Remover ${tag.nome} deste lead`}
+                      disabled={busy}
+                      onClick={() => remove.mutate(tag)}
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
                 </Badge>
               ))}
-              {!tags.data.assigned.length && (
+              {!assigned.length && (
                 <p className="text-sm text-muted-foreground">Este lead ainda não tem tags.</p>
               )}
             </div>
@@ -143,7 +191,7 @@ function TagDialog({
                   />
                 </label>
                 {term && !exists && (
-                  <Button disabled={attach.isPending} onClick={() => attach.mutate(null)}>
+                  <Button disabled={busy} onClick={() => attach.mutate(null)}>
                     Criar e adicionar “{search.trim()}”
                   </Button>
                 )}
@@ -152,7 +200,7 @@ function TagDialog({
                     <button
                       key={tag.id}
                       type="button"
-                      disabled={attach.isPending}
+                      disabled={busy}
                       className="block w-full rounded px-3 py-2 text-left text-sm hover:bg-muted"
                       onClick={() => attach.mutate(tag)}
                     >

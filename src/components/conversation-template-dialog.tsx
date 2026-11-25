@@ -131,7 +131,8 @@ export function ConversationTemplateDialog({
       }
       setOpen(false);
       requestId.current = null;
-      queryClient.invalidateQueries({ queryKey: ["conversation-lead-tags"] });
+      for (const key of ["conversation-lead-tags","conversation-tag-matches","conversation-tag-catalog"])
+        queryClient.invalidateQueries({queryKey:[key]});
       queryClient.invalidateQueries({ queryKey: ["whatsapp-conversation-messages"] });
       queryClient.invalidateQueries({ queryKey: ["whatsapp-conversations"] });
       queryClient.invalidateQueries({ queryKey: ["whatsapp-conversation-windows"] });

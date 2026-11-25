@@ -43,7 +43,8 @@ import { matchesCommercialStage } from "@/lib/conversation-commercial-summary";
 import { cn } from "@/lib/utils";
 import { ConversationTemplateDialog } from "@/components/conversation-template-dialog";
 import { ConversationAudio } from "@/components/conversation-audio";
-import { ConversationLeadTags } from "@/components/conversation-lead-tags";
+import { readPages } from "@/hml/unified-stages";
+import { ConversationLeadTags, useConversationTagCatalog } from "@/components/conversation-lead-tags";
 import { ConversationLeadActions } from "@/components/conversation-lead-actions";
 import { ProspectResumeFollowups } from "@/components/prospect-resume-followups";
 import { ProspectPauseFollowups } from "@/components/prospect-pause-followups";
@@ -180,6 +181,7 @@ function ConversationsWorkspace() {
   const deferredSearch = useDeferredValue(search.trim());
   const [humanFilter, setHumanFilter] = useState("all");
   const [selectedStages, setSelectedStages] = useState<string[]>([]);
+  const [selectedTags,setSelectedTags] = useState<string[]>([]);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [projectFilter, setProjectFilter] = useState<{ companyId: number | null; value: string }>({
     companyId: null,
@@ -253,11 +255,29 @@ function ConversationsWorkspace() {
       return { value: String(stage.id), label: funnel ? funnel.nome + " · " + stage.nome : stage.nome };
     }) ?? []),
   ];
-  const selectionLabel = selectedStages.length > 1
-    ? selectedStages.length + " selecionados"
-    : stageOptions.find(option => option.value === selectedStages[0])?.label ?? "Todos";
+  const tagCatalog = useConversationTagCatalog(activeEmpresaId, me?.id, filtersOpen || selectedTags.length > 0);
+  const tagOptions = (tagCatalog.data ?? []).map(tag=>({value:String(tag.id),label:tag.nome}));
+  const tagMatches = useQuery({
+    queryKey:["conversation-tag-matches",activeEmpresaId,me?.id,selectedTags],
+    enabled: !!activeEmpresaId && !!me && selectedTags.length > 0,
+    refetchInterval:30000,
+    queryFn:()=>readPages((a,b)=>db.from("crm_lead_tags")
+      .select("lead_id,tag_id,crm_leads!inner(id_empresa,lead_id)")
+      .eq("crm_leads.id_empresa",activeEmpresaId!).in("tag_id",selectedTags.map(Number))
+      .order("lead_id").order("tag_id").range(a,b)),
+    select: (rows) => {
+      const native = new Set<number>(), contacts = new Set<number>();
+      for(const row of rows){
+        const lead = Array.isArray(row.crm_leads) ? row.crm_leads[0] : row.crm_leads;
+        if(lead?.lead_id != null) native.add(lead.lead_id);
+        else contacts.add(row.lead_id);
+      }
+      return {native,contacts};
+    },
+  });
   const visibleConversations = conversations.filter(c =>
     (humanFilter === "all" || (humanFilter === "human" ? c.atendimento_humano : !c.atendimento_humano)) &&
+    (selectedTags.length === 0 || tagMatches.data?.native.has(c.lead_id) || tagMatches.data?.contacts.has(crmLeadId(c.id_crm) ?? -1)) &&
     (selectedStages.length === 0 || (!!commercialSummary.data && matchesCommercialStage(commercialSummary.data, crmLeadId(c.id_crm), selectedStages)))
   );
   const conversationLeadIds = useMemo(
@@ -545,34 +565,13 @@ function ConversationsWorkspace() {
               </button>
             )}
             <Button type="button" variant="outline" className="mt-3 w-full justify-between" aria-expanded={filtersOpen} aria-controls="conversation-filters" onClick={() => setFiltersOpen(v => !v)}>
-              <span className="flex items-center gap-2"><SlidersHorizontal className="h-4 w-4" />Filtro{selectedStages.length > 0 || humanFilter !== "all" ? " · ativo" : ""}</span>
+              <span className="flex items-center gap-2"><SlidersHorizontal className="h-4 w-4" />Filtro{selectedStages.length > 0 || selectedTags.length > 0 || humanFilter !== "all" ? " · ativo" : ""}</span>
               <ChevronDown className={cn("h-4 w-4", filtersOpen && "rotate-180")} />
             </Button>
             {filtersOpen && <div id="conversation-filters" className="mt-2 space-y-3 rounded-lg bg-muted/50 p-3">
-              {commercialSummary.available && <div className="space-y-1 text-sm">
-                <label htmlFor="conversation-stage-filter">Estágio do funil</label>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button id="conversation-stage-filter" variant="outline" disabled={!commercialSummary.data}
-                      aria-label={`Estágio do funil, ${selectionLabel}`} className="flex h-10 w-full justify-between font-normal">
-                      <span className="truncate">{selectionLabel}</span><ChevronDown className="size-4 shrink-0" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="w-[var(--radix-dropdown-menu-trigger-width)]">
-                    <DropdownMenuCheckboxItem checked={selectedStages.length === 0} onCheckedChange={() => setSelectedStages([])}
-                      onSelect={event => event.preventDefault()}>Todos</DropdownMenuCheckboxItem>
-                    {stageOptions.map(option => (
-                      <DropdownMenuCheckboxItem key={option.value} checked={selectedStages.includes(option.value)}
-                        onSelect={event => event.preventDefault()}
-                        onCheckedChange={checked => setSelectedStages(current => checked
-                          ? [...current, option.value]
-                          : current.filter(value => value !== option.value))}>
-                        {option.label}
-                      </DropdownMenuCheckboxItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>}
+              {commercialSummary.available && <ConversationFilterSelect id="conversation-stage-filter" label="Estágio do funil" allLabel="Todos" options={stageOptions} selected={selectedStages} onChange={setSelectedStages} disabled={!commercialSummary.data}/>}
+              <ConversationFilterSelect id="conversation-tag-filter" label="Tags do lead" allLabel="Todas" options={tagOptions} selected={selectedTags} onChange={setSelectedTags} disabled={!tagCatalog.data}/>
+              {tagCatalog.isError && <button className="text-xs text-destructive" onClick={()=>tagCatalog.refetch()}>Falha ao carregar tags. Tentar novamente</button>}
               <label className="block space-y-1 text-sm">Atendimento humano
                 <select className="h-10 w-full rounded-md border bg-background px-2" value={humanFilter} onChange={e => setHumanFilter(e.target.value)}>
                   <option value="all">Todos</option><option value="human">Em atendimento humano</option><option value="other">Sem atendimento humano</option>
@@ -588,6 +587,10 @@ function ConversationsWorkspace() {
               <div className="p-4 text-sm text-muted-foreground">Carregando conversas...</div>
             ) : conversationsQuery.error ? (
               <div className="p-4 text-sm text-destructive">Erro ao carregar conversas.</div>
+            ) : selectedTags.length > 0 && tagMatches.isError ? (
+              <button className="p-4 text-sm text-destructive" onClick={()=>tagMatches.refetch()}>Falha ao filtrar por tags. Tentar novamente</button>
+            ) : selectedTags.length > 0 && tagMatches.isPending ? (
+              <div role="status" className="p-4 text-sm">Filtrando por tags…</div>
             ) : !visibleConversations.length ? (
               <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center text-sm text-muted-foreground">
                 <Inbox className="h-8 w-8" />
@@ -987,4 +990,23 @@ function ConversationsWorkspace() {
       </div>
     </div>
   );
+}
+
+
+function ConversationFilterSelect({id,label,allLabel,options,selected,onChange,disabled}:{
+  id:string; label:string; allLabel:string; options:{value:string;label:string}[];
+  selected:string[]; onChange:(values:string[])=>void; disabled:boolean;
+}){
+  const summary=selected.length>1 ? selected.length+" selecionados" : options.find(o=>o.value===selected[0])?.label ?? allLabel;
+  return <div className="space-y-1 text-sm">
+    <label htmlFor={id}>{label}</label>
+    <DropdownMenu><DropdownMenuTrigger asChild>
+      <Button id={id} variant="outline" disabled={disabled} aria-label={label+", "+summary} className="flex h-10 w-full justify-between font-normal">
+        <span className="truncate">{summary}</span><ChevronDown className="size-4 shrink-0"/>
+      </Button>
+    </DropdownMenuTrigger><DropdownMenuContent align="start" className="max-h-64 w-[var(--radix-dropdown-menu-trigger-width)] overflow-y-auto">
+      <DropdownMenuCheckboxItem checked={!selected.length} onSelect={e=>e.preventDefault()} onCheckedChange={()=>onChange([])}>{allLabel}</DropdownMenuCheckboxItem>
+      {options.map(o=><DropdownMenuCheckboxItem key={o.value} checked={selected.includes(o.value)} onSelect={e=>e.preventDefault()} onCheckedChange={checked=>onChange(checked?[...selected,o.value].sort():selected.filter(v=>v!==o.value))}>{o.label}</DropdownMenuCheckboxItem>)}
+    </DropdownMenuContent></DropdownMenu>
+  </div>;
 }
