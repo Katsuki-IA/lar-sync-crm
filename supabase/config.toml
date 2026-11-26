@@ -1,5 +1,8 @@
 project_id = "tswdxgefmhjvjwafaxjl"
 
+[functions.hub-personal-task-worker]
+verify_jwt = false
+
 [functions.kommo-project-config]
 verify_jwt = false
 

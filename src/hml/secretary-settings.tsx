@@ -26,7 +26,7 @@ type Channel = {
   lastDispatchAt: string | null;
 };
 type Recipient = { memberId: string; name: string; phone: string | null; enabled: boolean };
-type Settings = { channel: Channel | null; recipients: Recipient[] };
+type Settings = { channel: Channel | null; recipients: Recipient[]; personal?: Recipient | null };
 
 export function SecretarySettings({ companyId, isAdmin }: { companyId: number; isAdmin: boolean }) {
   const [edit, setEdit] = useState(false);
@@ -158,11 +158,23 @@ export function SecretarySettings({ companyId, isAdmin }: { companyId: number; i
           </div>
         </>
       )}
+      {c && query.data.personal && (
+        <section className="space-y-2 border-t pt-6">
+          <h4 className="font-semibold">Lembretes das minhas tarefas</h4>
+          <p className="text-sm text-muted-foreground">
+            {query.data.personal.enabled ? "Habilitado" : "Pausado"} · {query.data.personal.phone || "Sem WhatsApp cadastrado"}
+          </p>
+          <Button variant="outline" onClick={() => setRecipient(query.data.personal ?? null)}>
+            Configurar meu WhatsApp
+          </Button>
+        </section>
+      )}
       {edit && <ConnectionEditor companyId={companyId} channel={c} close={() => setEdit(false)} />}
       {recipient && (
         <RecipientEditor
           companyId={companyId}
           recipient={recipient}
+          personal={recipient.memberId === query.data.personal?.memberId}
           close={() => setRecipient(null)}
         />
       )}
@@ -327,19 +339,21 @@ function ConnectionEditor({
 function RecipientEditor({
   companyId,
   recipient,
+  personal,
   close,
 }: {
   companyId: number;
   recipient: Recipient;
+  personal: boolean;
   close: () => void;
 }) {
   const [phone, setPhone] = useState(recipient.phone ?? "");
   const [enabled, setEnabled] = useState(recipient.enabled);
   const save = useAdminMutation<void>(
     () =>
-      adminRpc("hub_save_secretary_recipient", {
+      adminRpc(personal ? "hub_save_my_task_phone" : "hub_save_secretary_recipient", {
         p_company_id: companyId,
-        p_member: recipient.memberId,
+        ...(personal ? {} : { p_member: recipient.memberId }),
         p_phone: phone.replace(/\D/g, ""),
         p_enabled: enabled,
       }),
@@ -357,8 +371,7 @@ function RecipientEditor({
         <DialogHeader>
           <DialogTitle>WhatsApp de {recipient.name}</DialogTitle>
           <DialogDescription>
-            Confirme o número reconhecido pelo provedor. Ofertas abertas precisam ser encerradas
-            antes de trocar o destinatário.
+            {personal ? "Use o WhatsApp em que você quer receber os lembretes das tarefas atribuídas a você nesta empresa." : "Confirme o número reconhecido pelo provedor. Ofertas abertas precisam ser encerradas antes de trocar o destinatário."}
           </DialogDescription>
         </DialogHeader>
         <form
@@ -384,7 +397,7 @@ function RecipientEditor({
               checked={enabled}
               onChange={(e) => setEnabled(e.target.checked)}
             />
-            Receber avisos da secretária
+            {personal ? "Receber lembretes das minhas tarefas" : "Receber avisos da secretária"}
           </label>
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" disabled={save.isPending} onClick={close}>
