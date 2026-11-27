@@ -31,7 +31,7 @@ create function private.hub_agent_operational_lead_ids() returns setof bigint la
 async function call(extra = "") { return (await db.query<{result: any}>(`select public.hub_resume_prospect_followups(35,100${extra}) result`)).rows[0].result; }
 let future: string;
 describe("manual prospect follow-up resumption", () => {
-  beforeAll(async () => { db = new PGlite(); await db.exec(fixture + sql + readFileSync(resolve("docs/prospect-fast-resume-worker.sql"), "utf8").split("do $patch$")[0] + readFileSync(resolve("docs/prospect-pause-followups.sql"), "utf8").split("do $patch$")[0] + readFileSync(resolve("docs/prospect-followup-indicators.sql"), "utf8")); }, 30000);
+  beforeAll(async () => { db = new PGlite(); await db.exec(fixture + sql + readFileSync(resolve("docs/prospect-fast-resume-worker.sql"), "utf8").split("do $patch$")[0] + readFileSync(resolve("docs/prospect-pause-followups.sql"), "utf8").split("do $patch$")[0] + readFileSync(resolve("docs/prospect-followup-indicators.sql"), "utf8") + readFileSync(resolve("supabase/migrations/20261127141000_katsuki_prospect_saturday.sql"), "utf8")); }, 30000);
   afterAll(async () => { await db.close(); });
   beforeEach(async () => {
     await db.exec(`truncate private.kp_resume_requests,private.kp_contacts,public.crm_users cascade;
@@ -147,9 +147,9 @@ describe("manual prospect follow-up resumption", () => {
     await db.exec("update public.crm_users set role='agent',id_empresa=35;update public.lead set wa_conversation_assigned_to=null");
     await expect(call()).rejects.toThrow("Assuma a conversa");
   });
-  it("moves Friday evening and weekend to Monday 8am", async () => {
+  it("moves Friday closing to Saturday opening and keeps Saturday noon", async () => {
     const result=await db.query<{at:string;weekend:string}>("select private.kp_next_business_time('2026-11-13 18:50-03') at,private.kp_next_business_time('2026-11-14 12:00-03') weekend");
-    expect(new Date(result.rows[0].at as string).toISOString()).toBe("2026-11-16T11:00:00.000Z");
-    expect(new Date(result.rows[0].weekend as string).toISOString()).toBe("2026-11-16T11:00:00.000Z");
+    expect(new Date(result.rows[0].at as string).toISOString()).toBe("2026-11-14T13:00:00.000Z");
+    expect(new Date(result.rows[0].weekend as string).toISOString()).toBe("2026-11-14T15:00:00.000Z");
   });
 });

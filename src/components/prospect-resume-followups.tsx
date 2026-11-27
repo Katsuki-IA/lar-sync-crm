@@ -58,7 +58,7 @@ function ResumeDialog({ companyId, leadId, name, onClose }: { companyId: number;
           <p className="text-sm">Etapas restantes: {preview.data.steps.map(s => `follow-up ${s}`).join(", ")}.</p>
           <p className="text-sm">O primeiro follow restante será agendado para 5 minutos após confirmar, ou para a próxima janela permitida.</p>
           <ul className="space-y-2 text-sm">{preview.data.scheduled?.map(s => <li key={s.step}>Follow-up {s.step}: {format(s.due_at)}</li>)}</ul>
-          <p className="text-xs text-muted-foreground">Previsão em horário de Brasília, recalculada ao confirmar. Envios de segunda a sexta, das 8h às 18h50. O processamento pode levar alguns instantes.</p>
+          <p className="text-xs text-muted-foreground">Previsão em horário de Brasília, recalculada ao confirmar. Envios de segunda a sexta, das 8h às 18h50, e aos sábados, das 10h às 15h. O processamento pode levar alguns instantes.</p>
           <p className="text-sm">A conversa será devolvida para a IA. Os próximos follows mantêm os intervalos da cadência; mensagens já enviadas não serão repetidas.</p>
           <p className="text-xs text-muted-foreground">Use apenas quando fizer sentido voltar a contatar o lead. Pedidos de não receber mensagens permanecem bloqueados.</p>
           {save.error && <p role="alert" className="text-sm text-destructive">{save.error.message}</p>}
